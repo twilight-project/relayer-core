@@ -38,7 +38,6 @@ pub struct TraderOrder {
     pub uuid: Uuid,
     pub account_id: String,
     pub position_type: PositionType,
-    pub position_side: i32,
     pub order_status: OrderStatus, //SETTLED or LIQUIDATE or PENDING or FILLED
     pub order_type: OrderType,
     pub entryprice: f64,
@@ -149,7 +148,6 @@ impl TraderOrder {
                 uuid: Uuid::new_v4(),
                 account_id: String::from(account_id),
                 position_type,
-                position_side,
                 order_status,
                 order_type,
                 entryprice,
@@ -171,11 +169,10 @@ impl TraderOrder {
     pub fn newtraderorderinsert(self) ->TraderOrder {
         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
-        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type, position_side, order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin) VALUES ('{}','{}','{:#?}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{});",
+        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{});",
         &self.uuid,
         &self.account_id ,
         &self.position_type ,
-        &self.position_side ,
         &self.order_status ,
         &self.order_type ,
         &self.entryprice ,
@@ -187,7 +184,8 @@ impl TraderOrder {
         &self.timestamp ,
         &self.bankruptcy_price ,
         &self.bankruptcy_value ,
-        &self.maintenance_margin 
+        &self.maintenance_margin ,
+        &self.liquidation_price 
         );
         client.execute(&query, &[]).unwrap();
         // let rt = self.clone();
