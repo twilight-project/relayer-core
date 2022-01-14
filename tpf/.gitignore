@@ -1,0 +1,9 @@
+/target
+
+readme_doc.text
+notes.txt.rs
+src/redislib/redis_test.rs
+src/redislib/redis_db_old.rs
+# vscode settings
+
+.vscode/
