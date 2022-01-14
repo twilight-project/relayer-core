@@ -4,6 +4,7 @@ extern crate uuid;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::time::SystemTime;
+use tpf::config::POSTGRESQL_POOL_CONNECTION;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,6 +51,7 @@ pub struct TraderOrder {
     pub bankruptcy_price: f64,
     pub bankruptcy_value: f64,
     pub maintenance_margin: f64,
+    pub liquidation_price: f64,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LendOrder {
@@ -88,9 +90,24 @@ pub fn bankruptcyvalue(positionsize: f64, bankruptcyprice: f64) -> f64 {
     }
 }
 pub fn maintenancemargin(entryvalue: f64, bankruptcyvalue: f64, fee: f64, funding: f64) -> f64 {
-    (0.4 * entryvalue + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
+    (0.4 * entryvalue + fee * bankruptcyvalue + funding * bankruptcyvalue) /100.0
 }
 
+pub fn liquidationprice(
+    entryprice: f64,
+    positionsize: f64,
+    positionside: i32,
+    mm: f64,
+    im: f64,
+) -> f64 {
+    // if positionside > 0 {
+    //     entryprice * positionsize
+    //         / ((positionside as f64) * entryprice * (im - mm) + positionsize)
+    // } else {
+        entryprice * positionsize
+            / ((positionside as f64) * entryprice * (mm - im) + positionsize)
+    // }
+}
 pub fn positionside(position_type: &PositionType) -> i32 {
     match position_type {
         &PositionType::LONG => -1,
@@ -98,11 +115,13 @@ pub fn positionside(position_type: &PositionType) -> i32 {
     }
 }
 
-// need to create new order
+
+// need to create new order **done
 // need to create recalculate order
 // need to create settle order initial_margin
 // impl for order -> new, recaculate, liquidate etc
-// create function bankruptcy price, bankruptcy rate, liquidation price
+// create function bankruptcy price, bankruptcy rate, liquidation price 
+// remove position side from traderorder stuct
 
 impl TraderOrder {
     pub fn new(
@@ -124,6 +143,7 @@ impl TraderOrder {
         let fee = 0.002; //.2%
         let funding = 0.025; //2.5%
         let maintenance_margin = maintenancemargin(entryvalue, bankruptcy_value, fee, funding);
+        let liquidation_price=liquidationprice(entryprice, positionsize,position_side, maintenance_margin, initial_margin);
         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(n) => TraderOrder {
                 uuid: Uuid::new_v4(),
@@ -142,11 +162,37 @@ impl TraderOrder {
                 bankruptcy_price,
                 bankruptcy_value,
                 maintenance_margin,
+                liquidation_price,
             },
             Err(e) => panic!("Could not generate new order: {}", e),
         }
     }
 
+    pub fn newtraderorderinsert(self) ->TraderOrder {
+        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type, position_side, order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin) VALUES ('{}','{}','{:#?}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{});",
+        &self.uuid,
+        &self.account_id ,
+        &self.position_type ,
+        &self.position_side ,
+        &self.order_status ,
+        &self.order_type ,
+        &self.entryprice ,
+        &self.execution_price ,
+        &self.positionsize ,
+        &self.leverage ,
+        &self.initial_margin ,
+        &self.available_margin ,
+        &self.timestamp ,
+        &self.bankruptcy_price ,
+        &self.bankruptcy_value ,
+        &self.maintenance_margin 
+        );
+        client.execute(&query, &[]).unwrap();
+        // let rt = self.clone();
+        return self;
+    }
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();
         serialized
