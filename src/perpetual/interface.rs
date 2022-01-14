@@ -69,6 +69,16 @@ pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
 pub fn positionsize(entryvalue: f64, entryprice: f64) -> f64 {
     entryvalue * entryprice
 }
+
+// execution_price = settle price
+pub fn unRealizedPNL(position_type: &PositionType,positionsize: f64, entryprice: f64,settleprice: f64) -> f64 {
+    match position_type {
+        &PositionType::LONG => positionsize * (1.0/entryprice - 1.0/settleprice),
+        &PositionType::SHORT => positionsize * (1.0/settleprice - 1.0/entryprice),
+        
+    }
+}
+
 pub fn bankruptcyprice(position_type: &PositionType, entryprice: f64, leverage: f64) -> f64 {
     match position_type {
         &PositionType::LONG => entryprice * leverage / (leverage + 1.0),
@@ -121,6 +131,8 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 // impl for order -> new, recaculate, liquidate etc
 // create function bankruptcy price, bankruptcy rate, liquidation price 
 // remove position side from traderorder stuct
+// create_ts timestamp DEFAULT CURRENT_TIMESTAMP ,
+// update_ts timestamp DEFAULT CURRENT_TIMESTAMP
 
 impl TraderOrder {
     pub fn new(
