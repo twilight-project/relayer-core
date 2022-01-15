@@ -105,3 +105,17 @@ pub fn save_redis_backup(filepath: String) {
     cmd_backup.arg(filepath);
     cmd_backup.output().expect("process failed to execute");
 }
+
+pub fn zadd(key: &str, value: &str, score: &str) -> bool {
+    // let mut conn = connect();
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("ZADD")
+        .arg(key)
+        .arg(score)
+        .arg(value)
+        .query::<i32>(&mut *conn)
+        .unwrap();
+    // .query(&mut conn)
+    // .expect("failed to execute SET for 'foo'");
+    return true;
+}
