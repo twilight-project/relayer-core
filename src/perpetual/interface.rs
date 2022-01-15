@@ -3,28 +3,31 @@
 extern crate uuid;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use std::thread;
 use std::time::SystemTime;
 use tpf::config::POSTGRESQL_POOL_CONNECTION;
+use tpf::redislib::redis_db;
+
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TXType {
     ORDERTX, //TraderOrder
     LENDTX,  //LendOrder
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum OrderType {
     LIMIT,
     MARKET,
     DARK,
     LEND,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PositionType {
     LONG,
     SHORT,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum OrderStatus {
     SETTLED,
     LEND,
@@ -33,7 +36,7 @@ pub enum OrderStatus {
     PENDING,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TraderOrder {
     pub uuid: Uuid,
     pub account_id: String,
@@ -51,8 +54,9 @@ pub struct TraderOrder {
     pub bankruptcy_value: f64,
     pub maintenance_margin: f64,
     pub liquidation_price: f64,
+    pub unrealized_pnl: f64,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LendOrder {
     pub uuid: Uuid,
     pub account_id: String,
@@ -71,11 +75,15 @@ pub fn positionsize(entryvalue: f64, entryprice: f64) -> f64 {
 }
 
 // execution_price = settle price
-pub fn unRealizedPNL(position_type: &PositionType,positionsize: f64, entryprice: f64,settleprice: f64) -> f64 {
+pub fn unrealizedpnl(
+    position_type: &PositionType,
+    positionsize: f64,
+    entryprice: f64,
+    settleprice: f64,
+) -> f64 {
     match position_type {
-        &PositionType::LONG => positionsize * (1.0/entryprice - 1.0/settleprice),
-        &PositionType::SHORT => positionsize * (1.0/settleprice - 1.0/entryprice),
-        
+        &PositionType::LONG => positionsize * (1.0 / entryprice - 1.0 / settleprice),
+        &PositionType::SHORT => positionsize * (1.0 / settleprice - 1.0 / entryprice),
     }
 }
 
@@ -99,7 +107,7 @@ pub fn bankruptcyvalue(positionsize: f64, bankruptcyprice: f64) -> f64 {
     }
 }
 pub fn maintenancemargin(entryvalue: f64, bankruptcyvalue: f64, fee: f64, funding: f64) -> f64 {
-    (0.4 * entryvalue + fee * bankruptcyvalue + funding * bankruptcyvalue) /100.0
+    (0.4 * entryvalue + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
 }
 
 pub fn liquidationprice(
@@ -113,8 +121,7 @@ pub fn liquidationprice(
     //     entryprice * positionsize
     //         / ((positionside as f64) * entryprice * (im - mm) + positionsize)
     // } else {
-        entryprice * positionsize
-            / ((positionside as f64) * entryprice * (mm - im) + positionsize)
+    entryprice * positionsize / ((positionside as f64) * entryprice * (mm - im) + positionsize)
     // }
 }
 pub fn positionside(position_type: &PositionType) -> i32 {
@@ -124,12 +131,11 @@ pub fn positionside(position_type: &PositionType) -> i32 {
     }
 }
 
-
 // need to create new order **done
 // need to create recalculate order
 // need to create settle order initial_margin
 // impl for order -> new, recaculate, liquidate etc
-// create function bankruptcy price, bankruptcy rate, liquidation price 
+// create function bankruptcy price, bankruptcy rate, liquidation price
 // remove position side from traderorder stuct
 // create_ts timestamp DEFAULT CURRENT_TIMESTAMP ,
 // update_ts timestamp DEFAULT CURRENT_TIMESTAMP
@@ -154,7 +160,13 @@ impl TraderOrder {
         let fee = 0.002; //.2%
         let funding = 0.025; //2.5%
         let maintenance_margin = maintenancemargin(entryvalue, bankruptcy_value, fee, funding);
-        let liquidation_price=liquidationprice(entryprice, positionsize,position_side, maintenance_margin, initial_margin);
+        let liquidation_price = liquidationprice(
+            entryprice,
+            positionsize,
+            position_side,
+            maintenance_margin,
+            initial_margin,
+        );
         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(n) => TraderOrder {
                 uuid: Uuid::new_v4(),
@@ -173,15 +185,16 @@ impl TraderOrder {
                 bankruptcy_value,
                 maintenance_margin,
                 liquidation_price,
+                unrealized_pnl: 0.0,
             },
             Err(e) => panic!("Could not generate new order: {}", e),
         }
     }
 
-    pub fn newtraderorderinsert(self) ->TraderOrder {
-        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+    pub fn newtraderorderinsert(self) -> Self {
+        let rt = self.clone();
 
-        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{});",
+        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{});",
         &self.uuid,
         &self.account_id ,
         &self.position_type ,
@@ -197,10 +210,26 @@ impl TraderOrder {
         &self.bankruptcy_price ,
         &self.bankruptcy_value ,
         &self.maintenance_margin ,
-        &self.liquidation_price 
+        &self.liquidation_price ,
+        &self.unrealized_pnl
         );
-        client.execute(&query, &[]).unwrap();
-        // let rt = self.clone();
+        thread::spawn(move || {
+            // let mut client = REDIS_POOL_CONNECTION.get().unwrap();
+            redis_db::set(&rt.uuid.to_string(), &rt.serialize());
+            redis_db::zadd(
+                &"orders",
+                &rt.uuid.to_string(),
+                &rt.liquidation_price.to_string(),
+            );
+            println!("{}", &rt.uuid.to_string());
+        });
+        let handle = thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+            client.execute(&query, &[]).unwrap();
+            // let rt = self.clone();
+        });
+        // handle.join().unwrap();
         return self;
     }
     pub fn serialize(&self) -> String {
