@@ -167,7 +167,7 @@ pub fn zrangelonglimitorderbyexecutionprice(current_price: f64) -> Vec<String> {
         .unwrap();
 }
 /// list of settling orders for ordertype Limit and Position type Short
-pub fn zrangelshortlimitorderbyexecutionprice(current_price: f64) -> Vec<String> {
+pub fn zrangeshortlimitorderbyexecutionprice(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     return redis::cmd("ZRANGE")
         .arg("TraderOrderbySHORTLimit")
