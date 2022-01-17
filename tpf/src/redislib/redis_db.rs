@@ -154,3 +154,50 @@ pub fn decrbyfloat(key: &str, value: &str) {
         .query::<String>(&mut *conn)
         .unwrap();
 }
+
+/// list of settling orders for ordertype Limit and Position type Long
+pub fn zrangelonglimitorderbyexecutionprice(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrderbyLONGLimit")
+        .arg("0")
+        .arg(format!("({}", current_price))
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
+/// list of settling orders for ordertype Limit and Position type Short
+pub fn zrangelshortlimitorderbyexecutionprice(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrderbySHORTLimit")
+        .arg(format!("({}", current_price))
+        .arg("+inf")
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
+
+// list of liquidating order for position type long
+pub fn zrangegetliquidateorderforlong(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrderbyLiquidationPriceFORLong")
+        .arg(format!("({}", current_price))
+        .arg("+inf")
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
+
+// list of liquidating order for position type short
+pub fn zrangegetliquidateorderforshort(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrderbyLiquidationPriceFORShort")
+        .arg("0")
+        .arg(format!("({}", current_price))
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
