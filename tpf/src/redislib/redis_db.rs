@@ -119,3 +119,38 @@ pub fn zadd(key: &str, value: &str, score: &str) -> bool {
     // .expect("failed to execute SET for 'foo'");
     return true;
 }
+
+pub fn del(key: &str) -> bool {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("DEL").arg(key).query::<i32>(&mut *conn).unwrap();
+    return true;
+}
+
+pub fn zdel(key: &str, member: &str) -> bool {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("ZREM")
+        .arg(key)
+        .arg(member)
+        .query::<i32>(&mut *conn)
+        .unwrap();
+    return true;
+}
+//INCRBYFLOAT
+pub fn incrbyfloat(key: &str, value: &str) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("INCRBYFLOAT")
+        .arg(key)
+        .arg(value)
+        .query::<String>(&mut *conn)
+        .unwrap();
+}
+//DECRBYFLOAT
+pub fn decrbyfloat(key: &str, value: &str) {
+    let negvalue = format!("-{}", value);
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("INCRBYFLOAT")
+        .arg(key)
+        .arg(negvalue)
+        .query::<String>(&mut *conn)
+        .unwrap();
+}
