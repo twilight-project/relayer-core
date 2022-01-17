@@ -296,12 +296,29 @@ impl TraderOrder {
                 &rt.uuid.to_string(),      //value
                 &rt.timestamp.to_string(), //score
             );
-            // trader order set by liquidation_price
-            redis_db::zadd(
-                &"TraderOrderbyLiquidationPrice",
-                &rt.uuid.to_string(),
-                &rt.liquidation_price.to_string(),
-            );
+
+            // update pool size when new order get inserted
+            match rt.position_type {
+                PositionType::LONG => {
+                    redis_db::incrbyfloat(&"TotalLongPositionSize", &rt.positionsize.to_string());
+                    // trader order set by liquidation_price for long
+                    redis_db::zadd(
+                        &"TraderOrderbyLiquidationPriceFORLong",
+                        &rt.uuid.to_string(),
+                        &rt.liquidation_price.to_string(),
+                    );
+                }
+                PositionType::SHORT => {
+                    redis_db::incrbyfloat(&"TotalShortPositionSize", &rt.positionsize.to_string());
+                    // trader order set by liquidation_price for short
+                    redis_db::zadd(
+                        &"TraderOrderbyLiquidationPriceFORShort",
+                        &rt.uuid.to_string(),
+                        &rt.liquidation_price.to_string(),
+                    );
+                }
+            }
+            redis_db::incrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
 
             match rt.order_type {
                 OrderType::LIMIT => match rt.position_type {
@@ -322,16 +339,6 @@ impl TraderOrder {
                 },
                 _ => {}
             }
-            // update pool size when new order get inserted
-            match rt.position_type {
-                PositionType::LONG => {
-                    redis_db::incrbyfloat(&"TotalLongPositionSize", &rt.positionsize.to_string());
-                }
-                PositionType::SHORT => {
-                    redis_db::incrbyfloat(&"TotalShortPositionSize", &rt.positionsize.to_string());
-                }
-            }
-            redis_db::incrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
         });
         // thread to store trader order data in postgreSQL
         let handle = thread::spawn(move || {
