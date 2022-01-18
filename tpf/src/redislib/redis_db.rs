@@ -178,7 +178,7 @@ pub fn zrangeshortlimitorderbyexecutionprice(current_price: f64) -> Vec<String> 
         .unwrap();
 }
 
-// list of liquidating order for position type long
+/// list of liquidating order for position type long
 pub fn zrangegetliquidateorderforlong(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     return redis::cmd("ZRANGE")
@@ -190,7 +190,7 @@ pub fn zrangegetliquidateorderforlong(current_price: f64) -> Vec<String> {
         .unwrap();
 }
 
-// list of liquidating order for position type short
+/// list of liquidating order for position type short
 pub fn zrangegetliquidateorderforshort(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     return redis::cmd("ZRANGE")
@@ -198,6 +198,17 @@ pub fn zrangegetliquidateorderforshort(current_price: f64) -> Vec<String> {
         .arg("0")
         .arg(format!("({}", current_price))
         .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
+
+/// get list of all open orderid
+pub fn zrangeallopenorders() -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrder")
+        .arg("0")
+        .arg("-1")
         .query::<Vec<String>>(&mut *conn)
         .unwrap();
 }
