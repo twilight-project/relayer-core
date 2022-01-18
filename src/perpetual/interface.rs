@@ -34,6 +34,7 @@ pub enum OrderStatus {
     LIQUIDATE,
     CANCELLED,
     PENDING,
+    FILLED,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -145,7 +146,7 @@ pub fn updatefundingrate(psi: f64) {
 
     //powi is faster then powf
     //psi = 8.0 or  ψ = 8.0
-    let mut fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / psi;
+    let mut fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / (psi * 8.0);
 
     //positive funding if totallong > totalshort else negative funding
     if totallong > totalshort {
