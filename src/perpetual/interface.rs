@@ -134,14 +134,18 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 
 ////********* operation on each funding cycle **** //////
 
-pub fn updatechangesinordertxonfundingratechange(
+pub fn updatechangesineachordertxonfundingratechange(
     orderid: String,
     fundingratechange: f64,
     current_price: f64,
     fee: f64,
 ) -> TraderOrder {
+    //get order from redis by orderid
     let mut ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-    // let mut idliquidate = false;
+    // to check liquidated orders
+    let mut isliquidated = false;
+
+    //update available margin
     match ordertx.position_type {
         PositionType::LONG => {
             if fundingratechange > 0.0 {
@@ -162,18 +166,21 @@ pub fn updatechangesinordertxonfundingratechange(
             }
         }
     }
+    // update maintenancemargin
+    ordertx.maintenance_margin = maintenancemargin(
+        entryvalue(ordertx.initial_margin, ordertx.leverage),
+        ordertx.bankruptcy_value,
+        fee,
+        fundingratechange,
+    );
+
+    // check if AM <= MM if true then call liquidate position else update liquidation price
     if ordertx.available_margin <= ordertx.maintenance_margin {
         //call liquidation
         ordertx = liquidateposition(ordertx, current_price);
-        ordertx.order_status = OrderStatus::SETTLED;
-        // idliquidate = true;
+        ordertx.order_status = OrderStatus::LIQUIDATE;
+        isliquidated = true;
     } else {
-        ordertx.maintenance_margin = maintenancemargin(
-            entryvalue(ordertx.initial_margin, ordertx.leverage),
-            ordertx.bankruptcy_value,
-            fee,
-            fundingratechange,
-        );
         ordertx.liquidation_price = liquidationprice(
             ordertx.entryprice,
             ordertx.positionsize,
@@ -183,9 +190,8 @@ pub fn updatechangesinordertxonfundingratechange(
         );
         // idliquidate = false;
     }
-    // redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
     let ordertxclone = ordertx.clone();
-    updatetraderordertableintodb(orderid, ordertxclone);
+    ordertxclone.updatetraderordertableintodb(orderid, isliquidated);
     return ordertx;
 }
 pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> TraderOrder {
@@ -194,8 +200,15 @@ pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> Trader
     ordertx.liquidation_price = current_price;
     ordertx
 }
-pub fn updatetraderordertableintodb(orderid: String, ordertx: TraderOrder) {
-    redis_db::set(&orderid, &ordertx.serialize());
+
+pub fn getandupdateallordersonfundingcycle() {
+    let orderid_list = redis_db::zrangeallopenorders();
+    let current_price = redis_db::get("CurrentPrice").parse::<f64>().unwrap();
+    let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
+    let fee = redis_db::get("Fee").parse::<f64>().unwrap();
+    for orderid in orderid_list {
+        updatechangesineachordertxonfundingratechange(orderid, fundingrate, current_price, fee);
+    }
 }
 
 ////********* operation on each funding cycle end **** //////
@@ -265,24 +278,24 @@ impl TraderOrder {
         let rt = self.clone();
 
         let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{});",
-        &self.uuid,
-        &self.account_id ,
-        &self.position_type ,
-        &self.order_status ,
-        &self.order_type ,
-        &self.entryprice ,
-        &self.execution_price ,
-        &self.positionsize ,
-        &self.leverage ,
-        &self.initial_margin ,
-        &self.available_margin ,
-        &self.timestamp ,
-        &self.bankruptcy_price ,
-        &self.bankruptcy_value ,
-        &self.maintenance_margin ,
-        &self.liquidation_price ,
-        &self.unrealized_pnl,
-        &self.settlement_price
+            &self.uuid,
+            &self.account_id ,
+            &self.position_type ,
+            &self.order_status ,
+            &self.order_type ,
+            &self.entryprice ,
+            &self.execution_price ,
+            &self.positionsize ,
+            &self.leverage ,
+            &self.initial_margin ,
+            &self.available_margin ,
+            &self.timestamp ,
+            &self.bankruptcy_price ,
+            &self.bankruptcy_value ,
+            &self.maintenance_margin ,
+            &self.liquidation_price ,
+            &self.unrealized_pnl,
+            &self.settlement_price
         );
 
         // thread to store trader order data in redisDB
@@ -351,7 +364,7 @@ impl TraderOrder {
         return self;
     }
 
-    pub fn updateandremoveorderonsettle(self) -> Self {
+    pub fn removeorderfromredis(self) -> Self {
         let rt = self.clone();
 
         thread::spawn(move || {
@@ -381,16 +394,25 @@ impl TraderOrder {
             match rt.position_type {
                 PositionType::LONG => {
                     redis_db::decrbyfloat(&"TotalLongPositionSize", &rt.positionsize.to_string());
+                    // trader order set by liquidation_price for long
+                    redis_db::zdel(
+                        &"TraderOrderbyLiquidationPriceFORLong",
+                        &rt.uuid.to_string(),
+                    );
                 }
                 PositionType::SHORT => {
                     redis_db::decrbyfloat(&"TotalShortPositionSize", &rt.positionsize.to_string());
+                    // trader order set by liquidation_price for short
+                    redis_db::zdel(
+                        &"TraderOrderbyLiquidationPriceFORShort",
+                        &rt.uuid.to_string(),
+                    );
                 }
             }
             redis_db::decrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
         });
         return self;
     }
-
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();
         serialized
@@ -398,5 +420,62 @@ impl TraderOrder {
     pub fn deserialize(json: &String) -> Self {
         let deserialized: TraderOrder = serde_json::from_str(json).unwrap();
         deserialized
+    }
+
+    pub fn updatetraderordertableintodb(self, orderid: String, isliquidated: bool) {
+        let ordertx = self.clone();
+
+        if isliquidated {
+            ordertx.removeorderfromredis().updatepsqlonliquidation();
+        } else {
+            redis_db::set(&orderid, &ordertx.serialize());
+            ordertx.updatepsqlonfundingcycle();
+        }
+    }
+
+    pub fn updatepsqlonfundingcycle(self) -> Self {
+        // ordertx.available_margin
+        // ordertx.maintenance_margin
+        // ordertx.liquidation_price
+
+        let query = format!(
+            "UPDATE public.newtraderorder
+        SET available_margin={},  maintenance_margin={}, liquidation_price={}
+        WHERE uuid='{}';",
+            &self.available_margin, &self.maintenance_margin, &self.liquidation_price, &self.uuid
+        );
+        thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+            client.execute(&query, &[]).unwrap();
+            // let rt = self.clone();
+        });
+        return self;
+    }
+
+    pub fn updatepsqlonliquidation(self) -> Self {
+        // ordertx.order_status
+        // ordertx.available_margin
+        // ordertx.settlement_price
+        // ordertx.liquidation_price
+        // ordertx.maintenance_margin
+
+        let query = format!("UPDATE public.newtraderorder
+            SET order_status={:#?},   available_margin={},  maintenance_margin={}, liquidation_price={},settlement_price={}
+            WHERE uuid='{}';",
+            &self.order_status ,
+            &self.available_margin ,
+            &self.maintenance_margin ,
+            &self.liquidation_price ,
+            &self.settlement_price,
+            &self.uuid
+            );
+        thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+            client.execute(&query, &[]).unwrap();
+            // let rt = self.clone();
+        });
+        return self;
     }
 }
