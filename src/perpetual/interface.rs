@@ -132,6 +132,34 @@ pub fn positionside(position_type: &PositionType) -> i32 {
     }
 }
 
+pub fn updatefundingrate(psi: f64) {
+    let totalshort = redis_db::get("TotalShortPositionSize")
+        .parse::<f64>()
+        .unwrap();
+    let totallong = redis_db::get("TotalLongPositionSize")
+        .parse::<f64>()
+        .unwrap();
+    let allpositionsize = redis_db::get("TotalPoolPositionSize")
+        .parse::<f64>()
+        .unwrap();
+
+    //powi is faster then powf
+    //psi = 8.0 or  ψ = 8.0
+    let mut fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / psi;
+
+    //positive funding if totallong > totalshort else negative funding
+    if totallong > totalshort {
+    } else {
+        fundingrate = fundingrate * (-1.0);
+    }
+    updatefundingrateindb(fundingrate);
+}
+
+pub fn updatefundingrateindb(fundingrate: f64) {
+    redis_db::set("FundingRate", &fundingrate.to_string());
+
+    // need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
+}
 ////********* operation on each funding cycle **** //////
 
 pub fn updatechangesineachordertxonfundingratechange(
@@ -221,6 +249,7 @@ pub fn getandupdateallordersonfundingcycle() {
 // remove position side from traderorder stuct
 // create_ts timestamp DEFAULT CURRENT_TIMESTAMP ,
 // update_ts timestamp DEFAULT CURRENT_TIMESTAMP
+// need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
 
 impl TraderOrder {
     pub fn new(
