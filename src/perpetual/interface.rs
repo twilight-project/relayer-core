@@ -84,8 +84,14 @@ pub fn unrealizedpnl(
     settleprice: f64,
 ) -> f64 {
     match position_type {
-        &PositionType::LONG => positionsize * (1.0 / entryprice - 1.0 / settleprice),
-        &PositionType::SHORT => positionsize * (1.0 / settleprice - 1.0 / entryprice),
+        // &PositionType::LONG => positionsize * (1.0 / entryprice - 1.0 / settleprice),
+        &PositionType::LONG => {
+            (positionsize * (settleprice - entryprice)) / (entryprice * settleprice)
+        }
+        // &PositionType::SHORT => positionsize * (1.0 / settleprice - 1.0 / entryprice),
+        &PositionType::SHORT => {
+            (positionsize * (entryprice - settleprice)) / (entryprice * settleprice)
+        }
     }
 }
 
@@ -179,19 +185,19 @@ pub fn updatechangesineachordertxonfundingratechange(
         PositionType::LONG => {
             if fundingratechange > 0.0 {
                 ordertx.available_margin = ordertx.available_margin
-                    - (fundingratechange * (ordertx.positionsize / current_price))
+                    - ((fundingratechange * ordertx.positionsize) / current_price)
             } else {
                 ordertx.available_margin = ordertx.available_margin
-                    + (fundingratechange * (ordertx.positionsize / current_price))
+                    - ((fundingratechange * ordertx.positionsize) / current_price)
             }
         }
         PositionType::SHORT => {
             if fundingratechange > 0.0 {
                 ordertx.available_margin = ordertx.available_margin
-                    + (fundingratechange * (ordertx.positionsize / current_price))
+                    + ((fundingratechange * ordertx.positionsize) / current_price)
             } else {
                 ordertx.available_margin = ordertx.available_margin
-                    - (fundingratechange * (ordertx.positionsize / current_price))
+                    + ((fundingratechange * ordertx.positionsize) / current_price)
             }
         }
     }
@@ -236,7 +242,9 @@ pub fn getandupdateallordersonfundingcycle() {
     let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
     let fee = redis_db::get("Fee").parse::<f64>().unwrap();
     for orderid in orderid_list {
-        updatechangesineachordertxonfundingratechange(orderid, fundingrate, current_price, fee);
+        let state =
+            updatechangesineachordertxonfundingratechange(orderid, fundingrate, current_price, fee);
+        println!("order of {} is {:#?}", state.uuid, state.order_status);
     }
 }
 
@@ -269,9 +277,9 @@ impl TraderOrder {
         let positionsize = positionsize(entry_value, entryprice);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let fee = 0.002; //.2%
-        let funding = 0.025; //2.5%
-        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, funding);
+        let fee = redis_db::get("Fee").parse::<f64>().unwrap();
+        let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
+        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -491,7 +499,7 @@ impl TraderOrder {
         // ordertx.maintenance_margin
 
         let query = format!("UPDATE public.newtraderorder
-            SET order_status={:#?},   available_margin={},  maintenance_margin={}, liquidation_price={},settlement_price={}
+            SET order_status='{:#?}',   available_margin={},  maintenance_margin={}, liquidation_price={},settlement_price={}
             WHERE uuid='{}';",
             &self.order_status ,
             &self.available_margin ,
@@ -508,4 +516,48 @@ impl TraderOrder {
         });
         return self;
     }
+    pub fn updatepsqlonsettlement(self) -> Self {
+        // ordertx.order_status
+        // ordertx.available_margin
+        // ordertx.settlement_price
+        // ordertx.liquidation_price
+        // ordertx.maintenance_margin
+
+        let query = format!(
+            "UPDATE public.newtraderorder
+            SET order_status='{:#?}',   available_margin={},settlement_price={}
+            WHERE uuid='{}';",
+            &self.order_status, &self.available_margin, &self.settlement_price, &self.uuid
+        );
+        thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+            client.execute(&query, &[]).unwrap();
+            // let rt = self.clone();
+        });
+        return self;
+    }
+
+    pub fn calculatepayment(self) -> Self {
+        let mut ordertx = self.clone();
+        let margindifference = ordertx.available_margin - ordertx.initial_margin;
+        let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
+        let u_pnl = unrealizedpnl(
+            &ordertx.position_type,
+            ordertx.positionsize,
+            ordertx.entryprice,
+            current_price,
+        );
+        let payment = u_pnl + margindifference;
+        ordertx.order_status = OrderStatus::SETTLED;
+        ordertx.available_margin = ordertx.available_margin + payment;
+        ordertx.settlement_price = current_price;
+        updatelendaccountontraderordersettlement(payment);
+        ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
+        return ordertx;
+    }
+}
+
+pub fn updatelendaccountontraderordersettlement(payment: f64) {
+    println!("lend account changed by {}", payment);
 }
