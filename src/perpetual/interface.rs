@@ -62,11 +62,22 @@ pub struct TraderOrder {
 pub struct LendOrder {
     pub uuid: Uuid,
     pub account_id: String,
-    pub order_type: OrderType,     // LEND
+    pub balance: f64,
     pub order_status: OrderStatus, //lend or settle
+    pub order_type: OrderType,     // LEND
     pub nonce: i32,
-    pub lend_amount: f64,
+    pub deposit: f64,
+    pub new_lend_state_amount: f64,
     pub timestamp: u128,
+    pub npoolshare: f64,
+    pub nwithdraw: f64,
+    pub payment: f64,
+    pub tlv0: f64, //total locked value before lend tx
+    pub tps0: f64, // total poolshare before lend tx
+    pub tlv1: f64, // total locked value after lend tx
+    pub tps1: f64, // total poolshre value after lend tx
+    pub tlv2: f64, // total locked value after lend payment/settlement
+    pub tps2: f64, // total poolshare after lend payment/settlement
 }
 
 pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
@@ -140,16 +151,9 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 }
 
 pub fn updatefundingrate(psi: f64) {
-    let totalshort = redis_db::get("TotalShortPositionSize")
-        .parse::<f64>()
-        .unwrap();
-    let totallong = redis_db::get("TotalLongPositionSize")
-        .parse::<f64>()
-        .unwrap();
-    let allpositionsize = redis_db::get("TotalPoolPositionSize")
-        .parse::<f64>()
-        .unwrap();
-
+    let totalshort = redis_db::get_type_f64("TotalShortPositionSize");
+    let totallong = redis_db::get_type_f64("TotalLongPositionSize");
+    let allpositionsize = redis_db::get_type_f64("TotalPoolPositionSize");
     //powi is faster then powf
     //psi = 8.0 or  ψ = 8.0
     let mut fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / (psi * 8.0);
@@ -250,6 +254,10 @@ pub fn getandupdateallordersonfundingcycle() {
 
 ////********* operation on each funding cycle end **** //////
 
+pub fn updatelendaccountontraderordersettlement(payment: f64) {
+    println!("lend account changed by {}", payment);
+}
+
 // need to create new order **done
 // need to create recalculate order
 // need to create settle order initial_margin
@@ -259,6 +267,7 @@ pub fn getandupdateallordersonfundingcycle() {
 // create_ts timestamp DEFAULT CURRENT_TIMESTAMP ,
 // update_ts timestamp DEFAULT CURRENT_TIMESTAMP
 // need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
+// tlv tps mutex check
 
 impl TraderOrder {
     pub fn new(
@@ -277,8 +286,8 @@ impl TraderOrder {
         let positionsize = positionsize(entry_value, entryprice);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let fee = redis_db::get("Fee").parse::<f64>().unwrap();
-        let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
+        let fee = redis_db::get_type_f64("Fee");
+        let fundingrate = redis_db::get_type_f64("FundingRate");
         let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
         let liquidation_price = liquidationprice(
             entryprice,
@@ -541,7 +550,8 @@ impl TraderOrder {
     pub fn calculatepayment(self) -> Self {
         let mut ordertx = self.clone();
         let margindifference = ordertx.available_margin - ordertx.initial_margin;
-        let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
+        let current_price = redis_db::get_type_f64("CurrentPrice");
+        // let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
         let u_pnl = unrealizedpnl(
             &ordertx.position_type,
             ordertx.positionsize,
@@ -558,6 +568,226 @@ impl TraderOrder {
     }
 }
 
-pub fn updatelendaccountontraderordersettlement(payment: f64) {
-    println!("lend account changed by {}", payment);
+//////****** Lending fn ***************/
+///
+pub fn normalize_pool_share(tlv: f64, tps: f64, deposit: f64) -> f64 {
+    let npoolshare = tps * deposit * 10000.0 / tlv;
+
+    return npoolshare;
+}
+
+pub fn normalize_withdraw(tlv: f64, tps: f64, npoolshare: f64) -> f64 {
+    let nwithdraw = tlv * npoolshare / tps;
+    return nwithdraw;
+}
+
+pub fn initialize_lend_pool(tlv: f64, tps: f64) -> f64 {
+    redis_db::set("tlv", &tlv.to_string());
+    redis_db::set("tps", &tps.to_string());
+    tlv
+}
+
+pub fn lend_mutex_lock(lock: bool) {}
+
+impl LendOrder {
+    pub fn new(
+        account_id: &str,
+        balance: f64,
+        order_type: OrderType,
+        order_status: OrderStatus,
+        deposit: f64,
+    ) -> Self {
+        lend_mutex_lock(true);
+        let nonce = redis_db::incr_lend_nonce_by_one();
+        let mut tlv = redis_db::get_type_f64("tlv");
+        if tlv == 0.0 {
+            tlv = initialize_lend_pool(10000.0, 10.0);
+        }
+        let tps = redis_db::get_type_f64("tps");
+        let npoolshare = normalize_pool_share(tlv, tps, deposit);
+        let tps1 = redis_db::incrbyfloat_type_f64("tps", npoolshare);
+        let tlv1 = redis_db::incrbyfloat_type_f64("tlv", deposit);
+
+        lend_mutex_lock(false);
+
+        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(n) => LendOrder {
+                uuid: Uuid::new_v4(),
+                account_id: String::from(account_id),
+                balance,
+                order_status,
+                order_type,
+                nonce,
+                deposit,
+                new_lend_state_amount: deposit,
+                timestamp: n.as_millis(),
+                npoolshare,
+                nwithdraw: 0.0,
+                payment: 0.0,
+                tlv0: tlv,
+                tps0: tps,
+                tlv1,
+                tps1,
+                tlv2: 0.0,
+                tps2: 0.0,
+            },
+            Err(e) => panic!("Could not generate new order: {}", e),
+        }
+    }
+    pub fn serialize(&self) -> String {
+        let serialized = serde_json::to_string(self).unwrap();
+        serialized
+    }
+    pub fn deserialize(json: &String) -> Self {
+        let deserialized: LendOrder = serde_json::from_str(json).unwrap();
+        deserialized
+    }
+
+    pub fn newtraderorderinsert(self) -> Self {
+        let rt = self.clone();
+
+        let query = format!("INSERT INTO public.newlendorder(
+            uuid, account_id, balance, order_status, order_type, nonce, deposit, new_lend_state_amount, timestamp, npoolshare, nwithdraw, payment, tlv0, tps0, tlv1, tps1, tlv2, tps2)
+            VALUES ('{}','{}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{});",
+            &self.uuid,
+            &self.account_id ,
+            &self.balance ,
+            &self.order_status ,
+            &self.order_type ,
+            &self.nonce ,
+            &self.deposit ,
+            &self.new_lend_state_amount ,
+            &self.timestamp ,
+            &self.npoolshare ,
+            &self.nwithdraw ,
+            &self.payment ,
+            &self.tlv0 ,
+            &self.tps0 ,
+            &self.tlv1 ,
+            &self.tps1 ,
+            &self.tlv2 ,
+            &self.tps2 ,
+        );
+
+        // thread to store trader order data in redisDB
+        //inside operations can also be called in different thread
+        thread::spawn(move || {
+            // Lend order saved in redis, orderid as key
+            redis_db::set(&rt.uuid.to_string(), &rt.serialize());
+            // Lend order set by nonce
+            redis_db::zadd(
+                &"LendOrder",
+                &rt.uuid.to_string(),  //value
+                &rt.nonce.to_string(), //score
+            );
+
+            // Lend order by there deposit amount as score
+
+            redis_db::zadd(
+                &"LendOrderbyDepositLendState",
+                &rt.uuid.to_string(),    //value
+                &rt.deposit.to_string(), //score
+            );
+
+            redis_db::incrbyfloat(&"TotalLendPoolSize", &rt.deposit.to_string());
+        });
+        // thread to store Lend order data in postgreSQL
+        let handle = thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+            client.execute(&query, &[]).unwrap();
+            // let rt = self.clone();
+        });
+        // handle.join().unwrap();
+        return self;
+    }
+
+    pub fn calculatepayment(self) -> Self {
+        lend_mutex_lock(true);
+
+        let mut lendtx = self.clone();
+        // let current_price = redis_db::get_type_f64("CurrentPrice");
+        let tps = redis_db::get_type_f64("tps");
+        let tlv = redis_db::get_type_f64("tlv");
+        let nwithdraw = normalize_withdraw(tlv, tps, self.npoolshare);
+        let payment;
+        if self.new_lend_state_amount > nwithdraw {
+            payment = self.new_lend_state_amount - nwithdraw;
+        } else {
+            payment = nwithdraw - self.new_lend_state_amount;
+        }
+        lendtx.order_status = OrderStatus::SETTLED;
+        lendtx.nwithdraw = nwithdraw;
+        lendtx.payment = payment;
+        lendtx.tlv2 = redis_db::decrbyfloat_type_f64("tlv", nwithdraw);
+        lendtx.tps2 = redis_db::decrbyfloat_type_f64("tps", self.npoolshare);
+        lendtx = lendtx
+            .remove_lend_order_from_redis()
+            .update_psql_on_lend_settlement()
+            .update_lend_account_on_lendtx_order_settlement();
+
+        lend_mutex_lock(false);
+
+        return lendtx;
+    }
+
+    pub fn remove_lend_order_from_redis(self) -> Self {
+        let rt = self.clone();
+
+        // thread::spawn(move || {
+        // Lend order removed from redis, orderid as key
+        redis_db::del(&rt.uuid.to_string());
+        // trader order set by timestamp
+        redis_db::zdel(
+            &"LendOrder",
+            &rt.uuid.to_string(), //value
+        );
+        // Lend order set by deposit
+        redis_db::zdel(&"LendOrderbyDepositLendState", &rt.uuid.to_string());
+        // });
+        return self;
+    }
+    pub fn update_psql_on_lend_settlement(self) -> Self {
+        let rt = self.clone();
+
+        let query = format!(
+            "UPDATE public.newlendorder
+        SET  order_status={:#?},  nwithdraw={}, payment={},  tlv2={}, tps2={}
+        WHERE uuid='{}';",
+            &self.order_status, &self.nwithdraw, &self.payment, &self.tlv2, &self.tps2, &self.uuid,
+        );
+
+        // thread to store Lend order data in postgreSQL
+        let handle = thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+            client.execute(&query, &[]).unwrap();
+            // let rt = self.clone();
+        });
+        // handle.join().unwrap();
+        return self;
+    }
+    pub fn update_lend_account_on_lendtx_order_settlement(self) -> Self {
+        // negative payment // need to add next lender account
+        let lendtx_for_settlement = self.clone();
+        let best_lend_account_order_id = redis_db::getbestlender();
+        let mut best_lend_account: LendOrder =
+            LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id));
+        if lendtx_for_settlement.new_lend_state_amount > lendtx_for_settlement.nwithdraw {
+            best_lend_account.new_lend_state_amount = redis_db::zincrLendpoolaccount(
+                &best_lend_account.uuid.to_string(),
+                lendtx_for_settlement.payment,
+            );
+        }
+        // positive payment need to get amount from next lender account and make payment
+        else {
+            best_lend_account.new_lend_state_amount = redis_db::zdecrLendpoolaccount(
+                &best_lend_account.uuid.to_string(),
+                lendtx_for_settlement.payment,
+            );
+        }
+        //update best lender tx for newlendstate
+        redis_db::set(&best_lend_account_order_id, &best_lend_account.serialize());
+        return self;
+    }
 }

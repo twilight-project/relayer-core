@@ -101,3 +101,5 @@ pub fn generateorder() {
     )
     .newtraderorderinsert();
 }
+
+pub fn generatelendorder() {}

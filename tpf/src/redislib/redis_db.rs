@@ -86,6 +86,17 @@ pub fn get(key: &str) -> String {
         Err(_) => String::from("key not found"),
     };
 }
+
+pub fn get_type_f64(key: &str) -> f64 {
+    // let mut conn = connect();
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return match redis::cmd("GET").arg(key).query::<f64>(&mut *conn) {
+        Ok(s) => s,
+        // Err(_) => String::from("key not found"),
+        Err(_) => 0.0,
+    };
+}
+
 /// `save_redis_backup` can copy redis backup created in redis container to host system
 ///
 /// ###Example:
@@ -155,6 +166,28 @@ pub fn decrbyfloat(key: &str, value: &str) {
         .unwrap();
 }
 
+//INCRBYFLOAT type f64
+pub fn incrbyfloat_type_f64(key: &str, value: f64) -> f64 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let updated_value = redis::cmd("INCRBYFLOAT")
+        .arg(key)
+        .arg(value.to_string())
+        .query::<f64>(&mut *conn)
+        .unwrap();
+    return updated_value;
+}
+//DECRBYFLOAT type f64
+pub fn decrbyfloat_type_f64(key: &str, value: f64) -> f64 {
+    let negvalue = format!("-{}", value.to_string());
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let updated_value = redis::cmd("INCRBYFLOAT")
+        .arg(key)
+        .arg(negvalue)
+        .query::<f64>(&mut *conn)
+        .unwrap();
+    return updated_value;
+}
+
 /// list of settling orders for ordertype Limit and Position type Long
 pub fn zrangelonglimitorderbyexecutionprice(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
@@ -211,4 +244,55 @@ pub fn zrangeallopenorders() -> Vec<String> {
         .arg("-1")
         .query::<Vec<String>>(&mut *conn)
         .unwrap();
+}
+
+pub fn incr_lend_nonce_by_one() -> i32 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("INCR")
+        .arg("LendNonce")
+        .query::<i32>(&mut *conn)
+        .unwrap();
+    return i;
+}
+
+// command detail https://stackoverflow.com/questions/20017255/how-to-get-a-member-with-maximum-or-minimum-score-from-redis-sorted-set-given/22052718
+//ZREVRANGEBYSCORE myset +inf -inf WITHSCORES LIMIT 0 1 //taking without score
+/// get lender with maximum lendstate/deposit
+/// returns orderid order lendtx
+pub fn getbestlender() -> String {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("ZREVRANGEBYSCORE")
+        .arg("LendOrderbyDepositLendState")
+        .arg("+inf")
+        .arg("-inf")
+        .arg("LIMIT")
+        .arg("0")
+        .arg("1")
+        .query::<String>(&mut *conn)
+        .unwrap();
+    return i;
+}
+
+// ZINCRBY myzset 2 "one"
+pub fn zincrLendpoolaccount(orderid: &str, payment: f64) -> f64 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("ZINCRBY")
+        .arg("LendOrderbyDepositLendState")
+        .arg(payment.to_string())
+        .arg(orderid)
+        .query::<f64>(&mut *conn)
+        .unwrap();
+    return i;
+}
+// ZINCRBY myzset 2 "one"
+pub fn zdecrLendpoolaccount(orderid: &str, payment: f64) -> f64 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let negative_payment = format!("-{}", payment.to_string());
+    let i = redis::cmd("ZINCRBY")
+        .arg("LendOrderbyDepositLendState")
+        .arg(negative_payment)
+        .arg(orderid)
+        .query::<f64>(&mut *conn)
+        .unwrap();
+    return i;
 }
