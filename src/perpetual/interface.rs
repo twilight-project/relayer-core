@@ -255,7 +255,17 @@ pub fn getandupdateallordersonfundingcycle() {
 ////********* operation on each funding cycle end **** //////
 
 pub fn updatelendaccountontraderordersettlement(payment: f64) {
-    println!("lend account changed by {}", payment);
+    let best_lend_account_order_id = redis_db::getbestlender();
+    let mut best_lend_account: LendOrder =
+        LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id));
+    best_lend_account.new_lend_state_amount =
+        redis_db::zincrLendpoolaccount(&best_lend_account.uuid.to_string(), payment);
+    //update best lender tx for newlendstate
+    redis_db::set(&best_lend_account_order_id, &best_lend_account.serialize());
+    println!(
+        "lend account {} changed by {}",
+        &best_lend_account_order_id, payment
+    );
 }
 
 // need to create new order **done
