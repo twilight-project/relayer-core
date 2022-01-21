@@ -257,14 +257,17 @@ pub fn getandupdateallordersonfundingcycle() {
 pub fn updatelendaccountontraderordersettlement(payment: f64) {
     let best_lend_account_order_id = redis_db::getbestlender();
     let mut best_lend_account: LendOrder =
-        LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id));
+        LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
     best_lend_account.new_lend_state_amount =
-        redis_db::zincrLendpoolaccount(&best_lend_account.uuid.to_string(), payment);
+        redis_db::zincr_lend_pool_account(&best_lend_account.uuid.to_string(), payment);
     //update best lender tx for newlendstate
-    redis_db::set(&best_lend_account_order_id, &best_lend_account.serialize());
+    redis_db::set(
+        &best_lend_account_order_id[0],
+        &best_lend_account.serialize(),
+    );
     println!(
         "lend account {} changed by {}",
-        &best_lend_account_order_id, payment
+        &best_lend_account_order_id[0], payment
     );
 }
 
@@ -782,22 +785,25 @@ impl LendOrder {
         let lendtx_for_settlement = self.clone();
         let best_lend_account_order_id = redis_db::getbestlender();
         let mut best_lend_account: LendOrder =
-            LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id));
+            LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
         if lendtx_for_settlement.new_lend_state_amount > lendtx_for_settlement.nwithdraw {
-            best_lend_account.new_lend_state_amount = redis_db::zincrLendpoolaccount(
+            best_lend_account.new_lend_state_amount = redis_db::zincr_lend_pool_account(
                 &best_lend_account.uuid.to_string(),
                 lendtx_for_settlement.payment,
             );
         }
         // positive payment need to get amount from next lender account and make payment
         else {
-            best_lend_account.new_lend_state_amount = redis_db::zdecrLendpoolaccount(
+            best_lend_account.new_lend_state_amount = redis_db::zdecr_lend_pool_account(
                 &best_lend_account.uuid.to_string(),
                 lendtx_for_settlement.payment,
             );
         }
         //update best lender tx for newlendstate
-        redis_db::set(&best_lend_account_order_id, &best_lend_account.serialize());
+        redis_db::set(
+            &best_lend_account_order_id[0],
+            &best_lend_account.serialize(),
+        );
         return self;
     }
 }
