@@ -259,7 +259,7 @@ pub fn incr_lend_nonce_by_one() -> i32 {
 //ZREVRANGEBYSCORE myset +inf -inf WITHSCORES LIMIT 0 1 //taking without score
 /// get lender with maximum lendstate/deposit
 /// returns orderid order lendtx
-pub fn getbestlender() -> String {
+pub fn getbestlender() -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("ZREVRANGEBYSCORE")
         .arg("LendOrderbyDepositLendState")
@@ -268,13 +268,28 @@ pub fn getbestlender() -> String {
         .arg("LIMIT")
         .arg("0")
         .arg("1")
-        .query::<String>(&mut *conn)
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+    return i;
+}
+
+pub fn getbestlendertest(min_payment: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("ZREVRANGEBYSCORE")
+        .arg("TraderOrderbyLONGLimit")
+        .arg("+inf")
+        .arg(min_payment.to_string())
+        .arg("withscores")
+        .arg("LIMIT")
+        .arg("0")
+        .arg("30")
+        .query::<Vec<String>>(&mut *conn)
         .unwrap();
     return i;
 }
 
 // ZINCRBY myzset 2 "one"
-pub fn zincrLendpoolaccount(orderid: &str, payment: f64) -> f64 {
+pub fn zincr_lend_pool_account(orderid: &str, payment: f64) -> f64 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("ZINCRBY")
         .arg("LendOrderbyDepositLendState")
@@ -285,7 +300,7 @@ pub fn zincrLendpoolaccount(orderid: &str, payment: f64) -> f64 {
     return i;
 }
 // ZINCRBY myzset 2 "one"
-pub fn zdecrLendpoolaccount(orderid: &str, payment: f64) -> f64 {
+pub fn zdecr_lend_pool_account(orderid: &str, payment: f64) -> f64 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let negative_payment = format!("-{}", payment.to_string());
     let i = redis::cmd("ZINCRBY")
