@@ -1,5 +1,6 @@
 // mod perpetual;
-use crate::perpetual::interface::{OrderStatus, OrderType, PositionType, TraderOrder};
+use crate::perpetual::interface::{LendOrder, OrderStatus, OrderType, PositionType, TraderOrder};
+use crate::tpf::redislib::redis_db;
 pub fn generateorder() {
     //short limit order
     TraderOrder::new(
@@ -10,7 +11,7 @@ pub fn generateorder() {
         15201.0,
         15201.0,
         OrderStatus::PENDING,
-        42514.01,
+        38000.01,
         34440.02,
     )
     .newtraderorderinsert();
@@ -22,7 +23,7 @@ pub fn generateorder() {
         10201.0,
         10201.0,
         OrderStatus::PENDING,
-        41514.01,
+        38500.01,
         33440.02,
     )
     .newtraderorderinsert();
@@ -34,7 +35,7 @@ pub fn generateorder() {
         18201.0,
         18201.0,
         OrderStatus::PENDING,
-        42014.01,
+        40000.01,
         36440.02,
     )
     .newtraderorderinsert();
@@ -46,7 +47,7 @@ pub fn generateorder() {
         20201.0,
         20201.0,
         OrderStatus::PENDING,
-        42214.01,
+        41000.01,
         30440.02,
     )
     .newtraderorderinsert();
@@ -60,7 +61,7 @@ pub fn generateorder() {
         16201.0,
         16201.0,
         OrderStatus::PENDING,
-        42714.01,
+        39000.01,
         44440.02,
     )
     .newtraderorderinsert();
@@ -72,7 +73,7 @@ pub fn generateorder() {
         18201.0,
         18201.0,
         OrderStatus::PENDING,
-        43214.01,
+        39500.01,
         46440.02,
     )
     .newtraderorderinsert();
@@ -84,7 +85,7 @@ pub fn generateorder() {
         20201.0,
         20201.0,
         OrderStatus::PENDING,
-        41914.01,
+        40000.01,
         48440.02,
     )
     .newtraderorderinsert();
@@ -96,10 +97,34 @@ pub fn generateorder() {
         12201.0,
         12201.0,
         OrderStatus::PENDING,
-        41614.01,
+        41000.01,
         50440.02,
     )
     .newtraderorderinsert();
 }
 
-pub fn generatelendorder() {}
+pub fn generatelendorder() {
+    LendOrder::new(
+        "Lend account_id",
+        10.0,
+        OrderType::LEND,
+        OrderStatus::PENDING,
+        1.01,
+    )
+    .newtraderorderinsert();
+    LendOrder::new(
+        "Lend account_id",
+        15.0,
+        OrderType::LEND,
+        OrderStatus::PENDING,
+        2.5,
+    )
+    .newtraderorderinsert();
+}
+
+pub fn initprice() {
+    redis_db::set("Fee", "0.0");
+    redis_db::set("FundingRate", "0.0");
+    // redis_db::set("LendNonce", "0");
+    redis_db::set("CurrentPrice", "40000.0");
+}
