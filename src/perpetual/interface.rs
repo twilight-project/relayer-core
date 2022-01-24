@@ -611,15 +611,17 @@ impl LendOrder {
         deposit: f64,
     ) -> Self {
         lend_mutex_lock(true);
+        let ndeposit = deposit * 10000.0;
         let nonce = redis_db::incr_lend_nonce_by_one();
+        // println!("Nonce : {}", nonce);
         let mut tlv = redis_db::get_type_f64("tlv");
         if tlv == 0.0 {
-            tlv = initialize_lend_pool(10000.0, 10.0);
+            tlv = initialize_lend_pool(100000.0, 10.0);
         }
         let tps = redis_db::get_type_f64("tps");
-        let npoolshare = normalize_pool_share(tlv, tps, deposit);
-        let tps1 = redis_db::incrbyfloat_type_f64("tps", npoolshare);
-        let tlv1 = redis_db::incrbyfloat_type_f64("tlv", deposit);
+        let npoolshare = normalize_pool_share(tlv, tps, ndeposit);
+        let tps1 = redis_db::incrbyfloat_type_f64("tps", npoolshare / 10000.0);
+        let tlv1 = redis_db::incrbyfloat_type_f64("tlv", ndeposit);
 
         lend_mutex_lock(false);
 
@@ -631,8 +633,8 @@ impl LendOrder {
                 order_status,
                 order_type,
                 nonce,
-                deposit,
-                new_lend_state_amount: deposit,
+                deposit: ndeposit,
+                new_lend_state_amount: ndeposit,
                 timestamp: n.as_millis(),
                 npoolshare,
                 nwithdraw: 0.0,
