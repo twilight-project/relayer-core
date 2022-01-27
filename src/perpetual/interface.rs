@@ -30,11 +30,11 @@ pub enum PositionType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum OrderStatus {
     SETTLED,
-    LEND,
+    LENDED,
     LIQUIDATE,
     CANCELLED,
-    PENDING,
-    FILLED,
+    PENDING, // change it to New
+    FILLED,  //executed on price ticker
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -156,7 +156,12 @@ pub fn updatefundingrate(psi: f64) {
     let allpositionsize = redis_db::get_type_f64("TotalPoolPositionSize");
     //powi is faster then powf
     //psi = 8.0 or  ψ = 8.0
-    let mut fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / (psi * 8.0);
+    let mut fundingrate;
+    if allpositionsize == 0.0 {
+        fundingrate = 0.0;
+    } else {
+        fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / (psi * 8.0);
+    }
 
     //positive funding if totallong > totalshort else negative funding
     if totallong > totalshort {
@@ -253,18 +258,20 @@ pub fn getandupdateallordersonfundingcycle() {
 }
 
 ////********* operation on each funding cycle end **** //////
+/// also add ammount in tlv **  update nonce also
 
 pub fn updatelendaccountontraderordersettlement(payment: f64) {
     let best_lend_account_order_id = redis_db::getbestlender();
     let mut best_lend_account: LendOrder =
         LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
     best_lend_account.new_lend_state_amount =
-        redis_db::zincr_lend_pool_account(&best_lend_account.uuid.to_string(), payment);
+        redis_db::zdecr_lend_pool_account(&best_lend_account.uuid.to_string(), payment);
     //update best lender tx for newlendstate
     redis_db::set(
         &best_lend_account_order_id[0],
         &best_lend_account.serialize(),
     );
+    redis_db::decrbyfloat_type_f64("tlv", payment);
     println!(
         "lend account {} changed by {}",
         &best_lend_account_order_id[0], payment
@@ -272,15 +279,17 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) {
 }
 
 // need to create new order **done
-// need to create recalculate order
-// need to create settle order initial_margin
-// impl for order -> new, recaculate, liquidate etc
-// create function bankruptcy price, bankruptcy rate, liquidation price
-// remove position side from traderorder stuct
+// need to create recalculate order **done
+// need to create settle order initial_margin **done
+// impl for order -> new, recaculate, liquidate etc  **done
+// create function bankruptcy price, bankruptcy rate, liquidation price  **done
+// remove position side from traderorder stuct  **done
 // create_ts timestamp DEFAULT CURRENT_TIMESTAMP ,
 // update_ts timestamp DEFAULT CURRENT_TIMESTAMP
 // need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
 // tlv tps mutex check
+// limit order execution
+// add entry nonce and exit nonce for traderorder as well as lendorder
 
 impl TraderOrder {
     pub fn new(
@@ -583,12 +592,14 @@ impl TraderOrder {
 
 //////****** Lending fn ***************/
 ///
+/// undate this function to return both poolshare and npoolshare
 pub fn normalize_pool_share(tlv: f64, tps: f64, deposit: f64) -> f64 {
     let npoolshare = tps * deposit * 10000.0 / tlv;
 
     return npoolshare;
 }
 
+/// undate this function to return both nwithdraw and withdraw
 pub fn normalize_withdraw(tlv: f64, tps: f64, npoolshare: f64) -> f64 {
     let nwithdraw = tlv * npoolshare / tps;
     return nwithdraw;
@@ -735,7 +746,7 @@ impl LendOrder {
         lendtx.nwithdraw = nwithdraw;
         lendtx.payment = payment;
         lendtx.tlv2 = redis_db::decrbyfloat_type_f64("tlv", nwithdraw);
-        lendtx.tps2 = redis_db::decrbyfloat_type_f64("tps", self.npoolshare);
+        lendtx.tps2 = redis_db::decrbyfloat_type_f64("tps", self.npoolshare / 10000.0);
         lendtx = lendtx
             .remove_lend_order_from_redis()
             .update_psql_on_lend_settlement()
