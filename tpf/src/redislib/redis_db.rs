@@ -311,3 +311,27 @@ pub fn zdecr_lend_pool_account(orderid: &str, payment: f64) -> f64 {
         .unwrap();
     return i;
 }
+
+/// list of pending order for filling for position type short
+pub fn zrangegetpendinglimitorderforlong(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrder_LimitOrder_Pending_FOR_Long")
+        .arg(format!("[{}", current_price))
+        .arg("+inf")
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
+
+/// list of pending order for filling for position type Long
+pub fn zrangegetpendinglimitorderforshort(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrder_LimitOrder_Pending_FOR_Short")
+        .arg("0")
+        .arg(format!("[{}", current_price))
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}

@@ -1,0 +1,131 @@
+use crate::relayer::lendorder::LendOrder;
+// use crate::relayer::traderorder::TraderOrder;
+use crate::relayer::types::*;
+// use std::thread;
+use tpf::redislib::redis_db;
+
+pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
+    initial_margin * leverage
+}
+pub fn positionsize(entryvalue: f64, entryprice: f64) -> f64 {
+    entryvalue * entryprice
+}
+
+// execution_price = settle price
+pub fn unrealizedpnl(
+    position_type: &PositionType,
+    positionsize: f64,
+    entryprice: f64,
+    settleprice: f64,
+) -> f64 {
+    match position_type {
+        // &PositionType::LONG => positionsize * (1.0 / entryprice - 1.0 / settleprice),
+        &PositionType::LONG => {
+            (positionsize * (settleprice - entryprice)) / (entryprice * settleprice)
+        }
+        // &PositionType::SHORT => positionsize * (1.0 / settleprice - 1.0 / entryprice),
+        &PositionType::SHORT => {
+            (positionsize * (entryprice - settleprice)) / (entryprice * settleprice)
+        }
+    }
+}
+
+pub fn bankruptcyprice(position_type: &PositionType, entryprice: f64, leverage: f64) -> f64 {
+    match position_type {
+        &PositionType::LONG => entryprice * leverage / (leverage + 1.0),
+        &PositionType::SHORT => {
+            if leverage > 1.0 {
+                entryprice * leverage / (leverage - 1.0)
+            } else {
+                0.0
+            }
+        }
+    }
+}
+pub fn bankruptcyvalue(positionsize: f64, bankruptcyprice: f64) -> f64 {
+    if bankruptcyprice > 0.0 {
+        positionsize / bankruptcyprice
+    } else {
+        0.0
+    }
+}
+pub fn maintenancemargin(entry_value: f64, bankruptcyvalue: f64, fee: f64, funding: f64) -> f64 {
+    (0.4 * entry_value + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
+}
+
+pub fn liquidationprice(
+    entryprice: f64,
+    positionsize: f64,
+    positionside: i32,
+    mm: f64,
+    im: f64,
+) -> f64 {
+    // if positionside > 0 {
+    //     entryprice * positionsize
+    //         / ((positionside as f64) * entryprice * (im - mm) + positionsize)
+    // } else {
+    entryprice * positionsize / ((positionside as f64) * entryprice * (mm - im) + positionsize)
+    // }
+}
+pub fn positionside(position_type: &PositionType) -> i32 {
+    match position_type {
+        &PositionType::LONG => -1,
+        &PositionType::SHORT => 1,
+    }
+}
+
+/// also add ammount in tlv **  update nonce also
+
+pub fn updatelendaccountontraderordersettlement(payment: f64) {
+    let best_lend_account_order_id = redis_db::getbestlender();
+    let mut best_lend_account: LendOrder =
+        LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
+    best_lend_account.new_lend_state_amount =
+        redis_db::zdecr_lend_pool_account(&best_lend_account.uuid.to_string(), payment);
+    //update best lender tx for newlendstate
+    redis_db::set(
+        &best_lend_account_order_id[0],
+        &best_lend_account.serialize(),
+    );
+    redis_db::decrbyfloat_type_f64("tlv", payment);
+    println!(
+        "lend account {} changed by {}",
+        &best_lend_account_order_id[0], payment
+    );
+}
+
+// need to create new order **done
+// need to create recalculate order **done
+// need to create settle order initial_margin **done
+// impl for order -> new, recaculate, liquidate etc  **done
+// create function bankruptcy price, bankruptcy rate, liquidation price  **done
+// remove position side from traderorder stuct  **done
+// create_ts timestamp DEFAULT CURRENT_TIMESTAMP ,
+// update_ts timestamp DEFAULT CURRENT_TIMESTAMP
+// need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
+// tlv tps mutex check
+// limit order execution - updating limit orders on price ticker
+// add entry nonce and exit nonce for traderorder as well as lendorder
+
+//////****** Lending fn ***************/
+///
+/// undate this function to return both poolshare and npoolshare
+pub fn normalize_pool_share(tlv: f64, tps: f64, deposit: f64) -> f64 {
+    let npoolshare = tps * deposit * 10000.0 / tlv;
+
+    return npoolshare;
+}
+
+/// undate this function to return both nwithdraw and withdraw
+pub fn normalize_withdraw(tlv: f64, tps: f64, npoolshare: f64) -> f64 {
+    let nwithdraw = tlv * npoolshare / tps;
+    return nwithdraw;
+}
+
+pub fn initialize_lend_pool(tlv: f64, tps: f64) -> f64 {
+    redis_db::set("tlv", &tlv.to_string());
+    redis_db::set("tps", &tps.to_string());
+    tlv
+}
+
+pub fn lend_mutex_lock(lock: bool) {}
