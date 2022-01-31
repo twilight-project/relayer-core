@@ -14,5 +14,4 @@ Cargo.lock
 .vscode/
 
 # # Old tpf module, merged in main src
-src/perpetual
 old code
