@@ -297,3 +297,44 @@ pub fn zrangegetpendinglimitorderforshort(current_price: f64) -> Vec<String> {
         .query::<Vec<String>>(&mut *conn)
         .unwrap();
 }
+
+// for testing delete all tables
+pub fn del_test() -> i32 {
+    // let mut conn = connect();
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("DEL")
+        .arg("TraderOrderbyLONGLimit")
+        .arg("TraderOrderbySHORTLimit")
+        .arg("TraderOrderbyLiquidationPriceFORLong")
+        .arg("TraderOrderbyLiquidationPriceFORShort")
+        .arg("TraderOrder")
+        .arg("LendNonce")
+        .arg("LendOrderbyDepositLendState")
+        .arg("Fee")
+        .arg("FundingRate")
+        .arg("CurrentPrice")
+        .arg("tlv")
+        .arg("tps")
+        .arg("TotalShortPositionSize")
+        .arg("TotalLongPositionSize")
+        .arg("TotalPoolPositionSize")
+        .query::<i32>(&mut *conn)
+        .unwrap();
+    // .query(&mut conn)
+    // .expect("failed to execute SET for 'foo'");
+    // return true;
+}
+
+// for test
+pub fn zrank_test(orderid: &str, table: &str) -> i32 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("ZRANK")
+        .arg(table)
+        .arg(orderid)
+        .query::<i32>(&mut *conn)
+    {
+        Ok(s) => s,
+        Err(_) => -1,
+    };
+}
