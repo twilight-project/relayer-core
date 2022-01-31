@@ -5,15 +5,15 @@
 extern crate tpf;
 extern crate twilight_relayer_rust;
 use crate::tpf::redislib::redis_db;
-use crate::twilight_relayer_rust::perpetual::interface::{
-    bankruptcyprice, bankruptcyvalue, entryvalue, getandupdateallordersonfundingcycle,
-    initialize_lend_pool, liquidateposition, liquidationprice, maintenancemargin,
-    normalize_pool_share, normalize_withdraw, positionside, positionsize, unrealizedpnl,
-    updatechangesineachordertxonfundingratechange, updatefundingrate, updatefundingrateindb,
-    updatelendaccountontraderordersettlement, LendOrder, OrderStatus, OrderType, PositionType,
-    TXType, TraderOrder,
-};
-
+use crate::twilight_relayer_rust::perpetual::interface::*;
+// use crate::twilight_relayer_rust::perpetual::interface::{
+//     bankruptcyprice, bankruptcyvalue, entryvalue, getandupdateallordersonfundingcycle,
+//     initialize_lend_pool, liquidateposition, liquidationprice, maintenancemargin,
+//     normalize_pool_share, normalize_withdraw, positionside, positionsize, unrealizedpnl,
+//     updatechangesineachordertxonfundingratechange, updatefundingrate, updatefundingrateindb,
+//     updatelendaccountontraderordersettlement, LendOrder, OrderStatus, OrderType, PositionType,
+//     TXType, TraderOrder,
+// };
 fn gettestorder() -> TraderOrder {
     let orderjson_long_limit="{\"uuid\":\"a411fca6-ba86-44c8-9d99-11afe566f0e5\",\"account_id\":\"account_id\",\"position_type\":\"LONG\",\"order_status\":\"PENDING\",\"order_type\":\"LIMIT\",\"entryprice\":39000.01,\"execution_price\":44440.02,\"positionsize\":585000.15,\"leverage\":10.0,\"initial_margin\":1.5,\"available_margin\":1.5,\"timestamp\":1643186233834,\"bankruptcy_price\":35454.55454545455,\"bankruptcy_value\":16.5,\"maintenance_margin\":0.060134451422482665,\"liquidation_price\":35584.24174890031,\"unrealized_pnl\":0.0,\"settlement_price\":0.0}";
     let order: TraderOrder = serde_json::from_str(orderjson_long_limit).unwrap();
@@ -156,13 +156,13 @@ fn test_positionside() {
 
 //ignore this test if no redisdb is runnning
 #[test]
-// #[ignore]
+#[ignore]
 fn test_updatefundingrate() {
     let totalshort = redis_db::get_type_f64("TotalShortPositionSize");
     let totallong = redis_db::get_type_f64("TotalLongPositionSize");
     let allpositionsize = redis_db::get_type_f64("TotalPoolPositionSize");
     let psi = 1.0;
-    let mut fundingrate;
+    let fundingrate;
     if allpositionsize == 0.0 {
         fundingrate = 0.0;
     } else {
