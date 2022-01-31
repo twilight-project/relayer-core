@@ -3,19 +3,19 @@
 use crate::redislib::redis_db;
 use crate::relayer::*;
 pub fn generateorder() {
-    //short limit order
-    // TraderOrder::new(
-    //     "account_id",
-    //     PositionType::SHORT,
-    //     OrderType::LIMIT,
-    //     5.0,
-    //     15201.0,
-    //     15201.0,
-    //     OrderStatus::PENDING,
-    //     38000.01,
-    //     34440.02,
-    // )
-    // .newtraderorderinsert();
+    // short limit order
+    TraderOrder::new(
+        "account_id",
+        PositionType::SHORT,
+        OrderType::LIMIT,
+        5.0,
+        15201.0,
+        15201.0,
+        OrderStatus::PENDING,
+        38000.01,
+        34440.02,
+    )
+    .newtraderorderinsert();
     // TraderOrder::new(
     //     "account_id",
     //     PositionType::SHORT,
@@ -124,8 +124,8 @@ pub fn generatelendorder() {
 }
 
 pub fn initprice() {
-    redis_db::set("Fee", "0.0");
-    redis_db::set("FundingRate", "0.0");
+    // redis_db::set("Fee", "0.0");
+    // redis_db::set("FundingRate", "0.0");
     // redis_db::set("LendNonce", "0");
     redis_db::set("CurrentPrice", "40000.0");
 }

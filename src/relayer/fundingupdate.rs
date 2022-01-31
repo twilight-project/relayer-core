@@ -90,7 +90,7 @@ pub fn updatechangesineachordertxonfundingratechange(
         // idliquidate = false;
     }
     let ordertxclone = ordertx.clone();
-    ordertxclone.updatetraderordertableintodb(orderid, isliquidated);
+    ordertxclone.update_trader_order_table_into_db_on_funding_cycle(orderid, isliquidated);
     return ordertx;
 }
 pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> TraderOrder {

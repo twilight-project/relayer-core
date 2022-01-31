@@ -9,7 +9,7 @@ use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::redislib::redis_db;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TraderOrder {
     pub uuid: Uuid,
     pub account_id: String,
@@ -40,9 +40,12 @@ impl TraderOrder {
         initial_margin: f64,
         available_margin: f64,
         order_status: OrderStatus,
-        entryprice: f64,
+        mut entryprice: f64,
         execution_price: f64,
     ) -> Self {
+        if order_type == OrderType::MARKET {
+            entryprice = redis_db::get_type_f64("CurrentPrice");
+        }
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
@@ -136,7 +139,7 @@ impl TraderOrder {
             &rt.unrealized_pnl,
             &rt.settlement_price
         );
-
+        let rself = rt.clone();
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
         thread::spawn(move || {
@@ -229,7 +232,7 @@ impl TraderOrder {
             // let rt = self.clone();
         });
         // handle.join().unwrap();
-        return self;
+        return rself;
     }
 
     pub fn removeorderfromredis(self) -> Self {
@@ -245,14 +248,23 @@ impl TraderOrder {
             );
             // trader order set by liquidation_price
             redis_db::zdel(&"TraderOrderbyLiquidationPrice", &rt.uuid.to_string());
+            redis_db::decrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
 
             match rt.order_type {
                 OrderType::LIMIT => match rt.position_type {
                     PositionType::LONG => {
                         redis_db::zdel(&"TraderOrderbyLONGLimit", &rt.uuid.to_string());
+                        redis_db::decrbyfloat(
+                            &"TotalLongPositionSize",
+                            &rt.positionsize.to_string(),
+                        );
                     }
                     PositionType::SHORT => {
                         redis_db::zdel(&"TraderOrderbySHORTLimit", &rt.uuid.to_string());
+                        redis_db::decrbyfloat(
+                            &"TotalShortPositionSize",
+                            &rt.positionsize.to_string(),
+                        );
                     }
                 },
                 _ => {}
@@ -290,7 +302,11 @@ impl TraderOrder {
         deserialized
     }
 
-    pub fn updatetraderordertableintodb(self, orderid: String, isliquidated: bool) {
+    pub fn update_trader_order_table_into_db_on_funding_cycle(
+        self,
+        orderid: String,
+        isliquidated: bool,
+    ) {
         let ordertx = self.clone();
 
         if isliquidated {

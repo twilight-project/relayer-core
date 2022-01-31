@@ -3,7 +3,7 @@ use r2d2_postgres::PostgresConnectionManager;
 use r2d2_redis::RedisConnectionManager;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-
+use std::sync::{Arc, Mutex};
 lazy_static! {
 /// Static Globle PostgreSQL Pool connection
 ///
@@ -37,6 +37,7 @@ lazy_static! {
         r2d2::Pool::new(manager).expect("expect db")
         // r2d2::Pool::builder().build(manager).unwrap()
     };
+    pub static ref BUSYSTATUS:Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
    }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct
