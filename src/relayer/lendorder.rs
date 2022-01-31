@@ -2,10 +2,10 @@ use crate::relayer::types::*;
 use crate::relayer::utils::*;
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
+use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::redislib::redis_db;
 use std::thread;
 use std::time::SystemTime;
-use tpf::config::POSTGRESQL_POOL_CONNECTION;
-use tpf::redislib::redis_db;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct LendOrder {
     pub balance: f64,
     pub order_status: OrderStatus, //lend or settle
     pub order_type: OrderType,     // LEND
-    pub nonce: i32,
+    pub nonce: i32,                // change it to u256
     pub deposit: f64,
     pub new_lend_state_amount: f64,
     pub timestamp: u128,

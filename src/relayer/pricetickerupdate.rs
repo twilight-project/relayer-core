@@ -1,7 +1,7 @@
+use crate::redislib::redis_db;
 use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use std::thread;
-use tpf::redislib::redis_db;
 
 //Pending Limit orders
 pub fn check_pending_limit_order_on_price_ticker_update() {

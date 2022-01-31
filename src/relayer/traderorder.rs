@@ -5,8 +5,8 @@ use crate::relayer::utils::*;
 use std::thread;
 use std::time::SystemTime;
 
-use tpf::config::POSTGRESQL_POOL_CONNECTION;
-use tpf::redislib::redis_db;
+use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::redislib::redis_db;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

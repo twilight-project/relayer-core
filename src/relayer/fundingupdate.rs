@@ -2,7 +2,7 @@ use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use crate::relayer::utils::{entryvalue, liquidationprice, maintenancemargin, positionside};
 // use std::thread;
-use tpf::redislib::redis_db;
+use crate::redislib::redis_db;
 
 ////********* operation on each funding cycle **** //////
 
