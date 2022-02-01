@@ -248,23 +248,17 @@ impl TraderOrder {
             );
             // trader order set by liquidation_price
             redis_db::zdel(&"TraderOrderbyLiquidationPrice", &rt.uuid.to_string());
-            redis_db::decrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
+            redis_db::decrbyfloat(&"TotalPoolPositionSize", rt.positionsize);
 
             match rt.order_type {
                 OrderType::LIMIT => match rt.position_type {
                     PositionType::LONG => {
                         redis_db::zdel(&"TraderOrderbyLONGLimit", &rt.uuid.to_string());
-                        redis_db::decrbyfloat(
-                            &"TotalLongPositionSize",
-                            &rt.positionsize.to_string(),
-                        );
+                        redis_db::decrbyfloat(&"TotalLongPositionSize", rt.positionsize);
                     }
                     PositionType::SHORT => {
                         redis_db::zdel(&"TraderOrderbySHORTLimit", &rt.uuid.to_string());
-                        redis_db::decrbyfloat(
-                            &"TotalShortPositionSize",
-                            &rt.positionsize.to_string(),
-                        );
+                        redis_db::decrbyfloat(&"TotalShortPositionSize", rt.positionsize);
                     }
                 },
                 _ => {}
@@ -273,7 +267,7 @@ impl TraderOrder {
             // update pool size when  order get settled
             match rt.position_type {
                 PositionType::LONG => {
-                    redis_db::decrbyfloat(&"TotalLongPositionSize", &rt.positionsize.to_string());
+                    redis_db::decrbyfloat(&"TotalLongPositionSize", rt.positionsize);
                     // trader order set by liquidation_price for long
                     redis_db::zdel(
                         &"TraderOrderbyLiquidationPriceFORLong",
@@ -281,7 +275,7 @@ impl TraderOrder {
                     );
                 }
                 PositionType::SHORT => {
-                    redis_db::decrbyfloat(&"TotalShortPositionSize", &rt.positionsize.to_string());
+                    redis_db::decrbyfloat(&"TotalShortPositionSize", rt.positionsize);
                     // trader order set by liquidation_price for short
                     redis_db::zdel(
                         &"TraderOrderbyLiquidationPriceFORShort",
@@ -289,7 +283,7 @@ impl TraderOrder {
                     );
                 }
             }
-            redis_db::decrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
+            redis_db::decrbyfloat(&"TotalPoolPositionSize", rt.positionsize);
         });
         return self;
     }
@@ -399,6 +393,7 @@ impl TraderOrder {
         ordertx.order_status = OrderStatus::SETTLED;
         ordertx.available_margin = ordertx.available_margin + payment;
         ordertx.settlement_price = current_price;
+        ordertx.unrealized_pnl = u_pnl;
         updatelendaccountontraderordersettlement(payment);
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
         return ordertx;

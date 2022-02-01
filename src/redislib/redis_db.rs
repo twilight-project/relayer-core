@@ -118,8 +118,8 @@ pub fn incrbyfloat(key: &str, value: &str) {
         .unwrap();
 }
 //DECRBYFLOAT
-pub fn decrbyfloat(key: &str, value: &str) {
-    let negvalue = format!("-{}", value);
+pub fn decrbyfloat(key: &str, value: f64) {
+    let negvalue = format!("{}", -1.0 * value);
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let _ = redis::cmd("INCRBYFLOAT")
         .arg(key)
@@ -140,7 +140,7 @@ pub fn incrbyfloat_type_f64(key: &str, value: f64) -> f64 {
 }
 //DECRBYFLOAT type f64
 pub fn decrbyfloat_type_f64(key: &str, value: f64) -> f64 {
-    let negvalue = format!("-{}", value.to_string());
+    let negvalue = format!("{}", (-1.0 * value).to_string());
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let updated_value = redis::cmd("INCRBYFLOAT")
         .arg(key)
@@ -264,7 +264,7 @@ pub fn zincr_lend_pool_account(orderid: &str, payment: f64) -> f64 {
 // ZINCRBY myzset 2 "one"
 pub fn zdecr_lend_pool_account(orderid: &str, payment: f64) -> f64 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
-    let negative_payment = format!("-{}", payment.to_string());
+    let negative_payment = format!("{}", (-1.0 * payment).to_string());
     let i = redis::cmd("ZINCRBY")
         .arg("LendOrderbyDepositLendState")
         .arg(negative_payment)

@@ -108,7 +108,10 @@ pub fn getandupdateallordersonfundingcycle() {
     for orderid in orderid_list {
         let state =
             updatechangesineachordertxonfundingratechange(orderid, fundingrate, current_price, fee);
-        println!("order of {} is {:#?}", state.uuid, state.order_status);
+        println!(
+            "fundingcycle ,order of {} is {:#?}",
+            state.uuid, state.order_status
+        );
     }
 }
 
