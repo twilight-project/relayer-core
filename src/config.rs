@@ -1,9 +1,12 @@
+use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
 use r2d2_redis::RedisConnectionManager;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, Mutex, RwLock};
 lazy_static! {
 /// Static Globle PostgreSQL Pool connection
 ///
@@ -37,8 +40,34 @@ lazy_static! {
         r2d2::Pool::new(manager).expect("expect db")
         // r2d2::Pool::builder().build(manager).unwrap()
     };
-    pub static ref BUSYSTATUS:Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    // pub static ref BUSYSTATUS:Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    pub static ref BUSYSTATUS:Mutex<i32> =Mutex::new(0);
+  pub  static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> =
+        Arc::new(RwLock::new(HashMap::new()));
    }
+
+pub fn check_new_key(name: &str) {
+    // Check if a new key is needed. Just need a read lock, which can be done in sync with everyone else
+    let new_key = {
+        let unlock = LOCK.read().unwrap();
+        !unlock.deref().contains_key(name)
+    };
+    if new_key {
+        // This is the rare path, which avoids the multi-writer situation mostly
+        LOCK.write()
+            .unwrap()
+            .deref_mut()
+            .insert(name.to_string(), ReentrantMutex::new(()));
+    }
+}
+pub fn local_serial_core(name: &str, function: fn()) {
+    check_new_key(name);
+
+    let unlock = LOCK.read().unwrap();
+    // _guard needs to be named to avoid being instant dropped
+    let _guard = unlock.deref()[name].lock();
+    function();
+}
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct
 ///
