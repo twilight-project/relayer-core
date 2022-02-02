@@ -4,7 +4,7 @@ use crate::twilight_relayer_rust::relayer::*;
 use std::{thread, time};
 
 fn gettestorder() -> TraderOrder {
-    let orderjson_long_limit="{\"uuid\":\"a411fca6-ba86-44c8-9d99-11afe566f0e5\",\"account_id\":\"account_id\",\"position_type\":\"LONG\",\"order_status\":\"PENDING\",\"order_type\":\"LIMIT\",\"entryprice\":39000.01,\"execution_price\":44440.02,\"positionsize\":585000.15,\"leverage\":10.0,\"initial_margin\":1.5,\"available_margin\":1.5,\"timestamp\":1643186233834,\"bankruptcy_price\":35454.55454545455,\"bankruptcy_value\":16.5,\"maintenance_margin\":0.060134451422482665,\"liquidation_price\":35584.24174890031,\"unrealized_pnl\":0.0,\"settlement_price\":0.0}";
+    let orderjson_long_limit="{\"uuid\":\"a411fca6-ba86-44c8-9d99-11afe566f0e5\",\"account_id\":\"account_id\",\"position_type\":\"LONG\",\"order_status\":\"PENDING\",\"order_type\":\"LIMIT\",\"entryprice\":39000.01,\"execution_price\":44440.02,\"positionsize\":585000.15,\"leverage\":10.0,\"initial_margin\":1.5,\"available_margin\":1.5,\"timestamp\":1643186233834,\"bankruptcy_price\":35454.55454545455,\"bankruptcy_value\":16.5,\"maintenance_margin\":0.060134451422482665,\"liquidation_price\":35584.24174890031,\"unrealized_pnl\":0.0,\"settlement_price\":0.0,\"entry_nonce\":0,\"exit_nonce\":0,\"entry_sequence\":0}";
     let order: TraderOrder = serde_json::from_str(orderjson_long_limit).unwrap();
     order
 }
