@@ -208,15 +208,48 @@ pub fn zrangeallopenorders() -> Vec<String> {
         .unwrap();
 }
 
-pub fn incr_lend_nonce_by_one() -> i32 {
+pub fn incr_lend_nonce_by_one() -> u128 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCR")
         .arg("LendNonce")
-        .query::<i32>(&mut *conn)
+        .query::<u128>(&mut *conn)
         .unwrap();
     return i;
 }
 
+pub fn get_nonce_u128() -> u128 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("GET").arg("LendNonce").query::<u128>(&mut *conn) {
+        Ok(s) => s,
+        // Err(_) => String::from("key not found"),
+        Err(_) => 0,
+    };
+}
+
+//get_entry_sequence_u128
+
+pub fn get_entry_sequence_u128() -> u128 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("GET")
+        .arg("EntrySequence")
+        .query::<u128>(&mut *conn)
+    {
+        Ok(s) => s,
+        // Err(_) => String::from("key not found"),
+        Err(_) => 0,
+    };
+}
+
+pub fn incr_entry_sequence_by_one() -> u128 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("INCR")
+        .arg("EntrySequence")
+        .query::<u128>(&mut *conn)
+        .unwrap();
+    return i;
+}
 // command detail https://stackoverflow.com/questions/20017255/how-to-get-a-member-with-maximum-or-minimum-score-from-redis-sorted-set-given/22052718
 //ZREVRANGEBYSCORE myset +inf -inf WITHSCORES LIMIT 0 1 //taking without score
 /// get lender with maximum lendstate/deposit
@@ -308,7 +341,7 @@ pub fn del_test() -> i32 {
         .arg("TraderOrderbyLiquidationPriceFORLong")
         .arg("TraderOrderbyLiquidationPriceFORShort")
         .arg("TraderOrder")
-        .arg("LendNonce")
+        // .arg("LendNonce")
         .arg("LendOrderbyDepositLendState")
         .arg("Fee")
         .arg("FundingRate")
@@ -318,6 +351,7 @@ pub fn del_test() -> i32 {
         .arg("TotalShortPositionSize")
         .arg("TotalLongPositionSize")
         .arg("TotalPoolPositionSize")
+        // .arg("EntrySequence")
         .query::<i32>(&mut *conn)
         .unwrap();
     // .query(&mut conn)

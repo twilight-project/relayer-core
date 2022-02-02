@@ -15,7 +15,7 @@ pub struct LendOrder {
     pub balance: f64,
     pub order_status: OrderStatus, //lend or settle
     pub order_type: OrderType,     // LEND
-    pub nonce: i32,                // change it to u256
+    pub nonce: u128,               // change it to u256
     pub deposit: f64,
     pub new_lend_state_amount: f64,
     pub timestamp: u128,
