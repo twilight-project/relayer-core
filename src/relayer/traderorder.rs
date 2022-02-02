@@ -29,6 +29,9 @@ pub struct TraderOrder {
     pub liquidation_price: f64,
     pub unrealized_pnl: f64,
     pub settlement_price: f64,
+    pub entry_nonce: u128,
+    pub exit_nonce: u128,
+    pub entry_sequence: u128,
 }
 
 impl TraderOrder {
@@ -81,6 +84,9 @@ impl TraderOrder {
                 liquidation_price,
                 unrealized_pnl: 0.0,
                 settlement_price: 0.0,
+                entry_nonce: 0,
+                exit_nonce: 0,
+                entry_sequence: 0,
             },
             Err(e) => panic!("Could not generate new order: {}", e),
         }
@@ -98,6 +104,9 @@ impl TraderOrder {
                     if rt.entryprice >= current_price {
                         order_entry_status = true;
                         rt.order_status = OrderStatus::FILLED;
+                        rt.entry_nonce = redis_db::get_nonce_u128();
+                        rt.entry_sequence = redis_db::incr_entry_sequence_by_one();
+                        rt.entryprice = current_price;
                     } else {
                         rt.order_status = OrderStatus::PENDING;
                     }
@@ -106,6 +115,9 @@ impl TraderOrder {
                     if rt.entryprice <= current_price {
                         order_entry_status = true;
                         rt.order_status = OrderStatus::FILLED;
+                        rt.entry_nonce = redis_db::get_nonce_u128();
+                        rt.entry_sequence = redis_db::incr_entry_sequence_by_one();
+                        rt.entryprice = current_price;
                     } else {
                         rt.order_status = OrderStatus::PENDING;
                     }
@@ -113,13 +125,15 @@ impl TraderOrder {
             },
             OrderType::MARKET => {
                 rt.order_status = OrderStatus::FILLED;
+                rt.entry_nonce = redis_db::get_nonce_u128();
+                rt.entry_sequence = redis_db::incr_entry_sequence_by_one();
                 rt.entryprice = current_price;
                 order_entry_status = true;
             }
             _ => {}
         }
 
-        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{});",
+        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
             &rt.uuid,
             &rt.account_id ,
             &rt.position_type ,
@@ -137,7 +151,11 @@ impl TraderOrder {
             &rt.maintenance_margin ,
             &rt.liquidation_price ,
             &rt.unrealized_pnl,
-            &rt.settlement_price
+            &rt.settlement_price,
+            &rt.entry_nonce,
+            &rt.exit_nonce,
+            &rt.entry_sequence,
+
         );
         let rself = rt.clone();
         // thread to store trader order data in redisDB
@@ -151,7 +169,7 @@ impl TraderOrder {
                 redis_db::zadd(
                     &"TraderOrder",
                     &rt.uuid.to_string(),      //value
-                    &rt.timestamp.to_string(), //score
+                    &rt.entry_sequence.to_string(), //score
                 );
 
                 // update pool size when new order get inserted
@@ -204,6 +222,13 @@ impl TraderOrder {
                     },
                     _ => {}
                 }
+                  // thread to store trader order data in postgreSQL
+            let handle = thread::spawn(move || {
+                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+                client.execute(&query, &[]).unwrap();
+                // let rt = self.clone();
+            });
             } else {
                 // trader order set by timestamp
                 match rt.position_type {
@@ -222,14 +247,39 @@ impl TraderOrder {
                         );
                     }
                 }
-            }
-        });
-        // thread to store trader order data in postgreSQL
-        let handle = thread::spawn(move || {
-            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                // insert pending order in newpending table
+                let query = format!("INSERT INTO public.pendinglimittraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+                    &rt.uuid,
+                    &rt.account_id ,
+                    &rt.position_type ,
+                    &rt.order_status ,
+                    &rt.order_type ,
+                    &rt.entryprice ,
+                    &rt.execution_price ,
+                    &rt.positionsize ,
+                    &rt.leverage ,
+                    &rt.initial_margin ,
+                    &rt.available_margin ,
+                    &rt.timestamp ,
+                    &rt.bankruptcy_price ,
+                    &rt.bankruptcy_value ,
+                    &rt.maintenance_margin ,
+                    &rt.liquidation_price ,
+                    &rt.unrealized_pnl,
+                    &rt.settlement_price,
+                    &rt.entry_nonce,
+                    &rt.exit_nonce,
+                    &rt.entry_sequence,    
+                );
+                       // thread to store trader order data in postgreSQL
+            let handle = thread::spawn(move || {
+                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
-            client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
+                client.execute(&query, &[]).unwrap();
+                // let rt = self.clone();
+            });
+            }
+          
         });
         // handle.join().unwrap();
         return rself;
@@ -339,12 +389,13 @@ impl TraderOrder {
         // ordertx.maintenance_margin
 
         let query = format!("UPDATE public.newtraderorder
-            SET order_status='{:#?}',   available_margin={},  maintenance_margin={}, liquidation_price={},settlement_price={}
+            SET order_status='{:#?}',   available_margin={},  maintenance_margin={}, liquidation_price={},exit_nonce={} ,settlement_price={}
             WHERE uuid='{}';",
             &self.order_status ,
             &self.available_margin ,
             &self.maintenance_margin ,
             &self.liquidation_price ,
+            &self.exit_nonce,
             &self.settlement_price,
             &self.uuid
             );
@@ -365,9 +416,14 @@ impl TraderOrder {
 
         let query = format!(
             "UPDATE public.newtraderorder
-            SET order_status='{:#?}',   available_margin={},settlement_price={}
+            SET order_status='{:#?}',   available_margin={},settlement_price={}, exit_nonce={}, unrealized_pnl={}
             WHERE uuid='{}';",
-            &self.order_status, &self.available_margin, &self.settlement_price, &self.uuid
+            &self.order_status,
+            &self.available_margin,
+            &self.settlement_price,
+            &self.exit_nonce,
+            &self.unrealized_pnl,
+            &self.uuid
         );
         thread::spawn(move || {
             let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
@@ -394,7 +450,8 @@ impl TraderOrder {
         ordertx.available_margin = ordertx.available_margin + payment;
         ordertx.settlement_price = current_price;
         ordertx.unrealized_pnl = u_pnl;
-        updatelendaccountontraderordersettlement(payment);
+        let exit_nonce = updatelendaccountontraderordersettlement(payment);
+        ordertx.exit_nonce = exit_nonce;
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
         return ordertx;
     }

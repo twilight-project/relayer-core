@@ -76,7 +76,7 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 
 /// also add ammount in tlv **  update nonce also
 
-pub fn updatelendaccountontraderordersettlement(payment: f64) {
+pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
     let best_lend_account_order_id = redis_db::getbestlender();
     let mut best_lend_account: LendOrder =
         LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
@@ -88,10 +88,12 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) {
         &best_lend_account.serialize(),
     );
     redis_db::decrbyfloat_type_f64("tlv", payment);
+
     println!(
         "lend account {} changed by {}",
         &best_lend_account_order_id[0], payment
     );
+    redis_db::incr_lend_nonce_by_one()
 }
 
 // need to create new order **done

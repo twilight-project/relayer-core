@@ -3,6 +3,7 @@ use crate::relayer::types::*;
 use crate::relayer::utils::{entryvalue, liquidationprice, maintenancemargin, positionside};
 // use std::thread;
 use crate::redislib::redis_db;
+use crate::relayer::utils::*;
 
 ////********* operation on each funding cycle **** //////
 
@@ -94,6 +95,8 @@ pub fn updatechangesineachordertxonfundingratechange(
     return ordertx;
 }
 pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> TraderOrder {
+    updatelendaccountontraderordersettlement(-1.0 * ordertx.available_margin);
+    ordertx.exit_nonce = redis_db::incr_lend_nonce_by_one();
     ordertx.available_margin = 0.0;
     ordertx.settlement_price = current_price;
     ordertx.liquidation_price = current_price;
