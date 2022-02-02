@@ -989,6 +989,8 @@ fn test_traderorder_calculate_payment_test7() {
 #[test]
 fn test_traderorder_calculate_payment_test8() {
     let mt = BUSYSTATUS.lock().unwrap();
+
+    // create Lendorder TX
     LendOrder::new(
         "Lend account_id",
         10.0,
@@ -998,37 +1000,55 @@ fn test_traderorder_calculate_payment_test8() {
     )
     .newtraderorderinsert();
 
-    println!("{:#?}", *mt);
+    // drop old table of redisDB
     println!("{}", redis_db::del_test());
+
     thread::sleep(time::Duration::from_millis(50));
+
+    // set fee and funding rate to 0 and current price to 40000usd
     redis_db::set("Fee", "0.0");
     redis_db::set("FundingRate", "0.0");
     thread::sleep(time::Duration::from_millis(50));
     redis_db::set("CurrentPrice", "40000.0");
     thread::sleep(time::Duration::from_millis(51));
+
+    // create test TraderOrder totx
     let totx: TraderOrder = TraderOrder::new(
         "account_id",
         PositionType::SHORT,
         OrderType::MARKET,
-        10.0,
-        1.5,
-        1.5,
+        10.0, // leverage
+        1.5,  // initial margin, in BTC
+        1.5,  // available margin, in BTC
         OrderStatus::PENDING,
-        39000.01,
-        39000.01,
+        39000.01, // entry price, note: for market order entry price will be current price, in USD
+        39000.01, // execution price, note: doesn't matter in case of market order
     );
-    let mut totx_clone = totx.clone();
     println!("create : {:#?}", totx);
+
+    let mut totx_clone = totx.clone();
+
+    // set funding rate to -0.00024448784504781486
     setfundingratefortest_negative_funding();
+
+    // insert order to db (new status Pending -> Filled)
     totx_clone = totx_clone.newtraderorderinsert();
+
+    // set current price to 37000usd and fee as 0.025
     redis_db::set("CurrentPrice", "37000.0");
     redis_db::set("Fee", "0.025");
     thread::sleep(time::Duration::from_millis(500));
+
+    // run funding cycle with current price 37000usd, fee 0.025 and funding rate -0.00024448784504781486
     getandupdateallordersonfundingcycle();
     thread::sleep(time::Duration::from_millis(500));
+
+    // get updated order
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
     println!("funding order tx {:#?}", ordertx);
+
+    // settle traderorder
     let totx_settle = ordertx.calculatepayment();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
