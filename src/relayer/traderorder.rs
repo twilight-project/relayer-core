@@ -105,7 +105,7 @@ impl TraderOrder {
                         order_entry_status = true;
                         rt.order_status = OrderStatus::FILLED;
                         rt.entry_nonce = redis_db::get_nonce_u128();
-                        rt.entry_sequence = redis_db::incr_entry_sequence_by_one();
+                        rt.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
                         rt.entryprice = current_price;
                     } else {
                         rt.order_status = OrderStatus::PENDING;
@@ -116,7 +116,7 @@ impl TraderOrder {
                         order_entry_status = true;
                         rt.order_status = OrderStatus::FILLED;
                         rt.entry_nonce = redis_db::get_nonce_u128();
-                        rt.entry_sequence = redis_db::incr_entry_sequence_by_one();
+                        rt.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
                         rt.entryprice = current_price;
                     } else {
                         rt.order_status = OrderStatus::PENDING;
@@ -126,7 +126,7 @@ impl TraderOrder {
             OrderType::MARKET => {
                 rt.order_status = OrderStatus::FILLED;
                 rt.entry_nonce = redis_db::get_nonce_u128();
-                rt.entry_sequence = redis_db::incr_entry_sequence_by_one();
+                rt.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
                 rt.entryprice = current_price;
                 order_entry_status = true;
             }
