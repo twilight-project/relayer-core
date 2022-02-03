@@ -229,11 +229,11 @@ pub fn get_nonce_u128() -> u128 {
 
 //get_entry_sequence_u128
 
-pub fn get_entry_sequence_u128() -> u128 {
+pub fn get_entry_sequence_trader_order_u128() -> u128 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
 
     return match redis::cmd("GET")
-        .arg("EntrySequence")
+        .arg("EntrySequence_TraderOrder")
         .query::<u128>(&mut *conn)
     {
         Ok(s) => s,
@@ -242,10 +242,34 @@ pub fn get_entry_sequence_u128() -> u128 {
     };
 }
 
-pub fn incr_entry_sequence_by_one() -> u128 {
+pub fn incr_entry_sequence_by_one_trader_order() -> u128 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCR")
-        .arg("EntrySequence")
+        .arg("EntrySequence_TraderOrder")
+        .query::<u128>(&mut *conn)
+        .unwrap();
+    return i;
+}
+
+//get_entry_sequence_u128
+
+pub fn get_entry_sequence_lend_order_u128() -> u128 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("GET")
+        .arg("EntrySequence_LendOrder")
+        .query::<u128>(&mut *conn)
+    {
+        Ok(s) => s,
+        // Err(_) => String::from("key not found"),
+        Err(_) => 0,
+    };
+}
+
+pub fn incr_entry_sequence_by_one_lend_order() -> u128 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("INCR")
+        .arg("EntrySequence_LendOrder")
         .query::<u128>(&mut *conn)
         .unwrap();
     return i;
@@ -341,7 +365,7 @@ pub fn del_test() -> i32 {
         .arg("TraderOrderbyLiquidationPriceFORLong")
         .arg("TraderOrderbyLiquidationPriceFORShort")
         .arg("TraderOrder")
-        // .arg("LendNonce")
+        .arg("LendNonce")
         .arg("LendOrderbyDepositLendState")
         .arg("Fee")
         .arg("FundingRate")
@@ -351,7 +375,8 @@ pub fn del_test() -> i32 {
         .arg("TotalShortPositionSize")
         .arg("TotalLongPositionSize")
         .arg("TotalPoolPositionSize")
-        // .arg("EntrySequence")
+        .arg("EntrySequence_TraderOrder")
+        .arg("EntrySequence_LendOrder")
         .query::<i32>(&mut *conn)
         .unwrap();
     // .query(&mut conn)
