@@ -65,24 +65,28 @@ CREATE TABLE newtraderorder(
 -- }
 
 CREATE TABLE newlendorder(
-   uuid               VARCHAR(100) NOT NULL PRIMARY KEY
-  ,account_id         TEXT NOT NULL
-  ,balance            NUMERIC NOT NULL
-  ,order_status       VARCHAR(50) NOT NULL
-  ,order_type         VARCHAR(50) NOT NULL
-  ,nonce              NUMERIC NOT NULL
-  ,deposit            NUMERIC NOT NULL
+   uuid                    VARCHAR(100) NOT NULL PRIMARY KEY
+  ,account_id              TEXT NOT NULL
+  ,balance                 NUMERIC NOT NULL
+  ,order_status            VARCHAR(50) NOT NULL
+  ,order_type              VARCHAR(50) NOT NULL
+  ,entry_nonce             bigint NOT NULL
+  ,exit_nonce              bigint NOT NULL
+  ,deposit                 NUMERIC NOT NULL
   ,new_lend_state_amount   NUMERIC NOT NULL
-  ,timestamp          bigint  NOT NULL
-  ,npoolshare         NUMERIC NOT NULL
-  ,nwithdraw          NUMERIC NOT NULL
-  ,payment            NUMERIC NOT NULL
-  ,tlv0               NUMERIC NOT NULL
-  ,tps0               NUMERIC NOT NULL
-  ,tlv1               NUMERIC NOT NULL
-  ,tps1               NUMERIC NOT NULL
-  ,tlv2               NUMERIC NOT NULL
-  ,tps2               NUMERIC NOT NULL
+  ,timestamp               bigint  NOT NULL
+  ,npoolshare              NUMERIC NOT NULL
+  ,nwithdraw               NUMERIC NOT NULL
+  ,payment                 NUMERIC NOT NULL
+  ,tlv0                    NUMERIC NOT NULL
+  ,tps0                    NUMERIC NOT NULL
+  ,tlv1                    NUMERIC NOT NULL
+  ,tps1                    NUMERIC NOT NULL
+  ,tlv2                    NUMERIC NOT NULL
+  ,tps2                    NUMERIC NOT NULL
+  ,tlv3                    NUMERIC NOT NULL
+  ,tps3                    NUMERIC NOT NULL
+  ,entry_sequence          bigint  NOT NULL
 );
 
 
