@@ -2,6 +2,7 @@ use crate::relayer::lendorder::LendOrder;
 // use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 // use std::thread;
+use crate::config::LENDSTATUS;
 use crate::redislib::redis_db;
 
 pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
@@ -118,6 +119,13 @@ pub fn normalize_pool_share(tlv: f64, tps: f64, deposit: f64) -> f64 {
     return npoolshare;
 }
 
+pub fn poolshare(tlv: f64, tps: f64, deposit: f64) -> (f64, f64) {
+    let npoolshare = tps * deposit * 10000.0 / tlv;
+    let poolshare = tps * deposit / tlv;
+
+    return (poolshare, npoolshare);
+}
+
 /// undate this function to return both nwithdraw and withdraw
 pub fn normalize_withdraw(tlv: f64, tps: f64, npoolshare: f64) -> f64 {
     let nwithdraw = tlv * npoolshare / tps;
@@ -131,3 +139,48 @@ pub fn initialize_lend_pool(tlv: f64, tps: f64) -> f64 {
 }
 
 pub fn lend_mutex_lock(lock: bool) {}
+
+pub fn getset_new_lend_order_tlv_tps_poolshare(
+    deposit: f64,
+) -> (f64, f64, f64, f64, f64, f64, u128, u128) {
+    let lend_lock = LENDSTATUS.lock().unwrap();
+
+    let ndeposit = deposit * 10000.0;
+    let mut tlv0 = redis_db::get_type_f64("tlv");
+    if tlv0 == 0.0 {
+        tlv0 = initialize_lend_pool(100000.0, 10.0);
+    }
+    let tps0 = redis_db::get_type_f64("tps");
+    // println!("tps check {:#?}", tps);
+    let (poolshare, npoolshare): (f64, f64) = poolshare(tlv0, tps0, ndeposit);
+    let tps1 = redis_db::incrbyfloat_type_f64("tps", poolshare);
+    let tlv1 = redis_db::incrbyfloat_type_f64("tlv", ndeposit);
+    let entry_nonce = redis_db::incr_lend_nonce_by_one();
+    let entry_sequence = redis_db::incr_entry_sequence_by_one_lend_order();
+    drop(lend_lock);
+    return (
+        tlv0,
+        tps0,
+        tlv1,
+        tps1,
+        poolshare,
+        npoolshare,
+        entry_nonce,
+        entry_sequence,
+    );
+}
+
+pub fn getset_settle_lend_order_tlv_tps_poolshare(
+    npoolshare: f64,
+) -> (f64, f64, f64, f64, f64, f64, u128) {
+    let lend_lock = LENDSTATUS.lock().unwrap();
+    let tlv2 = redis_db::get_type_f64("tlv");
+    let tps2 = redis_db::get_type_f64("tps");
+    let nwithdraw = normalize_withdraw(tlv2, tps2, npoolshare);
+    let withdraw = nwithdraw / 10000.0;
+    let tlv3 = redis_db::decrbyfloat_type_f64("tlv", nwithdraw / 10000.0);
+    let tps3 = redis_db::decrbyfloat_type_f64("tps", npoolshare / 10000.0);
+    let exit_nonce = redis_db::incr_lend_nonce_by_one();
+    drop(lend_lock);
+    return (tlv2, tps2, tlv3, tps3, withdraw, nwithdraw, exit_nonce);
+}
