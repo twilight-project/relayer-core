@@ -3,7 +3,7 @@ use crate::twilight_relayer_rust::config::BUSYSTATUS;
 use crate::twilight_relayer_rust::redislib::redis_db;
 use crate::twilight_relayer_rust::relayer::*;
 use std::{thread, time};
-#[macro_use]
+// #[macro_use]
 extern crate lazy_static;
 
 //set funding rate to 0.0064599108719319495
@@ -989,9 +989,10 @@ fn test_traderorder_calculate_payment_test7() {
 #[test]
 fn test_traderorder_calculate_payment_test8() {
     let mt = BUSYSTATUS.lock().unwrap();
-
+    // drop old table of redisDB
+    println!("{}", redis_db::del_test());
     // create Lendorder TX
-    LendOrder::new(
+    let lotx = LendOrder::new(
         "Lend account_id",
         10.0,
         OrderType::LEND,
@@ -999,9 +1000,7 @@ fn test_traderorder_calculate_payment_test8() {
         5.01,
     )
     .newtraderorderinsert();
-
-    // drop old table of redisDB
-    println!("{}", redis_db::del_test());
+    println!("Lend Order: {:#?} ", lotx);
 
     thread::sleep(time::Duration::from_millis(50));
 
