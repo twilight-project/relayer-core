@@ -7,6 +7,7 @@ use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, RwLock};
+use std::thread;
 lazy_static! {
 /// Static Globle PostgreSQL Pool connection
 ///
@@ -42,6 +43,10 @@ lazy_static! {
     };
     // pub static ref BUSYSTATUS:Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
     pub static ref BUSYSTATUS:Mutex<i32> =Mutex::new(0);
+
+    pub static ref LENDSTATUS:Mutex<i32> =Mutex::new(0);
+    pub static ref QUERYSTATUS:Mutex<i32> =Mutex::new(0);
+
 
     // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
     pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> =
