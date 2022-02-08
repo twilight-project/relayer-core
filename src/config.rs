@@ -47,6 +47,8 @@ lazy_static! {
     pub static ref LENDSTATUS:Mutex<i32> =Mutex::new(0);
     pub static ref QUERYSTATUS:Mutex<i32> =Mutex::new(0);
 
+    pub static ref LIMITSTATUS:Mutex<i32> =Mutex::new(0);
+//thread::JoinHandle<()>
 
     // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
     pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> =
