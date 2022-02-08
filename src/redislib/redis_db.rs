@@ -71,6 +71,8 @@ pub fn get_type_f64(key: &str) -> f64 {
 /// redis_db::save_redis_backup(String::from("src/redislib/backup/."));
 /// ```
 pub fn save_redis_backup(filepath: String) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("SAVE").query::<String>(&mut *conn).unwrap();
     let mut cmd_backup = Command::new("docker");
     cmd_backup.arg("cp");
     cmd_backup.arg("redis:/data/dump.rdb");
@@ -336,7 +338,7 @@ pub fn zrangegetpendinglimitorderforlong(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     return redis::cmd("ZRANGE")
         .arg("TraderOrder_LimitOrder_Pending_FOR_Long")
-        .arg(format!("[{}", current_price))
+        .arg(format!("{}", current_price))
         .arg("+inf")
         .arg("byscore")
         .query::<Vec<String>>(&mut *conn)
@@ -349,7 +351,7 @@ pub fn zrangegetpendinglimitorderforshort(current_price: f64) -> Vec<String> {
     return redis::cmd("ZRANGE")
         .arg("TraderOrder_LimitOrder_Pending_FOR_Short")
         .arg("0")
-        .arg(format!("[{}", current_price))
+        .arg(format!("{}", current_price))
         .arg("byscore")
         .query::<Vec<String>>(&mut *conn)
         .unwrap();
