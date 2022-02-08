@@ -1,9 +1,10 @@
 use crate::relayer::lendorder::LendOrder;
 // use crate::relayer::traderorder::TraderOrder;
-use crate::relayer::types::*;
-// use std::thread;
 use crate::config::LENDSTATUS;
+use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::redislib::redis_db;
+use crate::relayer::types::*;
+use std::thread;
 
 pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
     initial_margin * leverage
@@ -91,9 +92,22 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
     redis_db::decrbyfloat_type_f64("tlv", payment);
 
     println!(
-        "lend account {} changed by {}",
+        "lend account {} changed by {}sats",
         &best_lend_account_order_id[0], payment
     );
+    // psql update for lend order
+    let query = format!(
+        "UPDATE public.newlendorder
+    SET new_lend_state_amount={}
+    WHERE uuid='{}';",
+        best_lend_account.new_lend_state_amount, &best_lend_account_order_id[0]
+    );
+    thread::spawn(move || {
+        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+        client.execute(&query, &[]).unwrap();
+    });
+
     redis_db::incr_lend_nonce_by_one()
 }
 

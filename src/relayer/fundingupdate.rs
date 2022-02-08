@@ -11,6 +11,10 @@ pub fn updatefundingrate(psi: f64) {
     let totalshort = redis_db::get_type_f64("TotalShortPositionSize");
     let totallong = redis_db::get_type_f64("TotalLongPositionSize");
     let allpositionsize = redis_db::get_type_f64("TotalPoolPositionSize");
+    println!(
+        "totalshort:{}, totallong:{}, allpositionsize:{}",
+        totalshort, totallong, allpositionsize
+    );
     //powi is faster then powf
     //psi = 8.0 or  ψ = 8.0
     let mut fundingrate;
@@ -26,6 +30,7 @@ pub fn updatefundingrate(psi: f64) {
         fundingrate = fundingrate * (-1.0);
     }
     updatefundingrateindb(fundingrate);
+    println!("fundingrate:{}", fundingrate);
 }
 
 pub fn updatefundingrateindb(fundingrate: f64) {
@@ -66,6 +71,10 @@ pub fn updatechangesineachordertxonfundingratechange(
             }
         }
     }
+
+    if ordertx.available_margin < 0.0 {
+        ordertx.available_margin = 0.0;
+    }
     // update maintenancemargin
     ordertx.maintenance_margin = maintenancemargin(
         entryvalue(ordertx.initial_margin, ordertx.leverage),
@@ -95,26 +104,26 @@ pub fn updatechangesineachordertxonfundingratechange(
     return ordertx;
 }
 pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> TraderOrder {
-    updatelendaccountontraderordersettlement(-1.0 * ordertx.available_margin);
-    ordertx.exit_nonce = redis_db::incr_lend_nonce_by_one();
-    ordertx.available_margin = 0.0;
+    ordertx.exit_nonce =
+        updatelendaccountontraderordersettlement(-10000.0 * ordertx.initial_margin);
+    // ordertx.available_margin = 0.0;
     ordertx.settlement_price = current_price;
     ordertx.liquidation_price = current_price;
     ordertx
 }
 
-pub fn getandupdateallordersonfundingcycle() {
+pub fn get_and_update_all_orders_on_funding_cycle() {
     let orderid_list = redis_db::zrangeallopenorders();
     let current_price = redis_db::get("CurrentPrice").parse::<f64>().unwrap();
     let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
-    let fee = redis_db::get("Fee").parse::<f64>().unwrap();
+    let fee = redis_db::get_type_f64("Fee");
     for orderid in orderid_list {
         let state =
             updatechangesineachordertxonfundingratechange(orderid, fundingrate, current_price, fee);
-        println!(
-            "fundingcycle ,order of {} is {:#?}",
-            state.uuid, state.order_status
-        );
+        // println!(
+        //     "fundingcycle ,order of {} is {:#?}",
+        //     state.uuid, state.order_status
+        // );
     }
 }
 

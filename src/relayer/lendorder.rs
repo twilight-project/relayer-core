@@ -155,11 +155,11 @@ impl LendOrder {
 
             redis_db::zadd(
                 &"LendOrderbyDepositLendState",
-                &rt.uuid.to_string(),    //value
-                &rt.deposit.to_string(), //score
+                &rt.uuid.to_string(),                  //value
+                &rt.new_lend_state_amount.to_string(), //score
             );
 
-            redis_db::incrbyfloat(&"TotalLendPoolSize", &rt.deposit.to_string());
+            redis_db::incrbyfloat(&"TotalLendPoolSize", &rt.new_lend_state_amount.to_string());
         });
         // thread to store Lend order data in postgreSQL
         let handle = thread::spawn(move || {

@@ -296,19 +296,14 @@ impl TraderOrder {
                 &"TraderOrder",
                 &rt.uuid.to_string(), //value
             );
-            // trader order set by liquidation_price
-            redis_db::zdel(&"TraderOrderbyLiquidationPrice", &rt.uuid.to_string());
-            redis_db::decrbyfloat(&"TotalPoolPositionSize", rt.positionsize);
-
+           
             match rt.order_type {
                 OrderType::LIMIT => match rt.position_type {
                     PositionType::LONG => {
                         redis_db::zdel(&"TraderOrderbyLONGLimit", &rt.uuid.to_string());
-                        redis_db::decrbyfloat(&"TotalLongPositionSize", rt.positionsize);
                     }
                     PositionType::SHORT => {
                         redis_db::zdel(&"TraderOrderbySHORTLimit", &rt.uuid.to_string());
-                        redis_db::decrbyfloat(&"TotalShortPositionSize", rt.positionsize);
                     }
                 },
                 _ => {}
@@ -318,7 +313,6 @@ impl TraderOrder {
             match rt.position_type {
                 PositionType::LONG => {
                     redis_db::decrbyfloat(&"TotalLongPositionSize", rt.positionsize);
-                    // trader order set by liquidation_price for long
                     redis_db::zdel(
                         &"TraderOrderbyLiquidationPriceFORLong",
                         &rt.uuid.to_string(),
@@ -326,7 +320,6 @@ impl TraderOrder {
                 }
                 PositionType::SHORT => {
                     redis_db::decrbyfloat(&"TotalShortPositionSize", rt.positionsize);
-                    // trader order set by liquidation_price for short
                     redis_db::zdel(
                         &"TraderOrderbyLiquidationPriceFORShort",
                         &rt.uuid.to_string(),
@@ -450,7 +443,7 @@ impl TraderOrder {
         ordertx.available_margin = ordertx.available_margin + payment;
         ordertx.settlement_price = current_price;
         ordertx.unrealized_pnl = u_pnl;
-        let exit_nonce = updatelendaccountontraderordersettlement(payment);
+        let exit_nonce = updatelendaccountontraderordersettlement(payment*10000.0);
         ordertx.exit_nonce = exit_nonce;
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
         return ordertx;
