@@ -3,31 +3,31 @@
 use crate::redislib::redis_db;
 use crate::relayer::*;
 pub fn generateorder() {
-    // short limit order
+    // // short limit order
     TraderOrder::new(
         "account_id",
         PositionType::SHORT,
         OrderType::LIMIT,
         5.0,
-        15201.0,
-        15201.0,
+        1.5201,
+        1.5201,
         OrderStatus::PENDING,
-        38000.01,
+        40000.00,
         34440.02,
     )
     .newtraderorderinsert();
-    // TraderOrder::new(
-    //     "account_id",
-    //     PositionType::SHORT,
-    //     OrderType::LIMIT,
-    //     5.0,
-    //     10201.0,
-    //     10201.0,
-    //     OrderStatus::PENDING,
-    //     38500.01,
-    //     33440.02,
-    // )
-    // .newtraderorderinsert();
+    TraderOrder::new(
+        "account_id",
+        PositionType::SHORT,
+        OrderType::LIMIT,
+        5.0,
+        1.0201,
+        1.0201,
+        OrderStatus::PENDING,
+        42500.01,
+        33440.02,
+    )
+    .newtraderorderinsert();
     // TraderOrder::new(
     //     "account_id",
     //     PositionType::SHORT,
@@ -63,6 +63,18 @@ pub fn generateorder() {
         1.5,
         OrderStatus::PENDING,
         39000.01,
+        44440.02,
+    )
+    .newtraderorderinsert();
+    TraderOrder::new(
+        "account_id",
+        PositionType::LONG,
+        OrderType::LIMIT,
+        10.0,
+        1.5,
+        1.5,
+        OrderStatus::PENDING,
+        40000.0,
         44440.02,
     )
     .newtraderorderinsert();
@@ -124,8 +136,9 @@ pub fn generatelendorder() {
 }
 
 pub fn initprice() {
-    // redis_db::set("Fee", "0.0");
-    // redis_db::set("FundingRate", "0.0");
+    redis_db::set("Fee", "0.0");
+    redis_db::set("FundingRate", "0.0");
     // redis_db::set("LendNonce", "0");
     redis_db::set("CurrentPrice", "40000.0");
+    redis_db::set("btc:price", "40000.0");
 }

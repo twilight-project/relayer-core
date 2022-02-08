@@ -7,42 +7,27 @@ mod pricefeederlib;
 mod redislib;
 mod relayer;
 mod utils;
-use config::BUSYSTATUS;
-use redislib::redis_db;
+// use clokwerk::Interval::*;
+// use clokwerk::{Scheduler, TimeUnits};
+// use config::BUSYSTATUS;
+// use redislib::redis_db;
 use relayer::*;
 use std::{thread, time};
-use stopwatch::Stopwatch;
+
+// use stopwatch::Stopwatch;
 #[macro_use]
 extern crate lazy_static;
 
 fn main() {
     let one_sec = time::Duration::from_millis(1000);
-
-    let sw = Stopwatch::start_new();
-
-    ordertest::initprice();
+    // let handle = runloop_price_ticker();
     // loop {
-    // thread::sleep(one_sec);
-    // thread::sleep(one_sec);
-    // thread::sleep(one_sec);
-
-    // ordertest::generatelendorder();
-    // }
-    ordertest::generateorder();
-
-    // println!("Thing took {}ms", sw.elapsed_ms());
-    println!("Thing took {:#?}", sw.elapsed());
-
+    // let sw = Stopwatch::start_new();
+    ordertest::initprice();
+    ordertest::generatelendorder();
     thread::sleep(one_sec);
 
-    // println!(
-    //     "{:#?}",
-    //     redis_db::zrangelonglimitorderbyexecutionprice(50000.0)
-    // );
-    // println!(
-    //     " {:#?}",
-    //     redis_db::zrangeshortlimitorderbyexecutionprice(39000.0)
-    // );
+    // start_cronjobs();
 
     // println!(" {:#?}", redis_db::zrangegetliquidateorderforshort(52300.0));
     // println!(" {:#?}", redis_db::zrangegetliquidateorderforlong(35500.0));
@@ -50,10 +35,10 @@ fn main() {
     // updatefundingrate(0.1);
     // redis_db::set(&"CurrentPrice", &"38000.0");
     // o.calculatepayment();
-    // getandupdateallordersonfundingcycle();
+    // get_and_update_all_orders_on_funding_cycle();
     thread::sleep(one_sec);
+    // handle.join().unwrap();
+    loop {
+        thread::sleep(time::Duration::from_millis(100000000));
+    }
 }
-
-// fn main() {
-//     // println!("{}", *BUSYSTATUS.lock().unwrap());
-// }
