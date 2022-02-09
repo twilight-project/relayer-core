@@ -1,4 +1,5 @@
 use crate::relayer::lendorder::LendOrder;
+use crate::relayer::traderorder::TraderOrder;
 // use crate::relayer::traderorder::TraderOrder;
 use crate::config::LENDSTATUS;
 use crate::config::POSTGRESQL_POOL_CONNECTION;
@@ -197,4 +198,13 @@ pub fn getset_settle_lend_order_tlv_tps_poolshare(
     let exit_nonce = redis_db::incr_lend_nonce_by_one();
     drop(lend_lock);
     return (tlv2, tps2, tlv3, tps3, withdraw, nwithdraw, exit_nonce);
+}
+
+pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> TraderOrder {
+    ordertx.exit_nonce =
+        updatelendaccountontraderordersettlement(-10000.0 * ordertx.initial_margin);
+    // ordertx.available_margin = 0.0;
+    ordertx.settlement_price = current_price;
+    ordertx.liquidation_price = current_price;
+    ordertx
 }

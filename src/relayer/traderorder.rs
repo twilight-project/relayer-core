@@ -4,7 +4,6 @@ extern crate uuid;
 use crate::relayer::utils::*;
 use std::thread;
 use std::time::SystemTime;
-
 use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::redislib::redis_db;
 use uuid::Uuid;

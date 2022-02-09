@@ -1,14 +1,18 @@
 use crate::config::LIMITSTATUS;
+use crate::config::LIQUIDATIONORDERSTATUS;
+use crate::config::LIQUIDATIONTICKERSTATUS;
 use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::redislib::redis_db;
 use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
+use crate::relayer::utils::*;
+
 use std::thread;
-// use stopwatch::Stopwatch;
+use stopwatch::Stopwatch;
 
 pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     let limit_lock = LIMITSTATUS.lock().unwrap();
-    // let sw1 = Stopwatch::start_new();
+    let sw1 = Stopwatch::start_new();
 
     // let current_price = redis_db::get("CurrentPrice").parse::<f64>().unwrap();
 
@@ -19,16 +23,20 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     for orderid in orderid_list_short {
         let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
         let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-        update_limit_pendingorder(ordertx);
+        thread::spawn(move || {
+            update_limit_pendingorder(ordertx);
+        });
     }
     for orderid in orderid_list_long {
         let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
         let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-        update_limit_pendingorder(ordertx);
+        thread::spawn(move || {
+            update_limit_pendingorder(ordertx);
+        });
     }
 
     drop(limit_lock);
-    // println!("mutex took {:#?}", sw1.elapsed());
+    println!("mutex took {:#?}", sw1.elapsed());
 }
 // error issues
 pub fn update_limit_pendingorder(ordertx: TraderOrder) {
@@ -84,7 +92,14 @@ pub fn getsetlatestprice() {
         // println!("Price update: same price");
     } else {
         redis_db::set("CurrentPrice", &currentprice);
-        check_pending_limit_order_on_price_ticker_update(redis_db::get_type_f64("CurrentPrice"));
+        let current_price = redis_db::get_type_f64("CurrentPrice");
+        let current_price_clone = current_price.clone();
+        thread::spawn(move || {
+            check_pending_limit_order_on_price_ticker_update(current_price);
+        });
+        thread::spawn(move || {
+            check_liquidating_orders_on_price_ticker_update(current_price_clone);
+        });
         // println!("Price update: not same price");
     }
 }
@@ -94,3 +109,38 @@ pub fn getsetlatestprice() {
 //         getsetlatestprice();
 //     })
 // }
+pub fn check_liquidating_orders_on_price_ticker_update(current_price: f64) {
+    let liquidation_lock = LIQUIDATIONTICKERSTATUS.lock().unwrap();
+
+    let orderid_list_short = redis_db::zrangegetliquidateorderforshort(current_price);
+
+    let orderid_list_long = redis_db::zrangegetliquidateorderforlong(current_price);
+
+    for orderid in orderid_list_short {
+        let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+        let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
+        thread::spawn(move || {
+            liquidate_trader_order(ordertx, current_price);
+        });
+    }
+    for orderid in orderid_list_long {
+        let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+        let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
+        thread::spawn(move || {
+            liquidate_trader_order(ordertx, current_price);
+        });
+    }
+
+    drop(liquidation_lock);
+}
+
+pub fn liquidate_trader_order(order: TraderOrder, current_price: f64) {
+    let order_lock = LIQUIDATIONORDERSTATUS.lock().unwrap();
+
+    let mut ordertx = order.clone();
+    ordertx = liquidateposition(ordertx, current_price);
+    ordertx.order_status = OrderStatus::LIQUIDATE;
+    ordertx.update_trader_order_table_into_db_on_funding_cycle(order.uuid.to_string(), true);
+
+    drop(order_lock);
+}

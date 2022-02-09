@@ -55,19 +55,19 @@ pub fn updatechangesineachordertxonfundingratechange(
         PositionType::LONG => {
             if fundingratechange > 0.0 {
                 ordertx.available_margin = ordertx.available_margin
-                    - ((fundingratechange * ordertx.positionsize) / current_price)
+                    - ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
             } else {
                 ordertx.available_margin = ordertx.available_margin
-                    - ((fundingratechange * ordertx.positionsize) / current_price)
+                    - ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
             }
         }
         PositionType::SHORT => {
             if fundingratechange > 0.0 {
                 ordertx.available_margin = ordertx.available_margin
-                    + ((fundingratechange * ordertx.positionsize) / current_price)
+                    + ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
             } else {
                 ordertx.available_margin = ordertx.available_margin
-                    + ((fundingratechange * ordertx.positionsize) / current_price)
+                    + ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
             }
         }
     }
@@ -102,14 +102,6 @@ pub fn updatechangesineachordertxonfundingratechange(
     let ordertxclone = ordertx.clone();
     ordertxclone.update_trader_order_table_into_db_on_funding_cycle(orderid, isliquidated);
     return ordertx;
-}
-pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> TraderOrder {
-    ordertx.exit_nonce =
-        updatelendaccountontraderordersettlement(-10000.0 * ordertx.initial_margin);
-    // ordertx.available_margin = 0.0;
-    ordertx.settlement_price = current_price;
-    ordertx.liquidation_price = current_price;
-    ordertx
 }
 
 pub fn get_and_update_all_orders_on_funding_cycle() {

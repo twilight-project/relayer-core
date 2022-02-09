@@ -25,10 +25,10 @@ pub fn start_cronjobs() {
             ))
         });
 
-        // make backup of redis db in backup/redisdb folder every 5 sec //comments for local test
-        scheduler.every(30.seconds()).run(move || {
+        // funding update every 1 hour //comments for local test
+        scheduler.every(3000.seconds()).run(move || {
             // scheduler.every(1.hour()).run(move || {
-            updatefundingrate(0.001);
+            updatefundingrate(1.0);
             get_and_update_all_orders_on_funding_cycle();
         });
 

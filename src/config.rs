@@ -48,6 +48,9 @@ lazy_static! {
     pub static ref QUERYSTATUS:Mutex<i32> =Mutex::new(0);
 
     pub static ref LIMITSTATUS:Mutex<i32> =Mutex::new(0);
+    pub static ref LIQUIDATIONTICKERSTATUS:Mutex<i32> =Mutex::new(0);
+    pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> =Mutex::new(0);
+    pub static ref ORDERTEST:Mutex<i32> =Mutex::new(0);
 //thread::JoinHandle<()>
 
     // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
@@ -69,13 +72,13 @@ pub fn check_new_key(name: &str) {
             .insert(name.to_string(), ReentrantMutex::new(()));
     }
 }
-pub fn local_serial_core(name: &str, function: fn()) {
+pub fn local_serial_core(name: &str, function: fn(i: f64), i: f64) {
     check_new_key(name);
 
     let unlock = LOCK.read().unwrap();
     // _guard needs to be named to avoid being instant dropped
     let _guard = unlock.deref()[name].lock();
-    function();
+    function(i);
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct
