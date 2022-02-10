@@ -1,7 +1,9 @@
 // mod perpetual;
 // use crate::perpetual::interface::{LendOrder, OrderStatus, OrderType, PositionType, TraderOrder};
+use crate::config::LOCALSTORAGE;
 use crate::redislib::redis_db;
 use crate::relayer::*;
+
 pub fn generateorder() {
     // // short limit order
     TraderOrder::new(
@@ -141,4 +143,10 @@ pub fn initprice() {
     // redis_db::set("LendNonce", "0");
     redis_db::set("CurrentPrice", "40000.0");
     redis_db::set("btc:price", "40000.0");
+    let mut local_storage = LOCALSTORAGE.lock().unwrap();
+    local_storage.insert("CurrentPrice", 40000.0);
+    local_storage.insert("btc:price", 40000.0);
+    local_storage.insert("FundingRate", 0.0);
+    local_storage.insert("Fee", 0.0);
+    // drop(local_storage);
 }

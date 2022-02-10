@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
 use crate::relayer::types::*;
 use crate::relayer::utils::*;
 use serde_derive::{Deserialize, Serialize};

@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+// use dashmap::DashMap;
 use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
@@ -6,6 +9,7 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+// use std::sync::Mutex;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 lazy_static! {
@@ -51,6 +55,17 @@ lazy_static! {
     pub static ref LIQUIDATIONTICKERSTATUS:Mutex<i32> =Mutex::new(0);
     pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> =Mutex::new(0);
     pub static ref ORDERTEST:Mutex<i32> =Mutex::new(0);
+    // pub static ref LOCALSTORAGE: DashMap<String, f64> = DashMap::new();
+    // MAP.insert(String::from("key"), String::from("value"));
+    // println!("Siddharth : {:?}", *MAP.get("key").unwrap());
+
+
+    pub static ref LOCALSTORAGE: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
+    // let mut map = HASHMAP.lock().unwrap();
+    // map.insert(3, "sample");
+    //         let x = map.get(&3).unwrap();
+    // drop(map);
+
 //thread::JoinHandle<()>
 
     // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
@@ -72,13 +87,13 @@ pub fn check_new_key(name: &str) {
             .insert(name.to_string(), ReentrantMutex::new(()));
     }
 }
-pub fn local_serial_core(name: &str, function: fn(i: f64), i: f64) {
+pub fn local_serial_core(name: &str, function: fn()) {
     check_new_key(name);
 
     let unlock = LOCK.read().unwrap();
     // _guard needs to be named to avoid being instant dropped
     let _guard = unlock.deref()[name].lock();
-    function(i);
+    function();
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct

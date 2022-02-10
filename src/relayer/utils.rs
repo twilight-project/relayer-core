@@ -208,3 +208,18 @@ pub fn liquidateposition(mut ordertx: TraderOrder, current_price: f64) -> Trader
     ordertx.liquidation_price = current_price;
     ordertx
 }
+
+use crate::config::LOCALSTORAGE;
+
+pub fn get_localdb(key: &str) -> f64 {
+    let local_storage = LOCALSTORAGE.lock().unwrap();
+    let price = local_storage.get(key).unwrap().clone();
+    drop(local_storage);
+    price
+}
+
+pub fn set_localdb(key: &'static str, value: f64) {
+    let mut local_storage = LOCALSTORAGE.lock().unwrap();
+    local_storage.insert(key, value);
+    drop(local_storage);
+}

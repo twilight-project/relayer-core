@@ -1,4 +1,6 @@
 // extern crate stopwatch;
+#![allow(dead_code)]
+#![allow(unused_imports)]
 mod config;
 mod kafkalib;
 mod ordertest;
@@ -7,10 +9,8 @@ mod pricefeederlib;
 mod redislib;
 mod relayer;
 mod utils;
-use crate::config::ORDERTEST;
+use crate::config::{LOCALSTORAGE, ORDERTEST};
 
-// use clokwerk::Interval::*;
-// use clokwerk::{Scheduler, TimeUnits};
 use config::local_serial_core;
 // use redislib::redis_db;
 use relayer::*;
@@ -49,21 +49,24 @@ fn main() {
     let one_sec = time::Duration::from_millis(1000);
     ordertest::initprice();
     let sw = Stopwatch::start_new();
+    set_localdb("CurentPrice", 40023.12);
+    let current_price = get_localdb("CurrentPrice");
+    // println!("{:#?} : {:#?}", price, btcprice);
 
-    let xx = TraderOrder::new(
-        "account_id",
-        PositionType::LONG,
-        OrderType::LIMIT,
-        5.0,
-        1.0201,
-        1.0201,
-        OrderStatus::PENDING,
-        42500.01,
-        33440.02,
-    );
+    // let xx = TraderOrder::new(
+    //     "account_id",
+    //     PositionType::LONG,
+    //     OrderType::LIMIT,
+    //     5.0,
+    //     1.0201,
+    //     1.0201,
+    //     OrderStatus::PENDING,
+    //     42500.01,
+    //     33440.02,
+    // );
     // .newtraderorderinsert();
+
     println!("mutex took {:#?}", sw.elapsed());
-    thread::sleep(one_sec);
     thread::sleep(one_sec);
     thread::sleep(one_sec);
 }
