@@ -106,7 +106,7 @@ pub fn updatechangesineachordertxonfundingratechange(
 
 pub fn get_and_update_all_orders_on_funding_cycle() {
     let orderid_list = redis_db::zrangeallopenorders();
-    let current_price = redis_db::get("CurrentPrice").parse::<f64>().unwrap();
+    let current_price = get_localdb("CurrentPrice");
     let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
     let fee = redis_db::get_type_f64("Fee");
     for orderid in orderid_list {

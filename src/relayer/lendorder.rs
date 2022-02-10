@@ -178,7 +178,7 @@ impl LendOrder {
         lend_mutex_lock(true);
 
         let mut lendtx = self.clone();
-        // // let current_price = redis_db::get_type_f64("CurrentPrice");
+        // // let current_price = get_localdb("CurrentPrice");
         // let tps = redis_db::get_type_f64("tps");
         // let tlv = redis_db::get_type_f64("tlv");
         // let nwithdraw = normalize_withdraw(tlv, tps, self.npoolshare);

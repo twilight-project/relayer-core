@@ -46,15 +46,15 @@ impl TraderOrder {
         execution_price: f64,
     ) -> Self {
         if order_type == OrderType::MARKET {
-            entryprice = redis_db::get_type_f64("CurrentPrice");
+            entryprice = get_localdb("CurrentPrice");
         }
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let fee = redis_db::get_type_f64("Fee");
-        let fundingrate = redis_db::get_type_f64("FundingRate");
+        let fee = get_localdb("Fee");
+        let fundingrate = get_localdb("FundingRate");
         let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
         let liquidation_price = liquidationprice(
             entryprice,
@@ -93,9 +93,8 @@ impl TraderOrder {
 
     pub fn newtraderorderinsert(self) -> Self {
         let mut rt = self.clone();
-        let current_price = redis_db::get("CurrentPrice").parse::<f64>().unwrap();
-
         let mut order_entry_status: bool = false;
+        let current_price = get_localdb("CurrentPrice");
 
         match rt.order_type {
             OrderType::LIMIT => match rt.position_type {
@@ -132,34 +131,39 @@ impl TraderOrder {
             _ => {}
         }
 
-        let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
-            &rt.uuid,
-            &rt.account_id ,
-            &rt.position_type ,
-            &rt.order_status ,
-            &rt.order_type ,
-            &rt.entryprice ,
-            &rt.execution_price ,
-            &rt.positionsize ,
-            &rt.leverage ,
-            &rt.initial_margin ,
-            &rt.available_margin ,
-            &rt.timestamp ,
-            &rt.bankruptcy_price ,
-            &rt.bankruptcy_value ,
-            &rt.maintenance_margin ,
-            &rt.liquidation_price ,
-            &rt.unrealized_pnl,
-            &rt.settlement_price,
-            &rt.entry_nonce,
-            &rt.exit_nonce,
-            &rt.entry_sequence,
-
-        );
+       
         let rself = rt.clone();
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
         thread::spawn(move || {
+            rt.entry_nonce = redis_db::get_nonce_u128();
+
+            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+                &rt.uuid,
+                &rt.account_id ,
+                &rt.position_type ,
+                &rt.order_status ,
+                &rt.order_type ,
+                &rt.entryprice ,
+                &rt.execution_price ,
+                &rt.positionsize ,
+                &rt.leverage ,
+                &rt.initial_margin ,
+                &rt.available_margin ,
+                &rt.timestamp ,
+                &rt.bankruptcy_price ,
+                &rt.bankruptcy_value ,
+                &rt.maintenance_margin ,
+                &rt.liquidation_price ,
+                &rt.unrealized_pnl,
+                &rt.settlement_price,
+                &rt.entry_nonce,
+                &rt.exit_nonce,
+                &rt.entry_sequence,
+
+            );
+            
+            
             // trader order saved in redis, orderid as key
             redis_db::set(&rt.uuid.to_string(), &rt.serialize());
 
@@ -222,13 +226,12 @@ impl TraderOrder {
                     _ => {}
                 }
                   // thread to store trader order data in postgreSQL
-            let handle = thread::spawn(move || {
-                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
-                client.execute(&query, &[]).unwrap();
-                // let rt = self.clone();
-            });
-            } else {
+                let handle = thread::spawn(move || {
+                        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                        client.execute(&query, &[]).unwrap();
+                    });
+            } 
+            else {
                 // trader order set by timestamp
                 match rt.position_type {
                     PositionType::LONG => {
@@ -271,11 +274,9 @@ impl TraderOrder {
                     &rt.entry_sequence,    
                 );
                        // thread to store trader order data in postgreSQL
-            let handle = thread::spawn(move || {
-                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
-                client.execute(&query, &[]).unwrap();
-                // let rt = self.clone();
+                let handle = thread::spawn(move || {
+                    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                    client.execute(&query, &[]).unwrap();
             });
             }
           
@@ -429,7 +430,7 @@ impl TraderOrder {
     pub fn calculatepayment(self) -> Self {
         let mut ordertx = self.clone();
         let margindifference = ordertx.available_margin - ordertx.initial_margin;
-        let current_price = redis_db::get_type_f64("CurrentPrice");
+        let current_price = get_localdb("CurrentPrice");
         // let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
         let u_pnl = unrealizedpnl(
             &ordertx.position_type,

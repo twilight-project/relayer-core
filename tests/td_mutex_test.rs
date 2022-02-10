@@ -1,9 +1,8 @@
 extern crate twilight_relayer_rust;
-use crate::twilight_relayer_rust::config::{local_serial_core, BUSYSTATUS};
+use crate::twilight_relayer_rust::config::local_serial_core;
 use crate::twilight_relayer_rust::redislib::redis_db;
 use crate::twilight_relayer_rust::relayer::*;
 use std::{thread, time};
-#[macro_use]
 extern crate lazy_static;
 
 // create new Trader order // all utils function for trader order will also gets tested again

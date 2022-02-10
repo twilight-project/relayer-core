@@ -14,7 +14,7 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     let limit_lock = LIMITSTATUS.lock().unwrap();
     let sw1 = Stopwatch::start_new();
 
-    // let current_price = redis_db::get("CurrentPrice").parse::<f64>().unwrap();
+    // let current_price = get_localdb("CurrentPrice");
 
     let orderid_list_short = redis_db::zrangegetpendinglimitorderforshort(current_price);
 
@@ -92,7 +92,7 @@ pub fn getsetlatestprice() {
         // println!("Price update: same price");
     } else {
         redis_db::set("CurrentPrice", &currentprice);
-        let current_price = redis_db::get_type_f64("CurrentPrice");
+        let current_price = get_localdb("CurrentPrice");
         let current_price_clone = current_price.clone();
         thread::spawn(move || {
             check_pending_limit_order_on_price_ticker_update(current_price);
