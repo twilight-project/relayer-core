@@ -448,4 +448,181 @@ impl TraderOrder {
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
         return ordertx;
     }
+
+    pub fn pending(
+        account_id: &str,
+        position_type: PositionType,
+        order_type: OrderType,
+        leverage: f64,
+        initial_margin: f64,
+        available_margin: f64,
+        order_status: OrderStatus,
+        mut entryprice: f64,
+        execution_price: f64,
+        uuid: Uuid,
+        entry_nonce: u128,
+        entry_sequence: u128,
+
+
+    ) -> Self {
+            entryprice = get_localdb("CurrentPrice");
+        let position_side = positionside(&position_type);
+        let entry_value = entryvalue(initial_margin, leverage);
+        let positionsize = positionsize(entry_value, entryprice);
+        let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
+        let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
+        let fee = get_localdb("Fee");
+        let fundingrate = get_localdb("FundingRate");
+        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
+        let liquidation_price = liquidationprice(
+            entryprice,
+            positionsize,
+            position_side,
+            maintenance_margin,
+            initial_margin,
+        );
+        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+            Ok(n) => TraderOrder {
+                uuid,
+                account_id: String::from(account_id),
+                position_type,
+                order_status,
+                order_type,
+                entryprice,
+                execution_price,
+                positionsize,
+                leverage,
+                initial_margin,
+                available_margin,
+                timestamp: n.as_millis(),
+                bankruptcy_price,
+                bankruptcy_value,
+                maintenance_margin,
+                liquidation_price,
+                unrealized_pnl: 0.0,
+                settlement_price: 0.0,
+                entry_nonce: entry_nonce,
+                exit_nonce: 0,
+                entry_sequence: entry_sequence,
+            },
+            Err(e) => panic!("Could not generate new order: {}", e),
+        }
+    }
+    pub fn pending_limit_traderorderinsert(self) -> Self {
+        let mut rt = self.clone();
+        let current_price = rt.entryprice;
+
+        match rt.order_type {
+            OrderType::LIMIT => {
+                        rt.order_status = OrderStatus::FILLED;
+                        // rt.entry_nonce = redis_db::get_nonce_u128();
+                        // rt.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+            },
+            _ => {}
+        }
+     
+        let rself = rt.clone();
+        // thread to store trader order data in redisDB
+        //inside operations can also be called in different thread
+        thread::spawn(move || {
+            // rt.entry_nonce = redis_db::get_nonce_u128();
+
+            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+                &rt.uuid,
+                &rt.account_id ,
+                &rt.position_type ,
+                &rt.order_status ,
+                &rt.order_type ,
+                &rt.entryprice ,
+                &rt.execution_price ,
+                &rt.positionsize ,
+                &rt.leverage ,
+                &rt.initial_margin ,
+                &rt.available_margin ,
+                &rt.timestamp ,
+                &rt.bankruptcy_price ,
+                &rt.bankruptcy_value ,
+                &rt.maintenance_margin ,
+                &rt.liquidation_price ,
+                &rt.unrealized_pnl,
+                &rt.settlement_price,
+                &rt.entry_nonce,
+                &rt.exit_nonce,
+                &rt.entry_sequence,
+            );
+            
+            
+            // trader order saved in redis, orderid as key
+            redis_db::set(&rt.uuid.to_string(), &rt.serialize());
+
+                // trader order set by timestamp
+                redis_db::zadd(
+                    &"TraderOrder",
+                    &rt.uuid.to_string(),      //value
+                    &rt.entry_sequence.to_string(), //score
+                );
+
+                // update pool size when new order get inserted
+
+                match rt.position_type {
+                    PositionType::LONG => {
+                        redis_db::incrbyfloat(
+                            &"TotalLongPositionSize",
+                            &rt.positionsize.to_string(),
+                        );
+                        // trader order set by liquidation_price for long
+                        redis_db::zadd(
+                            &"TraderOrderbyLiquidationPriceFORLong",
+                            &rt.uuid.to_string(),
+                            &rt.liquidation_price.to_string(),
+                        );
+                    }
+                    PositionType::SHORT => {
+                        redis_db::incrbyfloat(
+                            &"TotalShortPositionSize",
+                            &rt.positionsize.to_string(),
+                        );
+                        // trader order set by liquidation_price for short
+                        redis_db::zadd(
+                            &"TraderOrderbyLiquidationPriceFORShort",
+                            &rt.uuid.to_string(),
+                            &rt.liquidation_price.to_string(),
+                        );
+                    }
+                }
+
+                redis_db::incrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
+
+                match rt.order_type {
+                    OrderType::LIMIT => match rt.position_type {
+                        PositionType::LONG => {
+                            redis_db::zadd(
+                                &"TraderOrderbyLONGLimit",
+                                &rt.uuid.to_string(),
+                                &rt.execution_price.to_string(),
+                            );
+                        }
+                        PositionType::SHORT => {
+                            redis_db::zadd(
+                                &"TraderOrderbySHORTLimit",
+                                &rt.uuid.to_string(),
+                                &rt.execution_price.to_string(),
+                            );
+                        }
+                    },
+                    _ => {}
+                }
+                  // thread to store trader order data in postgreSQL
+                let handle = thread::spawn(move || {
+                        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                        client.execute(&query, &[]).unwrap();
+                    });
+           
+           
+          
+        });
+        // handle.join().unwrap();
+        return rself;
+    }
+
 }

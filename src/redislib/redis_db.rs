@@ -57,6 +57,37 @@ pub fn get_type_f64(key: &str) -> f64 {
     };
 }
 
+pub fn mget_f64(key_array: Vec<&str>) -> Vec<f64> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    let mut array: Vec<f64> = Vec::new();
+    array = redis::cmd("MGET").arg(key_array).query(&mut *conn).unwrap();
+    // for key in key_array {
+    //     trans_query = trans_query.arg(key);
+    // }
+    // trans_query = trans_query.query(&mut *conn).unwrap();
+
+    array
+}
+
+// let (k1, k2, k3): (i32, i32, f64) = redis::pipe()
+//     .cmd("SET")
+//     .arg("LendNonce")
+//     .arg(5)
+//     .ignore()
+//     .cmd("SET")
+//     .arg("LendNonce2")
+//     .arg(6)
+//     .ignore()
+//     .cmd("GET")
+//     .arg("LendNonce")
+//     .cmd("GET")
+//     .arg("LendNonce2")
+//     .cmd("GET")
+//     .arg("CurrentPrice")
+//     .query(&mut *conn)
+//     .unwrap();
+
 /// `save_redis_backup` can copy redis backup created in redis container to host system
 ///
 /// ###Example:
@@ -102,6 +133,16 @@ pub fn del(key: &str) -> bool {
 }
 
 pub fn zdel(key: &str, member: &str) -> bool {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("ZREM")
+        .arg(key)
+        .arg(member)
+        .query::<i32>(&mut *conn)
+        .unwrap();
+    return true;
+}
+
+pub fn zdel_bulk(key: &str, member: Vec<String>) -> bool {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let _ = redis::cmd("ZREM")
         .arg(key)
@@ -397,5 +438,17 @@ pub fn zrank_test(orderid: &str, table: &str) -> i32 {
     {
         Ok(s) => s,
         Err(_) => -1,
+    };
+}
+
+pub fn get_nonce_u128_test(
+    mut conn: r2d2::PooledConnection<r2d2_redis::RedisConnectionManager>,
+) -> u128 {
+    // let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("GET").arg("LendNonce").query::<u128>(&mut *conn) {
+        Ok(s) => s,
+        // Err(_) => String::from("key not found"),
+        Err(_) => 0,
     };
 }
