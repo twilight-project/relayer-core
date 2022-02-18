@@ -4,11 +4,12 @@ use crate::relayer::types::*;
 use crate::relayer::utils::*;
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
-use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::config::QUERYSTATUS;
+use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
 use crate::redislib::redis_db;
 use std::thread;
 use std::time::SystemTime;
+use stopwatch::Stopwatch;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -112,64 +113,107 @@ impl LendOrder {
     }
 
     pub fn newtraderorderinsert(self) -> LendOrder {
-        let rt = self.clone();
-        let query = format!("INSERT INTO public.newlendorder(
-            uuid, account_id, balance, order_status, order_type, entry_nonce,exit_nonce, deposit, new_lend_state_amount, timestamp, npoolshare, nwithdraw, payment, tlv0, tps0, tlv1, tps1, tlv2, tps2, tlv3, tps3, entry_sequence)
-            VALUES ('{}','{}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
-            &rt.uuid,
-            &rt.account_id ,
-            &rt.balance ,
-            &rt.order_status ,
-            &rt.order_type ,
-            &rt.entry_nonce ,
-            &rt.exit_nonce ,
-            &rt.deposit ,
-            &rt.new_lend_state_amount ,
-            &rt.timestamp ,
-            &rt.npoolshare ,
-            &rt.nwithdraw ,
-            &rt.payment ,
-            &rt.tlv0 ,
-            &rt.tps0 ,
-            &rt.tlv1 ,
-            &rt.tps1 ,
-            &rt.tlv2 ,
-            &rt.tps2 ,
-            &rt.tlv3 ,
-            &rt.tps3 ,
-            &rt.entry_sequence ,
-        );
+        let lendtx = self.clone();
 
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
-        let return_self = rt.clone();
+        let return_self = lendtx.clone();
+        let lendtx_psql = lendtx.clone();
         thread::spawn(move || {
             // Lend order saved in redis, orderid as key
-            redis_db::set(&rt.uuid.to_string(), &rt.serialize());
+            redis_db::set(&lendtx.uuid.to_string(), &lendtx.serialize());
             // Lend order set by nonce
             redis_db::zadd(
                 &"LendOrder",
-                &rt.uuid.to_string(),           //value
-                &rt.entry_sequence.to_string(), //score
+                &lendtx.uuid.to_string(),           //value
+                &lendtx.entry_sequence.to_string(), //score
             );
 
             // Lend order by there deposit amount as score
 
             redis_db::zadd(
                 &"LendOrderbyDepositLendState",
-                &rt.uuid.to_string(),                  //value
-                &rt.new_lend_state_amount.to_string(), //score
+                &lendtx.uuid.to_string(),                  //value
+                &lendtx.new_lend_state_amount.to_string(), //score
             );
 
-            redis_db::incrbyfloat(&"TotalLendPoolSize", &rt.new_lend_state_amount.to_string());
+            redis_db::incrbyfloat(
+                &"TotalLendPoolSize",
+                &lendtx.new_lend_state_amount.to_string(),
+            );
         });
+        // let sw = Stopwatch::start_new();
+
         // thread to store Lend order data in postgreSQL
-        let handle = thread::spawn(move || {
+        let pool = THREADPOOL.lock().unwrap();
+        pool.execute(move || {
+            let query = format!("INSERT INTO public.newlendorder(
+                uuid, account_id, balance, order_status, order_type, entry_nonce,exit_nonce, deposit, new_lend_state_amount, timestamp, npoolshare, nwithdraw, payment, tlv0, tps0, tlv1, tps1, tlv2, tps2, tlv3, tps3, entry_sequence)
+                VALUES ('{}','{}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+                &lendtx_psql.uuid,
+                &lendtx_psql.account_id ,
+                &lendtx_psql.balance ,
+                &lendtx_psql.order_status ,
+                &lendtx_psql.order_type ,
+                &lendtx_psql.entry_nonce ,
+                &lendtx_psql.exit_nonce ,
+                &lendtx_psql.deposit ,
+                &lendtx_psql.new_lend_state_amount ,
+                &lendtx_psql.timestamp ,
+                &lendtx_psql.npoolshare ,
+                &lendtx_psql.nwithdraw ,
+                &lendtx_psql.payment ,
+                &lendtx_psql.tlv0 ,
+                &lendtx_psql.tps0 ,
+                &lendtx_psql.tlv1 ,
+                &lendtx_psql.tps1 ,
+                &lendtx_psql.tlv2 ,
+                &lendtx_psql.tps2 ,
+                &lendtx_psql.tlv3 ,
+                &lendtx_psql.tps3 ,
+                &lendtx_psql.entry_sequence ,
+            );
             let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
             client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
+            println!("psql done");
         });
+        drop(pool);
+        // println!("pool took {:#?}", sw.elapsed());
+        // let handle = thread::spawn(move || {
+        //     let query = format!("INSERT INTO public.newlendorder(
+        //         uuid, account_id, balance, order_status, order_type, entry_nonce,exit_nonce, deposit, new_lend_state_amount, timestamp, npoolshare, nwithdraw, payment, tlv0, tps0, tlv1, tps1, tlv2, tps2, tlv3, tps3, entry_sequence)
+        //         VALUES ('{}','{}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+        //         &lendtx_psql.uuid,
+        //         &lendtx_psql.account_id ,
+        //         &lendtx_psql.balance ,
+        //         &lendtx_psql.order_status ,
+        //         &lendtx_psql.order_type ,
+        //         &lendtx_psql.entry_nonce ,
+        //         &lendtx_psql.exit_nonce ,
+        //         &lendtx_psql.deposit ,
+        //         &lendtx_psql.new_lend_state_amount ,
+        //         &lendtx_psql.timestamp ,
+        //         &lendtx_psql.npoolshare ,
+        //         &lendtx_psql.nwithdraw ,
+        //         &lendtx_psql.payment ,
+        //         &lendtx_psql.tlv0 ,
+        //         &lendtx_psql.tps0 ,
+        //         &lendtx_psql.tlv1 ,
+        //         &lendtx_psql.tps1 ,
+        //         &lendtx_psql.tlv2 ,
+        //         &lendtx_psql.tps2 ,
+        //         &lendtx_psql.tlv3 ,
+        //         &lendtx_psql.tps3 ,
+        //         &lendtx_psql.entry_sequence ,
+        //     );
+        //     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+        //     // client.execute(&query, &[]).unwrap();
+        //     // let rt = self.clone();
+        // });
+
+        // let rt = self.clone();
         // handle.join().unwrap();
         return return_self;
     }
@@ -218,18 +262,18 @@ impl LendOrder {
     }
 
     pub fn remove_lend_order_from_redis(self) -> Self {
-        let rt = self.clone();
+        let lendtx = self.clone();
 
         // thread::spawn(move || {
         // Lend order removed from redis, orderid as key
-        redis_db::del(&rt.uuid.to_string());
+        redis_db::del(&lendtx.uuid.to_string());
         // trader order set by timestamp
         redis_db::zdel(
             &"LendOrder",
-            &rt.uuid.to_string(), //value
+            &lendtx.uuid.to_string(), //value
         );
         // Lend order set by deposit
-        redis_db::zdel(&"LendOrderbyDepositLendState", &rt.uuid.to_string());
+        redis_db::zdel(&"LendOrderbyDepositLendState", &lendtx.uuid.to_string());
         // });
         return self;
     }

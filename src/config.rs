@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::relayer::ThreadPool;
 use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
@@ -66,6 +67,9 @@ lazy_static! {
  // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
  pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> =
      Arc::new(RwLock::new(HashMap::new()));
+
+ pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(1)));
+
 }
 
 pub fn check_new_key(name: &str) {

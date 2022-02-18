@@ -118,7 +118,8 @@ pub fn generateorder() {
     // .newtraderorderinsert();
 }
 
-pub fn generatelendorder() {
+pub fn generatelendorder(count: i32) {
+    println!("static pool running : {}", count);
     LendOrder::new(
         "Lend account_id",
         10.0,
@@ -149,4 +150,5 @@ pub fn initprice() {
     local_storage.insert("FundingRate", 0.0);
     local_storage.insert("Fee", 0.0);
     // drop(local_storage);
+    initialize_lend_pool(100000.0, 10.0);
 }

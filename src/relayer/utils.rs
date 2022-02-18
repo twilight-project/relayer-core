@@ -155,24 +155,32 @@ pub fn initialize_lend_pool(tlv: f64, tps: f64) -> f64 {
 
 pub fn lend_mutex_lock(lock: bool) {}
 
+use stopwatch::Stopwatch;
+
 pub fn getset_new_lend_order_tlv_tps_poolshare(
     deposit: f64,
 ) -> (f64, f64, f64, f64, f64, f64, u128, u128) {
     let lend_lock = LENDSTATUS.lock().unwrap();
 
     let ndeposit = deposit * 10000.0;
-    let mut tlv0 = redis_db::get_type_f64("tlv");
-    if tlv0 == 0.0 {
-        tlv0 = initialize_lend_pool(100000.0, 10.0);
-    }
-    let tps0 = redis_db::get_type_f64("tps");
-    // println!("tps check {:#?}", tps);
+
+    // let tlv0 = redis_db::get_type_f64("tlv");
+    // let tps0 = redis_db::get_type_f64("tps");
+
+    let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]);
+
+    let (tlv0, tps0) = (rev_data[0], rev_data[1]);
+
+    let sw = Stopwatch::start_new();
+
     let (poolshare, npoolshare): (f64, f64) = poolshare(tlv0, tps0, ndeposit);
     let tps1 = redis_db::incrbyfloat_type_f64("tps", poolshare);
     let tlv1 = redis_db::incrbyfloat_type_f64("tlv", ndeposit);
     let entry_nonce = redis_db::incr_lend_nonce_by_one();
     let entry_sequence = redis_db::incr_entry_sequence_by_one_lend_order();
+    println!("getset took {:#?}", sw.elapsed());
     drop(lend_lock);
+
     return (
         tlv0,
         tps0,
