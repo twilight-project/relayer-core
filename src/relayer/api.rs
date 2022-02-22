@@ -1,5 +1,6 @@
 use crate::relayer::*;
 // use jsonrpc_core::types::error::ErrorCode;
+use crate::config::THREADPOOL_ORDERKAFKAQUEUE;
 use crate::kafkalib::producer_kafka;
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_http_server::jsonrpc_core::{IoHandler, Params, Value};
@@ -41,13 +42,10 @@ pub fn startserver() {
 
     server.wait();
 }
-
+use stopwatch::Stopwatch;
 fn new_trader_order_request_queue(order_request: CreateOrder) {
     println!("successfully queued");
-    producer_kafka::produce_main(
-        &serde_json::to_string(&order_request).unwrap(),
-        "NewTraderOrderQueue",
-    );
+    let sw = Stopwatch::start_new();
     // let ordertx = TraderOrder::new(
     //     &ordertx.account_id,
     //     ordertx.position_type,
@@ -60,4 +58,13 @@ fn new_trader_order_request_queue(order_request: CreateOrder) {
     //     ordertx.execution_price,
     // );
     // Ok(Value::String(ordertx.serialize()))
+    let pool = THREADPOOL_ORDERKAFKAQUEUE.lock().unwrap();
+    pool.execute(move || {
+        producer_kafka::produce_main(
+            &serde_json::to_string(&order_request).unwrap(),
+            "NewTraderOrderQueue",
+        );
+    });
+    drop(pool);
+    println!("mutex took {:#?}", sw.elapsed());
 }

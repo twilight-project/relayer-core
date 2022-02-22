@@ -69,6 +69,7 @@ lazy_static! {
      Arc::new(RwLock::new(HashMap::new()));
 
  pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(1)));
+ pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
 }
 
