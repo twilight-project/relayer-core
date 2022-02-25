@@ -101,13 +101,15 @@ services:
     shm_size: "1gb"
     hostname: aeron
     container_name: aeron
-    restart: always
+    # restart: always
     volumes:
       - ./aeron/data/:/dev/shm
     # network: host
     # ports:
-    #  - "17000:17000"
+    #  - "40123:40123"
     #  - "17001:17001"
+    network_mode: host
+    ipc: host
     
 
 volumes:

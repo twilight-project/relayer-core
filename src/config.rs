@@ -13,6 +13,35 @@ use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex, RwLock};
 //thread::JoinHandle<()>
 
+// aeron constant, need to include inside env file
+pub const DEFAULT_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
+pub const DEFAULT_PING_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
+pub const DEFAULT_PONG_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
+pub const DEFAULT_STREAM_ID: &str = "1001";
+pub const DEFAULT_PING_STREAM_ID: &str = "1002";
+pub const DEFAULT_PONG_STREAM_ID: &str = "1003";
+pub const DEFAULT_NUMBER_OF_WARM_UP_MESSAGES: &str = "100000";
+pub const DEFAULT_NUMBER_OF_MESSAGES: &str = "10000000";
+pub const DEFAULT_MESSAGE_LENGTH: &str = "32";
+pub const DEFAULT_LINGER_TIMEOUT_MS: &str = "0";
+pub const DEFAULT_FRAGMENT_COUNT_LIMIT: &str = "10";
+pub const DEFAULT_RANDOM_MESSAGE_LENGTH: bool = false;
+pub const DEFAULT_PUBLICATION_RATE_PROGRESS: bool = false;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum SteamId {
+    AERONMSG = 1001,    //TraderOrder
+    AERONMSGTWO = 1002, //LendOrder
+}
+
+impl std::fmt::Display for SteamId {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+        // or, alternatively:
+        // fmt::Debug::fmt(self, f)
+    }
+}
+
 lazy_static! {
  /// Static Globle PostgreSQL Pool connection
  ///
