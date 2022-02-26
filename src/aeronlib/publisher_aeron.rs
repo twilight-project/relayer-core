@@ -5,6 +5,7 @@ use std::{
     time::Duration,
 };
 
+use crate::aeronlib::aeronqueue::aeron_rec;
 use crate::config::{SteamId, DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
 use aeron_rs::{
     aeron::Aeron,
@@ -90,7 +91,8 @@ fn str_to_c(val: &str) -> CString {
     CString::new(val).expect("Error converting str to CString")
 }
 
-pub fn pub_aeron(receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) {
+// pub fn pub_aeron(receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) {
+pub fn pub_aeron() {
     // pretty_env_logger::init();
     // ctrlc::set_handler(move || {
     //     println!("received Ctrl+C!");
@@ -159,7 +161,8 @@ pub fn pub_aeron(receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Rece
     }
 
     loop {
-        let message = receiver.lock().unwrap().recv().unwrap();
+        // let message = receiver.lock().unwrap().recv().unwrap();
+        let message = aeron_rec();
         // }
 
         // for i in 0..settings.number_of_messages {

@@ -10,7 +10,8 @@ use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 // use std::sync::Mutex;
-use std::sync::{Arc, Mutex, RwLock};
+use mpsc::{channel, Receiver, Sender};
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 //thread::JoinHandle<()>
 
 // aeron constant, need to include inside env file
@@ -82,6 +83,15 @@ lazy_static! {
  pub static ref LIQUIDATIONTICKERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref ORDERTEST:Mutex<i32> = Mutex::new(0);
+
+
+ pub static ref AERON_BROADCAST:(Arc<Mutex<Sender<String>>>,Arc<Mutex<Receiver<String>>>) ={
+    let (sender, receiver) = channel();
+    return (Arc::new(Mutex::new(sender)), Arc::new(Mutex::new(receiver)));
+ };
+
+
+
 
  // pub static ref LOCALDB: DashMap<String, f64> = DashMap::new();
  // MAP.insert(String::from("key"), String::from("value"));

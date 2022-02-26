@@ -104,11 +104,11 @@ fn str_to_c(val: &str) -> CString {
 
 pub fn sub_aeron() {
     // pretty_env_logger::init();
-    ctrlc::set_handler(move || {
-        println!("received Ctrl+C!");
-        sig_int_handler();
-    })
-    .expect("Error setting Ctrl-C handler");
+    // ctrlc::set_handler(move || {
+    //     println!("received Ctrl+C!");
+    //     sig_int_handler();
+    // })
+    // .expect("Error setting Ctrl-C handler");
 
     // let settings = parse_cmd_line();
     let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", SteamId::AERONMSG);
@@ -174,7 +174,7 @@ pub fn sub_aeron() {
 
     let idle_strategy = SleepingIdleStrategy::new(1000);
 
-    while RUNNING.load(Ordering::SeqCst) {
+    loop {
         let fragments_read = subscription
             .lock()
             .expect("Fu")
