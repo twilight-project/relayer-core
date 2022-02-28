@@ -34,7 +34,7 @@ jsonrpc = "0.12.1"
 jsonrpc-http-server = "18.0"
 jsonrpc-core = "18.0.0"
 ctrlc = "3.1"
-# nix = "0.17"
+nix = "0.17"
 
 # aeron-rs = "0.1.5"
 # dashmap = "5.1.0"  // use dashmap::DashMap;
