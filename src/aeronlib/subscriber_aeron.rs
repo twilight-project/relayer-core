@@ -4,7 +4,8 @@ use std::{
     sync::atomic::{AtomicBool, AtomicI64, Ordering},
 };
 
-use crate::config::{SteamId, DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
+use crate::aeronlib::types::StreamId;
+use crate::config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{
@@ -45,7 +46,7 @@ impl Settings {
             stream_id: DEFAULT_STREAM_ID.parse().unwrap(),
         }
     }
-    pub fn custom(channel: &str, topic: SteamId) -> Self {
+    pub fn custom(channel: &str, topic: StreamId) -> Self {
         Self {
             dir_prefix: String::new(),
             channel: String::from(channel),
@@ -102,7 +103,7 @@ fn str_to_c(val: &str) -> CString {
     CString::new(val).expect("Error converting str to CString")
 }
 
-pub fn sub_aeron() {
+pub fn sub_aeron(topic: StreamId) {
     // pretty_env_logger::init();
     // ctrlc::set_handler(move || {
     //     println!("received Ctrl+C!");
@@ -111,7 +112,8 @@ pub fn sub_aeron() {
     // .expect("Error setting Ctrl-C handler");
 
     // let settings = parse_cmd_line();
-    let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", SteamId::AERONMSG);
+    // let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", StreamId::AERONMSG);
+    let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", topic);
 
     println!(
         "Subscribing Pong at {} on Stream ID {}",
@@ -172,7 +174,7 @@ pub fn sub_aeron() {
         channel_status_to_str(channel_status)
     );
 
-    let idle_strategy = SleepingIdleStrategy::new(1000);
+    let idle_strategy = SleepingIdleStrategy::new(10);
 
     loop {
         let fragments_read = subscription

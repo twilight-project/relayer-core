@@ -1,12 +1,6 @@
-use std::{
-    ffi::CString,
-    io::{stdout, Write},
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
-
 use crate::aeronlib::aeronqueue::aeron_rec;
-use crate::config::{SteamId, DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
+use crate::aeronlib::types::StreamId;
+use crate::config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{
@@ -16,6 +10,12 @@ use aeron_rs::{
     context::Context,
     // example_config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID},
     utils::errors::AeronError,
+};
+use std::{
+    ffi::CString,
+    io::{stdout, Write},
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
 };
 enum Message {
     String,
@@ -53,7 +53,7 @@ impl Settings {
         }
     }
 
-    pub fn custom(channel: &str, topic: SteamId, dir: &str) -> Self {
+    pub fn custom(channel: &str, topic: StreamId, dir: &str) -> Self {
         Self {
             dir_prefix: String::from(dir),
             channel: String::from(channel),
@@ -92,7 +92,12 @@ fn str_to_c(val: &str) -> CString {
 }
 
 // pub fn pub_aeron(receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) {
-pub fn pub_aeron() {
+// pub fn pub_aeron() {
+pub fn pub_aeron(
+    topic: StreamId,
+    receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>,
+) {
+    let topic_clone = topic.clone();
     // pretty_env_logger::init();
     // ctrlc::set_handler(move || {
     //     println!("received Ctrl+C!");
@@ -101,9 +106,14 @@ pub fn pub_aeron() {
     // .expect("Error setting Ctrl-C handler");
 
     // let settings = parse_cmd_line();
+    // let settings = Settings::custom(
+    //     "aeron:udp?endpoint=localhost:40123",
+    //     StreamId::AERONMSG,
+    //     "/dev/shm/aeron-default",
+    // );
     let settings = Settings::custom(
         "aeron:udp?endpoint=localhost:40123",
-        SteamId::AERONMSG,
+        topic,
         "/dev/shm/aeron-default",
     );
 
@@ -147,9 +157,10 @@ pub fn pub_aeron() {
     let channel_status = publication.lock().unwrap().channel_status();
 
     println!(
-        "Publication channel status {}: {} ",
+        "Publication channel status {}: {}, topic:{:#?}  ",
         channel_status,
-        channel_status_to_str(channel_status)
+        channel_status_to_str(channel_status),
+        topic_clone
     );
 
     let buffer = AlignedBuffer::with_capacity(256);
@@ -161,8 +172,9 @@ pub fn pub_aeron() {
     }
 
     loop {
-        // let message = receiver.lock().unwrap().recv().unwrap();
-        let message = aeron_rec();
+        let message = receiver.lock().unwrap().recv().unwrap();
+
+        // let message = aeron_rec();
         // }
 
         // for i in 0..settings.number_of_messages {

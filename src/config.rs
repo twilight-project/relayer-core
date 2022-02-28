@@ -29,20 +29,6 @@ pub const DEFAULT_FRAGMENT_COUNT_LIMIT: &str = "10";
 pub const DEFAULT_RANDOM_MESSAGE_LENGTH: bool = false;
 pub const DEFAULT_PUBLICATION_RATE_PROGRESS: bool = false;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum SteamId {
-    AERONMSG = 1001,    //TraderOrder
-    AERONMSGTWO = 1002, //LendOrder
-}
-
-impl std::fmt::Display for SteamId {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-        // or, alternatively:
-        // fmt::Debug::fmt(self, f)
-    }
-}
-
 lazy_static! {
  /// Static Globle PostgreSQL Pool connection
  ///
@@ -84,8 +70,14 @@ lazy_static! {
  pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref ORDERTEST:Mutex<i32> = Mutex::new(0);
 
-
+ // aeron publisher static mpsc
  pub static ref AERON_BROADCAST:(Arc<Mutex<Sender<String>>>,Arc<Mutex<Receiver<String>>>) ={
+    let (sender, receiver) = channel();
+    return (Arc::new(Mutex::new(sender)), Arc::new(Mutex::new(receiver)));
+ };
+
+ // aeron subscriber static mpsc
+ pub static ref AERON_RECEIVER:(Arc<Mutex<Sender<String>>>,Arc<Mutex<Receiver<String>>>) ={
     let (sender, receiver) = channel();
     return (Arc::new(Mutex::new(sender)), Arc::new(Mutex::new(receiver)));
  };

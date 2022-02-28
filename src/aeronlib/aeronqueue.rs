@@ -1,5 +1,8 @@
+use crate::aeronlib::types::StreamId;
 use crate::aeronlib::{publisher_aeron, subscriber_aeron};
 use crate::config::AERON_BROADCAST;
+use mpsc::{channel, Sender};
+use std::sync::{mpsc, Arc, Mutex};
 use std::{thread, time};
 
 pub fn aeron_send(message: String) {
@@ -14,14 +17,30 @@ pub fn aeron_rec() -> String {
 }
 
 pub fn start_aeron() {
-    thread::spawn(move || {
-        publisher_aeron::pub_aeron();
-    });
-    thread::spawn(move || {
-        subscriber_aeron::sub_aeron();
-    });
+    // thread::spawn(move || {
+    //     // publisher_aeron::pub_aeron();
+    // });
+    // thread::spawn(move || {
+    //     subscriber_aeron::sub_aeron(StreamId::AERONMSG);
+    // });
+    // thread::spawn(move || {
+    //     subscriber_aeron::sub_aeron(StreamId::AERONMSGTWO);
+    // });
 
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }
+}
+
+pub fn start_aeron_topic(topic: StreamId) -> Arc<Mutex<Sender<String>>> {
+    let topic_clone = topic.clone();
+    thread::spawn(move || {
+        subscriber_aeron::sub_aeron(topic_clone);
+    });
+    let (sender, receiver) = channel();
+    let receiver = Arc::new(Mutex::new(receiver));
+    thread::spawn(move || {
+        publisher_aeron::pub_aeron(topic, receiver);
+    });
+    Arc::new(Mutex::new(sender))
 }

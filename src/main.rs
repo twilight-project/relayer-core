@@ -10,6 +10,7 @@ mod pricefeederlib;
 mod redislib;
 mod relayer;
 mod utils;
+use crate::aeronlib::types::StreamId;
 use crate::config::{LOCALDB, ORDERTEST, REDIS_POOL_CONNECTION, THREADPOOL};
 use config::local_serial_core;
 use kafkalib::consumer_kafka::consume_kafka;
@@ -37,24 +38,37 @@ fn main() {
     //     );
     // });
     // thread::sleep(one_sec);
-    // let sw = Stopwatch::start_new();
     // // start_cronjobs();
     // startserver();
     // println!("pool took {:#?}", sw.elapsed());
     thread::sleep(one_sec);
     // let (sender, receiver) = mpsc::channel();
-
-    thread::spawn(move || {
-        start_aeron();
-    });
+    // thread::spawn(move || {
+    //     start_aeron();
+    // });
     // let receiver = Arc::new(Mutex::new(receiver));
-
+    let sender = aeronlib::aeronqueue::start_aeron_topic(StreamId::AERONMSG);
+    let sender2 = aeronlib::aeronqueue::start_aeron_topic(StreamId::AERONMSGTWO);
     let mut i = 0;
-    thread::spawn(move || loop {
+    // thread::spawn(move ||
+    let sender_clone = sender.lock().unwrap();
+    let sender_clone2 = sender2.lock().unwrap();
+    thread::sleep(time::Duration::from_millis(3000));
+    loop {
         i = i + 1;
-        aeron_send(format!("hello siddharth, msg : {}", i));
-        thread::sleep(time::Duration::from_millis(100));
-    });
+        sender_clone
+            .send(format!("hello siddharth, msg : {}", i))
+            .unwrap();
+        sender_clone2
+            .send(format!("hello pub2, msg : {}", i))
+            .unwrap();
+
+        thread::sleep(time::Duration::from_millis(1000));
+        if i > 50 {
+            break;
+        }
+    }
+    // });
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }
