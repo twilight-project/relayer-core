@@ -22,7 +22,7 @@ use std::{thread, time};
 use stopwatch::Stopwatch;
 #[macro_use]
 extern crate lazy_static;
-use crate::aeronlib::aeronqueue::{aeron_send, start_aeron};
+use crate::aeronlib::aeronqueue::*;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -47,28 +47,51 @@ fn main() {
     //     start_aeron();
     // });
     // let receiver = Arc::new(Mutex::new(receiver));
-    let sender = aeronlib::aeronqueue::start_aeron_topic(StreamId::AERONMSG);
-    let sender2 = aeronlib::aeronqueue::start_aeron_topic(StreamId::AERONMSGTWO);
+    // let sender = aeronlib::aeronqueue::start_aeron_topic(StreamId::AERONMSG);
+    // let sender2 = aeronlib::aeronqueue::start_aeron_topic(StreamId::AERONMSGTWO);
+    // let mut i = 0;
+    // // thread::spawn(move ||
+    // let sender_clone = sender.lock().unwrap();
+    // let sender_clone2 = sender2.lock().unwrap();
+    // thread::sleep(time::Duration::from_millis(3000));
+    // loop {
+    //     i = i + 1;
+    //     sender_clone
+    //         .send(format!("hello siddharth, msg : {}", i))
+    //         .unwrap();
+    //     sender_clone2
+    //         .send(format!("hello pub2, msg : {}", i))
+    //         .unwrap();
+
+    //     thread::sleep(time::Duration::from_millis(10));
+    //     if i > 50 {
+    //         break;
+    //     }
+    // }
+    // });
+    thread::spawn(move || {
+        start_aeron_topic_consumer(StreamId::AERONMSG);
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(10));
+        start_aeron_topic_producer(StreamId::AERONMSG);
+    });
+
+    thread::sleep(time::Duration::from_millis(1000));
     let mut i = 0;
-    // thread::spawn(move ||
-    let sender_clone = sender.lock().unwrap();
-    let sender_clone2 = sender2.lock().unwrap();
-    thread::sleep(time::Duration::from_millis(3000));
     loop {
         i = i + 1;
-        sender_clone
-            .send(format!("hello siddharth, msg : {}", i))
-            .unwrap();
-        sender_clone2
-            .send(format!("hello pub2, msg : {}", i))
-            .unwrap();
+        send_aeron_msg(StreamId::AERONMSG, format!("hello siddharth, msg : {}", i));
 
-        thread::sleep(time::Duration::from_millis(1000));
+        thread::sleep(time::Duration::from_millis(10));
         if i > 50 {
             break;
         }
     }
-    // });
+    thread::spawn(move || loop {
+        println!("my msg:  {:#?}", rec_aeron_msg(StreamId::AERONMSG));
+        thread::sleep(time::Duration::from_millis(1000));
+    });
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }

@@ -13,6 +13,7 @@ use std::ops::{Deref, DerefMut};
 use mpsc::{channel, Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 //thread::JoinHandle<()>
+use crate::aeronlib::types::{AeronMessage, AeronMessageMPSC, StreamId};
 
 // aeron constant, need to include inside env file
 pub const DEFAULT_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
@@ -94,6 +95,10 @@ lazy_static! {
  /// let x = map.get(&3).unwrap().clone();
  /// drop(map);
  pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
+ pub static ref AERONTOPICPRODUCERHASHMAP: Mutex<HashMap<i32,std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<String>>>>> = Mutex::new(HashMap::new());
+
+
+ pub static ref AERONTOPICCONSUMERHASHMAP: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
 
  // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
  pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> =

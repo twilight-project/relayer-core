@@ -203,10 +203,10 @@ pub fn pub_aeron(
         }
     }
 
-    println!("Done sending.");
+    // println!("Done sending.");
 
-    if settings.linger_timeout_ms > 0 {
-        println!("Lingering for {} milliseconds.", settings.linger_timeout_ms);
-        std::thread::sleep(Duration::from_millis(settings.linger_timeout_ms));
-    }
+    // if settings.linger_timeout_ms > 0 {
+    //     println!("Lingering for {} milliseconds.", settings.linger_timeout_ms);
+    //     std::thread::sleep(Duration::from_millis(settings.linger_timeout_ms));
+    // }
 }

@@ -4,8 +4,8 @@ use std::{
     sync::atomic::{AtomicBool, AtomicI64, Ordering},
 };
 
-use crate::aeronlib::types::StreamId;
-use crate::config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
+use crate::aeronlib::types::{AeronMessage, StreamId};
+use crate::config::{AERONTOPICCONSUMERHASHMAP, DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{
@@ -83,7 +83,7 @@ fn error_handler(error: AeronError) {
     println!("Error: {:?}", error);
 }
 
-fn on_new_fragment(buffer: &AtomicBuffer, offset: Index, length: Index, header: &Header) {
+pub fn on_new_fragment(buffer: &AtomicBuffer, offset: Index, length: Index, header: &Header) {
     unsafe {
         let slice_msg =
             slice::from_raw_parts_mut(buffer.buffer().offset(offset as isize), length as usize);
@@ -177,10 +177,36 @@ pub fn sub_aeron(topic: StreamId) {
     let idle_strategy = SleepingIdleStrategy::new(10);
 
     loop {
-        let fragments_read = subscription
-            .lock()
-            .expect("Fu")
-            .poll(&mut on_new_fragment, 10);
+        // let fragments_read = subscription.lock().expect("Fu").poll(receiver_function, 10);
+        let fragments_read = subscription.lock().expect("Fu").poll(
+            &mut |buffer: &AtomicBuffer, offset: Index, length: Index, header: &Header| unsafe {
+                let slice_msg = slice::from_raw_parts_mut(
+                    buffer.buffer().offset(offset as isize),
+                    length as usize,
+                );
+                let msg = CString::new(slice_msg).unwrap();
+                let aeron_topic_consumer_hashmap = AERONTOPICCONSUMERHASHMAP.lock().unwrap();
+                let aeron_topic_consumer_hashmap_clone = aeron_topic_consumer_hashmap.clone();
+                drop(aeron_topic_consumer_hashmap);
+                let att = aeron_topic_consumer_hashmap_clone
+                    .get(&header.stream_id())
+                    .unwrap();
+                att.send()
+                    .lock()
+                    .unwrap()
+                    .send(AeronMessage {
+                        stream_id: header.stream_id(),
+                        session_id: header.session_id(),
+                        length: length,
+                        offset: offset,
+                        msg: msg.to_str().unwrap().to_string(),
+                    }) //AeronMessage
+                    .unwrap();
+                // drop(aeron_topic_consumer_hashmap);
+                println!("msg sent from consumer");
+            },
+            10,
+        );
         idle_strategy.idle_opt(fragments_read);
     }
 }
