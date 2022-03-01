@@ -174,21 +174,11 @@ pub fn pub_aeron(
     loop {
         let message = receiver.lock().unwrap().recv().unwrap();
 
-        // let message = aeron_rec();
-        // }
-
-        // for i in 0..settings.number_of_messages {
-        // if !RUNNING.load(Ordering::SeqCst) {
-        //     break;
-        // }
-
-        // let str_msg = format!("Basic publisher msg #{}", i);
         let str_msg = format!("{}", message);
         let c_str_msg = CString::new(str_msg).unwrap();
 
         src_buffer.put_bytes(0, c_str_msg.as_bytes());
 
-        // println!("offering {}/{}", i + 1, settings.number_of_messages);
         let _unused = stdout().flush();
 
         let result = publication
@@ -202,11 +192,4 @@ pub fn pub_aeron(
             println!("Offer with error: {:?}", result.err());
         }
     }
-
-    // println!("Done sending.");
-
-    // if settings.linger_timeout_ms > 0 {
-    //     println!("Lingering for {} milliseconds.", settings.linger_timeout_ms);
-    //     std::thread::sleep(Duration::from_millis(settings.linger_timeout_ms));
-    // }
 }

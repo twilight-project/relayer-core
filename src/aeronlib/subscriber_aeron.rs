@@ -27,10 +27,6 @@ lazy_static! {
     pub static ref SUBSCRIPTION_ID: AtomicI64 = AtomicI64::new(-1);
 }
 
-fn sig_int_handler() {
-    RUNNING.store(false, Ordering::SeqCst);
-}
-
 #[derive(Clone)]
 struct Settings {
     dir_prefix: String,
@@ -53,10 +49,6 @@ impl Settings {
             stream_id: topic as i32,
         }
     }
-}
-
-fn parse_cmd_line() -> Settings {
-    Settings::new()
 }
 
 fn available_image_handler(image: &Image) {
@@ -83,36 +75,11 @@ fn error_handler(error: AeronError) {
     println!("Error: {:?}", error);
 }
 
-pub fn on_new_fragment(buffer: &AtomicBuffer, offset: Index, length: Index, header: &Header) {
-    unsafe {
-        let slice_msg =
-            slice::from_raw_parts_mut(buffer.buffer().offset(offset as isize), length as usize);
-        let msg = CString::new(slice_msg).unwrap();
-        println!(
-            "Message to stream {} from session {} ({}@{}): <<{}>>",
-            header.stream_id(),
-            header.session_id(),
-            length,
-            offset,
-            msg.to_str().unwrap()
-        );
-    }
-}
-
 fn str_to_c(val: &str) -> CString {
     CString::new(val).expect("Error converting str to CString")
 }
 
 pub fn sub_aeron(topic: StreamId) {
-    // pretty_env_logger::init();
-    // ctrlc::set_handler(move || {
-    //     println!("received Ctrl+C!");
-    //     sig_int_handler();
-    // })
-    // .expect("Error setting Ctrl-C handler");
-
-    // let settings = parse_cmd_line();
-    // let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", StreamId::AERONMSG);
     let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", topic);
 
     println!(
@@ -177,7 +144,6 @@ pub fn sub_aeron(topic: StreamId) {
     let idle_strategy = SleepingIdleStrategy::new(10);
 
     loop {
-        // let fragments_read = subscription.lock().expect("Fu").poll(receiver_function, 10);
         let fragments_read = subscription.lock().expect("Fu").poll(
             &mut |buffer: &AtomicBuffer, offset: Index, length: Index, header: &Header| unsafe {
                 let slice_msg = slice::from_raw_parts_mut(
@@ -200,10 +166,8 @@ pub fn sub_aeron(topic: StreamId) {
                         length: length,
                         offset: offset,
                         msg: msg.to_str().unwrap().to_string(),
-                    }) //AeronMessage
+                    })
                     .unwrap();
-                // drop(aeron_topic_consumer_hashmap);
-                println!("msg sent from consumer");
             },
             10,
         );
