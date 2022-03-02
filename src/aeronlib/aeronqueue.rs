@@ -1,21 +1,9 @@
 use crate::aeronlib::types::{AeronMessage, AeronMessageMPSC, StreamId};
 use crate::aeronlib::{publisher_aeron, subscriber_aeron};
-use crate::config::AERON_BROADCAST;
 use crate::config::{AERONTOPICCONSUMERHASHMAP, AERONTOPICPRODUCERHASHMAP};
 use mpsc::{channel, Receiver, SyncSender};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-
-pub fn aeron_send(message: String) {
-    let send = AERON_BROADCAST.0.lock().unwrap();
-    send.send(message).unwrap();
-    drop(send);
-}
-
-pub fn aeron_rec() -> String {
-    let receive = AERON_BROADCAST.1.lock().unwrap();
-    return receive.recv().unwrap();
-}
 
 pub fn start_aeron_topic_producer(topic: StreamId) {
     let topic_clone_sender = topic.clone();

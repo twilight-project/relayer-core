@@ -7,7 +7,6 @@ pub mod ordertest;
 pub mod postgresqllib;
 pub mod pricefeederlib;
 pub mod redislib;
-pub mod utils;
 
 #[macro_use]
 extern crate lazy_static;

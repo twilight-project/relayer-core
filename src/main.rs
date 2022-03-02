@@ -9,7 +9,6 @@ mod postgresqllib;
 mod pricefeederlib;
 mod redislib;
 mod relayer;
-mod utils;
 use crate::aeronlib::types::StreamId;
 use crate::config::{LOCALDB, ORDERTEST, REDIS_POOL_CONNECTION, THREADPOOL};
 use config::local_serial_core;

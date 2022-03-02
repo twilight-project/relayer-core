@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::aeronlib::types::{AeronMessage, AeronMessageMPSC, StreamId};
 use crate::relayer::ThreadPool;
+use mpsc::{channel, Receiver, Sender};
 use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
@@ -9,26 +11,7 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-// use std::sync::Mutex;
-use mpsc::{channel, Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
-//thread::JoinHandle<()>
-use crate::aeronlib::types::{AeronMessage, AeronMessageMPSC, StreamId};
-
-// aeron constant, need to include inside env file
-pub const DEFAULT_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
-pub const DEFAULT_PING_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
-pub const DEFAULT_PONG_CHANNEL: &str = "aeron:udp?endpoint=localhost:40123";
-pub const DEFAULT_STREAM_ID: &str = "1001";
-pub const DEFAULT_PING_STREAM_ID: &str = "1002";
-pub const DEFAULT_PONG_STREAM_ID: &str = "1003";
-pub const DEFAULT_NUMBER_OF_WARM_UP_MESSAGES: &str = "100000";
-pub const DEFAULT_NUMBER_OF_MESSAGES: &str = "10000000";
-pub const DEFAULT_MESSAGE_LENGTH: &str = "32";
-pub const DEFAULT_LINGER_TIMEOUT_MS: &str = "0";
-pub const DEFAULT_FRAGMENT_COUNT_LIMIT: &str = "10";
-pub const DEFAULT_RANDOM_MESSAGE_LENGTH: bool = false;
-pub const DEFAULT_PUBLICATION_RATE_PROGRESS: bool = false;
 
 lazy_static! {
  /// Static Globle PostgreSQL Pool connection
@@ -62,7 +45,8 @@ lazy_static! {
      r2d2::Pool::new(manager).expect("expect db")
     //  r2d2::Pool::builder().build(manager).unwrap()
  };
- // pub static ref BUSYSTATUS:Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+
+ // static mutex;
  pub static ref BUSYSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref LENDSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref QUERYSTATUS:Mutex<i32> = Mutex::new(0);
@@ -71,40 +55,20 @@ lazy_static! {
  pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref ORDERTEST:Mutex<i32> = Mutex::new(0);
 
- // aeron publisher static mpsc
- pub static ref AERON_BROADCAST:(Arc<Mutex<Sender<String>>>,Arc<Mutex<Receiver<String>>>) ={
-    let (sender, receiver) = channel();
-    return (Arc::new(Mutex::new(sender)), Arc::new(Mutex::new(receiver)));
- };
-
- // aeron subscriber static mpsc
- pub static ref AERON_RECEIVER:(Arc<Mutex<Sender<String>>>,Arc<Mutex<Receiver<String>>>) ={
-    let (sender, receiver) = channel();
-    return (Arc::new(Mutex::new(sender)), Arc::new(Mutex::new(receiver)));
- };
-
-
-
-
- // pub static ref LOCALDB: DashMap<String, f64> = DashMap::new();
- // MAP.insert(String::from("key"), String::from("value"));
- // println!("Siddharth : {:?}", *MAP.get("key").unwrap());
-
- /// let mut map = HASHMAP.lock().unwrap();
- /// map.insert(3, "sample");
- /// let x = map.get(&3).unwrap().clone();
- /// drop(map);
+ // local database hashmap
  pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
+
+ //aeron topic hashmap
  pub static ref AERONTOPICPRODUCERHASHMAP: Mutex<HashMap<i32,std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<String>>>>> = Mutex::new(HashMap::new());
-
-
  pub static ref AERONTOPICCONSUMERHASHMAP: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
 
  // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
- pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> =
-     Arc::new(RwLock::new(HashMap::new()));
+ pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> = Arc::new(RwLock::new(HashMap::new()));
 
+ // sync sender threadpool with buffer size = 1
  pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(1)));
+
+ // kafka threadpool with buffer/threads = 10
  pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
 }
