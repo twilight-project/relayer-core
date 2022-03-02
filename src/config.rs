@@ -71,6 +71,9 @@ lazy_static! {
  // kafka threadpool with buffer/threads = 10
  pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
+ // kafka threadpool with buffer/threads = 10
+ pub static ref THREADPOOL_ORDER_AERON_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10));
+
 }
 
 pub fn check_new_key(name: &str) {
