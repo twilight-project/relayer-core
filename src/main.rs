@@ -28,7 +28,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 fn main() {
-    let one_sec = time::Duration::from_millis(1000);
     // // kafkalib::kafka_topic::kafka_new_topic("NewTraderOrderQueue");
     ordertest::initprice();
     // thread::spawn(move || {
@@ -37,41 +36,26 @@ fn main() {
     //         String::from("newOrder"),
     //     );
     // });
-    // thread::sleep(one_sec);
-    // // start_cronjobs();
-    thread::sleep(one_sec);
+    thread::sleep(time::Duration::from_millis(100));
     thread::spawn(move || {
-        // startserver();
         start_cronjobs();
     });
-    // println!("pool took {:#?}", sw.elapsed());
-    thread::sleep(one_sec);
+    thread::sleep(time::Duration::from_millis(100));
 
-    // thread::spawn(move || {
-    //     start_aeron_topic_consumer(StreamId::AERONMSG);
-    // });
-    // thread::spawn(move || {
-    //     thread::sleep(time::Duration::from_millis(10));
-    //     start_aeron_topic_producer(StreamId::AERONMSG);
-    // });
-
-    thread::sleep(time::Duration::from_millis(1000));
-    let mut i = 0;
-    loop {
-        i = i + 1;
+    for i in 1..101 {
         send_aeron_msg(
             StreamId::CreateOrder,
             format!("hello siddharth, msg : {}", i),
         );
 
         thread::sleep(time::Duration::from_millis(10));
-        if i > 100 {
-            break;
-        }
+        // if i > 100 {
+        //     break;
+        // }
     }
     thread::spawn(move || loop {
         println!("my msg:  {}", rec_aeron_msg(StreamId::CreateOrder).msg);
-        // thread::sleep(time::Duration::from_millis(1000));
+        thread::sleep(time::Duration::from_millis(10));
     });
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
