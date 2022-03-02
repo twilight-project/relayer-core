@@ -15,7 +15,6 @@ COPY ./id_ed25519 root/.ssh/
 COPY ./id_ed25519.pub root/.ssh/
 RUN chmod 600 /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519.pub
-# RUN  ssh -T git@github.com
 
 EXPOSE 3030
 ENTRYPOINT [ "/usr/local/bin/aeronmd" ]
