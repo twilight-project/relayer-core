@@ -96,20 +96,34 @@ services:
       - POSTGRESQL_MASTER_PORT_NUMBER=5432
       - ALLOW_EMPTY_PASSWORD=yes
 
+  # aeron:
+  #   image: neomantra/aeron-cpp-debian:latest
+  #   shm_size: "1gb"
+  #   hostname: aeron
+  #   container_name: aeron
+  #   # restart: always
+  #   volumes:
+  #     - ./aeron/data/:/dev/shm
+  #   # network: host
+  #   # ports:
+  #   #  - "40123:40123"
+  #   #  - "17001:17001"
+  #   network_mode: host
+  #   ipc: host
+
   aeron:
-    image: neomantra/aeron-cpp-debian:latest
+    restart: always
     shm_size: "1gb"
+    build: 
+      context: ./docker-aeron
+      dockerfile: Dockerfile
     hostname: aeron
     container_name: aeron
-    # restart: always
     volumes:
       - ./aeron/data/:/dev/shm
-    # network: host
-    # ports:
-    #  - "40123:40123"
-    #  - "17001:17001"
+      - ./aeron/twilight-relayer/:/home/twilight-relayer
     network_mode: host
-    ipc: host
+    ipc: host    
     
 
 volumes:
