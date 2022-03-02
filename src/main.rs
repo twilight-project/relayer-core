@@ -39,7 +39,10 @@ fn main() {
     // });
     // thread::sleep(one_sec);
     // // start_cronjobs();
-    // startserver();
+    thread::sleep(one_sec);
+    // thread::spawn(move || {
+    startserver();
+    // });
     // println!("pool took {:#?}", sw.elapsed());
     thread::sleep(one_sec);
     // let (sender, receiver) = mpsc::channel();
@@ -69,30 +72,30 @@ fn main() {
     //     }
     // }
     // });
-    thread::spawn(move || {
-        start_aeron_topic_consumer(StreamId::AERONMSG);
-    });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(10));
-        start_aeron_topic_producer(StreamId::AERONMSG);
-    });
+    // thread::spawn(move || {
+    //     start_aeron_topic_consumer(StreamId::AERONMSG);
+    // });
+    // thread::spawn(move || {
+    //     thread::sleep(time::Duration::from_millis(10));
+    //     start_aeron_topic_producer(StreamId::AERONMSG);
+    // });
 
-    thread::sleep(time::Duration::from_millis(1000));
-    let mut i = 0;
-    loop {
-        i = i + 1;
-        send_aeron_msg(StreamId::AERONMSG, format!("hello siddharth, msg : {}", i));
+    // thread::sleep(time::Duration::from_millis(1000));
+    // let mut i = 0;
+    // loop {
+    //     i = i + 1;
+    //     send_aeron_msg(StreamId::AERONMSG, format!("hello siddharth, msg : {}", i));
 
-        thread::sleep(time::Duration::from_millis(10));
-        if i > 50 {
-            break;
-        }
-    }
-    thread::spawn(move || loop {
-        println!("my msg:  {:#?}", rec_aeron_msg(StreamId::AERONMSG));
-        thread::sleep(time::Duration::from_millis(1000));
-    });
-    loop {
-        thread::sleep(time::Duration::from_millis(100000000));
-    }
+    //     thread::sleep(time::Duration::from_millis(10));
+    //     if i > 100 {
+    //         break;
+    //     }
+    // }
+    // thread::spawn(move || loop {
+    //     println!("my msg:  {}", rec_aeron_msg(StreamId::AERONMSG).msg);
+    //     // thread::sleep(time::Duration::from_millis(1000));
+    // });
+    // loop {
+    //     thread::sleep(time::Duration::from_millis(100000000));
+    // }
 }

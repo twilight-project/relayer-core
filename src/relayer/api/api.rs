@@ -5,20 +5,6 @@ use crate::kafkalib::producer_kafka;
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_http_server::jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::ServerBuilder;
-use serde_derive::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct CreateOrder {
-    pub account_id: String,
-    pub position_type: PositionType,
-    pub order_type: OrderType,
-    pub leverage: f64,
-    pub initial_margin: f64,
-    pub available_margin: f64,
-    pub order_status: OrderStatus,
-    pub entryprice: f64,
-    pub execution_price: f64,
-}
 
 pub fn startserver() {
     let mut io = IoHandler::default();
@@ -39,7 +25,7 @@ pub fn startserver() {
         .threads(3)
         .start_http(&"127.0.0.1:3030".parse().unwrap())
         .unwrap();
-
+    println!("got this");
     server.wait();
 }
 use stopwatch::Stopwatch;

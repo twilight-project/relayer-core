@@ -4,27 +4,11 @@ use crate::config::AERON_BROADCAST;
 use crate::config::{
     AERONTOPICCONSUMERHASHMAP, AERONTOPICPRODUCERHASHMAP, DEFAULT_CHANNEL, DEFAULT_STREAM_ID,
 };
-use aeron_rs::{
-    aeron::Aeron,
-    concurrent::{
-        atomic_buffer::AtomicBuffer,
-        logbuffer::header::Header,
-        status::status_indicator_reader::channel_status_to_str,
-        strategies::{SleepingIdleStrategy, Strategy},
-    },
-    context::Context,
-    // example_config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID},
-    image::Image,
-    utils::{errors::AeronError, types::Index},
-};
+
 use mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
 use serde_derive::{Deserialize, Serialize};
 use std::sync::{mpsc, Arc, Mutex};
-use std::{
-    ffi::CString,
-    slice,
-    sync::atomic::{AtomicBool, AtomicI64, Ordering},
-};
+
 use std::{thread, time};
 
 pub fn aeron_send(message: String) {
@@ -71,7 +55,7 @@ pub fn start_aeron_topic_consumer(topic: StreamId) {
 
 pub fn rec_aeron_msg(topic: StreamId) -> AeronMessage {
     let aeron_topic_consumer_hashmap = AERONTOPICCONSUMERHASHMAP.lock().unwrap();
-    let receiver = &aeron_topic_consumer_hashmap
+    let receiver = aeron_topic_consumer_hashmap
         .get(&(topic as i32))
         .unwrap()
         .rec()
