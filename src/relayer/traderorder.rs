@@ -457,15 +457,13 @@ impl TraderOrder {
         initial_margin: f64,
         available_margin: f64,
         order_status: OrderStatus,
-        mut entryprice: f64,
+        entryprice: f64,
         execution_price: f64,
         uuid: Uuid,
         entry_nonce: u128,
         entry_sequence: u128,
-
-
     ) -> Self {
-            entryprice = get_localdb("CurrentPrice");
+            // entryprice = get_localdb("CurrentPrice");
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);

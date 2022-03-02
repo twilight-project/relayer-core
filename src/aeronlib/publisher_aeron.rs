@@ -1,6 +1,4 @@
-use crate::aeronlib::aeronqueue::aeron_rec;
 use crate::aeronlib::types::StreamId;
-use crate::config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{
@@ -8,118 +6,47 @@ use aeron_rs::{
         status::status_indicator_reader::channel_status_to_str,
     },
     context::Context,
-    // example_config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID},
-    utils::errors::AeronError,
 };
 use std::{
     ffi::CString,
     io::{stdout, Write},
-    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
-enum Message {
-    String,
-}
 
 extern crate nix;
-use lazy_static::lazy_static;
+
 use nix::NixPath;
-
-// lazy_static! {
-//     pub static ref RUNNING: AtomicBool = AtomicBool::from(true);
-// }
-
-// fn sig_int_handler() {
-//     RUNNING.store(false, Ordering::SeqCst);
-// }
 
 #[derive(Clone, Debug)]
 struct Settings {
     dir_prefix: String,
     channel: String,
     stream_id: i32,
-    number_of_messages: i64,
-    linger_timeout_ms: u64,
 }
 
 impl Settings {
-    pub fn new() -> Self {
-        Self {
-            dir_prefix: String::new(),
-            channel: String::from(DEFAULT_CHANNEL),
-            stream_id: DEFAULT_STREAM_ID.parse().unwrap(),
-            number_of_messages: 10,
-            linger_timeout_ms: 10000,
-        }
-    }
-
-    pub fn custom(channel: &str, topic: StreamId, dir: &str) -> Self {
+    pub fn new(channel: &str, topic: StreamId, dir: &str) -> Self {
         Self {
             dir_prefix: String::from(dir),
             channel: String::from(channel),
             stream_id: topic as i32,
-            number_of_messages: 10,
-            linger_timeout_ms: 10000,
         }
     }
-}
-
-fn parse_cmd_line() -> Settings {
-    Settings::new()
-}
-
-fn error_handler(error: AeronError) {
-    println!("Error: {:?}", error);
-}
-
-fn on_new_publication_handler(
-    channel: CString,
-    stream_id: i32,
-    session_id: i32,
-    correlation_id: i64,
-) {
-    println!(
-        "Publication: {} {} {} {}",
-        channel.to_str().unwrap(),
-        stream_id,
-        session_id,
-        correlation_id
-    );
 }
 
 fn str_to_c(val: &str) -> CString {
     CString::new(val).expect("Error converting str to CString")
 }
 
-// pub fn pub_aeron(receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>) {
-// pub fn pub_aeron() {
 pub fn pub_aeron(
     topic: StreamId,
     receiver: std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<String>>>,
 ) {
     let topic_clone = topic.clone();
-    // pretty_env_logger::init();
-    // ctrlc::set_handler(move || {
-    //     println!("received Ctrl+C!");
-    //     sig_int_handler();
-    // })
-    // .expect("Error setting Ctrl-C handler");
-
-    // let settings = parse_cmd_line();
-    // let settings = Settings::custom(
-    //     "aeron:udp?endpoint=localhost:40123",
-    //     StreamId::AERONMSG,
-    //     "/dev/shm/aeron-default",
-    // );
-    let settings = Settings::custom(
+    let settings = Settings::new(
         "aeron:udp?endpoint=localhost:40123",
         topic,
         "/dev/shm/aeron-default",
-    );
-
-    println!(
-        "Publishing to channel {} on Stream ID {}",
-        settings.channel, settings.stream_id
     );
 
     let mut context = Context::new();
@@ -127,7 +54,6 @@ pub fn pub_aeron(
     if !settings.dir_prefix.is_empty() {
         context.set_aeron_dir(settings.dir_prefix.clone());
     }
-    println!("Using CnC file: {}", context.cnc_file_name());
 
     // context.set_new_publication_handler(Box::new(on_new_publication_handler));
     // context.set_error_handler(Box::new(error_handler));
@@ -167,8 +93,8 @@ pub fn pub_aeron(
     let src_buffer = AtomicBuffer::from_aligned(&buffer);
 
     while !publication.lock().unwrap().is_connected() {
-        println!("No active subscribers detected");
-        std::thread::sleep(Duration::from_millis(1000));
+        // println!("No active subscribers detected");
+        std::thread::sleep(Duration::from_millis(100));
     }
 
     loop {
@@ -186,8 +112,8 @@ pub fn pub_aeron(
             .unwrap()
             .offer_part(src_buffer, 0, c_str_msg.len() as i32);
 
-        if let Ok(code) = result {
-            println!("Sent with code {}!", code);
+        if let Ok(_code) = result {
+            // println!("Sent with code {}!", code);
         } else {
             println!("Offer with error: {:?}", result.err());
         }

@@ -25,7 +25,6 @@ pub fn startserver() {
         .threads(3)
         .start_http(&"127.0.0.1:3030".parse().unwrap())
         .unwrap();
-    println!("got this");
     server.wait();
 }
 use stopwatch::Stopwatch;

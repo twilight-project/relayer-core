@@ -60,7 +60,8 @@ pub fn get_type_f64(key: &str) -> f64 {
 pub fn mget_f64(key_array: Vec<&str>) -> Vec<f64> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
 
-    let mut array: Vec<f64> = Vec::new();
+    let array: Vec<f64>;
+    //  = Vec::new();
     array = redis::cmd("MGET").arg(key_array).query(&mut *conn).unwrap();
     // for key in key_array {
     //     trans_query = trans_query.arg(key);

@@ -71,7 +71,7 @@ pub fn update_limit_pendingorder(
         rt.initial_margin,
         rt.available_margin,
         OrderStatus::FILLED,
-        rt.entryprice,
+        current_price,
         rt.execution_price,
         rt.uuid,
         entry_nonce,    //need to update

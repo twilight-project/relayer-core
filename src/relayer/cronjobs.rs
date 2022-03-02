@@ -1,3 +1,7 @@
+use crate::aeronlib::{
+    aeronqueue::{start_aeron_topic_consumer, start_aeron_topic_producer},
+    types::StreamId,
+};
 use crate::ordertest::generateorder;
 use crate::redislib::redis_db;
 use crate::relayer::*;
@@ -49,5 +53,12 @@ pub fn start_cronjobs() {
     });
     thread::spawn(move || {
         startserver();
+    });
+    thread::spawn(move || {
+        start_aeron_topic_consumer(StreamId::CreateOrder);
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(10));
+        start_aeron_topic_producer(StreamId::CreateOrder);
     });
 }

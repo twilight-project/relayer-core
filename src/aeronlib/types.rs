@@ -5,7 +5,7 @@ use serde_derive::Serialize;
 // use std::sync::{mpsc, Arc, Mutex};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum StreamId {
-    AERONMSG = 1001,    //TraderOrder
+    CreateOrder = 1001, //TraderOrder
     AERONMSGTWO = 1002, //LendOrder
 }
 

@@ -1,15 +1,10 @@
 use crate::aeronlib::types::{AeronMessage, AeronMessageMPSC, StreamId};
 use crate::aeronlib::{publisher_aeron, subscriber_aeron};
 use crate::config::AERON_BROADCAST;
-use crate::config::{
-    AERONTOPICCONSUMERHASHMAP, AERONTOPICPRODUCERHASHMAP, DEFAULT_CHANNEL, DEFAULT_STREAM_ID,
-};
-
-use mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
-use serde_derive::{Deserialize, Serialize};
+use crate::config::{AERONTOPICCONSUMERHASHMAP, AERONTOPICPRODUCERHASHMAP};
+use mpsc::{channel, Receiver, SyncSender};
 use std::sync::{mpsc, Arc, Mutex};
-
-use std::{thread, time};
+use std::thread;
 
 pub fn aeron_send(message: String) {
     let send = AERON_BROADCAST.0.lock().unwrap();

@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::aeronlib::types::{AeronMessage, StreamId};
-use crate::config::{AERONTOPICCONSUMERHASHMAP, DEFAULT_CHANNEL, DEFAULT_STREAM_ID};
+use crate::config::AERONTOPICCONSUMERHASHMAP;
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{
@@ -15,7 +15,6 @@ use aeron_rs::{
         strategies::{SleepingIdleStrategy, Strategy},
     },
     context::Context,
-    // example_config::{DEFAULT_CHANNEL, DEFAULT_STREAM_ID},
     image::Image,
     utils::{errors::AeronError, types::Index},
 };
@@ -35,14 +34,7 @@ struct Settings {
 }
 
 impl Settings {
-    pub fn new() -> Self {
-        Self {
-            dir_prefix: String::new(),
-            channel: String::from(DEFAULT_CHANNEL),
-            stream_id: DEFAULT_STREAM_ID.parse().unwrap(),
-        }
-    }
-    pub fn custom(channel: &str, topic: StreamId) -> Self {
+    pub fn new(channel: &str, topic: StreamId) -> Self {
         Self {
             dir_prefix: String::new(),
             channel: String::from(channel),
@@ -80,20 +72,13 @@ fn str_to_c(val: &str) -> CString {
 }
 
 pub fn sub_aeron(topic: StreamId) {
-    let settings = Settings::custom("aeron:udp?endpoint=localhost:40123", topic);
-
-    println!(
-        "Subscribing Pong at {} on Stream ID {}",
-        settings.channel, settings.stream_id
-    );
+    let settings = Settings::new("aeron:udp?endpoint=localhost:40123", topic);
 
     let mut context = Context::new();
 
     if !settings.dir_prefix.is_empty() {
         context.set_aeron_dir(settings.dir_prefix.clone());
     }
-
-    println!("Using CnC file: {}", context.cnc_file_name());
 
     context.set_new_subscription_handler(Box::new(
         |channel: CString, stream_id: i32, correlation_id: i64| {

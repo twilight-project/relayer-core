@@ -15,7 +15,7 @@
  */
 // TODO: Eliminate later
 #![allow(clippy::missing_safety_doc)]
-
+#![allow(dead_code)]
 #[macro_use]
 extern crate memoffset;
 
