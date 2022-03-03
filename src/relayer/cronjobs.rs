@@ -1,7 +1,4 @@
-use crate::aeronlib::{
-    aeronqueue::{start_aeron_topic_consumer, start_aeron_topic_producer},
-    types::StreamId,
-};
+use crate::aeronlib::types::init_aeron_queue;
 use crate::ordertest::generateorder;
 use crate::redislib::redis_db;
 use crate::relayer::*;
@@ -20,10 +17,10 @@ pub fn start_cronjobs() {
             .run(move || generateorder());
 
         // make backup of redis db in backup/redisdb folder every 5 sec //comments for local test
-        scheduler.every(5000.seconds()).run(move || {
+        scheduler.every(500000.seconds()).run(move || {
             // scheduler.every(5.seconds()).run(move || {
             redis_db::save_redis_backup(format!(
-                "backup/redisdb/dump_{}.rdb",
+                "aeron:backup/redisdb/dump_{}.rdb",
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
@@ -54,11 +51,7 @@ pub fn start_cronjobs() {
     thread::spawn(move || {
         startserver();
     });
-    thread::spawn(move || {
-        start_aeron_topic_consumer(StreamId::CreateOrder);
-    });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(10));
-        start_aeron_topic_producer(StreamId::CreateOrder);
-    });
+
+    // initial aeron
+    init_aeron_queue();
 }

@@ -72,7 +72,7 @@ fn str_to_c(val: &str) -> CString {
 }
 
 pub fn sub_aeron(topic: StreamId) {
-    let settings = Settings::new("aeron:udp?endpoint=localhost:40123", topic);
+    let settings = Settings::new("aeron:udp?endpoint=localhost:40123", topic.clone());
 
     let mut context = Context::new();
 
@@ -83,7 +83,7 @@ pub fn sub_aeron(topic: StreamId) {
     context.set_new_subscription_handler(Box::new(
         |channel: CString, stream_id: i32, correlation_id: i64| {
             println!(
-                "Subscription: {} {} {}",
+                "Subscription: {} streamid:{} correlation id:{}",
                 channel.to_str().unwrap(),
                 stream_id,
                 correlation_id
@@ -121,9 +121,10 @@ pub fn sub_aeron(topic: StreamId) {
     let channel_status = subscription.lock().expect("Fu").channel_status();
 
     println!(
-        "Subscription channel status {}: {}",
+        "Subscription channel status {}: {},  topic:{:#?} ",
         channel_status,
-        channel_status_to_str(channel_status)
+        channel_status_to_str(channel_status),
+        topic
     );
 
     let idle_strategy = SleepingIdleStrategy::new(10);

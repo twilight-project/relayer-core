@@ -3,8 +3,9 @@ use crate::aeronlib::types::StreamId;
 use crate::config::THREADPOOL_ORDER_AERON_QUEUE;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct CreateOrder {
+pub struct CreateTraderOrder {
     pub account_id: String,
     pub position_type: PositionType,
     pub order_type: OrderType,
@@ -16,11 +17,35 @@ pub struct CreateOrder {
     pub execution_price: f64,
 }
 
-impl CreateOrder {
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct CreateLendOrder {
+    pub account_id: String,
+    pub balance: f64,
+    pub order_type: OrderType,
+    pub order_status: OrderStatus,
+    pub deposit: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ExecuteTraderOrder {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ExecuteLendOrder {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct CancelTraderOrder {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct GetPnL {}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct GetPoolShare {}
+
+impl CreateTraderOrder {
     pub fn push_in_aeron_queue(self) {
         let pool = THREADPOOL_ORDER_AERON_QUEUE.lock().unwrap();
         pool.execute(move || {
-            send_aeron_msg(StreamId::CreateOrder, self.serialize());
+            send_aeron_msg(StreamId::CreateTraderOrder, self.serialize());
         });
         drop(pool);
     }
@@ -31,7 +56,53 @@ impl CreateOrder {
     }
 
     pub fn deserialize(json: &String) -> Self {
-        let deserialized: CreateOrder = serde_json::from_str(json).unwrap();
+        let deserialized: CreateTraderOrder = serde_json::from_str(json).unwrap();
         deserialized
+    }
+
+    pub fn fill_order(self) -> TraderOrder {
+        let incomming_order = self.clone();
+        TraderOrder::new(
+            &incomming_order.account_id,
+            incomming_order.position_type,
+            incomming_order.order_type,
+            incomming_order.leverage,
+            incomming_order.initial_margin,
+            incomming_order.available_margin,
+            incomming_order.order_status,
+            incomming_order.entryprice,
+            incomming_order.execution_price,
+        )
+    }
+}
+
+impl CreateLendOrder {
+    pub fn push_in_aeron_queue(self) {
+        let pool = THREADPOOL_ORDER_AERON_QUEUE.lock().unwrap();
+        pool.execute(move || {
+            send_aeron_msg(StreamId::CreateLendOrder, self.serialize());
+        });
+        drop(pool);
+    }
+
+    pub fn serialize(&self) -> String {
+        let serialized = serde_json::to_string(self).unwrap();
+        serialized
+    }
+
+    pub fn deserialize(json: &String) -> Self {
+        let deserialized: CreateLendOrder = serde_json::from_str(json).unwrap();
+        deserialized
+    }
+
+    pub fn fill_order(self) -> LendOrder {
+        let incomming_order = self.clone();
+        LendOrder::new(
+            &incomming_order.account_id,
+            incomming_order.balance,
+            incomming_order.order_type,
+            incomming_order.order_status,
+            incomming_order.deposit,
+        )
     }
 }

@@ -81,12 +81,12 @@ impl Worker {
 
             match message {
                 Message::NewJob(job) => {
-                    println!("Worker {} got a job; executing.", id);
+                    // println!("Worker {} got a job; executing.", id);
 
                     job();
                 }
                 Message::Terminate => {
-                    println!("Worker {} was told to terminate.", id);
+                    // println!("Worker {} was told to terminate.", id);
 
                     break;
                 }

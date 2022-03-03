@@ -4,7 +4,7 @@
 #![allow(dead_code)]
 use crate::config::BinanceMiniTickerPayload;
 use crate::postgresqllib::psql_sink::kafka_sink;
-use crate::relayer::CreateOrder;
+use crate::relayer::CreateTraderOrder;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 
@@ -87,7 +87,7 @@ fn consume_messages_kafka(
         } else {
             for ms in mss.iter() {
                 for m in ms.messages() {
-                    let ordertx: CreateOrder =
+                    let ordertx: CreateTraderOrder =
                         serde_json::from_str(&String::from_utf8_lossy(m.value)).unwrap();
                     // kafka_sink(&ms.topic(), &ms.partition(), &m.offset, binance_payload);
                     println!("order msg: {:#?}, Offset:{}", ordertx, &m.offset);

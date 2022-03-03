@@ -41,19 +41,19 @@ fn main() {
     });
     thread::sleep(time::Duration::from_millis(100));
 
-    // for i in 1..101 {
-    //     send_aeron_msg(
-    //         StreamId::CreateOrder,
-    //         format!("hello siddharth, msg : {}", i),
-    //     );
-
-    //     thread::sleep(time::Duration::from_millis(10));
-    //     // if i > 100 {
-    //     //     break;
-    //     // }
-    // }
     thread::spawn(move || loop {
-        println!("my msg:  {}", rec_aeron_msg(StreamId::CreateOrder).msg);
+        println!(
+            "my msg:  {:#?}",
+            CreateTraderOrder::deserialize(&rec_aeron_msg(StreamId::CreateTraderOrder).msg)
+                .fill_order()
+        );
+        // thread::sleep(time::Duration::from_millis(10));
+    });
+    thread::spawn(move || loop {
+        println!(
+            "my msg:  {:#?}",
+            rec_aeron_msg(StreamId::CreateLendOrder).msg
+        );
         // thread::sleep(time::Duration::from_millis(10));
     });
     loop {
