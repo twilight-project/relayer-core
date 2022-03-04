@@ -41,19 +41,21 @@ fn main() {
     });
     thread::sleep(time::Duration::from_millis(100));
 
-    thread::spawn(move || loop {
-        println!(
-            "my msg:  {:#?}",
-            CreateTraderOrder::deserialize(&rec_aeron_msg(StreamId::CreateTraderOrder).msg)
-                .fill_order()
-        );
+    thread::spawn(move || {
+        // println!(
+        //     "my msg:  {:#?}",
+        //     CreateTraderOrder::deserialize(rec_aeron_msg(StreamId::CreateTraderOrder).msg)
+        //         .fill_order()
+        // );
+        get_pending_trader_order();
         // thread::sleep(time::Duration::from_millis(10));
     });
-    thread::spawn(move || loop {
-        println!(
-            "my msg:  {:#?}",
-            rec_aeron_msg(StreamId::CreateLendOrder).msg
-        );
+    thread::spawn(move || {
+        // println!(
+        //     "my msg:  {:#?}",
+        //     rec_aeron_msg(StreamId::CreateLendOrder).msg
+        // );
+        get_pending_lend_order()
         // thread::sleep(time::Duration::from_millis(10));
     });
     loop {

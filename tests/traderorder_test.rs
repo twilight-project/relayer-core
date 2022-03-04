@@ -554,7 +554,7 @@ fn test_traderorder_calculate_payment_test1() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -614,7 +614,7 @@ fn test_traderorder_calculate_payment_test2() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -674,7 +674,7 @@ fn test_traderorder_calculate_payment_test3() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -734,7 +734,7 @@ fn test_traderorder_calculate_payment_test4() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -794,7 +794,7 @@ fn test_traderorder_calculate_payment_test5() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -862,7 +862,7 @@ fn test_traderorder_calculate_payment_test6() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -928,7 +928,7 @@ fn test_traderorder_calculate_payment_test7() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 
     println!("{:#?}", *mt);
     println!("{}", redis_db::del_test());
@@ -999,7 +999,7 @@ fn test_traderorder_calculate_payment_test8() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
     println!("Lend Order: {:#?} ", lotx);
 
     thread::sleep(time::Duration::from_millis(50));

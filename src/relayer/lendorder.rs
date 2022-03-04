@@ -112,7 +112,7 @@ impl LendOrder {
         deserialized
     }
 
-    pub fn newtraderorderinsert(self) -> LendOrder {
+    pub fn newlendorderinsert(self) -> LendOrder {
         let lendtx = self.clone();
 
         // thread to store trader order data in redisDB

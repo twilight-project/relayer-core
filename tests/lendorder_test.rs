@@ -21,7 +21,7 @@ fn test_lendorder_new() {
         OrderStatus::PENDING,
         5.0,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
     println!("Lend Order: {:#?} ", lotx);
 
     thread::sleep(time::Duration::from_millis(50));
@@ -60,7 +60,7 @@ fn test_lendorder_calculate_settlement_test1() {
         OrderStatus::PENDING,
         5.0,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
     println!("Lend Order: {:#?} ", lotx);
 
     thread::sleep(time::Duration::from_millis(500));
@@ -72,7 +72,7 @@ fn test_lendorder_calculate_settlement_test1() {
         OrderStatus::PENDING,
         5.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
     thread::sleep(time::Duration::from_millis(500));
 
     println!("Lend Order: {:#?} ", lotx_2);

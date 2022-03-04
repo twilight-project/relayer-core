@@ -127,7 +127,7 @@ pub fn generatelendorder(count: i32) {
         OrderStatus::PENDING,
         1.01,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
     LendOrder::new(
         "Lend account_id",
         15.0,
@@ -135,7 +135,7 @@ pub fn generatelendorder(count: i32) {
         OrderStatus::PENDING,
         2.5,
     )
-    .newtraderorderinsert();
+    .newlendorderinsert();
 }
 
 pub fn initprice() {
