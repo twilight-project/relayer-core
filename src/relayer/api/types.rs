@@ -3,6 +3,7 @@ use crate::aeronlib::types::StreamId;
 use crate::config::THREADPOOL_ORDER_AERON_QUEUE;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateTraderOrder {
@@ -27,10 +28,24 @@ pub struct CreateLendOrder {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct ExecuteTraderOrder {}
+pub struct ExecuteTraderOrder {
+    pub account_id: String,
+    pub uuid: Uuid,
+    pub order_type: OrderType,
+    pub settle_margin: f64,
+    pub order_status: OrderStatus,
+    pub execution_price: f64,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct ExecuteLendOrder {}
+pub struct ExecuteLendOrder {
+    pub account_id: String,
+    pub uuid: Uuid,
+    pub order_type: OrderType,
+    pub settle_withdraw: f64, // % amount to withdraw
+    pub order_status: OrderStatus,
+    pub execution_price: f64, //withdraw pool share price
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CancelTraderOrder {}
