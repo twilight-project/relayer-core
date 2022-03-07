@@ -260,7 +260,10 @@ impl LendOrder {
 
         return lendtx;
     }
-
+    pub fn get_order_by_order_id(account_id: String, uuid: Uuid) -> Self {
+        let ordertx = LendOrder::deserialize(&redis_db::get(&uuid.to_string()));
+        ordertx
+    }
     pub fn remove_lend_order_from_redis(self) -> Self {
         let lendtx = self.clone();
 

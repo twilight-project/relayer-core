@@ -47,7 +47,7 @@ fn main() {
         //     CreateTraderOrder::deserialize(rec_aeron_msg(StreamId::CreateTraderOrder).msg)
         //         .fill_order()
         // );
-        get_pending_trader_order();
+        get_new_trader_order();
         // thread::sleep(time::Duration::from_millis(10));
     });
     thread::spawn(move || {
@@ -55,7 +55,7 @@ fn main() {
         //     "my msg:  {:#?}",
         //     rec_aeron_msg(StreamId::CreateLendOrder).msg
         // );
-        get_pending_lend_order()
+        get_new_lend_order()
         // thread::sleep(time::Duration::from_millis(10));
     });
     loop {

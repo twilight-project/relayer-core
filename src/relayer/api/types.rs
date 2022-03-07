@@ -44,11 +44,16 @@ pub struct ExecuteLendOrder {
     pub order_type: OrderType,
     pub settle_withdraw: f64, // % amount to withdraw
     pub order_status: OrderStatus,
-    pub execution_price: f64, //withdraw pool share price
+    pub poolshare_price: f64, //withdraw pool share price
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct CancelTraderOrder {}
+pub struct CancelTraderOrder {
+    pub account_id: String,
+    pub uuid: Uuid,
+    pub order_type: OrderType,
+    pub order_status: OrderStatus,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GetPnL {}
@@ -140,6 +145,11 @@ impl ExecuteTraderOrder {
         let deserialized: ExecuteTraderOrder = serde_json::from_str(&json).unwrap();
         deserialized
     }
+
+    pub fn get_order(self) -> TraderOrder {
+        let incomming_order = self.clone();
+        TraderOrder::get_order_by_order_id(incomming_order.account_id, incomming_order.uuid)
+    }
 }
 impl ExecuteLendOrder {
     pub fn push_in_aeron_queue(self) {
@@ -159,6 +169,12 @@ impl ExecuteLendOrder {
         let deserialized: ExecuteLendOrder = serde_json::from_str(&json).unwrap();
         deserialized
     }
+    pub fn get_order(self) -> LendOrder {
+        let incomming_order = self.clone();
+        LendOrder::get_order_by_order_id(incomming_order.account_id, incomming_order.uuid)
+
+        // calculatepayment
+    }
 }
 impl CancelTraderOrder {
     pub fn push_in_aeron_queue(self) {
@@ -177,6 +193,11 @@ impl CancelTraderOrder {
     pub fn deserialize(json: String) -> Self {
         let deserialized: CancelTraderOrder = serde_json::from_str(&json).unwrap();
         deserialized
+    }
+
+    pub fn get_order(self) -> TraderOrder {
+        let incomming_order = self.clone();
+        TraderOrder::get_order_by_order_id(incomming_order.account_id, incomming_order.uuid)
     }
 }
 impl GetPnL {

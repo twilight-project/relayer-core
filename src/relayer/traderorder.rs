@@ -449,6 +449,16 @@ impl TraderOrder {
         return ordertx;
     }
 
+    pub fn get_order_by_order_id(  
+        account_id: String,
+        uuid: Uuid,
+    ) -> Self {
+
+       let  ordertx =TraderOrder::deserialize(&redis_db::get(&uuid.to_string()));
+                ordertx
+         }
+
+
     pub fn pending(
         account_id: &str,
         position_type: PositionType,
@@ -621,6 +631,53 @@ impl TraderOrder {
         });
         // handle.join().unwrap();
         return rself;
+    }
+
+    pub fn cancelorder(self) -> (Self,bool) {
+        let success:bool;
+        let mut ordertx=self.clone();
+        if ordertx.order_status == OrderStatus::PENDING {
+
+            redis_db::del(&ordertx.uuid.to_string());
+                
+            match ordertx.order_type {
+                OrderType::LIMIT => match ordertx.position_type {
+                    PositionType::LONG => {
+                        redis_db::zdel(
+                            &"TraderOrder_LimitOrder_Pending_FOR_Long",
+                            &ordertx.uuid.to_string(), //value
+                        );
+                    }
+                    PositionType::SHORT => {
+                        redis_db::zdel(
+                            &"TraderOrder_LimitOrder_Pending_FOR_Short",
+                            &ordertx.uuid.to_string(), //value
+                        );
+                    }
+                },
+                _ => {}
+            }
+                    
+            let query = format!(
+                "UPDATE public.pendinglimittraderorder SET order_status='{:#?}'
+                WHERE uuid='{}';",
+                OrderStatus::CANCELLED,
+                &ordertx.uuid
+            );
+
+            let handle = thread::spawn(move || {
+                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                client.execute(&query, &[]).unwrap();
+            });
+        
+            success=true;
+            ordertx.order_status= OrderStatus::CANCELLED;
+        } 
+        else {
+            success=false;
+        }
+        return (ordertx,success);
+
     }
 
 }
