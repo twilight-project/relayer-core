@@ -48,8 +48,24 @@ pub fn start_cronjobs() {
             getsetlatestprice();
         });
     });
+
     thread::spawn(move || {
         startserver();
+    });
+    thread::spawn(move || {
+        get_new_trader_order();
+    });
+    thread::spawn(move || {
+        get_new_lend_order();
+    });
+    thread::spawn(move || {
+        execute_trader_order();
+    });
+    thread::spawn(move || {
+        execute_lend_order();
+    });
+    thread::spawn(move || {
+        cancel_trader_order();
     });
 
     // initial aeron

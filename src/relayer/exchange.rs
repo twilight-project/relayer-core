@@ -47,9 +47,8 @@ pub fn execute_trader_order() {
 
 pub fn execute_lend_order() {
     loop {
-        let lend_order_msg = ExecuteTraderOrder::deserialize(
-            rec_aeron_msg(StreamId::ExecuteTraderOrder).extract_msg(),
-        );
+        let lend_order_msg =
+            ExecuteLendOrder::deserialize(rec_aeron_msg(StreamId::ExecuteLendOrder).extract_msg());
         let sw = Stopwatch::start_new();
         let ordertx = lend_order_msg.get_order();
         let ordertx_caluculated = ordertx.calculatepayment();
@@ -63,8 +62,8 @@ pub fn execute_lend_order() {
 
 pub fn cancel_trader_order() {
     loop {
-        let lend_order_msg = ExecuteTraderOrder::deserialize(
-            rec_aeron_msg(StreamId::ExecuteTraderOrder).extract_msg(),
+        let lend_order_msg = CancelTraderOrder::deserialize(
+            rec_aeron_msg(StreamId::CancelTraderOrder).extract_msg(),
         );
         let sw = Stopwatch::start_new();
         let ordertx = lend_order_msg.get_order();
