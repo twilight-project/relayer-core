@@ -260,10 +260,12 @@ impl LendOrder {
 
         return lendtx;
     }
+
     pub fn get_order_by_order_id(account_id: String, uuid: Uuid) -> Self {
         let ordertx = LendOrder::deserialize(&redis_db::get(&uuid.to_string()));
         ordertx
     }
+
     pub fn remove_lend_order_from_redis(self) -> Self {
         let lendtx = self.clone();
 
@@ -280,6 +282,7 @@ impl LendOrder {
         // });
         return self;
     }
+
     pub fn update_psql_on_lend_settlement(self) -> Self {
         let rt = self.clone();
 
@@ -300,6 +303,7 @@ impl LendOrder {
         // handle.join().unwrap();
         return self;
     }
+
     pub fn update_lend_account_on_lendtx_order_settlement(self) -> Self {
         // negative payment // need to add next lender account
         let lendtx_for_settlement = self.clone();

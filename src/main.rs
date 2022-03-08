@@ -27,37 +27,14 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 fn main() {
-    // // kafkalib::kafka_topic::kafka_new_topic("NewTraderOrderQueue");
-    ordertest::initprice();
-    // thread::spawn(move || {
-    //     consume_kafka(
-    //         String::from("NewTraderOrderQueue"),
-    //         String::from("newOrder"),
-    //     );
-    // });
+    // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
+    // ordertest::initprice();
     thread::sleep(time::Duration::from_millis(100));
     thread::spawn(move || {
-        start_cronjobs();
+        // start_cronjobs();
     });
     thread::sleep(time::Duration::from_millis(100));
-
-    thread::spawn(move || {
-        // println!(
-        //     "my msg:  {:#?}",
-        //     CreateTraderOrder::deserialize(rec_aeron_msg(StreamId::CreateTraderOrder).msg)
-        //         .fill_order()
-        // );
-        get_new_trader_order();
-        // thread::sleep(time::Duration::from_millis(10));
-    });
-    thread::spawn(move || {
-        // println!(
-        //     "my msg:  {:#?}",
-        //     rec_aeron_msg(StreamId::CreateLendOrder).msg
-        // );
-        get_new_lend_order()
-        // thread::sleep(time::Duration::from_millis(10));
-    });
+    pricefeederlib::price_feeder::receive_btc_price();
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }

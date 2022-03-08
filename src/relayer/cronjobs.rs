@@ -12,9 +12,9 @@ pub fn start_cronjobs() {
     // main thread for scheduler
     thread::spawn(move || {
         let mut scheduler = Scheduler::with_tz(chrono::Utc);
-        scheduler
-            .every(200000.seconds())
-            .run(move || generateorder());
+        // scheduler
+        //     .every(200000.seconds())
+        //     .run(move || generateorder());
 
         // make backup of redis db in backup/redisdb folder every 5 sec //comments for local test
         scheduler.every(500000.seconds()).run(move || {

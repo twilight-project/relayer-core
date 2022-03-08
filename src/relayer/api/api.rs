@@ -56,6 +56,18 @@ pub fn startserver() {
             }
         }
     });
+    io.add_method("CancelTraderOrder", move |params: Params| async move {
+        match params.parse::<CancelTraderOrder>() {
+            Ok(ordertx) => {
+                ordertx.push_in_aeron_queue();
+                Ok(Value::String("Order submitted successfully".into()))
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                Err(err)
+            }
+        }
+    });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)

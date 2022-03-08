@@ -449,15 +449,14 @@ impl TraderOrder {
         return ordertx;
     }
 
-    pub fn get_order_by_order_id(  
+    pub fn get_order_by_order_id(
         account_id: String,
         uuid: Uuid,
     ) -> Self {
 
        let  ordertx =TraderOrder::deserialize(&redis_db::get(&uuid.to_string()));
                 ordertx
-         }
-
+    }
 
     pub fn pending(
         account_id: &str,
@@ -516,6 +515,7 @@ impl TraderOrder {
             Err(e) => panic!("Could not generate new order: {}", e),
         }
     }
+
     pub fn pending_limit_traderorderinsert(self) -> Self {
         let mut rt = self.clone();
         let current_price = rt.entryprice;
@@ -677,7 +677,6 @@ impl TraderOrder {
             success=false;
         }
         return (ordertx,success);
-
     }
 
 }
