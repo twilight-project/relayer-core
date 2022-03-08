@@ -31,10 +31,10 @@ fn main() {
     // ordertest::initprice();
     thread::sleep(time::Duration::from_millis(100));
     thread::spawn(move || {
-        // start_cronjobs();
+        start_cronjobs();
     });
     thread::sleep(time::Duration::from_millis(100));
-    pricefeederlib::price_feeder::receive_btc_price();
+    // pricefeederlib::price_feeder::receive_btc_price();
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }
