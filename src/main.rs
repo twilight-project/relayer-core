@@ -30,12 +30,12 @@ fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
     ordertest::initprice();
     thread::sleep(time::Duration::from_millis(100));
-    thread::spawn(move || {
-        start_cronjobs();
-        // aeronlib::types::init_aeron_queue();
-        // start_aeron_topic_consumer(StreamId::CreateTraderOrder);
-    });
-
+    // thread::spawn(move || {
+    start_cronjobs();
+    // aeronlib::types::init_aeron_queue();
+    // start_aeron_topic_consumer(StreamId::CreateTraderOrder);
+    // });
+    pricefeederlib::price_feeder::receive_btc_price();
     // let (sender, receiver) = mpsc::channel();
     // let receiver = Arc::new(Mutex::new(receiver));
     // thread::spawn(move || {
