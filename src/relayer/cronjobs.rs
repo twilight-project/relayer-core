@@ -1,5 +1,6 @@
 use crate::aeronlib::types::init_aeron_queue;
-use crate::ordertest::generateorder;
+// use crate::ordertest::generateorder;
+use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
@@ -76,6 +77,10 @@ pub fn start_cronjobs() {
     thread::spawn(move || {
         thread::sleep(time::Duration::from_millis(500));
         cancel_trader_order();
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(500));
+        receive_btc_price();
     });
 
     println!("Initialization done..................................");

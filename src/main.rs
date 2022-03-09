@@ -35,7 +35,6 @@ fn main() {
     // aeronlib::types::init_aeron_queue();
     // start_aeron_topic_consumer(StreamId::CreateTraderOrder);
     // });
-    pricefeederlib::price_feeder::receive_btc_price();
     // let (sender, receiver) = mpsc::channel();
     // let receiver = Arc::new(Mutex::new(receiver));
     // thread::spawn(move || {

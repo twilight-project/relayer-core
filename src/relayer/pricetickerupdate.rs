@@ -8,11 +8,11 @@ use crate::relayer::types::*;
 use crate::relayer::utils::*;
 
 use std::thread;
-use stopwatch::Stopwatch;
+// use stopwatch::Stopwatch;
 
 pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     let limit_lock = LIMITSTATUS.lock().unwrap();
-    let sw1 = Stopwatch::start_new();
+    // let sw1 = Stopwatch::start_new();
 
     // let current_price = get_localdb("CurrentPrice");
 
@@ -52,7 +52,7 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     });
 
     drop(limit_lock);
-    println!("mutex took {:#?}", sw1.elapsed());
+    // println!("mutex took {:#?}", sw1.elapsed());
 }
 // error issues
 pub fn update_limit_pendingorder(
