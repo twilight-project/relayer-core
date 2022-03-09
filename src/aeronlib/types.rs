@@ -33,19 +33,12 @@ pub fn init_aeron_queue() {
             start_aeron_topic_consumer(streamid);
         });
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            std::thread::sleep(std::time::Duration::from_millis(25));
             start_aeron_topic_producer(streamid_clone);
         });
+        std::thread::sleep(std::time::Duration::from_millis(3000));
     }
 }
-
-// thread::spawn(move || {
-//     start_aeron_topic_consumer(StreamId::CreateTraderOrder);
-// });
-// thread::spawn(move || {
-//     thread::sleep(time::Duration::from_millis(10));
-//     start_aeron_topic_producer(StreamId::CreateTraderOrder);
-// });
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AeronMessage {

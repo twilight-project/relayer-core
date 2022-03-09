@@ -52,37 +52,31 @@ pub fn start_cronjobs() {
     thread::spawn(move || {
         startserver();
     });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(250));
-        get_new_trader_order();
-    });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        get_new_lend_order();
-    });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        execute_trader_order();
-    });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        execute_lend_order();
-    });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        thread::sleep(time::Duration::from_millis(250));
-        cancel_trader_order();
-    });
 
     // initial aeron
     init_aeron_queue();
+
+    thread::sleep(time::Duration::from_millis(1000));
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(500));
+        get_new_trader_order();
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(500));
+        get_new_lend_order();
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(500));
+        execute_trader_order();
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(500));
+        execute_lend_order();
+    });
+    thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(500));
+        cancel_trader_order();
+    });
+
+    println!("Initialization done..................................");
 }

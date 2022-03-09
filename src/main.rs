@@ -28,12 +28,30 @@ use std::sync::Mutex;
 
 fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
-    // ordertest::initprice();
+    ordertest::initprice();
     thread::sleep(time::Duration::from_millis(100));
     thread::spawn(move || {
         start_cronjobs();
+        // aeronlib::types::init_aeron_queue();
+        // start_aeron_topic_consumer(StreamId::CreateTraderOrder);
     });
-    thread::sleep(time::Duration::from_millis(100));
+
+    // let (sender, receiver) = mpsc::channel();
+    // let receiver = Arc::new(Mutex::new(receiver));
+    // thread::spawn(move || {
+    //     aeronlib::publisher_aeron::pub_aeron(StreamId::CreateTraderOrder, receiver);
+    // });
+
+    // loop {
+    //     thread::sleep(time::Duration::from_millis(1000));
+    //     sender.send("helllo".to_string()).unwrap();
+
+    //     thread::sleep(time::Duration::from_millis(1000));
+
+    //     println!("{:#?}", rec_aeron_msg(StreamId::CreateTraderOrder));
+    // }
+
+    // thread::sleep(time::Duration::from_millis(100));
     // pricefeederlib::price_feeder::receive_btc_price();
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
