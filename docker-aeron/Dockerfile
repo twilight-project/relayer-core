@@ -1,5 +1,6 @@
 
-FROM neomantra/aeron-cpp-debian:latest AS aeron-builder
+FROM neomantra/aeron-cpp-debian:1.28.2 AS aeron-builder
+# FROM neomantra/aeron-cpp-debian:latest AS aeron-builder
 
 RUN USER=root apt-get update && \
     apt-get -y upgrade && \

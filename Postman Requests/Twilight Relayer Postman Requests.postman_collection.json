@@ -1,0 +1,217 @@
+{
+	"info": {
+		"_postman_id": "3005fe36-3a3b-4ebd-8020-c5b9e9451a68",
+		"name": "Twilight Relayer Postman Requests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "TraderOrder",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "apikey",
+					"apikey": [
+						{
+							"key": "in",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "value",
+							"value": "1",
+							"type": "string"
+						},
+						{
+							"key": "key",
+							"value": "header",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "headers",
+						"value": "\"5\"",
+						"type": "text",
+						"disabled": true
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Metadata",
+						"value": "1",
+						"type": "text",
+						"disabled": true
+					},
+					{
+						"key": "",
+						"value": "1",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"jsonrpc\": \"2.0\", \"method\": \"CreateTraderOrder\", \"id\":123, \"params\": {,\"account_id\":\"Trader account_id\",\"position_type\":\"LONG\",\"order_type\":\"MARKET\",\"leverage\":10.0,\"initial_margin\":1.5,\"available_margin\":1.5,\"order_status\":\"PENDING\",\"entryprice\":39000.01,\"execution_price\":44440.02} }"
+				},
+				"url": {
+					"raw": "127.0.0.1:3030",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3030",
+					"query": [
+						{
+							"key": "jsonrpc",
+							"value": "2.0",
+							"disabled": true
+						},
+						{
+							"key": "headers",
+							"value": "5",
+							"disabled": true
+						},
+						{
+							"key": "metadata",
+							"value": "4",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "LendOrder",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "apikey",
+					"apikey": [
+						{
+							"key": "in",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "value",
+							"value": "1",
+							"type": "string"
+						},
+						{
+							"key": "key",
+							"value": "header",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "headers",
+						"type": "text",
+						"value": "\"5\"",
+						"disabled": true
+					},
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Metadata",
+						"type": "text",
+						"value": "1",
+						"disabled": true
+					},
+					{
+						"key": "",
+						"type": "text",
+						"value": "1",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"jsonrpc\": \"2.0\", \"method\": \"CreateLendOrder\", \"id\":123, \"params\": {\"account_id\":\"Trader account_id\",\"order_type\":\"LEND\",\"order_status\":\"PENDING\",\"balance\":10.0,\"deposit\":1.5} }"
+				},
+				"url": {
+					"raw": "127.0.0.1:3030",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3030",
+					"query": [
+						{
+							"key": "jsonrpc",
+							"value": "2.0",
+							"disabled": true
+						},
+						{
+							"key": "headers",
+							"value": "5",
+							"disabled": true
+						},
+						{
+							"key": "metadata",
+							"value": "4",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
