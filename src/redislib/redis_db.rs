@@ -399,6 +399,29 @@ pub fn zrangegetpendinglimitorderforshort(current_price: f64) -> Vec<String> {
         .unwrap();
 }
 
+/// list of pending order for filling for position type short
+pub fn zrangegetsettlinglimitorderforlong(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrder_Settelment_by_LONG_Limit")
+        .arg(format!("{}", current_price))
+        .arg("+inf")
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
+
+/// list of pending order for filling for position type Long
+pub fn zrangegetsettlinglimitorderforshort(current_price: f64) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return redis::cmd("ZRANGE")
+        .arg("TraderOrder_Settelment_by_SHORT_Limit")
+        .arg("0")
+        .arg(format!("{}", current_price))
+        .arg("byscore")
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+}
 // for testing delete all tables
 pub fn del_test() -> i32 {
     // let mut conn = connect();

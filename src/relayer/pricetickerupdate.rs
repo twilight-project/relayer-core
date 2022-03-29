@@ -2,6 +2,7 @@ use crate::config::LIMITSTATUS;
 use crate::config::LIQUIDATIONORDERSTATUS;
 use crate::config::LIQUIDATIONTICKERSTATUS;
 use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::config::SETTLEMENTLIMITSTATUS;
 use crate::redislib::redis_db;
 use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
@@ -110,6 +111,9 @@ pub fn getsetlatestprice() {
         thread::spawn(move || {
             check_liquidating_orders_on_price_ticker_update(currentprice.clone());
         });
+        thread::spawn(move || {
+            check_settling_limit_order_on_price_ticker_update(currentprice.clone());
+        });
         // println!("Price update: not same price");
     }
 }
@@ -153,4 +157,46 @@ pub fn liquidate_trader_order(order: TraderOrder, current_price: f64) {
     ordertx.update_trader_order_table_into_db_on_funding_cycle(order.uuid.to_string(), true);
 
     drop(order_lock);
+}
+
+pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
+    let limit_lock = SETTLEMENTLIMITSTATUS.lock().unwrap();
+    // let sw1 = Stopwatch::start_new();
+
+    // let current_price = get_localdb("CurrentPrice");
+
+    let orderid_list_short = redis_db::zrangegetsettlinglimitorderforshort(current_price);
+
+    let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(current_price);
+    if orderid_list_short.len() > 0 {
+        redis_db::zdel_bulk(
+            "TraderOrder_Settelment_by_SHORT_Limit",
+            orderid_list_short.clone(),
+        );
+    }
+    if orderid_list_long.len() > 0 {
+        redis_db::zdel_bulk(
+            "TraderOrder_Settelment_by_LONG_Limit",
+            orderid_list_long.clone(),
+        );
+    }
+    thread::spawn(move || {
+        for orderid in orderid_list_short {
+            let current_price_clone = current_price.clone();
+            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+            thread::spawn(move || {
+                ordertx.calculatepayment_with_current_price(current_price_clone);
+            });
+        }
+        for orderid in orderid_list_long {
+            let current_price_clone = current_price.clone();
+            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+            thread::spawn(move || {
+                ordertx.calculatepayment_with_current_price(current_price_clone);
+            });
+        }
+    });
+
+    drop(limit_lock);
+    // println!("mutex took {:#?}", sw1.elapsed());
 }

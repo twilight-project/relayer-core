@@ -117,3 +117,16 @@ CREATE TABLE pendinglimittraderorder(
   ,exit_nonce        bigint  NOT NULL
   ,entry_sequence    bigint  NOT NULL
 );
+
+
+
+CREATE TABLE settlementpriceforlimitorder(
+   uuid               VARCHAR(100) NOT NULL PRIMARY KEY
+  ,account_id         TEXT NOT NULL
+  ,position_type      VARCHAR(50) NOT NULL
+  ,order_status       VARCHAR(50) NOT NULL
+  ,order_type         VARCHAR(50) NOT NULL
+  ,execution_price    NUMERIC NOT NULL
+  ,timestamp          bigint  NOT NULL
+  ,settlement_price   NUMERIC NOT NULL
+);

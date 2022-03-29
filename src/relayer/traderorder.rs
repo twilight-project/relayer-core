@@ -274,10 +274,7 @@ impl TraderOrder {
                     &rt.entry_sequence,    
                 );
                        // thread to store trader order data in postgreSQL
-                let handle = thread::spawn(move || {
-                    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-                    client.execute(&query, &[]).unwrap();
-            });
+              
             }
           
         });
@@ -447,6 +444,71 @@ impl TraderOrder {
         ordertx.exit_nonce = exit_nonce;
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
         return ordertx;
+    }
+
+    pub fn calculatepayment_with_current_price(self,current_price:f64 ) -> Self {
+        let mut ordertx = self.clone();
+        let margindifference = ordertx.available_margin - ordertx.initial_margin;
+        // let current_price = get_localdb("CurrentPrice");
+        // let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
+        let u_pnl = unrealizedpnl(
+            &ordertx.position_type,
+            ordertx.positionsize,
+            ordertx.entryprice,
+            current_price,
+        );
+        let payment = u_pnl + margindifference;
+        ordertx.order_status = OrderStatus::SETTLED;
+        ordertx.available_margin = ordertx.available_margin + payment;
+        ordertx.settlement_price = current_price;
+        ordertx.unrealized_pnl = u_pnl;
+        let exit_nonce = updatelendaccountontraderordersettlement(payment*10000.0);
+        ordertx.exit_nonce = exit_nonce;
+        ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
+        return ordertx;
+    }
+
+    pub fn set_execution_price_for_limit_order(self,execution_price: f64)->Self{
+
+        let mut ordertx = self.clone();
+       
+        match ordertx.order_type {
+            OrderType::LIMIT => match ordertx.position_type {
+                PositionType::LONG => {
+                    redis_db::zadd(
+                        &"TraderOrder_Settelment_by_LONG_Limit",
+                        &ordertx.uuid.to_string(),
+                        &execution_price.to_string(),
+                    );
+                }
+                PositionType::SHORT => {
+                    redis_db::zadd(
+                        &"TraderOrder_Settelment_by_SHORT_Limit",
+                        &ordertx.uuid.to_string(),
+                        &execution_price.to_string(),
+                    );
+                }
+            },
+            _ => {}
+        }
+
+        // need to update by procedure to check where the row exist or not, and if exist then change status of old row or create new triger to save old price
+            let query = format!("INSERT INTO public.settlementpriceforlimitorder(
+                uuid, account_id, position_type, order_status, order_type, execution_price, timestamp, settlement_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{});",
+            &ordertx.uuid,
+            &ordertx.account_id ,
+            &ordertx.position_type ,
+            &ordertx.order_status ,
+            &ordertx.order_type ,
+            &ordertx.execution_price ,
+            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis(),
+            &ordertx.settlement_price,
+        );
+        let handle = thread::spawn(move || {
+            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+            client.execute(&query, &[]).unwrap();
+    });
+        return self;
     }
 
     pub fn get_order_by_order_id(
