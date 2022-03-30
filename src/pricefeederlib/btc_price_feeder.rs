@@ -23,7 +23,7 @@ pub fn update_btc_price(payload: String) {
             redis_db::set("btc:price", &binance_payload.c);
             // set `btc:price:full_payload` = full mini ticker payload
             redis_db::set("btc:price:full_payload", &payload);
-            println!("rate :{}", &binance_payload.c);
+            // println!("rate :{}", &binance_payload.c);
             // println!("rate :{:#?}", &binance_payload);
         });
         //btc price payload added to kafka topic : BinanceMiniTickerPayload

@@ -424,7 +424,7 @@ impl TraderOrder {
         return self;
     }
 
-    pub fn calculatepayment(self) -> Self {
+    pub fn calculatepayment(self) ->Option<Self> {
         let mut ordertx = self.clone();
         let margindifference = ordertx.available_margin - ordertx.initial_margin;
         let current_price = get_localdb("CurrentPrice");
@@ -443,7 +443,7 @@ impl TraderOrder {
         let exit_nonce = updatelendaccountontraderordersettlement(payment*10000.0);
         ordertx.exit_nonce = exit_nonce;
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
-        return ordertx;
+        return Some(ordertx);
     }
 
     pub fn calculatepayment_with_current_price(self,current_price:f64 ) -> Self {
@@ -470,10 +470,9 @@ impl TraderOrder {
 
     pub fn set_execution_price_for_limit_order(self,execution_price: f64)->Self{
 
-        let mut ordertx = self.clone();
+        let ordertx = self.clone();
        
-        match ordertx.order_type {
-            OrderType::LIMIT => match ordertx.position_type {
+         match ordertx.position_type {
                 PositionType::LONG => {
                     redis_db::zadd(
                         &"TraderOrder_Settelment_by_LONG_Limit",
@@ -488,9 +487,8 @@ impl TraderOrder {
                         &execution_price.to_string(),
                     );
                 }
-            },
-            _ => {}
-        }
+            
+            }
 
         // need to update by procedure to check where the row exist or not, and if exist then change status of old row or create new triger to save old price
             let query = format!("INSERT INTO public.settlementpriceforlimitorder(

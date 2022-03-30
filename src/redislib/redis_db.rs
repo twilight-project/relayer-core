@@ -404,8 +404,8 @@ pub fn zrangegetsettlinglimitorderforlong(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     return redis::cmd("ZRANGE")
         .arg("TraderOrder_Settelment_by_LONG_Limit")
+        .arg("0")
         .arg(format!("{}", current_price))
-        .arg("+inf")
         .arg("byscore")
         .query::<Vec<String>>(&mut *conn)
         .unwrap();
@@ -416,8 +416,8 @@ pub fn zrangegetsettlinglimitorderforshort(current_price: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     return redis::cmd("ZRANGE")
         .arg("TraderOrder_Settelment_by_SHORT_Limit")
-        .arg("0")
         .arg(format!("{}", current_price))
+        .arg("+inf")
         .arg("byscore")
         .query::<Vec<String>>(&mut *conn)
         .unwrap();

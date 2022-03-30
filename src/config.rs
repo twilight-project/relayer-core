@@ -51,6 +51,7 @@ lazy_static! {
  pub static ref LENDSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref QUERYSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref LIMITSTATUS:Mutex<i32> = Mutex::new(0);
+ pub static ref SETTLEMENTLIMITSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref LIQUIDATIONTICKERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref ORDERTEST:Mutex<i32> = Mutex::new(0);

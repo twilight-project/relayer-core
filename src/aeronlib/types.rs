@@ -36,7 +36,7 @@ pub fn init_aeron_queue() {
             std::thread::sleep(std::time::Duration::from_millis(25));
             start_aeron_topic_producer(streamid_clone);
         });
-        std::thread::sleep(std::time::Duration::from_millis(3000));
+        std::thread::sleep(std::time::Duration::from_millis(5000));
     }
 }
 

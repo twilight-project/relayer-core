@@ -37,31 +37,28 @@ pub fn execute_trader_order() {
             rec_aeron_msg(StreamId::ExecuteTraderOrder).extract_msg(),
         );
         let execution_price = lend_order_msg.execution_price.clone();
-        let ordertx = lend_order_msg.get_order();
+        let ordertx = lend_order_msg.clone().get_order();
         let current_price = get_localdb("CurrentPrice");
-        if ordertx.order_type == OrderType::MARKET {
+        if lend_order_msg.order_type == OrderType::MARKET {
             let ordertx_caluculated = ordertx.calculatepayment();
         } else {
-            match ordertx.order_type {
-                OrderType::LIMIT => match ordertx.position_type {
-                    PositionType::LONG => {
-                        if execution_price >= current_price {
-                            let ordertx_caluculated = ordertx.calculatepayment();
-                        } else {
-                            let ordertx_caluculated =
-                                ordertx.set_execution_price_for_limit_order(execution_price);
-                        }
+            match ordertx.position_type {
+                PositionType::LONG => {
+                    if execution_price <= current_price {
+                        let ordertx_caluculated = ordertx.calculatepayment();
+                    } else {
+                        let ordertx_caluculated =
+                            ordertx.set_execution_price_for_limit_order(execution_price);
                     }
-                    PositionType::SHORT => {
-                        if execution_price <= current_price {
-                            let ordertx_caluculated = ordertx.calculatepayment();
-                        } else {
-                            let ordertx_caluculated =
-                                ordertx.set_execution_price_for_limit_order(execution_price);
-                        }
+                }
+                PositionType::SHORT => {
+                    if execution_price >= current_price {
+                        let ordertx_caluculated = ordertx.calculatepayment();
+                    } else {
+                        let ordertx_caluculated =
+                            ordertx.set_execution_price_for_limit_order(execution_price);
                     }
-                },
-                _ => {}
+                }
             }
         }
         //use ordertx_caluculated for log

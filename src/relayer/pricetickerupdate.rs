@@ -166,8 +166,9 @@ pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
     // let current_price = get_localdb("CurrentPrice");
 
     let orderid_list_short = redis_db::zrangegetsettlinglimitorderforshort(current_price);
-
+    println!("short array:{:#?}", orderid_list_short);
     let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(current_price);
+    println!("Long array:{:#?}", orderid_list_long);
     if orderid_list_short.len() > 0 {
         redis_db::zdel_bulk(
             "TraderOrder_Settelment_by_SHORT_Limit",
