@@ -579,7 +579,7 @@ fn test_traderorder_calculate_payment_test1() {
     println!("create : {:#?}", totx);
     redis_db::set("CurrentPrice", "38000.0");
     thread::sleep(time::Duration::from_millis(500));
-    let totx_settle = totx_clone.calculatepayment();
+    let totx_settle = totx_clone.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -639,7 +639,7 @@ fn test_traderorder_calculate_payment_test2() {
     println!("create : {:#?}", totx);
     redis_db::set("CurrentPrice", "42000.0");
     thread::sleep(time::Duration::from_millis(500));
-    let totx_settle = totx_clone.calculatepayment();
+    let totx_settle = totx_clone.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -699,7 +699,7 @@ fn test_traderorder_calculate_payment_test3() {
     println!("create : {:#?}", totx);
     redis_db::set("CurrentPrice", "42000.0");
     thread::sleep(time::Duration::from_millis(500));
-    let totx_settle = totx_clone.calculatepayment();
+    let totx_settle = totx_clone.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -759,7 +759,7 @@ fn test_traderorder_calculate_payment_test4() {
     println!("create : {:#?}", totx);
     redis_db::set("CurrentPrice", "39000.0");
     thread::sleep(time::Duration::from_millis(500));
-    let totx_settle = totx_clone.calculatepayment();
+    let totx_settle = totx_clone.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -827,7 +827,7 @@ fn test_traderorder_calculate_payment_test5() {
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
     println!("funding order tx {:#?}", ordertx);
-    let totx_settle = ordertx.calculatepayment();
+    let totx_settle = ordertx.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -893,7 +893,7 @@ fn test_traderorder_calculate_payment_test6() {
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
     println!("funding order tx {:#?}", ordertx);
-    let totx_settle = ordertx.calculatepayment();
+    let totx_settle = ordertx.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -961,7 +961,7 @@ fn test_traderorder_calculate_payment_test7() {
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
     println!("funding order tx {:#?}", ordertx);
-    let totx_settle = ordertx.calculatepayment();
+    let totx_settle = ordertx.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 
@@ -1048,7 +1048,7 @@ fn test_traderorder_calculate_payment_test8() {
     println!("funding order tx {:#?}", ordertx);
 
     // settle traderorder
-    let totx_settle = ordertx.calculatepayment();
+    let totx_settle = ordertx.calculatepayment().unwrap();
     println!("calculate {:#?}", totx_settle);
     thread::sleep(time::Duration::from_millis(500));
 

@@ -121,7 +121,8 @@ CREATE TABLE pendinglimittraderorder(
 
 
 CREATE TABLE settlementpriceforlimitorder(
-   uuid               VARCHAR(100) NOT NULL PRIMARY KEY
+   id SERIAL PRIMARY KEY
+  ,uuid               VARCHAR(100) NOT NULL
   ,account_id         TEXT NOT NULL
   ,position_type      VARCHAR(50) NOT NULL
   ,order_status       VARCHAR(50) NOT NULL

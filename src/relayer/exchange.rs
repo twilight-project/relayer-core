@@ -33,33 +33,47 @@ pub fn get_new_lend_order() {
 
 pub fn execute_trader_order() {
     loop {
-        let lend_order_msg = ExecuteTraderOrder::deserialize(
-            rec_aeron_msg(StreamId::ExecuteTraderOrder).extract_msg(),
-        );
-        let execution_price = lend_order_msg.execution_price.clone();
-        let ordertx = lend_order_msg.clone().get_order();
-        let current_price = get_localdb("CurrentPrice");
-        if lend_order_msg.order_type == OrderType::MARKET {
-            let ordertx_caluculated = ordertx.calculatepayment();
-        } else {
-            match ordertx.position_type {
-                PositionType::LONG => {
-                    if execution_price <= current_price {
+        let handle = std::thread::spawn(move || -> Result<(), std::io::Error> {
+            let lend_order_msg = ExecuteTraderOrder::deserialize(
+                rec_aeron_msg(StreamId::ExecuteTraderOrder).extract_msg(),
+            );
+            let execution_price = lend_order_msg.execution_price.clone();
+
+            // let ordertx = lend_order_msg.clone().get_order();
+            println!("I'm here at execute order");
+            match lend_order_msg.clone().get_order() {
+                Ok(ordertx) => {
+                    let current_price = get_localdb("CurrentPrice");
+                    if lend_order_msg.order_type == OrderType::MARKET {
                         let ordertx_caluculated = ordertx.calculatepayment();
                     } else {
-                        let ordertx_caluculated =
-                            ordertx.set_execution_price_for_limit_order(execution_price);
+                        match ordertx.position_type {
+                            PositionType::LONG => {
+                                if execution_price <= current_price {
+                                    let ordertx_caluculated = ordertx.calculatepayment();
+                                } else {
+                                    let ordertx_caluculated = ordertx
+                                        .set_execution_price_for_limit_order(execution_price);
+                                }
+                            }
+                            PositionType::SHORT => {
+                                if execution_price >= current_price {
+                                    let ordertx_caluculated = ordertx.calculatepayment();
+                                } else {
+                                    let ordertx_caluculated = ordertx
+                                        .set_execution_price_for_limit_order(execution_price);
+                                }
+                            }
+                        }
                     }
                 }
-                PositionType::SHORT => {
-                    if execution_price >= current_price {
-                        let ordertx_caluculated = ordertx.calculatepayment();
-                    } else {
-                        let ordertx_caluculated =
-                            ordertx.set_execution_price_for_limit_order(execution_price);
-                    }
-                }
+                _ => {}
             }
+            Ok(())
+        });
+        match handle.join() {
+            Ok(_) => {}
+            Err(arg) => println!("order not found!!"),
         }
         //use ordertx_caluculated for log
     }
@@ -70,13 +84,17 @@ pub fn execute_lend_order() {
         let lend_order_msg =
             ExecuteLendOrder::deserialize(rec_aeron_msg(StreamId::ExecuteLendOrder).extract_msg());
         let sw = Stopwatch::start_new();
-        let ordertx = lend_order_msg.get_order();
-        let ordertx_caluculated = ordertx.calculatepayment();
-        let time_ec = sw.elapsed();
-        println!(
-            "time: {:#?} Order data : {:#?}",
-            time_ec, ordertx_caluculated
-        );
+        match lend_order_msg.get_order() {
+            Ok(ordertx) => {
+                let ordertx_caluculated = ordertx.calculatepayment();
+                let time_ec = sw.elapsed();
+                println!(
+                    "time: {:#?} Order data : {:#?}",
+                    time_ec, ordertx_caluculated
+                );
+            }
+            _ => {}
+        }
     }
 }
 

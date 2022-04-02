@@ -146,9 +146,12 @@ impl ExecuteTraderOrder {
         deserialized
     }
 
-    pub fn get_order(self) -> TraderOrder {
+    pub fn get_order(self) -> Result<TraderOrder, ()> {
         let incomming_order = self.clone();
-        TraderOrder::get_order_by_order_id(incomming_order.account_id, incomming_order.uuid)
+        Ok(TraderOrder::get_order_by_order_id(
+            incomming_order.account_id,
+            incomming_order.uuid,
+        ))
     }
 }
 impl ExecuteLendOrder {
@@ -169,9 +172,12 @@ impl ExecuteLendOrder {
         let deserialized: ExecuteLendOrder = serde_json::from_str(&json).unwrap();
         deserialized
     }
-    pub fn get_order(self) -> LendOrder {
+    pub fn get_order(self) -> Result<LendOrder, ()> {
         let incomming_order = self.clone();
-        LendOrder::get_order_by_order_id(incomming_order.account_id, incomming_order.uuid)
+        Ok(LendOrder::get_order_by_order_id(
+            incomming_order.account_id,
+            incomming_order.uuid,
+        ))
 
         // calculatepayment
     }
