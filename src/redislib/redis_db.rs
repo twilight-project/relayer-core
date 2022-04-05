@@ -46,6 +46,16 @@ pub fn get(key: &str) -> String {
         Err(_) => String::from("key not found"),
     };
 }
+/// use to get value in redis
+/// return type bool
+pub fn get_no_error(key: &str) -> Result<String, std::io::Error> {
+    // let mut conn = connect();
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    return match redis::cmd("GET").arg(key).query::<String>(&mut *conn) {
+        Ok(s) => Ok(s),
+        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+    };
+}
 
 pub fn get_type_f64(key: &str) -> f64 {
     // let mut conn = connect();

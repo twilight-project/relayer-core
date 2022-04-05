@@ -512,10 +512,12 @@ impl TraderOrder {
     pub fn get_order_by_order_id(
         account_id: String,
         uuid: Uuid,
-    ) -> Self {
-
-       let  ordertx =TraderOrder::deserialize(&redis_db::get(&uuid.to_string()));
-                ordertx
+    ) ->  Result<TraderOrder, std::io::Error> {
+    let ordertx_string=redis_db::get_no_error(&uuid.to_string());
+        match ordertx_string {
+             Ok(order)=>Ok(TraderOrder::deserialize(&order)),
+             Err(e)=>Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        }
     }
 
     pub fn pending(

@@ -146,12 +146,8 @@ impl ExecuteTraderOrder {
         deserialized
     }
 
-    pub fn get_order(self) -> Result<TraderOrder, ()> {
-        let incomming_order = self.clone();
-        Ok(TraderOrder::get_order_by_order_id(
-            incomming_order.account_id,
-            incomming_order.uuid,
-        ))
+    pub fn get_order(self) -> Result<TraderOrder, std::io::Error> {
+        TraderOrder::get_order_by_order_id(self.account_id, self.uuid)
     }
 }
 impl ExecuteLendOrder {
@@ -201,7 +197,7 @@ impl CancelTraderOrder {
         deserialized
     }
 
-    pub fn get_order(self) -> TraderOrder {
+    pub fn get_order(self) -> Result<TraderOrder, std::io::Error> {
         let incomming_order = self.clone();
         TraderOrder::get_order_by_order_id(incomming_order.account_id, incomming_order.uuid)
     }
