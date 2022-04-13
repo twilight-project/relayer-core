@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::aeronlib::types::{AeronMessage, AeronMessageMPSC, StreamId};
+use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
+// use crate::aeronlibmpsc;
 use crate::relayer::ThreadPool;
 use mpsc::{channel, Receiver, Sender};
 use parking_lot::ReentrantMutex;
@@ -62,6 +63,7 @@ lazy_static! {
  //aeron topic hashmap
  pub static ref AERONTOPICPRODUCERHASHMAP: Mutex<HashMap<i32,std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<String>>>>> = Mutex::new(HashMap::new());
  pub static ref AERONTOPICCONSUMERHASHMAP: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
+ pub static ref AERONTOPICCONSUMERHASHMAPMPSC: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
 
  // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
  pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> = Arc::new(RwLock::new(HashMap::new()));

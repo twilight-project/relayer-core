@@ -2,7 +2,7 @@
 #![allow(unused_variables)]
 mod api;
 mod cronjobs;
-mod exchange;
+mod exchangempsc;
 mod fundingupdate;
 mod lendorder;
 mod pricetickerupdate;
@@ -13,7 +13,7 @@ mod utils;
 
 pub use self::api::*;
 pub use self::cronjobs::*;
-pub use self::exchange::*;
+pub use self::exchangempsc::*;
 pub use self::fundingupdate::*;
 pub use self::lendorder::LendOrder;
 pub use self::pricetickerupdate::*;

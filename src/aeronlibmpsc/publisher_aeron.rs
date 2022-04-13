@@ -1,4 +1,4 @@
-use crate::aeronlib::types::StreamId;
+use crate::aeronlibmpsc::types::StreamId;
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{
@@ -89,7 +89,7 @@ pub fn pub_aeron(
         topic_clone
     );
 
-    let buffer = AlignedBuffer::with_capacity(512);
+    let buffer = AlignedBuffer::with_capacity(1024);
     let src_buffer = AtomicBuffer::from_aligned(&buffer);
 
     while !publication.lock().unwrap().is_connected() {
@@ -99,11 +99,10 @@ pub fn pub_aeron(
 
     loop {
         let message = receiver.lock().unwrap().recv().unwrap();
-
         let str_msg = format!("{}", message);
         let c_str_msg = CString::new(str_msg).unwrap();
-
         src_buffer.put_bytes(0, c_str_msg.as_bytes());
+        println!("I'm here");
 
         let _unused = stdout().flush();
 
