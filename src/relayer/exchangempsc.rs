@@ -1,27 +1,18 @@
-use crate::aeronlibmpsc::aeronqueue::*;
-use crate::aeronlibmpsc::types::*;
 use crate::relayer::api::*;
 use crate::relayer::traderorder::*;
 use crate::relayer::types::*;
 use crate::relayer::utils::get_localdb;
-use stopwatch::Stopwatch;
 
 pub fn get_new_trader_order(msg: String) {
     let trader_order_msg = CreateTraderOrder::deserialize(msg);
-    let sw = Stopwatch::start_new();
     let ordertx = trader_order_msg.fill_order();
     let ordertx_inserted = ordertx.newtraderorderinsert();
-    let time_ec = sw.elapsed();
-    println!("time: {:#?} Order data : {:#?}", time_ec, ordertx_inserted);
 }
 
 pub fn get_new_lend_order(msg: String) {
     let lend_order_msg = CreateLendOrder::deserialize(msg);
-    let sw = Stopwatch::start_new();
     let ordertx = lend_order_msg.fill_order();
     let ordertx_inserted = ordertx.newlendorderinsert();
-    let time_ec = sw.elapsed();
-    println!("time: {:#?} Order data : {:#?}", time_ec, ordertx_inserted);
 }
 
 pub fn execute_trader_order(msg: String) {
@@ -71,15 +62,9 @@ pub fn execute_trader_order(msg: String) {
 
 pub fn execute_lend_order(msg: String) {
     let lend_order_msg = ExecuteLendOrder::deserialize(msg);
-    let sw = Stopwatch::start_new();
     match lend_order_msg.get_order() {
         Ok(ordertx) => {
             let ordertx_caluculated = ordertx.calculatepayment();
-            let time_ec = sw.elapsed();
-            println!(
-                "time: {:#?} Order data : {:#?}",
-                time_ec, ordertx_caluculated
-            );
         }
         _ => {}
     }
@@ -87,12 +72,6 @@ pub fn execute_lend_order(msg: String) {
 
 pub fn cancel_trader_order(msg: String) {
     let lend_order_msg = CancelTraderOrder::deserialize(msg);
-    let sw = Stopwatch::start_new();
     let ordertx = lend_order_msg.get_order().unwrap();
     let (ordertx_cancelled, status): (TraderOrder, bool) = ordertx.cancelorder();
-    let time_ec = sw.elapsed();
-    println!(
-        "time: {:#?} Order data : {:#?} Status:{}",
-        time_ec, ordertx_cancelled, status
-    );
 }
