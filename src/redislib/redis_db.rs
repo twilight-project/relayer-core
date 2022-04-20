@@ -349,7 +349,7 @@ pub fn getbestlender() -> Vec<String> {
 pub fn getbestlendertest(min_payment: f64) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("ZREVRANGEBYSCORE")
-        .arg("TraderOrderbyLONGLimit")
+        .arg("LendOrderbyDepositLendState")
         .arg("+inf")
         .arg(min_payment.to_string())
         .arg("withscores")

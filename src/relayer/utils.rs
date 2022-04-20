@@ -80,35 +80,59 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 /// also add ammount in tlv **  update nonce also
 
 pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
-    let best_lend_account_order_id = redis_db::getbestlender();
-    let mut best_lend_account: LendOrder =
-        LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
-    best_lend_account.new_lend_state_amount =
-        redis_db::zdecr_lend_pool_account(&best_lend_account.uuid.to_string(), payment);
-    //update best lender tx for newlendstate
-    redis_db::set(
-        &best_lend_account_order_id[0],
-        &best_lend_account.serialize(),
-    );
+    let mut is_payment_done = true;
+    let mut remaining_payment = payment;
+    while is_payment_done {
+        let best_lend_account_order_id = redis_db::getbestlender();
+        let mut best_lend_account: LendOrder =
+            LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
+        println!("lend order id {}", best_lend_account.uuid);
+        if best_lend_account.new_lend_state_amount >= remaining_payment {
+            is_payment_done = false;
+            let lend_state_amount = best_lend_account.new_lend_state_amount;
+            best_lend_account.new_lend_state_amount = redis_db::zdecr_lend_pool_account(
+                &best_lend_account.uuid.to_string(),
+                remaining_payment,
+            );
+            //update best lender tx for newlendstate
+            redis_db::set(
+                &best_lend_account_order_id[0],
+                &best_lend_account.serialize(),
+            );
+            // psql update for lend order
+            let query = format!(
+                "UPDATE public.newlendorder SET new_lend_state_amount={} WHERE uuid='{}';",
+                best_lend_account.new_lend_state_amount, &best_lend_account_order_id[0]
+            );
+            thread::spawn(move || {
+                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                client.execute(&query, &[]).unwrap();
+            });
+        } else {
+            let lend_state_amount = best_lend_account.new_lend_state_amount;
+            best_lend_account.new_lend_state_amount = redis_db::zdecr_lend_pool_account(
+                &best_lend_account.uuid.to_string(),
+                best_lend_account.new_lend_state_amount,
+            );
+            //update best lender tx for newlendstate
+            redis_db::set(
+                &best_lend_account_order_id[0],
+                &best_lend_account.serialize(),
+            );
+            // psql update for lend order
+            let query = format!(
+                "UPDATE public.newlendorder SET new_lend_state_amount={} WHERE uuid='{}';",
+                best_lend_account.new_lend_state_amount, &best_lend_account_order_id[0]
+            );
+            thread::spawn(move || {
+                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                client.execute(&query, &[]).unwrap();
+            });
+            remaining_payment = remaining_payment - lend_state_amount;
+        }
+    }
     redis_db::decrbyfloat_type_f64("tlv", payment);
-
-    println!(
-        "lend account {} changed by {}sats",
-        &best_lend_account_order_id[0], payment
-    );
-    // psql update for lend order
-    let query = format!(
-        "UPDATE public.newlendorder
-    SET new_lend_state_amount={}
-    WHERE uuid='{}';",
-        best_lend_account.new_lend_state_amount, &best_lend_account_order_id[0]
-    );
-    thread::spawn(move || {
-        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
-        client.execute(&query, &[]).unwrap();
-    });
-
+    println!("lend account  changed by {}sats", payment);
     redis_db::incr_lend_nonce_by_one()
 }
 

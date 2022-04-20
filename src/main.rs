@@ -30,6 +30,7 @@ use std::sync::Mutex;
 fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
     ordertest::initprice();
+    ordertest::generatelendorder();
     thread::sleep(time::Duration::from_millis(100));
     // thread::spawn(move || {
     start_cronjobs();

@@ -118,8 +118,7 @@ pub fn generateorder() {
     // .newtraderorderinsert();
 }
 
-pub fn generatelendorder(count: i32) {
-    println!("static pool running : {}", count);
+pub fn generatelendorder() {
     LendOrder::new(
         "Lend account_id",
         10.0,
@@ -133,7 +132,7 @@ pub fn generatelendorder(count: i32) {
         15.0,
         OrderType::LEND,
         OrderStatus::PENDING,
-        2.5,
+        10.5,
     )
     .newlendorderinsert();
 }
