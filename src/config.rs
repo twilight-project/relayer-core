@@ -56,6 +56,7 @@ lazy_static! {
  pub static ref LIQUIDATIONTICKERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref LIQUIDATIONORDERSTATUS:Mutex<i32> = Mutex::new(0);
  pub static ref ORDERTEST:Mutex<i32> = Mutex::new(0);
+ pub static ref TRADERPAYMENT:Mutex<i32> = Mutex::new(0);
 
  // local database hashmap
  pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
@@ -76,6 +77,9 @@ lazy_static! {
 
  // kafka threadpool with buffer/threads = 10
  pub static ref THREADPOOL_ORDER_AERON_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10));
+
+  // sync sender threadpool with buffer size = 1 for price and funding rate
+ pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));
 
 }
 

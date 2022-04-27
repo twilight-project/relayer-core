@@ -131,3 +131,29 @@ CREATE TABLE settlementpriceforlimitorder(
   ,timestamp          bigint  NOT NULL
   ,settlement_price   NUMERIC NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS btcpricehistory(
+    id SERIAL PRIMARY KEY
+   ,price   NUMERIC NOT NULL
+   ,timestamp          timestamp  NOT NULL
+);
+
+CREATE PROCEDURE insert_btcprice(price numeric)
+LANGUAGE SQL
+AS $$
+  INSERT INTO btcpricehistory ( price, "timestamp") VALUES (price,CURRENT_TIMESTAMP);
+$$;
+
+
+CREATE TABLE IF NOT EXISTS fundingratehistory(
+    id SERIAL PRIMARY KEY
+   ,fundingrate   NUMERIC NOT NULL
+   ,timestamp          timestamp  NOT NULL
+);
+
+CREATE PROCEDURE insert_fundingrate(fundingrate numeric)
+LANGUAGE SQL
+AS $$
+  INSERT INTO fundingratehistory ( fundingrate, "timestamp") VALUES (fundingrate,CURRENT_TIMESTAMP);
+$$;

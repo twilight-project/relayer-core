@@ -2,6 +2,7 @@ use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use crate::relayer::utils::{entryvalue, liquidationprice, maintenancemargin, positionside};
 // use std::thread;
+use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL_PSQL_SEQ_QUEUE};
 use crate::redislib::redis_db;
 use crate::relayer::utils::*;
 
@@ -35,8 +36,18 @@ pub fn updatefundingrate(psi: f64) {
 
 pub fn updatefundingrateindb(fundingrate: f64) {
     redis_db::set("FundingRate", &fundingrate.to_string());
-
+    let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
+    pool.execute(move || {
+        insert_funding_rate_psql(fundingrate);
+    });
+    drop(pool);
     // need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
+}
+
+fn insert_funding_rate_psql(funding_rate: f64) {
+    let query = format!("call insert_fundingrate({});", funding_rate);
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+    client.execute(&query, &[]).unwrap();
 }
 
 pub fn updatechangesineachordertxonfundingratechange(

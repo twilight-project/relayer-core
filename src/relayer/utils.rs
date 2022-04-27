@@ -1,8 +1,8 @@
 use crate::relayer::lendorder::LendOrder;
 use crate::relayer::traderorder::TraderOrder;
 // use crate::relayer::traderorder::TraderOrder;
-use crate::config::LENDSTATUS;
 use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::config::{LENDSTATUS, TRADERPAYMENT};
 use crate::redislib::redis_db;
 use crate::relayer::types::*;
 use std::thread;
@@ -80,6 +80,8 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 /// also add ammount in tlv **  update nonce also
 
 pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
+    let payment_lock = TRADERPAYMENT.lock().unwrap();
+
     let mut is_payment_done = true;
     let mut remaining_payment = payment;
     while is_payment_done {
@@ -133,6 +135,7 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
     }
     redis_db::decrbyfloat_type_f64("tlv", payment);
     println!("lend account  changed by {}sats", payment);
+    drop(payment_lock);
     redis_db::incr_lend_nonce_by_one()
 }
 

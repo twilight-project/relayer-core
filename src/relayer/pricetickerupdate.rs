@@ -1,8 +1,8 @@
 use crate::config::LIMITSTATUS;
 use crate::config::LIQUIDATIONORDERSTATUS;
 use crate::config::LIQUIDATIONTICKERSTATUS;
-use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::config::SETTLEMENTLIMITSTATUS;
+use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL_PSQL_SEQ_QUEUE};
 use crate::redislib::redis_db;
 use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
@@ -115,9 +115,13 @@ pub fn getsetlatestprice() {
             check_settling_limit_order_on_price_ticker_update(currentprice.clone());
         });
         // println!("Price update: not same price");
+        let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
+        pool.execute(move || {
+            insert_current_price_psql(currentprice.clone());
+        });
+        drop(pool);
     }
 }
-
 // pub fn runloop_price_ticker() -> thread::JoinHandle<()> {
 //     thread::spawn(move || loop {
 //         getsetlatestprice();
@@ -200,4 +204,10 @@ pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
 
     drop(limit_lock);
     // println!("mutex took {:#?}", sw1.elapsed());
+}
+
+fn insert_current_price_psql(current_price: f64) {
+    let query = format!("call insert_btcprice({});", current_price);
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+    client.execute(&query, &[]).unwrap();
 }
