@@ -64,9 +64,13 @@ pub fn execute_lend_order(msg: String) {
     let lend_order_msg = ExecuteLendOrder::deserialize(msg);
     match lend_order_msg.get_order() {
         Ok(ordertx) => {
-            let ordertx_caluculated = ordertx.calculatepayment();
+            // let ordertx_caluculated = ordertx.calculatepayment();
+            match ordertx.calculatepayment() {
+                Ok(ordertx_caluculated) => println!("executed order : {:#?}", ordertx_caluculated),
+                Err(arg) => println!("Error found !!, {:#?}", arg),
+            }
         }
-        _ => {}
+        Err(arg) => println!("order not found !!, {:#?}", arg),
     }
 }
 

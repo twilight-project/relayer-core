@@ -46,7 +46,6 @@ impl LendOrder {
         order_status: OrderStatus,
         deposit: f64,
     ) -> Self {
-        lend_mutex_lock(true);
         let ndeposit = deposit * 10000.0;
         // // let nonce = redis_db::incr_lend_nonce_by_one();
         // // println!("Nonce : {}", nonce);
@@ -73,7 +72,6 @@ impl LendOrder {
             u128,
             u128,
         ) = getset_new_lend_order_tlv_tps_poolshare(deposit);
-        lend_mutex_lock(false);
 
         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(n) => LendOrder {
@@ -218,52 +216,49 @@ impl LendOrder {
         return return_self;
     }
 
-    pub fn calculatepayment(self) -> Self {
-        lend_mutex_lock(true);
-
+    pub fn calculatepayment(self) -> Result<Self, std::io::Error> {
         let mut lendtx = self.clone();
         // // let current_price = get_localdb("CurrentPrice");
         // let tps = redis_db::get_type_f64("tps");
         // let tlv = redis_db::get_type_f64("tlv");
         // let nwithdraw = normalize_withdraw(tlv, tps, self.npoolshare);
+        match getset_settle_lend_order_tlv_tps_poolshare(self.npoolshare) {
+            Ok((tlv2, tps2, tlv3, tps3, withdraw, nwithdraw, exit_nonce)) => {
+                let payment;
+                if self.new_lend_state_amount > withdraw {
+                    payment = self.new_lend_state_amount - withdraw;
+                } else {
+                    payment = withdraw - self.new_lend_state_amount;
+                }
+                lendtx.order_status = OrderStatus::SETTLED;
+                lendtx.nwithdraw = nwithdraw;
+                lendtx.payment = payment;
+                lendtx.tlv2 = tlv2;
+                lendtx.tps2 = tps2;
+                lendtx.tlv3 = tlv3;
+                lendtx.tps3 = tps3;
+                lendtx.exit_nonce = exit_nonce;
+                lendtx = lendtx
+                    .remove_lend_order_from_redis()
+                    .update_psql_on_lend_settlement()
+                    .update_lend_account_on_lendtx_order_settlement();
 
-        let (tlv2, tps2, tlv3, tps3, withdraw, nwithdraw, exit_nonce): (
-            f64,
-            f64,
-            f64,
-            f64,
-            f64,
-            f64,
-            u128,
-        ) = getset_settle_lend_order_tlv_tps_poolshare(self.npoolshare);
-
-        let payment;
-        if self.new_lend_state_amount > withdraw {
-            payment = self.new_lend_state_amount - withdraw;
-        } else {
-            payment = withdraw - self.new_lend_state_amount;
+                Ok(lendtx)
+            }
+            // Err(arg) => println!("order not found !!, {:#?}", arg),
+            Err(arg) => Err(std::io::Error::new(std::io::ErrorKind::Other, arg)),
         }
-        lendtx.order_status = OrderStatus::SETTLED;
-        lendtx.nwithdraw = nwithdraw;
-        lendtx.payment = payment;
-        lendtx.tlv2 = tlv2;
-        lendtx.tps2 = tps2;
-        lendtx.tlv3 = tlv3;
-        lendtx.tps3 = tps3;
-        lendtx.exit_nonce = exit_nonce;
-        lendtx = lendtx
-            .remove_lend_order_from_redis()
-            .update_psql_on_lend_settlement()
-            .update_lend_account_on_lendtx_order_settlement();
-
-        lend_mutex_lock(false);
-
-        return lendtx;
     }
 
-    pub fn get_order_by_order_id(account_id: String, uuid: Uuid) -> Self {
-        let ordertx = LendOrder::deserialize(&redis_db::get(&uuid.to_string()));
-        ordertx
+    pub fn get_order_by_order_id(
+        account_id: String,
+        uuid: Uuid,
+    ) -> Result<LendOrder, std::io::Error> {
+        let ordertx_string = redis_db::get_no_error(&uuid.to_string());
+        match ordertx_string {
+            Ok(order) => Ok(LendOrder::deserialize(&order)),
+            Err(arg) => Err(std::io::Error::new(std::io::ErrorKind::Other, arg)),
+        }
     }
 
     pub fn remove_lend_order_from_redis(self) -> Self {

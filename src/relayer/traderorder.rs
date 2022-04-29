@@ -443,6 +443,7 @@ impl TraderOrder {
         let exit_nonce = updatelendaccountontraderordersettlement(payment*10000.0);
         ordertx.exit_nonce = exit_nonce;
         ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
+        
         return Some(ordertx);
     }
 

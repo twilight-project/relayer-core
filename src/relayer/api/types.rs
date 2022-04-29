@@ -168,14 +168,8 @@ impl ExecuteLendOrder {
         let deserialized: ExecuteLendOrder = serde_json::from_str(&json).unwrap();
         deserialized
     }
-    pub fn get_order(self) -> Result<LendOrder, ()> {
-        let incomming_order = self.clone();
-        Ok(LendOrder::get_order_by_order_id(
-            incomming_order.account_id,
-            incomming_order.uuid,
-        ))
-
-        // calculatepayment
+    pub fn get_order(self) -> Result<LendOrder, std::io::Error> {
+        LendOrder::get_order_by_order_id(self.account_id, self.uuid)
     }
 }
 impl CancelTraderOrder {
