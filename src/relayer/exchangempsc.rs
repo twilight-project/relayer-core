@@ -6,6 +6,7 @@ use crate::relayer::utils::get_localdb;
 pub fn get_new_trader_order(msg: String) {
     let trader_order_msg = CreateTraderOrder::deserialize(msg);
     let ordertx = trader_order_msg.fill_order();
+    println!("{:#?}", ordertx);
     let ordertx_inserted = ordertx.newtraderorderinsert();
 }
 
@@ -76,6 +77,11 @@ pub fn execute_lend_order(msg: String) {
 
 pub fn cancel_trader_order(msg: String) {
     let lend_order_msg = CancelTraderOrder::deserialize(msg);
-    let ordertx = lend_order_msg.get_order().unwrap();
-    let (ordertx_cancelled, status): (TraderOrder, bool) = ordertx.cancelorder();
+
+    match lend_order_msg.get_order() {
+        Ok(ordertx) => {
+            let (ordertx_cancelled, status): (TraderOrder, bool) = ordertx.cancelorder();
+        }
+        Err(arg) => println!("order not found !!, {:#?}", arg),
+    }
 }

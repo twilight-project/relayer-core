@@ -48,7 +48,7 @@ pub fn init_aeron_direct_queue() {
         std::thread::sleep(std::time::Duration::from_millis(25));
         start_aeron_topic_producer(StreamId::DirectStreamId);
     });
-    std::thread::sleep(std::time::Duration::from_millis(5000));
+    // std::thread::sleep(std::time::Duration::from_millis(5000));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

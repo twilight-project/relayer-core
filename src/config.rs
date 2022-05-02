@@ -73,10 +73,10 @@ lazy_static! {
  pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(1)));
 
  // kafka threadpool with buffer/threads = 10
- pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
+//  pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
- // kafka threadpool with buffer/threads = 10
- pub static ref THREADPOOL_ORDER_AERON_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10));
+ // Aeron RPC receiver threadpool with buffer/threads = 10
+ pub static ref THREADPOOL_ORDER_AERON_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(4));
 
   // sync sender threadpool with buffer size = 1 for price and funding rate
  pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));

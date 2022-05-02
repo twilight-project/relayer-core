@@ -2,12 +2,12 @@ use crate::config::LIMITSTATUS;
 use crate::config::LIQUIDATIONORDERSTATUS;
 use crate::config::LIQUIDATIONTICKERSTATUS;
 use crate::config::SETTLEMENTLIMITSTATUS;
-use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL_PSQL_SEQ_QUEUE};
+use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL, THREADPOOL_PSQL_SEQ_QUEUE};
 use crate::redislib::redis_db;
 use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use crate::relayer::utils::*;
-
+use crate::relayer::ThreadPool;
 use std::thread;
 // use stopwatch::Stopwatch;
 
@@ -16,7 +16,6 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     // let sw1 = Stopwatch::start_new();
 
     // let current_price = get_localdb("CurrentPrice");
-
     let orderid_list_short = redis_db::zrangegetpendinglimitorderforshort(current_price);
 
     let orderid_list_long = redis_db::zrangegetpendinglimitorderforlong(current_price);
@@ -32,26 +31,36 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
             orderid_list_long.clone(),
         );
     }
-    let entry_nonce = redis_db::get_nonce_u128();
-    thread::spawn(move || {
-        for orderid in orderid_list_short {
-            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-            let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-            let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-            thread::spawn(move || {
-                update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
-            });
-        }
-        for orderid in orderid_list_long {
-            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-            let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-            let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-            thread::spawn(move || {
-                update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
-            });
-        }
-    });
-
+    let total_order_count = orderid_list_short.len() + orderid_list_long.len();
+    let mut thread_count: usize = (total_order_count) / 10;
+    if thread_count > 5 {
+        thread_count = 5;
+    } else if thread_count == 0 {
+        thread_count = 1;
+    }
+    if total_order_count > 0 {
+        let entry_nonce = redis_db::get_nonce_u128();
+        thread::spawn(move || {
+            let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+            for orderid in orderid_list_short {
+                local_threadpool.execute(move || {
+                    let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+                    let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
+                    let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+                    update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
+                });
+            }
+            for orderid in orderid_list_long {
+                local_threadpool.execute(move || {
+                    let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+                    let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
+                    let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+                    update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
+                });
+            }
+        });
+    }
+    // std::thread::sleep(std::time::Duration::from_millis(5000));
     drop(limit_lock);
     // println!("mutex took {:#?}", sw1.elapsed());
 }
@@ -79,8 +88,8 @@ pub fn update_limit_pendingorder(
         entry_sequence, //need to update
     );
     pending_order.pending_limit_traderorderinsert();
-
-    thread::spawn(move || {
+    let pool = THREADPOOL.lock().unwrap();
+    pool.execute(move || {
         let query = format!(
             "UPDATE public.pendinglimittraderorder
         SET order_status='{:#?}'
@@ -103,8 +112,8 @@ pub fn getsetlatestprice() {
     if currentprice == old_price {
         // println!("Price update: same price");
     } else {
-        redis_db::set("CurrentPrice", &currentprice.to_string());
         set_localdb("CurrentPrice", currentprice);
+        redis_db::set("CurrentPrice", &currentprice.to_string());
         thread::spawn(move || {
             check_pending_limit_order_on_price_ticker_update(currentprice.clone());
         });
@@ -133,22 +142,31 @@ pub fn check_liquidating_orders_on_price_ticker_update(current_price: f64) {
     let orderid_list_short = redis_db::zrangegetliquidateorderforshort(current_price);
 
     let orderid_list_long = redis_db::zrangegetliquidateorderforlong(current_price);
+    let total_order_count = orderid_list_short.len() + orderid_list_long.len();
+    let mut thread_count: usize = (total_order_count) / 10;
 
-    for orderid in orderid_list_short {
-        let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-        let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
-        thread::spawn(move || {
-            liquidate_trader_order(ordertx, current_price);
-        });
+    if total_order_count > 0 {
+        if thread_count > 5 {
+            thread_count = 5;
+        } else if thread_count == 0 {
+            thread_count = 1;
+        }
+        let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+        for orderid in orderid_list_short {
+            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+            let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
+            local_threadpool.execute(move || {
+                liquidate_trader_order(ordertx, current_price);
+            });
+        }
+        for orderid in orderid_list_long {
+            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+            let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
+            local_threadpool.execute(move || {
+                liquidate_trader_order(ordertx, current_price);
+            });
+        }
     }
-    for orderid in orderid_list_long {
-        let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-        let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
-        thread::spawn(move || {
-            liquidate_trader_order(ordertx, current_price);
-        });
-    }
-
     drop(liquidation_lock);
 }
 

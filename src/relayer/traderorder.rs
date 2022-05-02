@@ -136,7 +136,7 @@ impl TraderOrder {
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
         thread::spawn(move || {
-            rt.entry_nonce = redis_db::get_nonce_u128();
+            // rt.entry_nonce = redis_db::get_nonce_u128();
 
             let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
                 &rt.uuid,
@@ -274,7 +274,10 @@ impl TraderOrder {
                     &rt.entry_sequence,    
                 );
                        // thread to store trader order data in postgreSQL
-              
+                       let handle = thread::spawn(move || {
+                        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+                        client.execute(&query, &[]).unwrap();
+                    });
             }
           
         });
@@ -596,7 +599,7 @@ impl TraderOrder {
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
         thread::spawn(move || {
-            // rt.entry_nonce = redis_db::get_nonce_u128();
+            rt.entry_nonce = redis_db::get_nonce_u128();
 
             let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
                 &rt.uuid,

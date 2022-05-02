@@ -228,7 +228,7 @@ pub fn getset_settle_lend_order_tlv_tps_poolshare(
     let nwithdraw = normalize_withdraw(tlv2, tps2, npoolshare);
     let withdraw = nwithdraw / 10000.0;
     // assert!(tlv2 < withdraw, "insufficient pool fund!");
-    if tlv2 < withdraw {
+    if tlv2 + 10000.0 < withdraw {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             "insufficient pool fund!",
