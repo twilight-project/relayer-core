@@ -40,25 +40,24 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     }
     if total_order_count > 0 {
         let entry_nonce = redis_db::get_nonce_u128();
-        thread::spawn(move || {
-            let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
-            for orderid in orderid_list_short {
-                local_threadpool.execute(move || {
-                    let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-                    let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-                    let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-                    update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
-                });
-            }
-            for orderid in orderid_list_long {
-                local_threadpool.execute(move || {
-                    let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-                    let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-                    let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-                    update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
-                });
-            }
-        });
+        //get all order by mget command and then process all order
+        let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+        for orderid in orderid_list_short {
+            local_threadpool.execute(move || {
+                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+                let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
+                let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+                update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
+            });
+        }
+        for orderid in orderid_list_long {
+            local_threadpool.execute(move || {
+                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+                let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
+                let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+                update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
+            });
+        }
     }
     // std::thread::sleep(std::time::Duration::from_millis(5000));
     drop(limit_lock);
@@ -71,19 +70,19 @@ pub fn update_limit_pendingorder(
     entry_nonce: u128,
     entry_sequence: u128,
 ) {
-    let rt = ordertx.clone();
+    let ordertx_clone = ordertx.clone();
 
     let pending_order: TraderOrder = TraderOrder::pending(
-        &rt.account_id,
-        rt.position_type,
-        rt.order_type,
-        rt.leverage,
-        rt.initial_margin,
-        rt.available_margin,
+        &ordertx_clone.account_id,
+        ordertx_clone.position_type,
+        ordertx_clone.order_type,
+        ordertx_clone.leverage,
+        ordertx_clone.initial_margin,
+        ordertx_clone.available_margin,
         OrderStatus::FILLED,
         current_price,
-        rt.execution_price,
-        rt.uuid,
+        ordertx_clone.execution_price,
+        ordertx_clone.uuid,
         entry_nonce,    //need to update
         entry_sequence, //need to update
     );
@@ -95,7 +94,7 @@ pub fn update_limit_pendingorder(
         SET order_status='{:#?}'
         WHERE uuid='{}';",
             OrderStatus::FILLED,
-            &rt.uuid
+            &ordertx_clone.uuid
         );
         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
@@ -153,16 +152,16 @@ pub fn check_liquidating_orders_on_price_ticker_update(current_price: f64) {
         }
         let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
         for orderid in orderid_list_short {
-            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-            let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
             local_threadpool.execute(move || {
+                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+                let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
                 liquidate_trader_order(ordertx, current_price);
             });
         }
         for orderid in orderid_list_long {
-            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-            let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
             local_threadpool.execute(move || {
+                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+                let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::LIQUIDATE);
                 liquidate_trader_order(ordertx, current_price);
             });
         }
@@ -191,34 +190,51 @@ pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
     // println!("short array:{:#?}", orderid_list_short);
     let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(current_price);
     // println!("Long array:{:#?}", orderid_list_long);
-    if orderid_list_short.len() > 0 {
-        redis_db::zdel_bulk(
-            "TraderOrder_Settelment_by_SHORT_Limit",
-            orderid_list_short.clone(),
-        );
-    }
-    if orderid_list_long.len() > 0 {
-        redis_db::zdel_bulk(
-            "TraderOrder_Settelment_by_LONG_Limit",
-            orderid_list_long.clone(),
-        );
-    }
-    thread::spawn(move || {
+    let total_order_count = orderid_list_short.len() + orderid_list_long.len();
+    let mut thread_count: usize = (total_order_count) / 10;
+
+    if total_order_count > 0 {
+        if thread_count > 5 {
+            thread_count = 5;
+        } else if thread_count == 0 {
+            thread_count = 1;
+        }
+        let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+
+        if orderid_list_short.len() > 0 {
+            let orderid_list_short_clone = orderid_list_short.clone();
+            local_threadpool.execute(move || {
+                redis_db::zdel_bulk(
+                    "TraderOrder_Settelment_by_SHORT_Limit",
+                    orderid_list_short_clone,
+                );
+            });
+        }
+        if orderid_list_long.len() > 0 {
+            let orderid_list_long_clone = orderid_list_long.clone();
+            local_threadpool.execute(move || {
+                redis_db::zdel_bulk(
+                    "TraderOrder_Settelment_by_LONG_Limit",
+                    orderid_list_long_clone,
+                );
+            });
+        }
+
         for orderid in orderid_list_short {
-            let current_price_clone = current_price.clone();
-            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-            thread::spawn(move || {
+            local_threadpool.execute(move || {
+                let current_price_clone = current_price.clone();
+                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
                 ordertx.calculatepayment_with_current_price(current_price_clone);
             });
         }
         for orderid in orderid_list_long {
-            let current_price_clone = current_price.clone();
-            let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-            thread::spawn(move || {
+            local_threadpool.execute(move || {
+                let current_price_clone = current_price.clone();
+                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
                 ordertx.calculatepayment_with_current_price(current_price_clone);
             });
         }
-    });
+    }
 
     drop(limit_lock);
     // println!("mutex took {:#?}", sw1.elapsed());
@@ -228,4 +244,5 @@ fn insert_current_price_psql(current_price: f64) {
     let query = format!("call insert_btcprice({});", current_price);
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
     client.execute(&query, &[]).unwrap();
+    // drop(client);
 }
