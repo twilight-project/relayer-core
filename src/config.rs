@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
+// use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
 // use crate::aeronlibmpsc;
 use crate::relayer::ThreadPool;
 use mpsc::{channel, Receiver, Sender};
@@ -61,10 +61,6 @@ lazy_static! {
  // local database hashmap
  pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
 
- //aeron topic hashmap
- pub static ref AERONTOPICPRODUCERHASHMAP: Mutex<HashMap<i32,std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<String>>>>> = Mutex::new(HashMap::new());
- pub static ref AERONTOPICCONSUMERHASHMAP: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
- pub static ref AERONTOPICCONSUMERHASHMAPMPSC: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
 
  // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
  pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> = Arc::new(RwLock::new(HashMap::new()));
@@ -75,8 +71,6 @@ lazy_static! {
  // kafka threadpool with buffer/threads = 10
 //  pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
- // Aeron RPC receiver threadpool with buffer/threads = 10
- pub static ref THREADPOOL_ORDER_AERON_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(4));
 
   // sync sender threadpool with buffer size = 1 for price and funding rate
  pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));

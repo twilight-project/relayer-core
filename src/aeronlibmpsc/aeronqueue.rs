@@ -1,6 +1,7 @@
 use crate::aeronlibmpsc::types::{AeronDirectMessage, AeronMessage, AeronMessageMPSC, StreamId};
 use crate::aeronlibmpsc::{publisher_aeron, subscriber_aeron};
-use crate::config::{AERONTOPICCONSUMERHASHMAPMPSC, AERONTOPICPRODUCERHASHMAP};
+// use crate::config::{AERONTOPICCONSUMERHASHMAPMPSC, AERONTOPICPRODUCERHASHMAP};
+use crate::aeronlibmpsc::types::{AERONTOPICCONSUMERHASHMAPMPSC, AERONTOPICPRODUCERHASHMAP};
 use crate::relayer;
 use crate::relayer::ThreadPool;
 use mpsc::{channel, Receiver, SyncSender};

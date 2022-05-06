@@ -1,6 +1,7 @@
 use crate::aeronlibmpsc::aeronqueue::send_aeron_msg;
 use crate::aeronlibmpsc::types::StreamId;
-use crate::config::THREADPOOL_ORDER_AERON_QUEUE;
+// use crate::config::THREADPOOL_ORDER_AERON_QUEUE;
+use crate::aeronlibmpsc::types::THREADPOOL_ORDER_AERON_QUEUE;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
