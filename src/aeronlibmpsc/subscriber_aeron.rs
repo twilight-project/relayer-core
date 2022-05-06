@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::aeronlibmpsc::types::{AeronMessage, StreamId};
-use crate::config::AERONTOPICCONSUMERHASHMAPMPSC;
+// use crate::config::AERONTOPICCONSUMERHASHMAPMPSC;
+use crate::aeronlibmpsc::types::AERONTOPICCONSUMERHASHMAPMPSC;
 use aeron_rs::{
     aeron::Aeron,
     concurrent::{

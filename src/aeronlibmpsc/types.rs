@@ -1,8 +1,12 @@
 use aeron_rs::utils::types::Index;
 // use mpsc::{channel, Receiver, Sender};
 use crate::aeronlibmpsc::aeronqueue::{start_aeron_topic_consumer, start_aeron_topic_producer};
+use crate::relayer::ThreadPool;
+use mpsc::{channel, Receiver, Sender};
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use std::collections::HashMap;
+use std::sync::{mpsc, Arc, Mutex};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 // use std::sync::{mpsc, Arc, Mutex};
@@ -109,4 +113,14 @@ impl AeronDirectMessage {
     pub fn extract_msg(self) -> String {
         self.msg
     }
+}
+
+lazy_static! {
+ //aeron topic hashmap
+ pub static ref AERONTOPICPRODUCERHASHMAP: Mutex<HashMap<i32,std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<String>>>>> = Mutex::new(HashMap::new());
+ pub static ref AERONTOPICCONSUMERHASHMAP: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
+ pub static ref AERONTOPICCONSUMERHASHMAPMPSC: Mutex<HashMap<i32,AeronMessageMPSC>> = Mutex::new(HashMap::new());
+  // Aeron RPC receiver threadpool with buffer/threads = 10
+  pub static ref THREADPOOL_ORDER_AERON_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(4));
+
 }
