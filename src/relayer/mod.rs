@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-mod api;
+// mod api;//with aeron
 mod cronjobs;
+mod directapi; //without aeron
 mod exchangempsc;
 mod fundingupdate;
 mod lendorder;
@@ -11,8 +12,9 @@ mod traderorder;
 mod types;
 mod utils;
 
-pub use self::api::*;
+// pub use self::api::*;
 pub use self::cronjobs::*;
+pub use self::directapi::*;
 pub use self::exchangempsc::*;
 pub use self::fundingupdate::*;
 pub use self::lendorder::LendOrder;

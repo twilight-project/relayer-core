@@ -1,6 +1,6 @@
 // use crate::aeronlib::types::init_aeron_queue;
-use crate::aeronlibmpsc::aeronqueue::rec_aeron_msg_direct;
-use crate::aeronlibmpsc::types::init_aeron_direct_queue;
+// use crate::aeronlibmpsc::aeronqueue::rec_aeron_msg_direct;
+// use crate::aeronlibmpsc::types::init_aeron_direct_queue;
 // use crate::ordertest::generateorder;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::redislib::redis_db;
@@ -58,12 +58,12 @@ pub fn start_cronjobs() {
 
     // initial aeron
     // init_aeron_queue();
-    init_aeron_direct_queue();
-    thread::sleep(time::Duration::from_millis(1000));
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(500));
-        rec_aeron_msg_direct();
-    });
+    // init_aeron_direct_queue();
+    // thread::sleep(time::Duration::from_millis(1000));
+    // thread::spawn(move || {
+    //     thread::sleep(time::Duration::from_millis(500));
+    //     rec_aeron_msg_direct();
+    // });
     // thread::sleep(time::Duration::from_millis(1000));
     // thread::spawn(move || {
     //     thread::sleep(time::Duration::from_millis(500));
