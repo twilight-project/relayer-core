@@ -17,6 +17,7 @@ Cargo.lock
 old code
 
 backup/redisdb
+src/redislib/backup/dump.rdb
 code doc.txt
 # aeron-rs
 
