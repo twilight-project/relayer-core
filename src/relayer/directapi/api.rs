@@ -10,7 +10,9 @@ pub fn startserver() {
         match params.parse::<CreateTraderOrder>() {
             Ok(ordertx) => {
                 ordertx.push();
-                Ok(Value::String("Order submitted successfully".into()))
+                Ok(Value::String(
+                    "Order request submitted successfully.".into(),
+                ))
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
@@ -23,7 +25,9 @@ pub fn startserver() {
         match params.parse::<CreateLendOrder>() {
             Ok(ordertx) => {
                 ordertx.push();
-                Ok(Value::String("Order submitted successfully".into()))
+                Ok(Value::String(
+                    "Order request submitted successfully.".into(),
+                ))
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
@@ -36,7 +40,9 @@ pub fn startserver() {
         match params.parse::<ExecuteTraderOrder>() {
             Ok(ordertx) => {
                 ordertx.push();
-                Ok(Value::String("Order submitted successfully".into()))
+                Ok(Value::String(
+                    "Execution request submitted successfully".into(),
+                ))
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
@@ -48,7 +54,9 @@ pub fn startserver() {
         match params.parse::<ExecuteLendOrder>() {
             Ok(ordertx) => {
                 ordertx.push();
-                Ok(Value::String("Order submitted successfully".into()))
+                Ok(Value::String(
+                    "Execution request submitted successfully.".into(),
+                ))
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
@@ -60,7 +68,9 @@ pub fn startserver() {
         match params.parse::<CancelTraderOrder>() {
             Ok(ordertx) => {
                 ordertx.push();
-                Ok(Value::String("Order submitted successfully".into()))
+                Ok(Value::String(
+                    "Cancellation request submitted successfully.".into(),
+                ))
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
