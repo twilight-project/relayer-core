@@ -10,6 +10,7 @@ mod postgresqllib;
 mod pricefeederlib;
 mod redislib;
 mod relayer;
+
 // use crate::aeronlib::types::StreamId;
 use crate::config::{LOCALDB, ORDERTEST, REDIS_POOL_CONNECTION, THREADPOOL};
 use config::local_serial_core;
@@ -29,12 +30,13 @@ use std::sync::Mutex;
 
 fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
-    ordertest::initprice();
-    ordertest::generatelendorder();
-    thread::sleep(time::Duration::from_millis(100));
-    // thread::spawn(move || {
-    start_cronjobs();
-    loop {
-        thread::sleep(time::Duration::from_millis(100000000));
-    }
+    println!("time:{}", relayer::check_server_time());
+    // ordertest::initprice();
+    // ordertest::generatelendorder();
+    // thread::sleep(time::Duration::from_millis(100));
+    // // thread::spawn(move || {
+    // start_cronjobs();
+    // loop {
+    //     thread::sleep(time::Duration::from_millis(100000000));
+    // }
 }
