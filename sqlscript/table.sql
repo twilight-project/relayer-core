@@ -149,11 +149,12 @@ $$;
 CREATE TABLE IF NOT EXISTS fundingratehistory(
     id SERIAL PRIMARY KEY
    ,fundingrate   NUMERIC NOT NULL
+   ,price   NUMERIC NOT NULL
    ,timestamp          timestamp  NOT NULL
 );
 
-CREATE PROCEDURE insert_fundingrate(fundingrate numeric)
+CREATE PROCEDURE insert_fundingrate(fundingrate numeric,price numeric)
 LANGUAGE SQL
 AS $$
-  INSERT INTO fundingratehistory ( fundingrate, "timestamp") VALUES (fundingrate,CURRENT_TIMESTAMP);
+  INSERT INTO fundingratehistory ( fundingrate,price, "timestamp") VALUES (fundingrate,price,CURRENT_TIMESTAMP);
 $$;

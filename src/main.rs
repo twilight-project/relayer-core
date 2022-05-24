@@ -31,12 +31,13 @@ use std::sync::Mutex;
 fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
     println!("time:{}", relayer::check_server_time());
-    // ordertest::initprice();
-    // ordertest::generatelendorder();
-    // thread::sleep(time::Duration::from_millis(100));
-    // // thread::spawn(move || {
-    // start_cronjobs();
-    // loop {
-    //     thread::sleep(time::Duration::from_millis(100000000));
-    // }
+    relayer::get_fudning_data_from_psql(10);
+    ordertest::initprice();
+    ordertest::generatelendorder();
+    thread::sleep(time::Duration::from_millis(100));
+    // thread::spawn(move || {
+    start_cronjobs();
+    loop {
+        thread::sleep(time::Duration::from_millis(100000000));
+    }
 }

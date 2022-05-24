@@ -30,22 +30,27 @@ pub fn updatefundingrate(psi: f64) {
     } else {
         fundingrate = fundingrate * (-1.0);
     }
-    updatefundingrateindb(fundingrate);
+    let current_price = get_localdb("CurrentPrice");
+    updatefundingrateindb(fundingrate, current_price);
+    get_and_update_all_orders_on_funding_cycle(current_price);
     println!("fundingrate:{}", fundingrate);
 }
 
-pub fn updatefundingrateindb(fundingrate: f64) {
+pub fn updatefundingrateindb(fundingrate: f64, currentprice: f64) {
     redis_db::set("FundingRate", &fundingrate.to_string());
     let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
     pool.execute(move || {
-        insert_funding_rate_psql(fundingrate);
+        insert_funding_rate_psql(fundingrate, currentprice);
     });
     drop(pool);
     // need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
 }
 
-fn insert_funding_rate_psql(funding_rate: f64) {
-    let query = format!("call insert_fundingrate({});", funding_rate);
+fn insert_funding_rate_psql(funding_rate: f64, currentprice: f64) {
+    let query = format!(
+        "call insert_fundingrate({},{});",
+        funding_rate, currentprice
+    );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
     client.execute(&query, &[]).unwrap();
 }
@@ -115,9 +120,9 @@ pub fn updatechangesineachordertxonfundingratechange(
     return ordertx;
 }
 
-pub fn get_and_update_all_orders_on_funding_cycle() {
+pub fn get_and_update_all_orders_on_funding_cycle(current_price: f64) {
     let orderid_list = redis_db::zrangeallopenorders();
-    let current_price = get_localdb("CurrentPrice");
+    // let current_price = get_localdb("CurrentPrice");
     let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
     let fee = redis_db::get_type_f64("Fee");
     for orderid in orderid_list {
