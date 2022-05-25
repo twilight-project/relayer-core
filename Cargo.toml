@@ -46,5 +46,9 @@ pretty_env_logger = "0.4"
 strum = "0.24"
 strum_macros = "0.24"
 
+rust_decimal =  { version = "1.23", features = ["db-postgres"]}
+
+rust_decimal_macros = "1.23"
+
 [dependencies.aeron-rs]
 path = "./aeron-rs"
