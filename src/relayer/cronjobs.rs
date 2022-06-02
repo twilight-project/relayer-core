@@ -32,8 +32,8 @@ pub fn start_cronjobs() {
         // });
 
         // funding update every 1 hour //comments for local test
-        scheduler.every(5.seconds()).run(move || {
-            // scheduler.every(1.hour()).run(move || {
+        // scheduler.every(5.seconds()).run(move || {
+        scheduler.every(1.hour()).run(move || {
             updatefundingrate(1.0);
             // get_and_update_all_orders_on_funding_cycle();
         });

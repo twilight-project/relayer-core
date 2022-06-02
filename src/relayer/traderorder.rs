@@ -502,7 +502,7 @@ impl TraderOrder {
             &ordertx.position_type ,
             &ordertx.order_status ,
             &ordertx.order_type ,
-            &ordertx.execution_price ,
+            &execution_price ,
             SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis(),
             &ordertx.settlement_price,
         );

@@ -1,10 +1,11 @@
 use crate::config::POSTGRESQL_POOL_CONNECTION;
 extern crate rust_decimal;
 extern crate rust_decimal_macros;
-use postgres::types::Timestamp;
-use postgres::types::Type;
+// use postgres::types::Timestamp;
+// use postgres::types::Type;
 use rust_decimal::prelude::*;
 // use rust_decimal_macros::dec;
+use crate::redislib::redis_db;
 use rust_decimal::Decimal;
 
 use serde_derive::{Deserialize, Serialize};
@@ -99,4 +100,13 @@ fn iso8601(st: &std::time::SystemTime) -> String {
     let dt: DateTime<Utc> = st.clone().into();
     format!("{}", dt.format("%+"))
     // formats like "2001-07-08T00:34:60.026490+09:30"
+}
+
+pub fn get_limit_order() {
+    // let orderid_list_long = redis_db::zrangegetpendinglimitorderforlong(0.00);
+
+    // let orderid_list_short = redis_db::zrangegetsettlinglimitorderforshort(0.00);
+    // let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(0.00);
+
+    let order_list = redis_db::getlimitorders();
 }

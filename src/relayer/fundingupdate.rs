@@ -48,7 +48,7 @@ pub fn updatefundingrateindb(fundingrate: f64, currentprice: f64) {
 
 fn insert_funding_rate_psql(funding_rate: f64, currentprice: f64) {
     let query = format!(
-        "call insert_fundingrate({},{});",
+        "call api.insert_fundingrate({},{});",
         funding_rate, currentprice
     );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();

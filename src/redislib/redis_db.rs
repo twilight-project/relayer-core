@@ -486,3 +486,69 @@ pub fn get_nonce_u128_test(
         Err(_) => 0,
     };
 }
+
+pub fn mget_orderstring(key_array: Vec<String>) -> Vec<String> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    let array: Vec<String>;
+    //  = Vec::new();
+    array = redis::cmd("MGET").arg(key_array).query(&mut *conn).unwrap();
+    // for key in key_array {
+    //     trans_query = trans_query.arg(key);
+    // }
+    // trans_query = trans_query.query(&mut *conn).unwrap();
+
+    array
+}
+pub fn getlimitorders() -> Vec<Vec<String>> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let (
+        short_orderid_to_fill,
+        long_orderid_to_fill,
+        short_orderid_to_settle,
+        long_orderid_to_settle,
+    ): (Vec<String>, Vec<String>, Vec<String>, Vec<String>) = redis::pipe()
+        .cmd("ZRANGE")
+        .arg("TraderOrder_LimitOrder_Pending_FOR_Short")
+        .arg("0")
+        .arg("-1")
+        .cmd("ZRANGE")
+        .arg("TraderOrder_LimitOrder_Pending_FOR_Long")
+        .arg("0")
+        .arg("-1")
+        .cmd("ZRANGE")
+        .arg("TraderOrder_Settelment_by_SHORT_Limit")
+        .arg("0")
+        .arg("-1")
+        .cmd("ZRANGE")
+        .arg("TraderOrder_Settelment_by_LONG_Limit")
+        .arg("0")
+        .arg("-1")
+        .query(&mut *conn)
+        .unwrap();
+    // println!("d1: {:#?}, d2: {:#?}, d3: {:#?}, d4: {:#?}", k1, k2, k3, k4);
+
+    let (short_order_to_fill, long_order_to_fill, short_order_to_settle, long_order_to_settle): (
+        Vec<String>,
+        Vec<String>,
+        Vec<String>,
+        Vec<String>,
+    ) = redis::pipe()
+        .cmd("MGET")
+        .arg(short_orderid_to_fill)
+        .cmd("MGET")
+        .arg(long_orderid_to_fill)
+        .cmd("MGET")
+        .arg(short_orderid_to_settle)
+        .cmd("MGET")
+        .arg(long_orderid_to_settle)
+        .query(&mut *conn)
+        .unwrap();
+
+    return vec![
+        short_order_to_fill,
+        long_order_to_fill,
+        short_order_to_settle,
+        long_order_to_settle,
+    ];
+}

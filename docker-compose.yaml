@@ -67,6 +67,8 @@ services:
       - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
 
   postgresql-master:
+    hostname: postgresql
+    container_name: postgresql
     image: docker.io/bitnami/postgresql:11
     restart: always
     ports:
@@ -95,6 +97,47 @@ services:
       - POSTGRESQL_PASSWORD=my_password
       - POSTGRESQL_MASTER_PORT_NUMBER=5432
       - ALLOW_EMPTY_PASSWORD=yes
+
+  PostgRestApi:
+    hostname: PostgRestAPI
+    container_name: PostgRestAPI
+    image: postgrest/postgrest
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgresql://postgres:my_password@postgresql:5432/my_database
+      PGRST_DB_SCHEMA: api
+      PGRST_DB_ANON_ROLE: postgres #In production this role should not be the same as the one used for the connection
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:3000
+    depends_on:
+      - postgresql-master
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8080:8080"
+    expose:
+      - "8080"
+    environment:
+      API_URL: http://localhost:3000/
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    ports:
+      - "5006:5432"
+    depends_on:
+      - postgresql-master
+    volumes:
+      - "postgresql_master_data:/bitnami/postgresql"
+    environment:
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRESQL_MASTER_HOST=postgresql-master
+      - POSTGRESQL_PASSWORD=my_password
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - ALLOW_EMPTY_PASSWORD=yes
+      - POSTGRES_HOST_AUTH_METHOD=trust
 
   # aeron:
   #   image: neomantra/aeron-cpp-debian:latest
