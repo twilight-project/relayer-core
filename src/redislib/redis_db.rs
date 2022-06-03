@@ -552,3 +552,53 @@ pub fn getlimitorders() -> Vec<Vec<String>> {
         long_order_to_settle,
     ];
 }
+
+use serde_derive::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Data {
+    pub score: String,
+    pub value: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ZrangeWithScore {
+    pub vec: Vec<Data>,
+}
+
+use self::redis::{from_redis_value, Commands, ErrorKind, FromRedisValue, RedisResult, Value};
+impl FromRedisValue for ZrangeWithScore {
+    fn from_redis_value(v: &Value) -> RedisResult<Self> {
+        let json_str: Vec<String> = from_redis_value(v)?;
+        let mut result_array: Vec<Data> = vec![
+            Data {
+                score: "00".to_string(),
+                value: "0.00".to_string(),
+            };
+            json_str.len() / 2
+        ];
+        let mut j = 0;
+        for (i, el) in json_str.iter().enumerate() {
+            if (i) % 2 == 0 {
+                result_array[j].score = el.to_string();
+            } else {
+                result_array[j].value = el.to_string();
+                j = j + 1;
+            }
+        }
+        Ok(ZrangeWithScore { vec: result_array })
+    }
+}
+pub fn testgetlimitorders() {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let (short_orderid_to_fill, k): (ZrangeWithScore, f64) = redis::pipe()
+        .cmd("ZRANGE")
+        .arg("TraderOrder_LimitOrder_Pending_FOR_Short")
+        .arg("0")
+        .arg("-1")
+        .arg("WITHSCORES")
+        .cmd("GET")
+        .arg("CurrentPrice")
+        .query(&mut *conn)
+        .unwrap();
+
+    println!("{:#?}", short_orderid_to_fill);
+}

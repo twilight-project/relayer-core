@@ -42,5 +42,6 @@ fn main() {
     // }
 
     // relayer::get_limit_order();
-    println!("{:#?}", redis_db::getlimitorders());
+    // println!("{:#?}", redis_db::getlimitorders());
+    redis_db::testgetlimitorders();
 }
