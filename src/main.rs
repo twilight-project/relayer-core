@@ -17,6 +17,7 @@ use config::local_serial_core;
 use kafkalib::consumer_kafka::consume_kafka;
 use r2d2_redis::redis;
 use redislib::redis_db;
+use redislib::redis_db_orderbook;
 use relayer::*;
 use std::process::Command;
 use std::{thread, time};
@@ -43,5 +44,6 @@ fn main() {
 
     // relayer::get_limit_order();
     // println!("{:#?}", redis_db::getlimitorders());
-    redis_db::testgetlimitorders();
+    // redis_db_orderbook::getlimitordersZscore();
+    relayer::get_limit_order();
 }

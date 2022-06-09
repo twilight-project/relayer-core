@@ -5,7 +5,7 @@ extern crate rust_decimal_macros;
 // use postgres::types::Type;
 use rust_decimal::prelude::*;
 // use rust_decimal_macros::dec;
-use crate::redislib::redis_db;
+use crate::redislib::redis_db_orderbook;
 use rust_decimal::Decimal;
 
 use serde_derive::{Deserialize, Serialize};
@@ -108,5 +108,15 @@ pub fn get_limit_order() {
     // let orderid_list_short = redis_db::zrangegetsettlinglimitorderforshort(0.00);
     // let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(0.00);
 
-    let order_list = redis_db::getlimitorders();
+    let order_list = redis_db_orderbook::getlimitordersZscore();
+    // let mut array: Vec<String>;
+    let mut array = Vec::new();
+    for zdata in order_list {
+        for data in zdata.vec {
+            array.push(data.value);
+        }
+    }
+    println!("{:#?}", array);
+    let orderdb = redis_db_orderbook::mget_order_hashmap(array);
+    println!("orderdb:{:#?}", orderdb);
 }
