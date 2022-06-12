@@ -1,5 +1,7 @@
 use crate::config::POSTGRESQL_POOL_CONNECTION;
 extern crate rust_decimal;
+extern crate uuid;
+use uuid::Uuid;
 extern crate rust_decimal_macros;
 // use postgres::types::Timestamp;
 // use postgres::types::Type;
@@ -30,11 +32,11 @@ pub struct CloseTrade {
     pub timestamp: u128,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct OrderBook {
-    pub bid: Vec<PendingTrade>,
-    pub ask: Vec<PendingTrade>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+// pub struct OrderBook {
+//     pub bid: Vec<PendingTrade>,
+//     pub ask: Vec<PendingTrade>,
+// }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RecentOrders {
@@ -101,22 +103,85 @@ fn iso8601(st: &std::time::SystemTime) -> String {
     format!("{}", dt.format("%+"))
     // formats like "2001-07-08T00:34:60.026490+09:30"
 }
-
+use redis_db_orderbook::RedisBulkOrderdata;
 pub fn get_limit_order() {
-    // let orderid_list_long = redis_db::zrangegetpendinglimitorderforlong(0.00);
-
-    // let orderid_list_short = redis_db::zrangegetsettlinglimitorderforshort(0.00);
-    // let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(0.00);
-
-    let order_list = redis_db_orderbook::getlimitordersZscore();
+    let order_list: RedisBulkOrderdata = redis_db_orderbook::getlimitordersZscore();
     // let mut array: Vec<String>;
+    let order_list_clone = order_list.clone();
     let mut array = Vec::new();
-    for zdata in order_list {
-        for data in zdata.vec {
-            array.push(data.value);
-        }
+    for data in order_list_clone.short_orderid_to_fill.vec {
+        array.push(data.value);
     }
-    println!("{:#?}", array);
+    for data in order_list_clone.long_orderid_to_fill.vec {
+        array.push(data.value);
+    }
+    for data in order_list_clone.short_orderid_to_settle.vec {
+        array.push(data.value);
+    }
+    for data in order_list_clone.long_orderid_to_settle.vec {
+        array.push(data.value);
+    }
+    println!("orderids:{:#?}, order count:{}", array, array.len());
     let orderdb = redis_db_orderbook::mget_order_hashmap(array);
-    println!("orderdb:{:#?}", orderdb);
+    let mut bid = Vec::new();
+    let mut ask = Vec::new();
+    for data in order_list.short_orderid_to_fill.vec {
+        ask.push(Ask {
+            positionsize: orderdb
+                .get(&data.value.parse::<Uuid>().unwrap())
+                .unwrap()
+                .positionsize,
+            price: data.score.parse::<f64>().unwrap(),
+        });
+    }
+    for data in order_list.long_orderid_to_fill.vec {
+        bid.push(Bid {
+            positionsize: orderdb
+                .get(&data.value.parse::<Uuid>().unwrap())
+                .unwrap()
+                .positionsize,
+            price: data.score.parse::<f64>().unwrap(),
+        });
+    }
+    for data in order_list.short_orderid_to_settle.vec {
+        bid.push(Bid {
+            positionsize: orderdb
+                .get(&data.value.parse::<Uuid>().unwrap())
+                .unwrap()
+                .positionsize,
+            price: data.score.parse::<f64>().unwrap(),
+        });
+    }
+    for data in order_list.long_orderid_to_settle.vec {
+        ask.push(Ask {
+            positionsize: orderdb
+                .get(&data.value.parse::<Uuid>().unwrap())
+                .unwrap()
+                .positionsize,
+            price: data.score.parse::<f64>().unwrap(),
+        });
+    }
+    let orderbook = OrderBook { bid: bid, ask: ask };
+    println!("orderbook {}", serde_json::to_string(&orderbook).unwrap());
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderBook {
+    pub bid: Vec<Bid>,
+    pub ask: Vec<Ask>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Bid {
+    pub positionsize: f64,
+    pub price: f64,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Ask {
+    pub positionsize: f64,
+    pub price: f64,
 }

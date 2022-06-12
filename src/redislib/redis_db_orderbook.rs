@@ -97,6 +97,13 @@ pub struct Data {
 pub struct ZrangeWithScore {
     pub vec: Vec<Data>,
 }
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RedisBulkOrderdata {
+    pub short_orderid_to_fill: ZrangeWithScore,
+    pub long_orderid_to_fill: ZrangeWithScore,
+    pub short_orderid_to_settle: ZrangeWithScore,
+    pub long_orderid_to_settle: ZrangeWithScore,
+}
 
 use self::redis::{from_redis_value, Commands, ErrorKind, FromRedisValue, RedisResult, Value};
 impl FromRedisValue for ZrangeWithScore {
@@ -121,7 +128,7 @@ impl FromRedisValue for ZrangeWithScore {
         Ok(ZrangeWithScore { vec: result_array })
     }
 }
-pub fn getlimitordersZscore() -> Vec<ZrangeWithScore> {
+pub fn getlimitordersZscore() -> RedisBulkOrderdata {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let (
         short_orderid_to_fill,
@@ -157,12 +164,12 @@ pub fn getlimitordersZscore() -> Vec<ZrangeWithScore> {
         .query(&mut *conn)
         .unwrap();
 
-    return vec![
+    return RedisBulkOrderdata {
         short_orderid_to_fill,
         long_orderid_to_fill,
         short_orderid_to_settle,
         long_orderid_to_settle,
-    ];
+    };
 }
 
 use crate::relayer::TraderOrder;
