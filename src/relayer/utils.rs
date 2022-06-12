@@ -267,3 +267,16 @@ pub fn set_localdb(key: &'static str, value: f64) {
     local_storage.insert(key, value);
     drop(local_storage);
 }
+use crate::config::LOCALDBSTRING;
+
+pub fn get_localdb_string(key: &str) -> String {
+    let local_storage = LOCALDBSTRING.lock().unwrap();
+    let data = local_storage.get(key).unwrap().clone();
+    drop(local_storage);
+    data
+}
+pub fn set_localdb_string(key: &'static str, value: String) {
+    let mut local_storage = LOCALDBSTRING.lock().unwrap();
+    local_storage.insert(key, value);
+    drop(local_storage);
+}

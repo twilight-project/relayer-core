@@ -78,6 +78,12 @@ pub fn startserver() {
             }
         }
     });
+    io.add_method("GetOrderBook", move |params: Params| async move {
+        Ok(Value::String(get_localdb_string("OrderBook")))
+    });
+    io.add_method("GetServerTime", move |params: Params| async move {
+        Ok(Value::String(check_server_time().to_string()))
+    });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)

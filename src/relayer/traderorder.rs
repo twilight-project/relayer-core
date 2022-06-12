@@ -308,6 +308,15 @@ impl TraderOrder {
                 },
                 _ => {}
             }
+            match rt.position_type {
+                    PositionType::LONG => {
+                        redis_db::zdel(&"TraderOrder_Settelment_by_LONG_Limit", &rt.uuid.to_string());
+                    }
+                    PositionType::SHORT => {
+                        redis_db::zdel(&"TraderOrder_Settelment_by_SHORT_Limit", &rt.uuid.to_string());
+                    }
+                 }
+                
 
             // update pool size when  order get settled
             match rt.position_type {

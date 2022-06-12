@@ -3,7 +3,6 @@ pub fn check_server_time() -> u128 {
     let ttime = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap();
-    println!("{:#?}", ttime);
     ttime.as_micros()
 }
 // {

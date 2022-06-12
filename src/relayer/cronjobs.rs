@@ -50,6 +50,8 @@ pub fn start_cronjobs() {
         thread::spawn(move || {
             getsetlatestprice();
         });
+        thread::sleep(time::Duration::from_millis(2500));
+        thread::spawn(move || set_localdb_string("OrderBook", get_latest_orderbook()));
     });
 
     thread::spawn(move || {

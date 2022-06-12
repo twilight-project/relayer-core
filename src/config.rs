@@ -61,6 +61,8 @@ lazy_static! {
  // local database hashmap
  pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
 
+ // local orderbook
+ pub static ref LOCALDBSTRING: Mutex<HashMap<&'static str,String>> = Mutex::new(HashMap::new());
 
  // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
  pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> = Arc::new(RwLock::new(HashMap::new()));
