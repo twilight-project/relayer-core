@@ -30,8 +30,8 @@ pub fn get_recent_orders() -> String {
 }
 pub fn update_recent_orders(value: CloseTrade) {
     let mut local_storage = RECENTORDER.lock().unwrap();
-    local_storage.push_front(value);
     local_storage.pop_back();
+    local_storage.push_front(value);
     drop(local_storage);
 }
 pub fn updatebulk_recent_orders(value: Vec<CloseTrade>) {

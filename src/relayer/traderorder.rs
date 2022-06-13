@@ -1,4 +1,5 @@
 use crate::relayer::types::*;
+use crate::relayer::{update_recent_orders,CloseTrade,Side};
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
 use crate::relayer::utils::*;
@@ -286,57 +287,74 @@ impl TraderOrder {
     }
 
     pub fn removeorderfromredis(self) -> Self {
-        let rt = self.clone();
+        let ordertx = self.clone();
+        let ordertx_clone = self.clone();
 
         thread::spawn(move || {
             // trader order saved in redis, orderid as key
-            redis_db::del(&rt.uuid.to_string());
+            redis_db::del(&ordertx.uuid.to_string());
             // trader order set by timestamp
             redis_db::zdel(
                 &"TraderOrder",
-                &rt.uuid.to_string(), //value
+                &ordertx.uuid.to_string(), //value
             );
            
-            match rt.order_type {
-                OrderType::LIMIT => match rt.position_type {
+            match ordertx.order_type {
+                OrderType::LIMIT => match ordertx.position_type {
                     PositionType::LONG => {
-                        redis_db::zdel(&"TraderOrderbyLONGLimit", &rt.uuid.to_string());
+                        redis_db::zdel(&"TraderOrderbyLONGLimit", &ordertx.uuid.to_string());
                     }
                     PositionType::SHORT => {
-                        redis_db::zdel(&"TraderOrderbySHORTLimit", &rt.uuid.to_string());
+                        redis_db::zdel(&"TraderOrderbySHORTLimit", &ordertx.uuid.to_string());
                     }
                 },
                 _ => {}
             }
-            match rt.position_type {
+            match ordertx.position_type {
                     PositionType::LONG => {
-                        redis_db::zdel(&"TraderOrder_Settelment_by_LONG_Limit", &rt.uuid.to_string());
+                        redis_db::zdel(&"TraderOrder_Settelment_by_LONG_Limit", &ordertx.uuid.to_string());
                     }
                     PositionType::SHORT => {
-                        redis_db::zdel(&"TraderOrder_Settelment_by_SHORT_Limit", &rt.uuid.to_string());
+                        redis_db::zdel(&"TraderOrder_Settelment_by_SHORT_Limit", &ordertx.uuid.to_string());
                     }
                  }
                 
 
             // update pool size when  order get settled
-            match rt.position_type {
+            match ordertx.position_type {
                 PositionType::LONG => {
-                    redis_db::decrbyfloat(&"TotalLongPositionSize", rt.positionsize);
+                    redis_db::decrbyfloat(&"TotalLongPositionSize", ordertx.positionsize);
                     redis_db::zdel(
                         &"TraderOrderbyLiquidationPriceFORLong",
-                        &rt.uuid.to_string(),
+                        &ordertx.uuid.to_string(),
                     );
                 }
                 PositionType::SHORT => {
-                    redis_db::decrbyfloat(&"TotalShortPositionSize", rt.positionsize);
+                    redis_db::decrbyfloat(&"TotalShortPositionSize", ordertx.positionsize);
                     redis_db::zdel(
                         &"TraderOrderbyLiquidationPriceFORShort",
-                        &rt.uuid.to_string(),
+                        &ordertx.uuid.to_string(),
                     );
                 }
             }
-            redis_db::decrbyfloat(&"TotalPoolPositionSize", rt.positionsize);
+            redis_db::decrbyfloat(&"TotalPoolPositionSize", ordertx.positionsize);
         });
+        let side  = match ordertx_clone.position_type {
+            PositionType::LONG => Side::SELL,
+            PositionType::SHORT => Side::BUY
+        };
+        update_recent_orders(CloseTrade {
+             side:side ,
+             positionsize: ordertx_clone.positionsize,
+             price: ordertx_clone.settlement_price,
+             timestamp: std::time::SystemTime::now(),
+        });
+    //     println!("{:#?}",CloseTrade {
+    //         side:side ,
+    //         positionsize: ordertx_clone.positionsize,
+    //         price: ordertx_clone.execution_price,
+    //         timestamp: std::time::SystemTime::now(),
+    //    });
         return self;
     }
     pub fn serialize(&self) -> String {
