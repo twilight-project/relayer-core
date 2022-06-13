@@ -86,6 +86,9 @@ pub fn startserver() {
             serde_json::to_string(&check_server_time()).unwrap(),
         ))
     });
+    io.add_method("GetRecentOrder", move |params: Params| async move {
+        Ok(Value::String(get_recent_orders()))
+    });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)

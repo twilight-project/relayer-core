@@ -128,7 +128,7 @@ impl FromRedisValue for ZrangeWithScore {
         Ok(ZrangeWithScore { vec: result_array })
     }
 }
-pub fn getlimitordersZscore() -> RedisBulkOrderdata {
+pub fn getlimitorderszscore() -> RedisBulkOrderdata {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let (
         short_orderid_to_fill,

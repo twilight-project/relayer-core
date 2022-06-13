@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 // use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
 // use crate::aeronlibmpsc;
-use crate::relayer::ThreadPool;
+use crate::relayer::{ThreadPool, TraderOrder};
 use mpsc::{channel, Receiver, Sender};
 use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;

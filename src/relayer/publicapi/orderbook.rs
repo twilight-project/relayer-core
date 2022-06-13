@@ -3,13 +3,12 @@ extern crate rust_decimal;
 extern crate rust_decimal_macros;
 extern crate uuid;
 use crate::redislib::redis_db_orderbook;
-
 use redis_db_orderbook::RedisBulkOrderdata;
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
+use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use serde_derive::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Side {
     BUY,
@@ -35,18 +34,6 @@ pub struct Bid {
 pub struct Ask {
     pub positionsize: f64,
     pub price: f64,
-}
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct CloseTrade {
-    pub side: Side,
-    pub positionsize: f64,
-    pub price: f64,
-    pub timestamp: u128,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct RecentOrders {
-    pub orders: Vec<CloseTrade>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -105,7 +92,7 @@ fn iso8601(st: &std::time::SystemTime) -> String {
 }
 
 pub fn get_latest_orderbook() -> String {
-    let order_list: RedisBulkOrderdata = redis_db_orderbook::getlimitordersZscore();
+    let order_list: RedisBulkOrderdata = redis_db_orderbook::getlimitorderszscore();
     // let mut array: Vec<String>;
     let order_list_clone = order_list.clone();
     let mut array = Vec::new();
