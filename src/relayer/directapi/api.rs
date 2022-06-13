@@ -82,7 +82,9 @@ pub fn startserver() {
         Ok(Value::String(get_localdb_string("OrderBook")))
     });
     io.add_method("GetServerTime", move |params: Params| async move {
-        Ok(Value::String(check_server_time().to_string()))
+        Ok(Value::String(
+            serde_json::to_string(&check_server_time()).unwrap(),
+        ))
     });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");

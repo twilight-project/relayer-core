@@ -34,18 +34,18 @@ fn main() {
     // println!("time:{}", relayer::check_server_time());
     // relayer::get_fudning_data_from_psql(10);
 
-    // ordertest::initprice();
-    // ordertest::generatelendorder();
-    // thread::sleep(time::Duration::from_millis(100));
-    // start_cronjobs();
-    // // thread::sleep(time::Duration::from_millis(3000));
-    // // let sw = Stopwatch::start_new();
-    // // println!("{}", relayer::get_localdb_string("OrderBook"));
-    // // let time_ec = sw.elapsed();
-    // // println!("time: {:#?} ", time_ec);
-    // loop {
-    //     thread::sleep(time::Duration::from_millis(100000000));
-    // }
+    ordertest::initprice();
+    ordertest::generatelendorder();
+    thread::sleep(time::Duration::from_millis(100));
+    start_cronjobs();
+    // thread::sleep(time::Duration::from_millis(3000));
+    // let sw = Stopwatch::start_new();
+    // println!("{}", relayer::get_localdb_string("OrderBook"));
+    // let time_ec = sw.elapsed();
+    // println!("time: {:#?} ", time_ec);
+    loop {
+        thread::sleep(time::Duration::from_millis(100000000));
+    }
 
     // let sw = Stopwatch::start_new();
     // relayer::get_latest_orderbook();
@@ -54,8 +54,8 @@ fn main() {
 
     // println!("arraya: {:#?} ", redis_db_orderbook::getlimitordersZscore());
 
-    redis_db::zdel(
-        &"TraderOrderbyLONGLimit",
-        &"2a84e759-5294-41bc-bb33-b4220469f6f7",
-    );
+    // redis_db::zdel(
+    //     &"TraderOrderbyLONGLimit",
+    //     &"2a84e759-5294-41bc-bb33-b4220469f6f7",
+    // );
 }

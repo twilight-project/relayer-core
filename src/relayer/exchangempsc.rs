@@ -27,31 +27,37 @@ pub fn execute_trader_order(msg: String) {
             let execution_price = lend_order_msg.execution_price.clone();
 
             match lend_order_msg.clone().get_order() {
-                Ok(ordertx) => {
-                    let current_price = get_localdb("CurrentPrice");
-                    if lend_order_msg.order_type == OrderType::MARKET {
-                        let ordertx_caluculated = ordertx.calculatepayment();
-                    } else {
-                        match ordertx.position_type {
-                            PositionType::LONG => {
-                                if execution_price <= current_price {
-                                    let ordertx_caluculated = ordertx.calculatepayment();
-                                } else {
-                                    let ordertx_caluculated = ordertx
-                                        .set_execution_price_for_limit_order(execution_price);
+                Ok(ordertx) => match ordertx.order_status {
+                    OrderStatus::FILLED => {
+                        let current_price = get_localdb("CurrentPrice");
+                        if lend_order_msg.order_type == OrderType::MARKET {
+                            let ordertx_caluculated = ordertx.calculatepayment();
+                        } else {
+                            match ordertx.position_type {
+                                PositionType::LONG => {
+                                    if execution_price <= current_price {
+                                        let ordertx_caluculated = ordertx.calculatepayment();
+                                    } else {
+                                        let ordertx_caluculated = ordertx
+                                            .set_execution_price_for_limit_order(execution_price);
+                                    }
                                 }
-                            }
-                            PositionType::SHORT => {
-                                if execution_price >= current_price {
-                                    let ordertx_caluculated = ordertx.calculatepayment();
-                                } else {
-                                    let ordertx_caluculated = ordertx
-                                        .set_execution_price_for_limit_order(execution_price);
+                                PositionType::SHORT => {
+                                    if execution_price >= current_price {
+                                        let ordertx_caluculated = ordertx.calculatepayment();
+                                    } else {
+                                        let ordertx_caluculated = ordertx
+                                            .set_execution_price_for_limit_order(execution_price);
+                                    }
                                 }
                             }
                         }
                     }
-                }
+
+                    _ => {
+                        println!("order not found !!");
+                    }
+                },
                 Err(arg) => println!("order not found !!, {:#?}", arg),
                 // Err(arg) => panic!("this is a terrible mistake!"),
             }

@@ -121,45 +121,46 @@ pub fn get_latest_orderbook() -> String {
     for data in order_list_clone.long_orderid_to_settle.vec {
         array.push(data.value);
     }
-    let orderdb = redis_db_orderbook::mget_order_hashmap(array);
     let mut bid = Vec::new();
     let mut ask = Vec::new();
-    for data in order_list.short_orderid_to_fill.vec {
-        ask.push(Ask {
-            positionsize: orderdb
-                .get(&data.value.parse::<Uuid>().unwrap())
-                .unwrap()
-                .positionsize,
-            price: data.score.parse::<f64>().unwrap(),
-        });
-    }
-    for data in order_list.long_orderid_to_fill.vec {
-        bid.push(Bid {
-            positionsize: orderdb
-                .get(&data.value.parse::<Uuid>().unwrap())
-                .unwrap()
-                .positionsize,
-            price: data.score.parse::<f64>().unwrap(),
-        });
-    }
-    for data in order_list.short_orderid_to_settle.vec {
-        bid.push(Bid {
-            positionsize: orderdb
-                .get(&data.value.parse::<Uuid>().unwrap())
-                .unwrap()
-                .positionsize,
-            price: data.score.parse::<f64>().unwrap(),
-        });
-    }
-    println!("im here");
-    for data in order_list.long_orderid_to_settle.vec {
-        ask.push(Ask {
-            positionsize: orderdb
-                .get(&data.value.parse::<Uuid>().unwrap())
-                .unwrap()
-                .positionsize,
-            price: data.score.parse::<f64>().unwrap(),
-        });
+    if array.len() > 0 {
+        let orderdb = redis_db_orderbook::mget_order_hashmap(array);
+        for data in order_list.short_orderid_to_fill.vec {
+            ask.push(Ask {
+                positionsize: orderdb
+                    .get(&data.value.parse::<Uuid>().unwrap())
+                    .unwrap()
+                    .positionsize,
+                price: data.score.parse::<f64>().unwrap(),
+            });
+        }
+        for data in order_list.long_orderid_to_fill.vec {
+            bid.push(Bid {
+                positionsize: orderdb
+                    .get(&data.value.parse::<Uuid>().unwrap())
+                    .unwrap()
+                    .positionsize,
+                price: data.score.parse::<f64>().unwrap(),
+            });
+        }
+        for data in order_list.short_orderid_to_settle.vec {
+            bid.push(Bid {
+                positionsize: orderdb
+                    .get(&data.value.parse::<Uuid>().unwrap())
+                    .unwrap()
+                    .positionsize,
+                price: data.score.parse::<f64>().unwrap(),
+            });
+        }
+        for data in order_list.long_orderid_to_settle.vec {
+            ask.push(Ask {
+                positionsize: orderdb
+                    .get(&data.value.parse::<Uuid>().unwrap())
+                    .unwrap()
+                    .positionsize,
+                price: data.score.parse::<f64>().unwrap(),
+            });
+        }
     }
     let orderbook = OrderBook { bid: bid, ask: ask };
     // println!("orderbook {}", serde_json::to_string(&orderbook).unwrap());
