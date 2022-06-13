@@ -349,13 +349,7 @@ impl TraderOrder {
              price: ordertx_clone.settlement_price,
              timestamp: std::time::SystemTime::now(),
         });
-    //     println!("{:#?}",CloseTrade {
-    //         side:side ,
-    //         positionsize: ordertx_clone.positionsize,
-    //         price: ordertx_clone.execution_price,
-    //         timestamp: std::time::SystemTime::now(),
-    //    });
-        return self;
+              return self;
     }
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();
