@@ -150,4 +150,5 @@ pub fn initprice() {
     local_storage.insert("Fee", 0.0);
     // drop(local_storage);
     initialize_lend_pool(100000.0, 10.0);
+    update_recent_order_from_db();
 }

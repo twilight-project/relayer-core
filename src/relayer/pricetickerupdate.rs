@@ -8,6 +8,7 @@ use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use crate::relayer::utils::*;
 use crate::relayer::ThreadPool;
+use crate::relayer::{update_recent_orders, CloseTrade, Side};
 use std::thread;
 // use stopwatch::Stopwatch;
 
@@ -86,7 +87,7 @@ pub fn update_limit_pendingorder(
         entry_nonce,    //need to update
         entry_sequence, //need to update
     );
-    pending_order.pending_limit_traderorderinsert();
+    let ordertx = pending_order.pending_limit_traderorderinsert();
     let pool = THREADPOOL.lock().unwrap();
     pool.execute(move || {
         let query = format!(
@@ -99,6 +100,16 @@ pub fn update_limit_pendingorder(
         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
         client.execute(&query, &[]).unwrap();
+    });
+    let side = match ordertx.position_type {
+        PositionType::SHORT => Side::SELL,
+        PositionType::LONG => Side::BUY,
+    };
+    update_recent_orders(CloseTrade {
+        side: side,
+        positionsize: ordertx.positionsize,
+        price: ordertx.entryprice,
+        timestamp: std::time::SystemTime::now(),
     });
 }
 

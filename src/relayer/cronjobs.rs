@@ -6,6 +6,7 @@ use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
+use std::collections::HashMap;
 use std::time::SystemTime;
 use std::{thread, time};
 
@@ -50,7 +51,14 @@ pub fn start_cronjobs() {
         thread::spawn(move || {
             getsetlatestprice();
         });
-        thread::sleep(time::Duration::from_millis(2500));
+    });
+
+    thread::spawn(move || loop {
+        thread::sleep(time::Duration::from_millis(60000));
+        update_candle_data();
+    });
+    thread::spawn(move || loop {
+        thread::sleep(time::Duration::from_millis(1000));
         thread::spawn(move || set_localdb_string("OrderBook", get_latest_orderbook()));
     });
 

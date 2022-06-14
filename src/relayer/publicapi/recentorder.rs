@@ -1,8 +1,11 @@
+use super::candledata::{update_candle_data, CANDLEDATA};
 use super::orderbook::Side;
+use crate::redislib::redis_db;
 use crate::relayer::TraderOrder;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::{thread, time};
 use uuid::Uuid;
 lazy_static! {
  // recent orders
@@ -28,19 +31,47 @@ pub fn get_recent_orders() -> String {
     drop(local_storage);
     serde_json::to_string(&data).unwrap()
 }
+
+use crate::config::THREADPOOL;
 pub fn update_recent_orders(value: CloseTrade) {
-    let mut local_storage = RECENTORDER.lock().unwrap();
-    if local_storage.len() > 200 {
-        local_storage.pop_back();
-    }
-    local_storage.push_front(value);
-    drop(local_storage);
+    let threadpool = THREADPOOL.lock().unwrap();
+    let value_clone = value.clone();
+    threadpool.execute(move || {
+        let mut local_storage = RECENTORDER.lock().unwrap();
+        if local_storage.len() > 500 {
+            local_storage.pop_back();
+        }
+        local_storage.push_front(value);
+        drop(local_storage);
+    });
+    threadpool.execute(move || {
+        let mut local_storage = CANDLEDATA.lock().unwrap();
+        local_storage.push_front(value_clone);
+        drop(local_storage);
+    });
 }
+
 pub fn updatebulk_recent_orders(value: Vec<CloseTrade>) {
     let mut local_storage = RECENTORDER.lock().unwrap();
     for data in value {
-        local_storage.push_front(data);
-        local_storage.pop_back();
+        if local_storage.len() > 500 {
+            local_storage.pop_back();
+        }
+        local_storage.push_back(data);
     }
     drop(local_storage);
+}
+
+pub fn update_recent_order_from_db() {
+    let recent_order_history = redis_db::get("RecentOrderHistory");
+    if recent_order_history == String::from("key not found") {
+    } else if recent_order_history == String::from("[]") {
+    } else {
+        let data: Vec<CloseTrade> = serde_json::from_str(&recent_order_history).unwrap();
+        updatebulk_recent_orders(data);
+    }
+    thread::spawn(move || loop {
+        thread::sleep(time::Duration::from_millis(60000));
+        thread::spawn(move || redis_db::set("RecentOrderHistory", &get_recent_orders()));
+    });
 }

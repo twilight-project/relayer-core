@@ -34,18 +34,18 @@ fn main() {
     // println!("time:{}", relayer::check_server_time());
     // relayer::get_fudning_data_from_psql(10);
 
-    ordertest::initprice();
-    ordertest::generatelendorder();
-    thread::sleep(time::Duration::from_millis(100));
-    start_cronjobs();
-    // thread::sleep(time::Duration::from_millis(3000));
-    // let sw = Stopwatch::start_new();
-    // println!("{}", relayer::get_localdb_string("OrderBook"));
-    // let time_ec = sw.elapsed();
-    // println!("time: {:#?} ", time_ec);
-    loop {
-        thread::sleep(time::Duration::from_millis(100000000));
-    }
+    // ordertest::initprice();
+    // ordertest::generatelendorder();
+    // thread::sleep(time::Duration::from_millis(100));
+    // start_cronjobs();
+    // // thread::sleep(time::Duration::from_millis(3000));
+    // // let sw = Stopwatch::start_new();
+    // // println!("{}", relayer::get_localdb_string("OrderBook"));
+    // // let time_ec = sw.elapsed();
+    // // println!("time: {:#?} ", time_ec);
+    // loop {
+    //     thread::sleep(time::Duration::from_millis(100000000));
+    // }
 
     // let sw = Stopwatch::start_new();
     // relayer::get_latest_orderbook();
@@ -58,4 +58,21 @@ fn main() {
     //     &"TraderOrderbyLONGLimit",
     //     &"2a84e759-5294-41bc-bb33-b4220469f6f7",
     // );
+    update_recent_order_from_db();
+    thread::sleep(time::Duration::from_millis(1000));
+    let orders = get_recent_orders();
+    let mut data: Vec<CloseTrade> = serde_json::from_str(&orders).unwrap();
+    let dt: DateTime<Utc> = data.pop().unwrap().timestamp.into();
+    let date_time = format!("{}", dt.format("%d-%m-%Y-%H:%M"));
+    println!("{:#?}", date_time);
 }
+
+use chrono::prelude::{DateTime, Utc};
+// extern crate chrono;
+// use chrono::offset::Utc;
+// use chrono::DateTime;
+// use std::time::SystemTime;
+
+// let system_time = SystemTime::now();
+// let datetime: DateTime<Utc> = system_time.into();
+// println!("{}", datetime.format("%d/%m/%Y %T"));
