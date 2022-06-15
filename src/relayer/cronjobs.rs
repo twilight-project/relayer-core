@@ -53,10 +53,10 @@ pub fn start_cronjobs() {
         });
     });
 
-    thread::spawn(move || loop {
-        thread::sleep(time::Duration::from_millis(60000));
-        update_candle_data();
-    });
+    // thread::spawn(move || loop {
+    //     thread::sleep(time::Duration::from_millis(2000));
+    //     update_candle_data();
+    // });
     thread::spawn(move || loop {
         thread::sleep(time::Duration::from_millis(1000));
         thread::spawn(move || set_localdb_string("OrderBook", get_latest_orderbook()));

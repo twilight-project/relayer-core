@@ -89,6 +89,16 @@ pub fn startserver() {
     io.add_method("GetRecentOrder", move |params: Params| async move {
         Ok(Value::String(get_recent_orders()))
     });
+    io.add_method("GetCandleData", move |params: Params| async move {
+        let candle_hashmap = CANDLE_HASHMAP.lock().unwrap();
+        println!("I'm here");
+
+        println!("{:#?}", candle_hashmap);
+        drop(candle_hashmap);
+        Ok(Value::String(
+            serde_json::to_string(&check_server_time()).unwrap(),
+        ))
+    });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)

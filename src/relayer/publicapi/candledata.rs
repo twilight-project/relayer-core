@@ -20,6 +20,7 @@ pub fn update_candle_data() {
     let mut recent_orders = CANDLEDATA.lock().unwrap();
     for i in 1..recent_orders.len() {
         let trade = recent_orders.pop_back().unwrap();
+        println!("{:#?}", trade);
         let time_key = time_till_min(&trade.timestamp);
         let time_key_clone = time_key.clone();
         candle_hashmap
@@ -40,6 +41,7 @@ pub struct Candle {
     pub close: f64,
     pub sell_volume: f64,
     pub buy_volume: f64,
+    pub timestamp: std::time::SystemTime,
 }
 
 use chrono::prelude::{DateTime, Utc};
