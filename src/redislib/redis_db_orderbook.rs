@@ -19,7 +19,7 @@
 // extern crate stopwatch;
 use crate::config::REDIS_POOL_CONNECTION;
 use r2d2_redis::redis;
-use std::process::Command;
+// use std::process::Command;
 
 pub fn mget_orderstring(key_array: Vec<String>) -> Vec<String> {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
@@ -105,7 +105,7 @@ pub struct RedisBulkOrderdata {
     pub long_orderid_to_settle: ZrangeWithScore,
 }
 
-use self::redis::{from_redis_value, Commands, ErrorKind, FromRedisValue, RedisResult, Value};
+use self::redis::{from_redis_value, FromRedisValue, RedisResult, Value};
 impl FromRedisValue for ZrangeWithScore {
     fn from_redis_value(v: &Value) -> RedisResult<Self> {
         let json_str: Vec<String> = from_redis_value(v)?;

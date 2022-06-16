@@ -1,12 +1,12 @@
-use super::candledata::{update_candle_data, CANDLEDATA};
+use super::candledata::CANDLEDATA;
 use super::orderbook::Side;
 use crate::redislib::redis_db;
-use crate::relayer::TraderOrder;
+// use crate::relayer::TraderOrder;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::sync::Mutex;
 use std::{thread, time};
-use uuid::Uuid;
+// use uuid::Uuid;
 lazy_static! {
  // recent orders
  pub static ref RECENTORDER: Mutex<VecDeque<CloseTrade>> = Mutex::new(VecDeque::with_capacity(50));

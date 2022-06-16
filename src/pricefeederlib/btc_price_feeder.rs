@@ -7,9 +7,9 @@ use crate::config::{
     BinanceMiniTickerPayload, POSTGRESQL_POOL_CONNECTION, THREADPOOL_PSQL_SEQ_QUEUE,
     THREADPOOL_REDIS_SEQ_QUEUE,
 };
-use crate::kafkalib::producer_kafka;
+// use crate::kafkalib::producer_kafka;
 use crate::redislib::redis_db;
-use std::thread;
+// use std::thread;
 
 /// BTC Price updater
 ///  calling this function inside receive_btc_price() to update price in redisDB

@@ -16,7 +16,9 @@ stopwatch = "0.0.7"
 # tpf
 dotenv = "0.15.0"
 redis = { version = "0.19.0", features = ["tls"] }
-tokio = "0.1.21"
+# tokio = "0.1.21"
+tokionew = { package = "tokio", version = "0.1.21" }
+tokio = { package = "tokio", version = "0.2.4", features = ["full"] }
 websocket = "0.24.0"
 serde_with = { version = "1.4.0", features = ["json"]}
 futures  = "0.1.31"

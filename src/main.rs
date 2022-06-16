@@ -11,20 +11,16 @@ mod pricefeederlib;
 mod redislib;
 mod relayer;
 
-// use crate::aeronlib::types::StreamId;
 use crate::config::{LOCALDB, ORDERTEST, REDIS_POOL_CONNECTION, THREADPOOL};
 use config::local_serial_core;
 use kafkalib::consumer_kafka::consume_kafka;
 use r2d2_redis::redis;
-use redislib::redis_db;
-use redislib::redis_db_orderbook;
+use redislib::{redis_db, redis_db_orderbook};
 use relayer::*;
-use std::process::Command;
 use std::{thread, time};
 use stopwatch::Stopwatch;
 #[macro_use]
 extern crate lazy_static;
-// use crate::aeronlib::aeronqueue::*;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -34,51 +30,50 @@ fn main() {
     // println!("time:{}", relayer::check_server_time());
     // relayer::get_fudning_data_from_psql(10);
 
-    ordertest::initprice();
-    ordertest::generatelendorder();
-    thread::sleep(time::Duration::from_millis(100));
-    start_cronjobs();
-    // thread::sleep(time::Duration::from_millis(3000));
-    // let sw = Stopwatch::start_new();
-    // println!("{}", relayer::get_localdb_string("OrderBook"));
-    // let time_ec = sw.elapsed();
-    // println!("time: {:#?} ", time_ec);
-    loop {
-        thread::sleep(time::Duration::from_millis(100000000));
-    }
+    // ordertest::initprice();
+    // ordertest::generatelendorder();
+    // thread::sleep(time::Duration::from_millis(100));
+    // start_cronjobs();
+    // // thread::sleep(time::Duration::from_millis(3000));
+    // // let sw = Stopwatch::start_new();
+    // // println!("{}", relayer::get_localdb_string("OrderBook"));
+    // // let time_ec = sw.elapsed();
+    // // println!("time: {:#?} ", time_ec);
+    // loop {
+    //     thread::sleep(time::Duration::from_millis(100000000));
+    // }
 
     // let sw = Stopwatch::start_new();
     // relayer::get_latest_orderbook();
     // let time_ec = sw.elapsed();
     // println!("time: {:#?} ", time_ec);
 
-    // println!("arraya: {:#?} ", redis_db_orderbook::getlimitordersZscore());
-
-    // redis_db::zdel(
-    //     &"TraderOrderbyLONGLimit",
-    //     &"2a84e759-5294-41bc-bb33-b4220469f6f7",
-    // );
-    // update_recent_order_from_db();
-    // thread::sleep(time::Duration::from_millis(1000));
-    // let orders = get_recent_orders();
-    // let mut data: Vec<CloseTrade> = serde_json::from_str(&orders).unwrap();
-    // let dt: DateTime<Utc> = data.pop().unwrap().timestamp.into();
-    // let date_time = format!("{}", dt.format("%d-%m-%Y-%H:%M"));
-    // println!("{:#?}", date_time);
-
-    // use yata::prelude::Candle;
-    // //               open  high  low  close  volume
-    // let my_candle = (3.0, 5.0, 2.0, 4.0, 50.0);
-    // let converted: Candle = my_candle.into();
-    // println!("{:?}", converted);
+    async_main();
+    thread::sleep(time::Duration::from_millis(3000));
 }
+fn async_main() {
+    let query = format!(
+        "INSERT INTO recentorders VALUES ({}, 12543.021,14785452.325,now())",
+        5
+    );
+    let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
+    client.execute(&query, &[]).unwrap();
+    // let res = connection
+    //     .exec::<TestData>("select * from recentorders", Some(2), None, None)
+    //     .await
+    //     .unwrap();
 
-// use chrono::prelude::{DateTime, Utc};
-// extern crate chrono;
-// use chrono::offset::Utc;
-// use chrono::DateTime;
-// use std::time::SystemTime;
+    // println!("{:#?}", res);
+}
+// #[derive(Serialize, Deserialize, Debug)]
+// struct TestData {
+//     id: i32,
+//     ts: f64,
+//     temp: f64,
+//     sensor_id: String,
+// }
 
-// let system_time = SystemTime::now();
-// let datetime: DateTime<Utc> = system_time.into();
-// println!("{}", datetime.format("%d/%m/%Y %T"));
+use chrono::Utc;
+use config::QUESTDB_POOL_CONNECTION;
+use postgres::{Client, Error, NoTls};
+use std::time::SystemTime;

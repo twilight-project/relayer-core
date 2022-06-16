@@ -15,6 +15,23 @@ pub enum Side {
     SELL,
 }
 
+impl Into<u32> for Side {
+    fn into(self) -> u32 {
+        match self {
+            Side::SELL => 0,
+            Side::BUY => 1,
+        }
+    }
+}
+impl Into<u8> for Side {
+    fn into(self) -> u8 {
+        match self {
+            Side::SELL => 0,
+            Side::BUY => 1,
+        }
+    }
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderBook {

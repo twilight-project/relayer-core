@@ -8,7 +8,7 @@
 #![allow(dead_code)]
 extern crate futures;
 extern crate serde_json;
-extern crate tokio;
+extern crate tokionew;
 extern crate websocket;
 use futures::future::Future;
 use futures::sink::Sink;
@@ -31,7 +31,7 @@ pub fn receive_btc_price() {
         .expect("missing environment variable BINANCE_BTC_SOCKET");
 
     println!("Connecting to {}", &url);
-    let mut runtime = tokio::runtime::current_thread::Builder::new()
+    let mut runtime = tokionew::runtime::current_thread::Builder::new()
         .build()
         .unwrap();
 

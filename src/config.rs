@@ -32,6 +32,19 @@ lazy_static! {
      r2d2::Pool::new(manager).unwrap()
  };
 
+ pub static ref QUESTDB_POOL_CONNECTION: r2d2::Pool<PostgresConnectionManager<NoTls>> = {
+     dotenv::dotenv().expect("Failed loading dotenv");
+     // POSTGRESQL_URL
+     let postgresql_url =
+         std::env::var("QUESTDB_URL").expect("missing environment variable POSTGRESQL_URL");
+     let manager = PostgresConnectionManager::new(
+         // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
+         postgresql_url.parse().unwrap(),
+         NoTls,
+     );
+     r2d2::Pool::new(manager).unwrap()
+ };
+
  /// Static Globle REDIS Pool connection
  ///
  /// https://users.rust-lang.org/t/r2d2-redis-deref-to-wrong-type/12542
