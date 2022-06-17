@@ -20,7 +20,7 @@ pub fn check_server_time() -> ServerTime {
 
 use chrono::prelude::{DateTime, Utc};
 //https://stackoverflow.com/questions/64146345/how-do-i-convert-a-systemtime-to-iso-8601-in-rust
-fn iso8601(st: &std::time::SystemTime) -> String {
+pub fn iso8601(st: &std::time::SystemTime) -> String {
     let dt: DateTime<Utc> = st.clone().into();
     format!("{}", dt.format("%+"))
 }

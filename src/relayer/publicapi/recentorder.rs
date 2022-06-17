@@ -32,7 +32,8 @@ pub fn get_recent_orders() -> String {
     serde_json::to_string(&data).unwrap()
 }
 
-use crate::config::THREADPOOL;
+use super::checkservertime::iso8601;
+use crate::config::{QUESTDB_POOL_CONNECTION, THREADPOOL};
 pub fn update_recent_orders(value: CloseTrade) {
     let threadpool = THREADPOOL.lock().unwrap();
     let value_clone = value.clone();
@@ -45,9 +46,18 @@ pub fn update_recent_orders(value: CloseTrade) {
         drop(local_storage);
     });
     threadpool.execute(move || {
-        let mut local_storage = CANDLEDATA.lock().unwrap();
-        local_storage.push_front(value_clone);
-        drop(local_storage);
+        let query = format!(
+            "INSERT INTO recentorders VALUES ({}, {},{},$1)",
+            (value_clone.side as u32),
+            value_clone.price,
+            value_clone.positionsize
+        );
+        let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
+        client.execute(&query, &[&value_clone.timestamp]).unwrap();
+        drop(client);
+        // let mut local_storage = CANDLEDATA.lock().unwrap();
+        // local_storage.push_front(value_clone);
+        // drop(local_storage);
     });
 }
 
