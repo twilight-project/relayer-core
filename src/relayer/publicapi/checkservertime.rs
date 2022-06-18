@@ -42,4 +42,15 @@ impl ServerTime {
             UNIX_EPOCH + Duration::from_micros(self.epoch.parse::<u64>().unwrap());
         return system_time;
     }
+    pub fn now() -> ServerTime {
+        let st = SystemTime::now();
+        return ServerTime {
+            iso: iso8601(&st),
+            epoch: st
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+        };
+    }
 }
