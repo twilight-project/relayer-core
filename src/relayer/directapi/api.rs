@@ -79,20 +79,17 @@ pub fn startserver() {
         }
     });
     io.add_method("GetOrderBook", move |params: Params| async move {
-        Ok(Value::String(get_localdb_string("OrderBook")))
+        let orderbook: OrderBook = serde_json::from_str(&get_localdb_string("OrderBook")).unwrap();
+        Ok(serde_json::to_value(orderbook).unwrap())
     });
     io.add_method("GetServerTime", move |params: Params| async move {
-        Ok(Value::String(
-            serde_json::to_string(&check_server_time()).unwrap(),
-        ))
+        Ok(serde_json::to_value(&check_server_time()).unwrap())
     });
     io.add_method("GetRecentOrder", move |params: Params| async move {
-        Ok(Value::String(get_recent_orders()))
+        Ok(serde_json::to_value(get_recent_orders()).unwrap())
     });
     io.add_method("GetCandleData", move |params: Params| async move {
-        Ok(Value::String(
-            serde_json::to_string(&check_server_time()).unwrap(),
-        ))
+        Ok(serde_json::to_value(&get_candle("15m".to_string(), 0, 0)).unwrap())
     });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
@@ -102,3 +99,5 @@ pub fn startserver() {
         .unwrap();
     server.wait();
 }
+use std::collections::BTreeMap;
+use std::collections::HashMap;
