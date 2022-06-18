@@ -84,6 +84,8 @@ services:
       - POSTGRESQL_DATABASE=my_database
       - ALLOW_EMPTY_PASSWORD=yes
   postgresql-slave:
+    hostname: postgresql-slave
+    container_name: postgresql-slave
     image: docker.io/bitnami/postgresql:11
     ports:
       - "5005:5432"
@@ -114,6 +116,8 @@ services:
 
   swagger:
     image: swaggerapi/swagger-ui
+    hostname: swagger
+    container_name: swagger
     ports:
       - "8080:8080"
     expose:
@@ -121,23 +125,44 @@ services:
     environment:
       API_URL: http://localhost:3000/
 
-  timescaledb:
-    image: timescale/timescaledb:latest-pg14
+  # docker run -p 9000:9000   -p 9009:9009   -p 8812:8812   questdb/questdb
+  #   If you published the port 9000, you can follow our REST page
+  # If you published the port 8812, follow our Postgres page
+  # If you published the port 9009, follow our InfluxDB page
+  #pg.password=quest
+  #pg.user=admin
+  questdb:
+    image: questdb/questdb
+    restart: always
+    hostname: questDB
+    container_name: questDB
     ports:
-      - "5006:5432"
-    depends_on:
-      - postgresql-master
+      - "9000:9000"
+      - "9009:9009"
+      - "8812:8812"
     volumes:
-      - "postgresql_master_data:/bitnami/postgresql"
+      - "questdb_master_data:/root/.questdb/"
     environment:
-      - POSTGRESQL_REPLICATION_MODE=slave
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
-      - POSTGRESQL_MASTER_HOST=postgresql-master
-      - POSTGRESQL_PASSWORD=my_password
-      - POSTGRESQL_MASTER_PORT_NUMBER=5432
-      - ALLOW_EMPTY_PASSWORD=yes
-      - POSTGRES_HOST_AUTH_METHOD=trust
+      - QDB_PG_USER=quest
+      - QDB_PG_PASSWORD=my_password
+
+  # timescaledb:
+  #   image: timescale/timescaledb:latest-pg14
+  #   ports:
+  #     - "5006:5432"
+  #   depends_on:
+  #     - postgresql-master
+  #   volumes:
+  #     - "postgresql_master_data:/bitnami/postgresql"
+  #   environment:
+  #     - POSTGRESQL_REPLICATION_MODE=slave
+  #     - POSTGRESQL_REPLICATION_USER=repl_user
+  #     - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+  #     - POSTGRESQL_MASTER_HOST=postgresql-master
+  #     - POSTGRESQL_PASSWORD=my_password
+  #     - POSTGRESQL_MASTER_PORT_NUMBER=5432
+  #     - ALLOW_EMPTY_PASSWORD=yes
+  #     - POSTGRES_HOST_AUTH_METHOD=trust
 
   # aeron:
   #   image: neomantra/aeron-cpp-debian:latest
@@ -170,6 +195,8 @@ services:
 
 volumes:
   postgresql_master_data:
+    driver: local
+  questdb_master_data:
     driver: local
 
   # postgres:

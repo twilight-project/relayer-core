@@ -9,31 +9,8 @@ use std::sync::Mutex;
 // use std::{thread, time};
 // use uuid::Uuid;
 
-lazy_static! {
- // recent orders
- pub static ref CANDLEDATA: Mutex<VecDeque<CloseTrade>> = Mutex::new( VecDeque::new());
- pub static ref CANDLE_HASHMAP: Mutex<HashMap<String, Vec<CloseTrade>>> = Mutex::new(HashMap::new());
-}
 use std::collections::HashMap;
 
-pub fn update_candle_data() {
-    let mut candle_hashmap = CANDLE_HASHMAP.lock().unwrap();
-    let mut recent_orders = CANDLEDATA.lock().unwrap();
-    for i in 1..recent_orders.len() {
-        let trade = recent_orders.pop_back().unwrap();
-        println!("{:#?}", trade);
-        let time_key = time_till_min(&trade.timestamp);
-        let time_key_clone = time_key.clone();
-        candle_hashmap
-            .get_mut(&time_key.clone())
-            .unwrap()
-            .push(trade);
-        // data_array.push(trade);
-        // candle_hashmap.insert(time_key_clone, data_array.to_vec());
-    }
-    drop(recent_orders);
-    drop(candle_hashmap);
-}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Candle {
     pub min: f64,
