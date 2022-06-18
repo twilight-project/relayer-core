@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_derive::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -23,4 +23,23 @@ use chrono::prelude::{DateTime, Utc};
 pub fn iso8601(st: &std::time::SystemTime) -> String {
     let dt: DateTime<Utc> = st.clone().into();
     format!("{}", dt.format("%+"))
+}
+
+impl ServerTime {
+    pub fn new(st: std::time::SystemTime) -> Self {
+        return ServerTime {
+            iso: iso8601(&st),
+            epoch: st
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+        };
+    }
+
+    pub fn epoch_to_system_time(self) -> SystemTime {
+        let system_time: std::time::SystemTime =
+            UNIX_EPOCH + Duration::from_micros(self.epoch.parse::<u64>().unwrap());
+        return system_time;
+    }
 }

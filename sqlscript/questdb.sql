@@ -9,7 +9,8 @@ CREATE TABLE 'recentorders' (
 
 -- Candal Data Query
 -- Select t3.*, t4.buy_volume from ( 
-Select t3.timestamp,t3.open,t3.close,t3.min,t3.max,coalesce(t3.sell_volume , 0), coalesce(t4.buy_volume , 0)from ( 
+Select t3.timestamp,t3.open,t3.close,t3.min,t3.max,coalesce(t3.sell_volume , 0) as Sell_Volume, coalesce(t4.buy_volume , 0) as Buy_Volume from ( 
+
   Select t1.*,t2.sell_volume from ( 
       SELECT timestamp, first(price) AS open, last(price) AS close, min(price), max(price) 
           FROM recentorders WHERE timestamp > dateadd('d', -1, now())

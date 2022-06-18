@@ -1,4 +1,3 @@
-use super::candledata::CANDLEDATA;
 use super::orderbook::Side;
 use crate::redislib::redis_db;
 // use crate::relayer::TraderOrder;

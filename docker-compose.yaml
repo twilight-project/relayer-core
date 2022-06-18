@@ -126,7 +126,7 @@ services:
       API_URL: http://localhost:3000/
 
   # docker run -p 9000:9000   -p 9009:9009   -p 8812:8812   questdb/questdb
-  #   If you published the port 9000, you can follow our REST page
+  # If you published the port 9000, you can follow our REST page
   # If you published the port 8812, follow our Postgres page
   # If you published the port 9009, follow our InfluxDB page
   #pg.password=quest
