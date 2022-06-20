@@ -135,6 +135,53 @@ pub fn startserver() {
             }
         }
     });
+    io.add_method("GetCandleDataAdvance", move |params: Params| async move {
+        match params.parse::<CandleRequest>() {
+            Ok(candle_request) => {
+                if (candle_request.sample_by == "1m")
+                    || (candle_request.sample_by == "5m")
+                    || (candle_request.sample_by == "15m")
+                    || (candle_request.sample_by == "30m")
+                    || (candle_request.sample_by == "1h")
+                    || (candle_request.sample_by == "4h")
+                    || (candle_request.sample_by == "8h")
+                    || (candle_request.sample_by == "12h")
+                    || (candle_request.sample_by == "24h")
+                {
+                    if candle_request.limit < 101 {
+                        match get_candle_advance(
+                            candle_request.sample_by.to_string(),
+                            candle_request.limit,
+                            candle_request.pagination,
+                        ) {
+                            Ok(value) => Ok(serde_json::to_value(&value).unwrap()),
+                            Err(args) => {
+                                let err =
+                                    JsonRpcError::invalid_params(format!("Error: , {:?}", args));
+                                Err(err)
+                            }
+                        }
+                    } else {
+                        let err = JsonRpcError::invalid_params(format!(
+                            "Invalid parameters, {}",
+                            "max limit : 100"
+                        ));
+                        Err(err)
+                    }
+                } else {
+                    let err = JsonRpcError::invalid_params(format!(
+                        "Invalid parameters, {}",
+                        "invalid parameter 'sample_by'"
+                    ));
+                    Err(err)
+                }
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                Err(err)
+            }
+        }
+    });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)

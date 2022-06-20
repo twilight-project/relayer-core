@@ -45,7 +45,6 @@ SELECT timestamp, sum(amount) AS buy_volume
 --     {
 --       "startedAt": "2021-01-05T00:00:00.000Z",
 --       "updatedAt": "2021-01-05T00:00:00.000Z",
---       "timestamp": "2021-01-05T00:00:00.000Z",
 --       "low": "40000",
 --       "high": "45000",
 --       "open": "45000",
@@ -56,7 +55,7 @@ SELECT timestamp, sum(amount) AS buy_volume
 --     },
 --     ...
 --   ]
-Select t3.TradesCount,t3.startedAt,t3.updatedAt, t3.timestamp,t3.open,t3.close,t3.min,t3.max,coalesce(t3.sell_volume , 0) as Sell_Volume, coalesce(t4.buy_volume , 0) as Buy_Volume from ( 
+Select t3.TradesCount,t3.startedAt,t3.updatedAt,t3.open,t3.close,t3.min,t3.max,coalesce(t3.sell_volume , 0) as Sell_Volume, coalesce(t4.buy_volume , 0) as Buy_Volume from ( 
 
   Select t1.*,t2.sell_volume from ( 
       SELECT timestamp, first(price) AS open, last(price) AS close, min(price), max(price) ,count as TradesCount,first(timestamp) as startedAt,last(timestamp) as updatedAt
