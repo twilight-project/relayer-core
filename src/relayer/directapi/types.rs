@@ -71,6 +71,13 @@ pub struct GetPnL {}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GetPoolShare {}
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct CandleRequest {
+    pub sample_by: String,
+    pub limit: i32,
+    pub pagination: i32,
+}
+
 impl CreateTraderOrder {
     pub fn push(self) {
         let create_trader_order_thread_pool = CREATE_TRADER_ORDER_THREAD_POOL.lock().unwrap();

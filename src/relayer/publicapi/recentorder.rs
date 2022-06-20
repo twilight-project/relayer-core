@@ -116,8 +116,9 @@ pub fn update_recent_order_from_db() {
     if recent_order_history == String::from("key not found") {
     } else if recent_order_history == String::from("[]") {
     } else {
-        let data: Vec<CloseTrade> = serde_json::from_str(&recent_order_history).unwrap();
-        updatebulk_recent_orders(data);
+        // println!("{}", recent_order_history);
+        let data: RecentOrders = serde_json::from_str(&recent_order_history).unwrap();
+        updatebulk_recent_orders(data.orders);
     }
     thread::spawn(move || loop {
         thread::sleep(time::Duration::from_millis(60000));
