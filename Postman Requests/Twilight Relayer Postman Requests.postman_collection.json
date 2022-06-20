@@ -945,6 +945,100 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "GetCandleData",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "apikey",
+					"apikey": [
+						{
+							"key": "in",
+							"value": "header",
+							"type": "string"
+						},
+						{
+							"key": "value",
+							"value": "1",
+							"type": "string"
+						},
+						{
+							"key": "key",
+							"value": "header",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "headers",
+						"type": "text",
+						"value": "\"5\"",
+						"disabled": true
+					},
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "Metadata",
+						"type": "text",
+						"value": "1",
+						"disabled": true
+					},
+					{
+						"key": "",
+						"type": "text",
+						"value": "1",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"jsonrpc\": \"2.0\", \"method\": \"GetCandleData\", \"id\":123 ,  \"params\": {\"sample_by\":\"30m\",\"limit\":1,\"pagination\":0} }"
+				},
+				"url": {
+					"raw": "127.0.0.1:3030",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "3030",
+					"query": [
+						{
+							"key": "jsonrpc",
+							"value": "2.0",
+							"disabled": true
+						},
+						{
+							"key": "headers",
+							"value": "5",
+							"disabled": true
+						},
+						{
+							"key": "metadata",
+							"value": "4",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"event": [

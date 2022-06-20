@@ -85,27 +85,4 @@ pub fn get_candle(
             return Err(std::io::Error::new(std::io::ErrorKind::Other, arg));
         }
     };
-    // return Ok(Candles {
-    //     candles: receiver.recv().unwrap(),
-    // });
 }
-
-// println!(
-//     "Data 2 : {:#?}",
-//     serde_json::to_string(&FundingRow {
-//         rate: row.get("fundingrate"),
-//         price: row.get("price"),
-//         timestamp: row.get("timestamp")
-//     })
-//     .unwrap()
-// );
-// let timestamp: std::time::SystemTime = row.get("timestamp");
-// let price: Decimal = row.get("fundingrate");
-// let fprice = price.to_f64().unwrap();
-// println!("data:{:#?}", iso8601(&timestamp));
-// println!(
-//     "data:{:#?}",
-//     timestamp
-//         .duration_since(std::time::SystemTime::UNIX_EPOCH)
-//         .unwrap()
-// );
