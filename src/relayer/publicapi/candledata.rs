@@ -3,7 +3,6 @@ use serde_derive::{Deserialize, Serialize};
 // use std::sync::{mpsc, Arc, Mutex, RwLock};
 use super::checkservertime::ServerTime;
 use chrono::prelude::{DateTime, Utc};
-use std::collections::HashMap;
 use std::sync::mpsc;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

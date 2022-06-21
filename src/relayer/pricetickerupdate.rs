@@ -88,6 +88,7 @@ pub fn update_limit_pendingorder(
         entry_sequence, //need to update
     );
     let ordertx = pending_order.pending_limit_traderorderinsert();
+    let ordertx_clone = ordertx.clone();
     let pool = THREADPOOL.lock().unwrap();
     pool.execute(move || {
         let query = format!(

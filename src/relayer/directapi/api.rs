@@ -116,16 +116,13 @@ pub fn startserver() {
                         }
                     } else {
                         let err = JsonRpcError::invalid_params(format!(
-                            "Invalid parameters, {}",
-                            "max limit : 100"
+                            "Invalid parameters, max limit : 100"
                         ));
                         Err(err)
                     }
                 } else {
-                    let err = JsonRpcError::invalid_params(format!(
-                        "Invalid parameters, {}",
-                        "invalid parameter 'sample_by'"
-                    ));
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, sample_by"));
                     Err(err)
                 }
             }
@@ -163,15 +160,13 @@ pub fn startserver() {
                         }
                     } else {
                         let err = JsonRpcError::invalid_params(format!(
-                            "Invalid parameters, {}",
-                            "max limit : 100"
+                            "Invalid parameters max, limit : 100"
                         ));
                         Err(err)
                     }
                 } else {
                     let err = JsonRpcError::invalid_params(format!(
-                        "Invalid parameters, {}",
-                        "invalid parameter 'sample_by'"
+                        "Invalid parameters, invalid parameter 'sample_by'"
                     ));
                     Err(err)
                 }
@@ -186,7 +181,7 @@ pub fn startserver() {
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
         .threads(3)
-        .start_http(&"127.0.0.1:3030".parse().unwrap())
+        .start_http(&"0.0.0.0:3030".parse().unwrap())
         .unwrap();
     server.wait();
 }
