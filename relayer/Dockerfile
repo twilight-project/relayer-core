@@ -35,4 +35,4 @@ RUN cargo build --release
 WORKDIR /twilight-relayer-rust/target/release
 EXPOSE 3030
 COPY ./.env ./.env
-ENTRYPOINT ["/twilight-relayer-rust/target/release/twilight-relayer-rust"]
+ENTRYPOINT ["/twilight-relayer-rust/target/release/twilight-relayer-rust","/usr/local/bin/aeronmd"]

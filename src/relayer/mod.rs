@@ -5,6 +5,7 @@ mod cronjobs;
 mod directapi; //without aeron
 mod exchangempsc;
 mod fundingupdate;
+mod init;
 mod lendorder;
 mod pricetickerupdate;
 mod publicapi;
@@ -18,6 +19,7 @@ pub use self::cronjobs::*;
 pub use self::directapi::*;
 pub use self::exchangempsc::*;
 pub use self::fundingupdate::*;
+pub use self::init::*;
 pub use self::lendorder::LendOrder;
 pub use self::pricetickerupdate::*;
 pub use self::publicapi::*;

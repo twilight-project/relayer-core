@@ -9,8 +9,8 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - ./src/redislib/backup:/data
-      - ./src/redislib/config:/config/redis.conf
+      - redis_master_data:/data
+      - ./redis:/config/redis.conf
     command: redis-server --include /config/redis.conf
 
   postgresql-master:
@@ -41,14 +41,10 @@ services:
       PGRST_DB_URI: postgresql://postgres:my_password@postgresql:5432/my_database
       PGRST_DB_SCHEMA: api
       PGRST_DB_ANON_ROLE: postgres #In production this role should not be the same as the one used for the connection
-      PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:3000
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost/api
     depends_on:
       - postgresql-master
 
-  # docker run -p 9000:9000   -p 9009:9009   -p 8812:8812   questdb/questdb
-  # If you published the port 9000, you can follow our REST page
-  # If you published the port 8812, follow our Postgres page
-  # If you published the port 9009, follow our InfluxDB page
   questdb:
     image: questdb/questdb
     restart: always
@@ -64,25 +60,49 @@ services:
       - QDB_PG_USER=quest
       - QDB_PG_PASSWORD=my_password
 
-  relayerq:
+  relayer:
     build:
-      context: ./
+      context: ./relayer
       dockerfile: Dockerfile
-    hostname: relayerq
+    hostname: relayer
     stdin_open: true
     ports:
       - "3030:3030"
-    # volumes:
-    # - /twilight-relayer-rust/target
-    # - ./:/twilight-relayer-rust
-    container_name: relayerq
+    depends_on:
+      - postgresql-master
+      - redis-server
+      - questdb
+    container_name: relayer
     # network_mode: host
     ipc: host
+
+  nginx:
+    restart: always
+    container_name: nginx
+    hostname: nginx
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    ports:
+      - "80:80"
+
+  # swagger:
+  #   image: swaggerapi/swagger-ui
+  #   hostname: swagger
+  #   container_name: swagger
+  #   ports:
+  #     - "8080:8080"
+  #   expose:
+  #     - "8080"
+  #   environment:
+  #     API_URL: http://localhost:3000
 
 volumes:
   postgresql_master_data:
     driver: local
   questdb_master_data:
+    driver: local
+  redis_master_data:
     driver: local
 
   # postgresql-slave:
@@ -101,17 +121,6 @@ volumes:
   #     - POSTGRESQL_PASSWORD=my_password
   #     - POSTGRESQL_MASTER_PORT_NUMBER=5432
   #     - ALLOW_EMPTY_PASSWORD=yes
-
-  # swagger:
-  #   image: swaggerapi/swagger-ui
-  #   hostname: swagger
-  #   container_name: swagger
-  #   ports:
-  #     - "8080:8080"
-  #   expose:
-  #     - "8080"
-  #   environment:
-  #     API_URL: http://localhost:3000/
 
   # rabbitmq:
   #   image: rabbitmq:3.9-management #rabbitmq:3-management-alpine

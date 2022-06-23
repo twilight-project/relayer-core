@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS binancebtctickernew(
 ,offset_msg BIGINT NOT NULL
 );
 
-CREATE TABLE newtraderorder(
+CREATE TABLE IF NOT EXISTS newtraderorder(
    uuid               VARCHAR(100) NOT NULL PRIMARY KEY
   ,account_id         TEXT NOT NULL
   ,position_type      VARCHAR(50) NOT NULL
@@ -64,7 +64,7 @@ CREATE TABLE newtraderorder(
 --     pub tps2: f64, // total poolshare after lend payment/settlement
 -- }
 
-CREATE TABLE newlendorder(
+CREATE TABLE IF NOT EXISTS newlendorder(
    uuid                    VARCHAR(100) NOT NULL PRIMARY KEY
   ,account_id              TEXT NOT NULL
   ,balance                 NUMERIC NOT NULL
@@ -93,7 +93,7 @@ CREATE TABLE newlendorder(
 
 --pendinglimittraderorder
 
-CREATE TABLE pendinglimittraderorder(
+CREATE TABLE IF NOT EXISTS pendinglimittraderorder(
    uuid               VARCHAR(100) NOT NULL PRIMARY KEY
   ,account_id         TEXT NOT NULL
   ,position_type      VARCHAR(50) NOT NULL
@@ -120,7 +120,7 @@ CREATE TABLE pendinglimittraderorder(
 
 
 
-CREATE TABLE settlementpriceforlimitorder(
+CREATE TABLE IF NOT EXISTS settlementpriceforlimitorder(
    id SERIAL PRIMARY KEY
   ,uuid               VARCHAR(100) NOT NULL
   ,account_id         TEXT NOT NULL
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS btcpricehistory(
    ,timestamp          timestamp  NOT NULL
 );
 
-CREATE PROCEDURE insert_btcprice(price numeric)
+CREATE OR REPLACE PROCEDURE insert_btcprice(price numeric)
 LANGUAGE SQL
 AS $$
   INSERT INTO btcpricehistory ( price, "timestamp") VALUES (price,CURRENT_TIMESTAMP);
@@ -153,8 +153,8 @@ CREATE TABLE IF NOT EXISTS fundingratehistory(
    ,timestamp          timestamp  NOT NULL
 );
 
-CREATE PROCEDURE insert_fundingrate(fundingrate numeric,price numeric)
+CREATE OR REPLACE PROCEDURE api.insert_fundingrate(fundingrate numeric,price numeric)
 LANGUAGE SQL
 AS $$
-  INSERT INTO fundingratehistory ( fundingrate,price, "timestamp") VALUES (fundingrate,price,CURRENT_TIMESTAMP);
+  INSERT INTO api.fundingratehistory ( fundingrate,price, "timestamp") VALUES (fundingrate,price,CURRENT_TIMESTAMP);
 $$;
