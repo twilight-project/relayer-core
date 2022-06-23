@@ -1,8 +1,6 @@
 # FROM rust as build
 FROM neomantra/aeron-cpp-debian:1.28.2 AS aeron-builder
-# RUN apt-get update && \
-#     apt-get -y upgrade && \
-#     apt-get -y install git curl g++ build-essential
+
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
@@ -33,21 +31,6 @@ COPY ./src ./src
 COPY ./.env ./.env
 
 
-# build for release
-# RUN USER=root rm ./target/debug/deps/twilight-relayer-rust*
-
-
-# # our final base
-# FROM rust
-
-# # copy the build atifact from the build stage
-# WORKDIR /twilight-relayer-rust
-# COPY --from=build /twilight-relayer-rust/target/ .
-# # set the startup command to run your binary
-# COPY ./.env ./.env
-# COPY ./Cargo.lock ./Cargo.lock
-# COPY ./Cargo.toml ./Cargo.toml
-# COPY ./aeron-rs ./aeron-rs
 RUN cargo build --release
 WORKDIR /twilight-relayer-rust/target/release
 EXPOSE 3030
