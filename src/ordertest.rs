@@ -141,11 +141,11 @@ pub fn initprice() {
     redis_db::set("Fee", "0.0");
     redis_db::set("FundingRate", "0.0");
     // redis_db::set("LendNonce", "0");
-    redis_db::set("CurrentPrice", "40000.0");
-    redis_db::set("btc:price", "40000.0");
+    redis_db::set("CurrentPrice", "25000.0");
+    redis_db::set("btc:price", "25000.0");
     let mut local_storage = LOCALDB.lock().unwrap();
-    local_storage.insert("CurrentPrice", 40000.0);
-    local_storage.insert("btc:price", 40000.0);
+    local_storage.insert("CurrentPrice", 25000.0);
+    local_storage.insert("btc:price", 25000.0);
     local_storage.insert("FundingRate", 0.0);
     local_storage.insert("Fee", 0.0);
     // drop(local_storage);

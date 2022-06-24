@@ -1,7 +1,7 @@
 // mod perpetual;
 // use crate::perpetual::interface::{LendOrder, OrderStatus, OrderType, PositionType, TraderOrder};
 use crate::config::LOCALDB;
-use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::config::{POSTGRESQL_POOL_CONNECTION, QUESTDB_POOL_CONNECTION};
 use crate::redislib::redis_db;
 use crate::relayer::*;
 // pub fn initprice() {
@@ -58,6 +58,10 @@ pub fn init_psql() {
     }
     match create_insert_fundingrate_procedure() {
         Ok(_) => println!("insert_fundingrate procedure inserted successfully"),
+        Err(arg) => println!("Some Error 9 Found, {:#?}", arg),
+    }
+    match create_trades_history_questdb() {
+        Ok(_) => println!("trades_history table inserted successfully"),
         Err(arg) => println!("Some Error 9 Found, {:#?}", arg),
     }
 }
@@ -268,6 +272,24 @@ fn create_insert_fundingrate_procedure() -> Result<(), r2d2_postgres::postgres::
         $$;"
     );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+    match client.execute(&query, &[]) {
+        Ok(_) => Ok(()),
+        Err(arg) => Err(arg),
+    }
+}
+
+fn create_trades_history_questdb() -> Result<(), r2d2_postgres::postgres::Error> {
+    let query = format!(
+        "CREATE TABLE IF NOT EXISTS 'recentorders' (
+            side INT,
+            price DOUBLE,
+            amount DOUBLE,
+            timestamp TIMESTAMP
+          ) timestamp (timestamp) PARTITION BY DAY;
+          "
+    );
+    let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
 
     match client.execute(&query, &[]) {
         Ok(_) => Ok(()),
