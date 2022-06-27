@@ -62,7 +62,7 @@ services:
 
   relayer:
     build:
-      context: ./relayer
+      context: ./
       dockerfile: Dockerfile
     hostname: relayer
     stdin_open: true
@@ -81,7 +81,7 @@ services:
     container_name: nginx
     hostname: nginx
     build:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       context: ./nginx
     ports:
       - "80:80"
