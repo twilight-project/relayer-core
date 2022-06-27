@@ -21,6 +21,11 @@ use crate::relayer::*;
 // }
 
 pub fn init_psql() {
+    match create_schema_api_questdb() {
+        Ok(_) => println!("API schema created successfully"),
+        Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
+    }
+
     match create_binance_ticker_table() {
         Ok(_) => println!("binancebtctickernew table inserted successfully"),
         Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
@@ -290,6 +295,19 @@ fn create_trades_history_questdb() -> Result<(), r2d2_postgres::postgres::Error>
           "
     );
     let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
+
+    match client.execute(&query, &[]) {
+        Ok(_) => Ok(()),
+        Err(arg) => Err(arg),
+    }
+}
+fn create_schema_api_questdb() -> Result<(), r2d2_postgres::postgres::Error> {
+    let query = format!(
+        "CREATE SCHEMA IF NOT EXISTS api
+            AUTHORIZATION postgres;
+          "
+    );
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
     match client.execute(&query, &[]) {
         Ok(_) => Ok(()),
