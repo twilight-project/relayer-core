@@ -192,7 +192,7 @@ pub fn getset_new_lend_order_tlv_tps_poolshare(
     // let tlv0 = redis_db::get_type_f64("tlv");
     // let tps0 = redis_db::get_type_f64("tps");
 
-    let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]);
+    let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]).unwrap();
 
     let (tlv0, tps0) = (rev_data[0], rev_data[1]);
 
@@ -222,7 +222,7 @@ pub fn getset_settle_lend_order_tlv_tps_poolshare(
     // let tlv2 = redis_db::get_type_f64("tlv");
     // let tps2 = redis_db::get_type_f64("tps");
 
-    let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]);
+    let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]).unwrap();
     let (tlv2, tps2) = (rev_data[0], rev_data[1]);
 
     let nwithdraw = normalize_withdraw(tlv2, tps2, npoolshare);

@@ -126,7 +126,7 @@ impl TraderOrder {
                 ordertx.order_status = OrderStatus::FILLED;
                 ordertx.entry_nonce = redis_db::get_nonce_u128();
                 ordertx.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-                ordertx.entryprice = current_price;
+                // ordertx.entryprice = current_price;
                 order_entry_status = true;
             }
             _ => {}
