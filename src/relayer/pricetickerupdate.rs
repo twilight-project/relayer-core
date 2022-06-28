@@ -118,17 +118,18 @@ pub fn getsetlatestprice() {
     // btc:price is websocket price getting updated via websocket external feed
     // let rev_data: Vec<f64>;
     let (old_price, currentprice): (f64, f64);
-    match redis_db::mget_f64(vec!["CurrentPrice", "btc:price"]) {
-        Ok(rev_data) => {
-            old_price = rev_data[0];
-            currentprice = rev_data[1];
-        }
-        Err(e) => {
-            println!("Error in btc price");
-            old_price = 0.00;
-            currentprice = redis_db::get_type_f64("btc:price");
-        }
-    }
+    currentprice = redis_db::get_type_f64("btc:price");
+    old_price = get_localdb("CurrentPrice");
+    // match redis_db::mget_f64(vec!["CurrentPrice", "btc:price"]) {
+    //     Ok(rev_data) => {
+    //         old_price = rev_data[0];
+    //         currentprice = rev_data[1];
+    //     }
+    //     Err(e) => {
+    //         println!("Error in btc price {:#?}", e);
+    //         currentprice = redis_db::get_type_f64("btc:price");
+    //     }
+    // }
     // let currentprice = redis_db::get("btc:price");
     // let old_price = redis_db::get("CurrentPrice");
     if currentprice == old_price {
