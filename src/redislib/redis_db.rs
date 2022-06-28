@@ -67,7 +67,7 @@ pub fn get_type_f64(key: &str) -> f64 {
     };
 }
 
-pub fn mget_f64(key_array: Vec<&str>) -> Vec<f64> {
+pub fn mget_f64(key_array: Vec<&str>) -> Result<Vec<f64>, std::io::Error>  {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
 
     let array: Vec<f64>;
@@ -77,8 +77,12 @@ pub fn mget_f64(key_array: Vec<&str>) -> Vec<f64> {
     //     trans_query = trans_query.arg(key);
     // }
     // trans_query = trans_query.query(&mut *conn).unwrap();
+    return match redis::cmd("MGET").arg(key_array).query(&mut *conn) {
+        Ok(s) => array=s,
+        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+    };
 
-    array
+    Ok(array)
 }
 
 // let (k1, k2, k3): (i32, i32, f64) = redis::pipe()

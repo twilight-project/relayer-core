@@ -124,7 +124,7 @@ pub fn getsetlatestprice() {
         // println!("Price update: same price");
     } else {
         set_localdb("CurrentPrice", currentprice);
-        redis_db::set("CurrentPrice", &currentprice.to_string());
+        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         thread::spawn(move || {
             check_pending_limit_order_on_price_ticker_update(currentprice.clone());
         });
