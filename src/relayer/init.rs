@@ -1,9 +1,6 @@
 // mod perpetual;
 // use crate::perpetual::interface::{LendOrder, OrderStatus, OrderType, PositionType, TraderOrder};
-use crate::config::LOCALDB;
 use crate::config::{POSTGRESQL_POOL_CONNECTION, QUESTDB_POOL_CONNECTION};
-use crate::redislib::redis_db;
-use crate::relayer::*;
 // pub fn initprice() {
 //     redis_db::set("Fee", "0.0");
 //     redis_db::set("FundingRate", "0.0");
