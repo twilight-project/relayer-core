@@ -180,7 +180,7 @@ pub fn startserver() {
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
-        .threads(3)
+        .threads(10)
         .start_http(&"0.0.0.0:3030".parse().unwrap())
         .unwrap();
     server.wait();
