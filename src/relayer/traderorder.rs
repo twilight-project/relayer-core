@@ -5,7 +5,7 @@ extern crate uuid;
 use crate::relayer::utils::*;
 use std::thread;
 use std::time::SystemTime;
-use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::config::{POSTGRESQL_POOL_CONNECTION,THREADPOOL_PSQL_ORDER_INSERT_QUEUE,THREADPOOL_MAX_ORDER_INSERT};
 use crate::redislib::redis_db;
 use uuid::Uuid;
 
@@ -136,7 +136,9 @@ impl TraderOrder {
         let ordertx_clone = ordertx.clone();
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
-        thread::spawn(move || {
+        let threadpool_max_order_insert_pool  = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
+        threadpool_max_order_insert_pool.execute(move || {
+        
             // ordertx.entry_nonce = redis_db::get_nonce_u128();
 
             let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
@@ -227,11 +229,12 @@ impl TraderOrder {
                     _ => {}
                 }
                   // thread to store trader order data in postgreSQL
-                let handle = thread::spawn(move || {
+                  let psql_insert_order_pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
+                  psql_insert_order_pool.execute(move || {
                         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
                         client.execute(&query, &[]).unwrap();
                     });
-
+                    drop(psql_insert_order_pool);
                     let side = match ordertx.position_type {
                         PositionType::SHORT => Side::SELL,
                         PositionType::LONG => Side::BUY,
@@ -286,13 +289,16 @@ impl TraderOrder {
                     &ordertx.entry_sequence,    
                 );
                        // thread to store trader order data in postgreSQL
-                       let handle = thread::spawn(move || {
+                    let psql_insert_order_pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
+                    psql_insert_order_pool.execute(move || {
                         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
                         client.execute(&query, &[]).unwrap();
                     });
+                    drop(psql_insert_order_pool);
             }
           
         });
+        drop(threadpool_max_order_insert_pool);
         // handle.join().unwrap();
         return ordertx_clone;
     }

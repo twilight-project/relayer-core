@@ -90,7 +90,11 @@ lazy_static! {
 
   // sync sender threadpool with buffer size = 1 for price and funding rate
  pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));
+ pub static ref THREADPOOL_PSQL_ORDER_INSERT_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(2));
  pub static ref THREADPOOL_REDIS_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));
+
+
+ pub static ref THREADPOOL_MAX_ORDER_INSERT:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10));
 
 }
 
