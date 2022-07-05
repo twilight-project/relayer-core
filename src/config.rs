@@ -84,6 +84,9 @@ lazy_static! {
  // using in candle data
  pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2)));
 
+ // threadpool for public api
+ pub static ref PUBLIC_THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2)));
+
  // kafka threadpool with buffer/threads = 10
 //  pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
