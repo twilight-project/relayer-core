@@ -19,6 +19,7 @@ old code
 backup/redisdb
 src/redislib/backup/dump.rdb
 code doc.txt
+redis/data
 # aeron-rs
 
 # need to add id_ed25519 and id_ed25519.pub key file in docker-aeron folder to run aeron container
