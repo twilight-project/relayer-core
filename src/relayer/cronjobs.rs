@@ -100,5 +100,7 @@ pub fn start_cronjobs() {
         receive_btc_price();
     });
 
+    QueueResolver::new(String::from("questdb_queue"));
+
     println!("Initialization done..................................");
 }

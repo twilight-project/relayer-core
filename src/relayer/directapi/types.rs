@@ -5,14 +5,18 @@ use serde_derive::{Deserialize, Serialize};
 use std::sync::Mutex;
 use uuid::Uuid;
 lazy_static! {
-    pub static ref CREATE_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(3));
-    pub static ref CREATE_OR_EXECUTE_LEND_ORDER_THREAD_POOL: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(1));
-    pub static ref CANCEL_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(1));
-    pub static ref EXECUTE_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(3));
+    pub static ref CREATE_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(3, String::from("CREATE_TRADER_ORDER_THREAD_POOL"))
+    );
+    pub static ref CREATE_OR_EXECUTE_LEND_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(1, String::from("CREATE_OR_EXECUTE_LEND_ORDER_THREAD_POOL"))
+    );
+    pub static ref CANCEL_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(1, String::from("CANCEL_TRADER_ORDER_THREAD_POOL"))
+    );
+    pub static ref EXECUTE_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(3, String::from("EXECUTE_TRADER_ORDER_THREAD_POOL"))
+    );
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

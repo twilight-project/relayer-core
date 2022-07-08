@@ -9,7 +9,7 @@ use crate::relayer::*;
 pub fn get_new_trader_order(msg: String) {
     let trader_order_msg = CreateTraderOrder::deserialize(msg);
     let ordertx = trader_order_msg.fill_order();
-    println!("{:#?}", ordertx);
+    // println!("{:#?}", ordertx);
     let ordertx_inserted = ordertx.newtraderorderinsert();
 }
 

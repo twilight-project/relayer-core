@@ -23,7 +23,7 @@ impl ThreadPool {
     /// # Panics
     ///
     /// The `new` function will panic if the size is zero.
-    pub fn new(size: usize) -> ThreadPool {
+    pub fn new(size: usize, t_name: String) -> ThreadPool {
         assert!(size > 0);
 
         let (sender, receiver) = mpsc::channel();
@@ -33,7 +33,7 @@ impl ThreadPool {
         let mut workers = Vec::with_capacity(size);
 
         for id in 0..size {
-            workers.push(Worker::new(id, Arc::clone(&receiver)));
+            workers.push(Worker::new(id, t_name.clone(), Arc::clone(&receiver)));
         }
 
         ThreadPool { workers, sender }
@@ -75,27 +75,29 @@ struct Worker {
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
-        let thread = thread::spawn(move || loop {
-            let message = receiver.lock().unwrap().recv().unwrap();
+    fn new(id: usize, t_name: String, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
+        let thread = thread::Builder::new()
+            .name(format!("{}-{}", t_name, id))
+            .spawn(move || loop {
+                let message = receiver.lock().unwrap().recv().unwrap();
 
-            match message {
-                Message::NewJob(job) => {
-                    // println!("Worker {} got a job; executing.", id);
+                match message {
+                    Message::NewJob(job) => {
+                        // println!("Worker {} got a job; executing.", id);
 
-                    job();
+                        job();
+                    }
+                    Message::Terminate => {
+                        // println!("Worker {} was told to terminate.", id);
+
+                        break;
+                    }
                 }
-                Message::Terminate => {
-                    // println!("Worker {} was told to terminate.", id);
-
-                    break;
-                }
-            }
-        });
+            });
 
         Worker {
             id,
-            thread: Some(thread),
+            thread: Some(thread.unwrap()),
         }
     }
 }

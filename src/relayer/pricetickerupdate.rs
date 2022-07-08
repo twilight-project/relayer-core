@@ -42,7 +42,8 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     if total_order_count > 0 {
         let entry_nonce = redis_db::get_nonce_u128();
         //get all order by mget command and then process all order
-        let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+        let local_threadpool: ThreadPool =
+            ThreadPool::new(thread_count, String::from("local_threadpool"));
         for orderid in orderid_list_short {
             local_threadpool.execute(move || {
                 let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
@@ -174,7 +175,8 @@ pub fn check_liquidating_orders_on_price_ticker_update(current_price: f64) {
         } else if thread_count == 0 {
             thread_count = 1;
         }
-        let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+        let local_threadpool: ThreadPool =
+            ThreadPool::new(thread_count, String::from("local_threadpool"));
         for orderid in orderid_list_short {
             local_threadpool.execute(move || {
                 let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
@@ -223,7 +225,8 @@ pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
         } else if thread_count == 0 {
             thread_count = 1;
         }
-        let local_threadpool: ThreadPool = ThreadPool::new(thread_count);
+        let local_threadpool: ThreadPool =
+            ThreadPool::new(thread_count, String::from("local_threadpool"));
 
         if orderid_list_short.len() > 0 {
             let orderid_list_short_clone = orderid_list_short.clone();

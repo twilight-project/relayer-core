@@ -82,22 +82,22 @@ lazy_static! {
 
  // sync sender threadpool with buffer size = 1
  // using in candle data
- pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2)));
+ pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2,String::from("THREADPOOL"))));
 
  // threadpool for public api
- pub static ref PUBLIC_THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2)));
+ pub static ref PUBLIC_THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2,String::from("PUBLIC_THREADPOOL"))));
 
  // kafka threadpool with buffer/threads = 10
 //  pub static ref THREADPOOL_ORDERKAFKAQUEUE:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(10)));
 
 
   // sync sender threadpool with buffer size = 1 for price and funding rate
- pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));
- pub static ref THREADPOOL_PSQL_ORDER_INSERT_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(2));
- pub static ref THREADPOOL_REDIS_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1));
+ pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PSQL_SEQ_QUEUE")));
+ pub static ref THREADPOOL_PSQL_ORDER_INSERT_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(2,String::from("THREADPOOL_PSQL_ORDER_INSERT_QUEUE")));
+ pub static ref THREADPOOL_REDIS_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_REDIS_SEQ_QUEUE")));
 
 
- pub static ref THREADPOOL_MAX_ORDER_INSERT:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10));
+ pub static ref THREADPOOL_MAX_ORDER_INSERT:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_MAX_ORDER_INSERT")));
 
 }
 
