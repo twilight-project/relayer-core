@@ -1,6 +1,7 @@
 use super::orderbook::Side;
 use crate::redislib::redis_db;
 // use crate::relayer::TraderOrder;
+use crate::questdb::questdb::send_candledata_in_questdb;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -84,18 +85,7 @@ pub fn update_recent_orders(value: CloseTrade) {
         drop(local_storage);
     });
     threadpool.execute(move || {
-        let query = format!(
-            "INSERT INTO recentorders VALUES ({}, {},{},$1)",
-            (value_clone.side as u32),
-            value_clone.price,
-            value_clone.positionsize
-        );
-        let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
-        client.execute(&query, &[&value_clone.timestamp]).unwrap();
-        drop(client);
-        // let mut local_storage = CANDLEDATA.lock().unwrap();
-        // local_storage.push_front(value_clone);
-        // drop(local_storage);
+        send_candledata_in_questdb(value_clone);
     });
 }
 

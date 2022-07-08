@@ -48,6 +48,7 @@ services:
   questdb:
     image: questdb/questdb
     restart: always
+    stdin_open: true
     hostname: questDB
     container_name: questDB
     ports:
