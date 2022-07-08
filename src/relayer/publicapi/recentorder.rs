@@ -45,7 +45,6 @@ pub fn update_recent_orders(value: CloseTrade) {
         drop(local_storage);
     });
     threadpool.execute(move || {
-        println!("close 1 {:#?}", value_clone);
         send_candledata_in_questdb(value_clone);
     });
 }
