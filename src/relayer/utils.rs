@@ -1,9 +1,8 @@
-use crate::relayer::lendorder::LendOrder;
-use crate::relayer::traderorder::TraderOrder;
-// use crate::relayer::traderorder::TraderOrder;
 use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::config::{LENDSTATUS, TRADERPAYMENT};
 use crate::redislib::redis_db;
+use crate::relayer::lendorder::LendOrder;
+use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use std::thread;
 

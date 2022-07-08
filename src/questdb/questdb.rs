@@ -3,17 +3,11 @@ use crate::relayer::Side;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
-// let mut stream = TcpStream::connect("127.0.0.1:9009").unwrap();
-// for i in 1..1000 {
-//     stream.write(data1).unwrap();
-// }
-// stream.flush().unwrap();
 lazy_static! {
     pub static ref QUESTDB_INFLUX: Mutex<TcpStream> = Mutex::new(connect());
 }
-
 pub fn connect() -> TcpStream {
     dotenv::dotenv().expect("Failed loading dotenv");
     let questdb_url = std::env::var("QUESTDB_INFLUX_URL")
@@ -27,7 +21,10 @@ pub fn send_candledata_in_questdb(data: CloseTrade) {
     let mut stream = QUESTDB_INFLUX.lock().unwrap();
     let query = format!(
         "recentorders side={}i,price={},amount={} {}\n",
-        (data.side as u32),
+        (match data.side {
+            Side::SELL => 0,
+            Side::BUY => 1,
+        }),
         data.price,
         data.positionsize,
         data.timestamp
