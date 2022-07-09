@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::thread;
 
 lazy_static! {
     // pub static ref PENDINGQUEUE: Mutex<HashMap<String, Arc<Mutex<mpsc::Sender<Job>>>>> =
@@ -45,6 +44,7 @@ impl QueueResolver {
             resolver_key,
             Arc::clone(&Arc::new(Mutex::new(queue_resolver))),
         );
+        drop(executor_hashmap);
     }
     // -> QueueResolver {}
 

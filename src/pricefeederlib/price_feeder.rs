@@ -90,5 +90,5 @@ pub fn receive_btc_price() {
                 .select(stdin_ch.map_err(|_| WebSocketError::NoDataAvailable))
                 .forward(sink)
         });
-    let _ = runtime.block_on(runner).unwrap();
+    let _ = runtime.block_on(runner).expect("No internet Connection");
 }

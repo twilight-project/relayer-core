@@ -77,6 +77,22 @@ services:
     # network_mode: host
     ipc: host
 
+  relayer-dev:
+    build:
+      context: ./
+      dockerfile: Dockerfile.dev
+    hostname: relayer-dev
+    stdin_open: true
+    ports:
+      - "3031:3030"
+    depends_on:
+      - postgresql-master
+      - redis-server
+      - questdb
+    container_name: relayer-dev
+    # network_mode: host
+    ipc: host
+
   nginx:
     restart: always
     container_name: nginx

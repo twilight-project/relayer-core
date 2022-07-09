@@ -95,10 +95,13 @@ pub fn start_cronjobs() {
     //     thread::sleep(time::Duration::from_millis(500));
     //     cancel_trader_order();
     // });
-    thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(500));
-        receive_btc_price();
-    });
+    thread::Builder::new()
+        .name(String::from("BTC Binance Websocket Connection"))
+        .spawn(move || {
+            thread::sleep(time::Duration::from_millis(500));
+            receive_btc_price();
+        })
+        .unwrap();
 
     QueueResolver::new(String::from("questdb_queue"));
 
