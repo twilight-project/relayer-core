@@ -68,11 +68,11 @@ impl QueueResolver {
         let executor_queueresolver = executor_hashmap.get(&resolver_key).unwrap().clone();
         drop(executor_hashmap);
         let mut executor_queueresolver_unlock = executor_queueresolver.lock().unwrap();
-        for i in 1..executor_queueresolver_unlock.pending_task {
+        for i in 0..executor_queueresolver_unlock.pending_task {
             let err = executor_queueresolver_unlock.receiver.lock().unwrap();
             let message = err.recv().unwrap();
             message();
-            println!("awesome success");
+            // println!("awesome success");
         }
         executor_queueresolver_unlock.pending_task = 0;
     }

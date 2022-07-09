@@ -1,16 +1,20 @@
 use super::orderbook::Side;
+use crate::config::THREADPOOL;
 use crate::questdb::questdb;
-use crate::questdb::questdb::{send_candledata_in_questdb, QUESTDB_INFLUX};
+use crate::questdb::questdb::{
+    send_candledata_in_questdb, send_candledata_in_questdb_pending, QUESTDB_INFLUX,
+};
 use crate::redislib::redis_db;
+use crate::relayer::{QueueResolver, ThreadPool};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::{thread, time};
 lazy_static! {
  // recent orders
  pub static ref RECENTORDER: Mutex<VecDeque<CloseTrade>> = Mutex::new(VecDeque::with_capacity(50));
  pub static ref CURRENTPENDINGCHART: Mutex<VecDeque<CloseTrade>> = Mutex::new(VecDeque::with_capacity(2));
-
+ pub static ref THREADPOOL_QUESTDB:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_QUESTDB"))));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -35,11 +39,7 @@ pub fn get_recent_orders() -> RecentOrders {
     };
 }
 
-use crate::config::THREADPOOL;
-use crate::relayer::QueueResolver;
 pub fn update_recent_orders(value: CloseTrade) {
-    let mut currect_pending_chart = CURRENTPENDINGCHART.lock().unwrap();
-
     let threadpool = THREADPOOL.lock().unwrap();
     let value_clone = value.clone();
     threadpool.execute(move || {
@@ -51,46 +51,54 @@ pub fn update_recent_orders(value: CloseTrade) {
         drop(local_storage);
     });
     drop(threadpool);
-    match send_candledata_in_questdb(value_clone.clone()) {
-        Ok(_) => {
-            println!("I'm Here");
-            currect_pending_chart.push_front(value_clone.clone());
-            if currect_pending_chart.len() > 2 {
-                currect_pending_chart.pop_back();
+    let threadpool_questdb = THREADPOOL_QUESTDB.lock().unwrap();
+    threadpool_questdb.execute(move || {
+        let mut currect_pending_chart = CURRENTPENDINGCHART.lock().unwrap();
+        let value_safe_cloned = value_clone.clone();
+        match send_candledata_in_questdb(value_safe_cloned.clone()) {
+            Ok(_) => {
+                currect_pending_chart.push_front(value_safe_cloned.clone());
+                if currect_pending_chart.len() > 2 {
+                    currect_pending_chart.pop_back();
+                }
             }
-        }
-        Err(arg) => {
-            println!("QuestDB not reachable!!, {:#?}", arg);
-            println!("trying to establish new connection...");
-            let mut stream = QUESTDB_INFLUX.lock().unwrap();
-            match questdb::connect() {
-                Ok(value) => {
-                    *stream = value;
-                    drop(stream);
-                    println!("new connection established");
-                    //check for pending msg first
-                    // let _ = currect_pending_chart.pop_back().unwrap();
-                    for i in 1..currect_pending_chart.len() {
-                        send_candledata_in_questdb(currect_pending_chart.pop_back().unwrap())
-                            .unwrap();
+            Err(arg) => {
+                println!("QuestDB not reachable!!, {:#?}", arg);
+                println!("trying to establish new connection...");
+                match questdb::connect() {
+                    Ok(value) => {
+                        let mut stream = QUESTDB_INFLUX.lock().unwrap();
+                        *stream = value;
+                        drop(stream);
+                        println!("new connection established");
+                        thread::sleep(time::Duration::from_millis(1000));
+                        for i in 0..currect_pending_chart.len() {
+                            send_candledata_in_questdb_pending(
+                                currect_pending_chart.pop_back().unwrap(),
+                            )
+                            .expect("error in loop");
+                        }
+                        QueueResolver::executor(String::from("questdb_queue"));
+                        send_candledata_in_questdb_pending(value_safe_cloned)
+                            .expect("error after queue resolver");
                     }
-                    QueueResolver::executor(String::from("questdb_queue"));
-                    send_candledata_in_questdb(value_clone).unwrap();
+                    Err(arg) => {
+                        println!("QuestDB not reachable!!, {:#?}", arg);
+                        QueueResolver::pending(
+                            move || {
+                                send_candledata_in_questdb_pending(value_safe_cloned)
+                                    .expect("error inside queue resolver");
+                            },
+                            String::from("questdb_queue"),
+                        );
+                    }
                 }
-                Err(arg) => {
-                    println!("QuestDB not reachable!!, {:#?}", arg);
-                    //send pending msg into queue
-                    QueueResolver::pending(
-                        move || {
-                            send_candledata_in_questdb(value_clone).unwrap();
-                        },
-                        String::from("questdb_queue"),
-                    );
-                }
+                // *stream = questdb::connect().expect("No connection found for QuestDB");
             }
-            // *stream = questdb::connect().expect("No connection found for QuestDB");
         }
-    }
+        drop(currect_pending_chart);
+    });
+    drop(threadpool_questdb);
     // threadpool.execute(move || {
     // });
 }

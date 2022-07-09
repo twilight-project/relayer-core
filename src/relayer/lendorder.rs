@@ -5,7 +5,7 @@ use crate::relayer::utils::*;
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
 use crate::config::QUERYSTATUS;
-use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
+use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL_PSQL_ORDER_INSERT_QUEUE};
 use crate::redislib::redis_db;
 use std::thread;
 use std::time::SystemTime;
@@ -143,7 +143,7 @@ impl LendOrder {
         // let sw = Stopwatch::start_new();
 
         // thread to store Lend order data in postgreSQL
-        let pool = THREADPOOL.lock().unwrap();
+        let pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
         pool.execute(move || {
             let query = format!("INSERT INTO public.newlendorder(
                 uuid, account_id, balance, order_status, order_type, entry_nonce,exit_nonce, deposit, new_lend_state_amount, timestamp, npoolshare, nwithdraw, payment, tlv0, tps0, tlv1, tps1, tlv2, tps2, tlv3, tps3, entry_sequence)
