@@ -109,7 +109,7 @@ fn create_newtraderorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
           ,leverage           NUMERIC NOT NULL
           ,initial_margin     NUMERIC NOT NULL
           ,available_margin   NUMERIC NOT NULL
-          ,timestamp          bigint  NOT NULL
+          ,timestamp          timestamp without time zone NOT NULL
           ,bankruptcy_price   NUMERIC NOT NULL
           ,bankruptcy_value   NUMERIC NOT NULL
           ,maintenance_margin NUMERIC NOT NULL
@@ -141,7 +141,7 @@ fn create_newlendorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
            ,exit_nonce              bigint NOT NULL
            ,deposit                 NUMERIC NOT NULL
            ,new_lend_state_amount   NUMERIC NOT NULL
-           ,timestamp               bigint  NOT NULL
+           ,timestamp               timestamp without time zone NOT NULL
            ,npoolshare              NUMERIC NOT NULL
            ,nwithdraw               NUMERIC NOT NULL
            ,payment                 NUMERIC NOT NULL
@@ -178,7 +178,7 @@ fn create_pendinglimittraderorder_table() -> Result<(), r2d2_postgres::postgres:
            ,leverage           NUMERIC NOT NULL
            ,initial_margin     NUMERIC NOT NULL
            ,available_margin   NUMERIC NOT NULL
-           ,timestamp          bigint  NOT NULL
+           ,timestamp          timestamp without time zone NOT NULL
            ,bankruptcy_price   NUMERIC NOT NULL
            ,bankruptcy_value   NUMERIC NOT NULL
            ,maintenance_margin NUMERIC NOT NULL
@@ -207,7 +207,7 @@ fn create_settlementpriceforlimitorder_table() -> Result<(), r2d2_postgres::post
            ,order_status       VARCHAR(50) NOT NULL
            ,order_type         VARCHAR(50) NOT NULL
            ,execution_price    NUMERIC NOT NULL
-           ,timestamp          bigint  NOT NULL
+           ,timestamp          timestamp without time zone NOT NULL
            ,settlement_price   NUMERIC NOT NULL
          );"
     );
@@ -223,7 +223,7 @@ fn create_btcpricehistory_table() -> Result<(), r2d2_postgres::postgres::Error> 
         "CREATE TABLE IF NOT EXISTS btcpricehistory(
             id SERIAL PRIMARY KEY
            ,price   NUMERIC NOT NULL
-           ,timestamp          timestamp  NOT NULL
+           ,timestamp    timestamp without time zone NOT NULL
         );
         "
     );
@@ -240,7 +240,7 @@ fn create_fundingratehistory_table() -> Result<(), r2d2_postgres::postgres::Erro
             id SERIAL PRIMARY KEY
            ,fundingrate   NUMERIC NOT NULL
            ,price   NUMERIC NOT NULL
-           ,timestamp          timestamp  NOT NULL
+           ,timestamp    timestamp without time zone NOT NULL
         );"
     );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();

@@ -3,6 +3,8 @@ use crate::relayer::{update_recent_orders,CloseTrade,Side};
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
 use crate::relayer::utils::*;
+use crate::relayer::ServerTime;
+
 use std::thread;
 use std::time::SystemTime;
 use crate::config::{POSTGRESQL_POOL_CONNECTION,THREADPOOL_PSQL_ORDER_INSERT_QUEUE,THREADPOOL_MAX_ORDER_INSERT};
@@ -22,7 +24,7 @@ pub struct TraderOrder {
     pub leverage: f64,
     pub initial_margin: f64,
     pub available_margin: f64,
-    pub timestamp: u128,
+    pub timestamp: SystemTime,
     pub bankruptcy_price: f64,
     pub bankruptcy_value: f64,
     pub maintenance_margin: f64,
@@ -64,8 +66,7 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(n) => TraderOrder {
+       TraderOrder {
                 uuid: Uuid::new_v4(),
                 account_id: String::from(account_id),
                 position_type,
@@ -77,7 +78,7 @@ impl TraderOrder {
                 leverage,
                 initial_margin,
                 available_margin,
-                timestamp: n.as_millis(),
+                timestamp: SystemTime::now(),
                 bankruptcy_price,
                 bankruptcy_value,
                 maintenance_margin,
@@ -87,9 +88,8 @@ impl TraderOrder {
                 entry_nonce: 0,
                 exit_nonce: 0,
                 entry_sequence: 0,
-            },
-            Err(e) => panic!("Could not generate new order: {}", e),
-        }
+            }
+        
     }
 
     pub fn newtraderorderinsert(self) -> Self {
@@ -141,7 +141,7 @@ impl TraderOrder {
         
             // ordertx.entry_nonce = redis_db::get_nonce_u128();
 
-            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},'{}',{},{},{},{},{},{},{},{},{});",
                 &ordertx.uuid,
                 &ordertx.account_id ,
                 &ordertx.position_type ,
@@ -153,7 +153,7 @@ impl TraderOrder {
                 &ordertx.leverage ,
                 &ordertx.initial_margin ,
                 &ordertx.available_margin ,
-                &ordertx.timestamp ,
+               ServerTime::new(ordertx.timestamp).iso,
                 &ordertx.bankruptcy_price ,
                 &ordertx.bankruptcy_value ,
                 &ordertx.maintenance_margin ,
@@ -265,7 +265,7 @@ impl TraderOrder {
                     }
                 }
                 // insert pending order in newpending table
-                let query = format!("INSERT INTO public.pendinglimittraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+                let query = format!("INSERT INTO public.pendinglimittraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},'{}',{},{},{},{},{},{},{},{},{});",
                     &ordertx.uuid,
                     &ordertx.account_id ,
                     &ordertx.position_type ,
@@ -277,7 +277,7 @@ impl TraderOrder {
                     &ordertx.leverage ,
                     &ordertx.initial_margin ,
                     &ordertx.available_margin ,
-                    &ordertx.timestamp ,
+                    ServerTime::new(ordertx.timestamp).iso,
                     &ordertx.bankruptcy_price ,
                     &ordertx.bankruptcy_value ,
                     &ordertx.maintenance_margin ,
@@ -534,14 +534,14 @@ impl TraderOrder {
 
         // need to update by procedure to check where the row exist or not, and if exist then change status of old row or create new triger to save old price
             let query = format!("INSERT INTO public.settlementpriceforlimitorder(
-                uuid, account_id, position_type, order_status, order_type, execution_price, timestamp, settlement_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{});",
+                uuid, account_id, position_type, order_status, order_type, execution_price, timestamp, settlement_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},'{}',{});",
             &ordertx.uuid,
             &ordertx.account_id ,
             &ordertx.position_type ,
             &ordertx.order_status ,
             &ordertx.order_type ,
             &execution_price ,
-            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis(),
+            ServerTime::new(SystemTime::now()).iso, 
             &ordertx.settlement_price,
         );
         let handle = thread::spawn(move || {
@@ -592,8 +592,7 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(n) => TraderOrder {
+       TraderOrder {
                 uuid,
                 account_id: String::from(account_id),
                 position_type,
@@ -605,7 +604,7 @@ impl TraderOrder {
                 leverage,
                 initial_margin,
                 available_margin,
-                timestamp: n.as_millis(),
+                timestamp: SystemTime::now(),
                 bankruptcy_price,
                 bankruptcy_value,
                 maintenance_margin,
@@ -615,9 +614,7 @@ impl TraderOrder {
                 entry_nonce: entry_nonce,
                 exit_nonce: 0,
                 entry_sequence: entry_sequence,
-            },
-            Err(e) => panic!("Could not generate new order: {}", e),
-        }
+            }
     }
 
     pub fn pending_limit_traderorderinsert(self) -> Self {
@@ -639,7 +636,7 @@ impl TraderOrder {
         thread::spawn(move || {
             rt.entry_nonce = redis_db::get_nonce_u128();
 
-            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},'{}',{},{},{},{},{},{},{},{},{});",
                 &rt.uuid,
                 &rt.account_id ,
                 &rt.position_type ,
@@ -651,7 +648,7 @@ impl TraderOrder {
                 &rt.leverage ,
                 &rt.initial_margin ,
                 &rt.available_margin ,
-                &rt.timestamp ,
+                ServerTime::new(rt.timestamp).iso,
                 &rt.bankruptcy_price ,
                 &rt.bankruptcy_value ,
                 &rt.maintenance_margin ,

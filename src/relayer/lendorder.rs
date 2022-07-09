@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 use crate::relayer::types::*;
 use crate::relayer::utils::*;
+use crate::relayer::ServerTime;
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
 use crate::config::QUERYSTATUS;
@@ -23,7 +24,7 @@ pub struct LendOrder {
     pub exit_nonce: u128,          // change it to u256
     pub deposit: f64,
     pub new_lend_state_amount: f64,
-    pub timestamp: u128,
+    pub timestamp: SystemTime,
     pub npoolshare: f64,
     pub nwithdraw: f64,
     pub payment: f64,
@@ -73,32 +74,29 @@ impl LendOrder {
             u128,
         ) = getset_new_lend_order_tlv_tps_poolshare(deposit);
 
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(n) => LendOrder {
-                uuid: Uuid::new_v4(),
-                account_id: String::from(account_id),
-                balance,
-                order_status,
-                order_type,
-                entry_nonce,
-                exit_nonce: 0,
-                deposit,
-                new_lend_state_amount: ndeposit,
-                timestamp: n.as_millis(),
-                npoolshare,
-                nwithdraw: 0.0,
-                payment: 0.0,
-                tlv0,
-                tps0,
-                tlv1,
-                tps1,
-                tlv2: 0.0,
-                tps2: 0.0,
-                tlv3: 0.0,
-                tps3: 0.0,
-                entry_sequence,
-            },
-            Err(e) => panic!("Could not generate new order: {}", e),
+        LendOrder {
+            uuid: Uuid::new_v4(),
+            account_id: String::from(account_id),
+            balance,
+            order_status,
+            order_type,
+            entry_nonce,
+            exit_nonce: 0,
+            deposit,
+            new_lend_state_amount: ndeposit,
+            timestamp: SystemTime::now(),
+            npoolshare,
+            nwithdraw: 0.0,
+            payment: 0.0,
+            tlv0,
+            tps0,
+            tlv1,
+            tps1,
+            tlv2: 0.0,
+            tps2: 0.0,
+            tlv3: 0.0,
+            tps3: 0.0,
+            entry_sequence,
         }
     }
     pub fn serialize(&self) -> String {
@@ -147,7 +145,7 @@ impl LendOrder {
         pool.execute(move || {
             let query = format!("INSERT INTO public.newlendorder(
                 uuid, account_id, balance, order_status, order_type, entry_nonce,exit_nonce, deposit, new_lend_state_amount, timestamp, npoolshare, nwithdraw, payment, tlv0, tps0, tlv1, tps1, tlv2, tps2, tlv3, tps3, entry_sequence)
-                VALUES ('{}','{}',{},'{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
+                VALUES ('{}','{}',{},'{:#?}','{:#?}',{},{},{},{},'{}',{},{},{},{},{},{},{},{},{},{},{},{});",
                 &lendtx_psql.uuid,
                 &lendtx_psql.account_id ,
                 &lendtx_psql.balance ,
@@ -157,7 +155,7 @@ impl LendOrder {
                 &lendtx_psql.exit_nonce ,
                 &lendtx_psql.deposit ,
                 &lendtx_psql.new_lend_state_amount ,
-                &lendtx_psql.timestamp ,
+                ServerTime::new(lendtx_psql.timestamp).iso,
                 &lendtx_psql.npoolshare ,
                 &lendtx_psql.nwithdraw ,
                 &lendtx_psql.payment ,

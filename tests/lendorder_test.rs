@@ -77,7 +77,7 @@ fn test_lendorder_calculate_settlement_test1() {
 
     println!("Lend Order: {:#?} ", lotx_2);
     let lotx_2_clone = lotx_2.clone();
-    let lotx_2_settle = lotx_2_clone.calculatepayment();
+    let lotx_2_settle = lotx_2_clone.calculatepayment().unwrap();
     println!("Lend Order settle: {:#?} ", lotx_2_settle);
     thread::sleep(time::Duration::from_millis(500));
 

@@ -820,9 +820,10 @@ fn test_traderorder_calculate_payment_test5() {
     totx_clone = totx_clone.newtraderorderinsert();
     redis_db::set("Fee", "0.025");
     redis_db::set("CurrentPrice", "43000.0");
+    let current_price = redis_db::get_type_f64("CurrentPrice");
     println!("updated funding rate: {}", redis_db::get("FundingRate"));
     thread::sleep(time::Duration::from_millis(500));
-    get_and_update_all_orders_on_funding_cycle();
+    get_and_update_all_orders_on_funding_cycle(current_price);
     thread::sleep(time::Duration::from_millis(500));
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
@@ -888,7 +889,7 @@ fn test_traderorder_calculate_payment_test6() {
     println!("create : {:#?}", totx);
     redis_db::set("CurrentPrice", "43000.0");
     thread::sleep(time::Duration::from_millis(500));
-    get_and_update_all_orders_on_funding_cycle();
+    get_and_update_all_orders_on_funding_cycle(redis_db::get_type_f64("CurrentPrice"));
     thread::sleep(time::Duration::from_millis(500));
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
@@ -956,7 +957,7 @@ fn test_traderorder_calculate_payment_test7() {
     redis_db::set("CurrentPrice", "37000.0");
     redis_db::set("Fee", "0.025");
     thread::sleep(time::Duration::from_millis(500));
-    get_and_update_all_orders_on_funding_cycle();
+    get_and_update_all_orders_on_funding_cycle(redis_db::get_type_f64("CurrentPrice"));
     thread::sleep(time::Duration::from_millis(500));
     let ordertx: TraderOrder =
         TraderOrder::deserialize(&redis_db::get(&totx_clone.uuid.to_string()));
@@ -1039,7 +1040,7 @@ fn test_traderorder_calculate_payment_test8() {
     thread::sleep(time::Duration::from_millis(500));
 
     // run funding cycle with current price 37000usd, fee 0.025 and funding rate -0.00024448784504781486
-    get_and_update_all_orders_on_funding_cycle();
+    get_and_update_all_orders_on_funding_cycle(redis_db::get_type_f64("CurrentPrice"));
     thread::sleep(time::Duration::from_millis(500));
 
     // get updated order
