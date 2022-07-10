@@ -1,3 +1,4 @@
+// use crate::config::*;
 use crate::relayer::*;
 // use crate::config::THREADPOOL_ORDERKAFKAQUEUE;
 // use crate::kafkalib::producer_kafka;
@@ -178,9 +179,16 @@ pub fn startserver() {
         }
     });
 
+    // io.add_method("threadpoolkiller", move |params: Params| async move {
+    //     let mut threadpoolkiller = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
+    //     threadpoolkiller.shutdown();
+    //     drop(threadpoolkiller);
+    //     Ok(serde_json::to_value(&check_server_time()).unwrap())
+    // });
+
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
-        .threads(10)
+        .threads(25)
         .start_http(&"0.0.0.0:3030".parse().unwrap())
         .unwrap();
     server.wait();

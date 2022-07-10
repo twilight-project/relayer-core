@@ -10,7 +10,8 @@ pub fn get_new_trader_order(msg: String) {
     let trader_order_msg = CreateTraderOrder::deserialize(msg);
     let ordertx = trader_order_msg.fill_order();
     // println!("{:#?}", ordertx);
-    let ordertx_inserted = ordertx.newtraderorderinsert();
+    // let ordertx_inserted = ordertx.newtraderorderinsert();
+    let ordertx_inserted = longrorderinsert(ordertx);
 }
 
 pub fn get_new_lend_order(msg: String) {

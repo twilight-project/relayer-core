@@ -6,16 +6,16 @@ use std::sync::Mutex;
 use uuid::Uuid;
 lazy_static! {
     pub static ref CREATE_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
-        ThreadPool::new(3, String::from("CREATE_TRADER_ORDER_THREAD_POOL"))
+        ThreadPool::new(15, String::from("CREATE_TRADER_ORDER_THREAD_POOL"))
     );
     pub static ref CREATE_OR_EXECUTE_LEND_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
         ThreadPool::new(1, String::from("CREATE_OR_EXECUTE_LEND_ORDER_THREAD_POOL"))
     );
     pub static ref CANCEL_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
-        ThreadPool::new(1, String::from("CANCEL_TRADER_ORDER_THREAD_POOL"))
+        ThreadPool::new(5, String::from("CANCEL_TRADER_ORDER_THREAD_POOL"))
     );
     pub static ref EXECUTE_TRADER_ORDER_THREAD_POOL: Mutex<ThreadPool> = Mutex::new(
-        ThreadPool::new(3, String::from("EXECUTE_TRADER_ORDER_THREAD_POOL"))
+        ThreadPool::new(15, String::from("EXECUTE_TRADER_ORDER_THREAD_POOL"))
     );
 }
 
@@ -81,12 +81,12 @@ pub struct CandleRequest {
     pub limit: i32,
     pub pagination: i32,
 }
-
 impl CreateTraderOrder {
     pub fn push(self) {
         let create_trader_order_thread_pool = CREATE_TRADER_ORDER_THREAD_POOL.lock().unwrap();
         create_trader_order_thread_pool
             .execute(move || relayer::get_new_trader_order(self.serialize()));
+        // thread::spawn(move || relayer::get_new_trader_order(self.serialize()));
 
         drop(create_trader_order_thread_pool);
     }

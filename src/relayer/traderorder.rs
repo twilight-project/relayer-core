@@ -207,25 +207,6 @@ impl TraderOrder {
 
                 redis_db::incrbyfloat(&"TotalPoolPositionSize", &ordertx.positionsize.to_string());
 
-                // match ordertx.order_type {
-                //     OrderType::LIMIT => match ordertx.position_type {
-                //         PositionType::LONG => {
-                //             redis_db::zadd(
-                //                 &"TraderOrderbyLONGLimit",
-                //                 &ordertx.uuid.to_string(),
-                //                 &ordertx.execution_price.to_string(),
-                //             );
-                //         }
-                //         PositionType::SHORT => {
-                //             redis_db::zadd(
-                //                 &"TraderOrderbySHORTLimit",
-                //                 &ordertx.uuid.to_string(),
-                //                 &ordertx.execution_price.to_string(),
-                //             );
-                //         }
-                //     },
-                //     _ => {}
-                // }
                 // thread to store trader order data in postgreSQL
                 let psql_insert_order_pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
                 psql_insert_order_pool.execute(move || {
