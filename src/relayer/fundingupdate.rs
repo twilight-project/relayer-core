@@ -31,8 +31,8 @@ pub fn updatefundingrate(psi: f64) {
         fundingrate = fundingrate * (-1.0);
     }
     let current_price = get_localdb("CurrentPrice");
-    updatefundingrateindb(fundingrate, current_price);
-    get_and_update_all_orders_on_funding_cycle(current_price);
+    updatefundingrateindb(fundingrate.clone(), current_price);
+    get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
     println!("fundingrate:{}", fundingrate);
 }
 
@@ -56,13 +56,13 @@ fn insert_funding_rate_psql(funding_rate: f64, currentprice: f64) {
 }
 
 pub fn updatechangesineachordertxonfundingratechange(
-    orderid: String,
+    mut ordertx: TraderOrder,
     fundingratechange: f64,
     current_price: f64,
     fee: f64,
 ) -> TraderOrder {
     //get order from redis by orderid
-    let mut ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
+    // let mut ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
     // to check liquidated orders
     let mut isliquidated = false;
 
@@ -116,22 +116,21 @@ pub fn updatechangesineachordertxonfundingratechange(
         // idliquidate = false;
     }
     let ordertxclone = ordertx.clone();
-    ordertxclone.update_trader_order_table_into_db_on_funding_cycle(orderid, isliquidated);
+    ordertxclone
+        .update_trader_order_table_into_db_on_funding_cycle(ordertx.uuid.to_string(), isliquidated);
     return ordertx;
 }
 
-pub fn get_and_update_all_orders_on_funding_cycle(current_price: f64) {
+pub fn get_and_update_all_orders_on_funding_cycle(current_price: f64, fundingrate: f64) {
     let orderid_list = redis_db::zrangeallopenorders();
-    // let current_price = get_localdb("CurrentPrice");
-    let fundingrate = redis_db::get("FundingRate").parse::<f64>().unwrap();
-    let fee = redis_db::get_type_f64("Fee");
-    for orderid in orderid_list {
+    let fee = get_localdb("Fee");
+    let mut ordertx_array: Vec<TraderOrder> = Vec::new();
+    if orderid_list.len() > 0 {
+        ordertx_array = redis_db::mget_trader_order(orderid_list.clone()).unwrap();
+    }
+    for ordertx in ordertx_array {
         let state =
-            updatechangesineachordertxonfundingratechange(orderid, fundingrate, current_price, fee);
-        // println!(
-        //     "fundingcycle ,order of {} is {:#?}",
-        //     state.uuid, state.order_status
-        // );
+            updatechangesineachordertxonfundingratechange(ordertx, fundingrate, current_price, fee);
     }
 }
 

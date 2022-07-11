@@ -60,12 +60,7 @@ pub fn liquidationprice(
     mm: f64,
     im: f64,
 ) -> f64 {
-    // if positionside > 0 {
-    //     entryprice * positionsize
-    //         / ((positionside as f64) * entryprice * (im - mm) + positionsize)
-    // } else {
     entryprice * positionsize / ((positionside as f64) * entryprice * (mm - im) + positionsize)
-    // }
 }
 pub fn positionside(position_type: &PositionType) -> i32 {
     match position_type {
