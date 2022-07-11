@@ -1,9 +1,7 @@
 use crate::config::POSTGRESQL_POOL_CONNECTION;
-use crate::config::{LENDSTATUS, TRADERPAYMENT};
+use crate::config::*;
 use crate::redislib::redis_db;
-use crate::relayer::lendorder::LendOrder;
-use crate::relayer::traderorder::TraderOrder;
-use crate::relayer::types::*;
+use crate::relayer::*;
 use std::thread;
 
 pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
@@ -105,10 +103,12 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
                 "UPDATE public.newlendorder SET new_lend_state_amount={} WHERE uuid='{}';",
                 best_lend_account.new_lend_state_amount, &best_lend_account_order_id[0]
             );
-            thread::spawn(move || {
+            let pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
+            pool.execute(move || {
                 let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
                 client.execute(&query, &[]).unwrap();
             });
+            drop(pool);
         } else {
             let lend_state_amount = best_lend_account.new_lend_state_amount;
             best_lend_account.new_lend_state_amount = redis_db::zdecr_lend_pool_account(
@@ -125,15 +125,17 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
                 "UPDATE public.newlendorder SET new_lend_state_amount={} WHERE uuid='{}';",
                 best_lend_account.new_lend_state_amount, &best_lend_account_order_id[0]
             );
-            thread::spawn(move || {
+            let pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
+            pool.execute(move || {
                 let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
                 client.execute(&query, &[]).unwrap();
             });
+            drop(pool);
             remaining_payment = remaining_payment - lend_state_amount;
         }
     }
     redis_db::decrbyfloat_type_f64("tlv", payment);
-    println!("lend account  changed by {}sats", payment);
+    // println!("lend account  changed by {}sats", payment);
     drop(payment_lock);
     redis_db::incr_lend_nonce_by_one()
 }

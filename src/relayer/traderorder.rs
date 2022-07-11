@@ -1,14 +1,8 @@
-use crate::relayer::types::*;
-use crate::relayer::{update_recent_orders, CloseTrade, Side};
-use serde_derive::{Deserialize, Serialize};
-extern crate uuid;
-use crate::relayer::utils::*;
-use crate::relayer::ServerTime;
-
-use crate::config::{
-    POSTGRESQL_POOL_CONNECTION, THREADPOOL_MAX_ORDER_INSERT, THREADPOOL_PSQL_ORDER_INSERT_QUEUE,
-};
+use crate::config::*;
 use crate::redislib::redis_db;
+use crate::redislib::redisdb_orderinsert::*;
+use crate::relayer::*;
+use serde_derive::{Deserialize, Serialize};
 use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -50,18 +44,23 @@ impl TraderOrder {
         mut entryprice: f64,
         execution_price: f64,
     ) -> Self {
+        let fee: f64;
         if order_type == OrderType::MARKET {
             entryprice = get_localdb("CurrentPrice");
             order_status = OrderStatus::FILLED;
+            fee = get_localdb("Fee"); //different fee for market order
         } else if order_type == OrderType::LIMIT {
             order_status = OrderStatus::PENDING;
+            fee = get_localdb("Fee"); //different fee for limit order
+        } else {
+            // order_status = OrderStatus::PENDING;
+            fee = get_localdb("Fee"); //different fee for limit order
         }
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let fee = get_localdb("Fee");
         let fundingrate = get_localdb("FundingRate");
         let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
         let liquidation_price = liquidationprice(
@@ -287,59 +286,26 @@ impl TraderOrder {
         let ordertx = self.clone();
         let ordertx_clone = self.clone();
 
-        thread::spawn(move || {
-            // trader order saved in redis, orderid as key
-            redis_db::del(&ordertx.uuid.to_string());
-            // trader order set by timestamp
-            redis_db::zdel(
-                &"TraderOrder",
-                &ordertx.uuid.to_string(), //value
-            );
-            match ordertx.order_type {
-                OrderType::LIMIT => match ordertx.position_type {
-                    PositionType::LONG => {
-                        redis_db::zdel(&"TraderOrderbyLONGLimit", &ordertx.uuid.to_string());
-                    }
-                    PositionType::SHORT => {
-                        redis_db::zdel(&"TraderOrderbySHORTLimit", &ordertx.uuid.to_string());
-                    }
-                },
-                _ => {}
-            }
-            match ordertx.position_type {
-                PositionType::LONG => {
-                    redis_db::zdel(
-                        &"TraderOrder_Settelment_by_LONG_Limit",
-                        &ordertx.uuid.to_string(),
-                    );
-                }
-                PositionType::SHORT => {
-                    redis_db::zdel(
-                        &"TraderOrder_Settelment_by_SHORT_Limit",
-                        &ordertx.uuid.to_string(),
-                    );
-                }
-            }
+        let redis_threadpool = THREADPOOL_REDIS_ORDER_REMOVE.lock().unwrap();
+        redis_threadpool.execute(move || {
+            let mut cmd_array: Vec<String> = Vec::new();
 
-            // update pool size when  order get settled
             match ordertx.position_type {
                 PositionType::LONG => {
-                    redis_db::decrbyfloat(&"TotalLongPositionSize", ordertx.positionsize);
-                    redis_db::zdel(
-                        &"TraderOrderbyLiquidationPriceFORLong",
-                        &ordertx.uuid.to_string(),
-                    );
+                    cmd_array.push(String::from("TraderOrder_Settelment_by_LONG_Limit"));
+                    cmd_array.push(String::from("TotalLongPositionSize"));
+                    cmd_array.push(String::from("TraderOrderbyLiquidationPriceFORLong"));
                 }
                 PositionType::SHORT => {
-                    redis_db::decrbyfloat(&"TotalShortPositionSize", ordertx.positionsize);
-                    redis_db::zdel(
-                        &"TraderOrderbyLiquidationPriceFORShort",
-                        &ordertx.uuid.to_string(),
-                    );
+                    cmd_array.push(String::from("TraderOrder_Settelment_by_SHORT_Limit"));
+                    cmd_array.push(String::from("TotalShortPositionSize"));
+                    cmd_array.push(String::from("TraderOrderbyLiquidationPriceFORShort"));
                 }
             }
-            redis_db::decrbyfloat(&"TotalPoolPositionSize", ordertx.positionsize);
+            order_remove_from_redis_pipeline(ordertx, cmd_array);
         });
+        drop(redis_threadpool);
+
         let side = match ordertx_clone.position_type {
             PositionType::LONG => Side::SELL,
             PositionType::SHORT => Side::BUY,
@@ -383,26 +349,20 @@ impl TraderOrder {
 
         let query = format!(
             "UPDATE public.newtraderorder
-        SET available_margin={},  maintenance_margin={}, liquidation_price={}
-        WHERE uuid='{}';",
+            SET available_margin={},  maintenance_margin={}, liquidation_price={}
+            WHERE uuid='{}';",
             &self.available_margin, &self.maintenance_margin, &self.liquidation_price, &self.uuid
         );
-        thread::spawn(move || {
+        let pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
+        pool.execute(move || {
             let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
             client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
         });
+        drop(pool);
         return self;
     }
 
     pub fn updatepsqlonliquidation(self) -> Self {
-        // ordertx.order_status
-        // ordertx.available_margin
-        // ordertx.settlement_price
-        // ordertx.liquidation_price
-        // ordertx.maintenance_margin
-
         let query = format!("UPDATE public.newtraderorder
             SET order_status='{:#?}',   available_margin={},  maintenance_margin={}, liquidation_price={},exit_nonce={} ,settlement_price={}
             WHERE uuid='{}';",
@@ -423,12 +383,6 @@ impl TraderOrder {
         return self;
     }
     pub fn updatepsqlonsettlement(self) -> Self {
-        // ordertx.order_status
-        // ordertx.available_margin
-        // ordertx.settlement_price
-        // ordertx.liquidation_price
-        // ordertx.maintenance_margin
-
         let query = format!(
             "UPDATE public.newtraderorder
             SET order_status='{:#?}',   available_margin={},settlement_price={}, exit_nonce={}, unrealized_pnl={}
@@ -440,12 +394,12 @@ impl TraderOrder {
             &self.unrealized_pnl,
             &self.uuid
         );
-        thread::spawn(move || {
+        let pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
+        pool.execute(move || {
             let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
             client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
         });
+        drop(pool);
         return self;
     }
 
@@ -599,17 +553,9 @@ impl TraderOrder {
     }
 
     pub fn pending_limit_traderorderinsert(self) -> Self {
-        let mut rt = self.clone();
+        let rt = self.clone();
         let current_price = rt.entryprice;
 
-        match rt.order_type {
-            OrderType::LIMIT => {
-                rt.order_status = OrderStatus::FILLED;
-                // rt.entry_nonce = redis_db::get_nonce_u128();
-                // rt.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-            }
-            _ => {}
-        }
         let rself = rt.clone();
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
@@ -674,25 +620,25 @@ impl TraderOrder {
 
             redis_db::incrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
 
-            match rt.order_type {
-                OrderType::LIMIT => match rt.position_type {
-                    PositionType::LONG => {
-                        redis_db::zadd(
-                            &"TraderOrderbyLONGLimit",
-                            &rt.uuid.to_string(),
-                            &rt.execution_price.to_string(),
-                        );
-                    }
-                    PositionType::SHORT => {
-                        redis_db::zadd(
-                            &"TraderOrderbySHORTLimit",
-                            &rt.uuid.to_string(),
-                            &rt.execution_price.to_string(),
-                        );
-                    }
-                },
-                _ => {}
-            }
+            // match rt.order_type {
+            //     OrderType::LIMIT => match rt.position_type {
+            //         PositionType::LONG => {
+            //             redis_db::zadd(
+            //                 &"TraderOrderbyLONGLimit",
+            //                 &rt.uuid.to_string(),
+            //                 &rt.execution_price.to_string(),
+            //             );
+            //         }
+            //         PositionType::SHORT => {
+            //             redis_db::zadd(
+            //                 &"TraderOrderbySHORTLimit",
+            //                 &rt.uuid.to_string(),
+            //                 &rt.execution_price.to_string(),
+            //             );
+            //         }
+            //     },
+            //     _ => {}
+            // }
             // thread to store trader order data in postgreSQL
             thread::spawn(move || {
                 let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();

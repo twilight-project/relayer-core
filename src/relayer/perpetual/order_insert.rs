@@ -1,8 +1,6 @@
 use crate::config::*;
 use crate::redislib::redis_db;
-use crate::redislib::redisdb_orderinsert::{
-    orderinsert_pipeline, orderinsert_pipeline_pending, orderinsert_pipeline_second,
-};
+use crate::redislib::redisdb_orderinsert::*;
 use crate::relayer::*;
 
 pub fn orderinsert(order: TraderOrder, order_entry_status: bool) -> TraderOrder {
@@ -27,14 +25,15 @@ pub fn orderinsert(order: TraderOrder, order_entry_status: bool) -> TraderOrder 
             // total position size for funding rate
             cmd_array.push(String::from("TotalPoolPositionSize"));
 
+            if ordertx.order_type == OrderType::MARKET {
+                // update order json array and entry sequence in redisdb
+                let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline();
+                // update latest nonce in order transaction
+                ordertx.entry_nonce = lend_nonce;
+                ordertx.entry_sequence = entrysequence;
+            }
+
             //insert data into redis for sorting
-            let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline();
-
-            // update latest nonce in order transaction
-            ordertx.entry_nonce = lend_nonce;
-            ordertx.entry_sequence = entrysequence;
-
-            // update order json array and entry sequence in redisdb
             orderinsert_pipeline_second(ordertx.clone(), cmd_array);
             // update order data in postgreSQL
             new_trader_order_insert_sql_query(ordertx.clone());

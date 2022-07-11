@@ -57,3 +57,31 @@ pub fn orderinsert_pipeline_pending(ordertx: TraderOrder, key_array: String) {
         .query(&mut *conn)
         .unwrap();
 }
+
+pub fn order_remove_from_redis_pipeline(ordertx: TraderOrder, key_array: Vec<String>) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let (_status, _status2): (i32, f64) = redis::pipe()
+        .cmd("DEL")
+        .arg(&ordertx.uuid.to_string())
+        .cmd("ZREM")
+        .arg("TraderOrder")
+        .arg(&ordertx.uuid.to_string())
+        .ignore()
+        .cmd("ZREM")
+        .arg(key_array[0].clone())
+        .arg(&ordertx.uuid.to_string())
+        .ignore()
+        .cmd("INCRBYFLOAT")
+        .arg(key_array[1].clone())
+        .arg(format!("{}", -1.0 * ordertx.positionsize))
+        .cmd("ZREM")
+        .arg(key_array[2].clone())
+        .arg(&ordertx.uuid.to_string())
+        .ignore()
+        .cmd("INCRBYFLOAT")
+        .arg("TotalPoolPositionSize")
+        .arg(format!("{}", -1.0 * ordertx.positionsize))
+        .ignore()
+        .query(&mut *conn)
+        .unwrap();
+}

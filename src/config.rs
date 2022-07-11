@@ -93,17 +93,14 @@ lazy_static! {
 
   // sync sender threadpool with buffer size = 1 for price and funding rate
  pub static ref THREADPOOL_PSQL_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PSQL_SEQ_QUEUE")));
- pub static ref THREADPOOL_PSQL_ORDER_INSERT_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(3,String::from("THREADPOOL_PSQL_ORDER_INSERT_QUEUE")));
+ pub static ref THREADPOOL_PSQL_ORDER_INSERT_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(5,String::from("THREADPOOL_PSQL_ORDER_INSERT_QUEUE")));
  pub static ref THREADPOOL_REDIS_SEQ_QUEUE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_REDIS_SEQ_QUEUE")));
-
-
  pub static ref THREADPOOL_MAX_ORDER_INSERT:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_MAX_ORDER_INSERT")));
-
-
  pub static ref THREADPOOL_PRICE_CHECK_PENDING_ORDER:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_PENDING_ORDER")));
  pub static ref THREADPOOL_PRICE_CHECK_LIQUIDATION:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_LIQUIDATION")));
  pub static ref THREADPOOL_PRICE_CHECK_SETTLE_PENDING:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_SETTLE_PENDING")));
-
+//removeorderfromredis
+pub static ref THREADPOOL_REDIS_ORDER_REMOVE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_REDIS_ORDER_REMOVE")));
 }
 
 pub fn check_new_key(name: &str) {
