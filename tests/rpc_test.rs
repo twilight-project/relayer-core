@@ -31,11 +31,11 @@ fn test_create_trader_order() {
     let sw = Stopwatch::start_new();
     let threadpool_live = ThreadPool::new(20, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
-    for _i in 0..10000000 {
+    for _i in 0..100000 {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
-            .post("http://127.0.0.1:3031")
+            .post("http://172.104.186.106/rpc")
             .headers(construct_headers())
             .body("{\"jsonrpc\": \"2.0\", \"method\": \"CreateTraderOrder\", \"id\":123, \"params\": {\"account_id\":\"siddharth\",\"position_type\":\"LONG\",\"order_type\":\"MARKET\",\"leverage\":15.0,\"initial_margin\":2,\"available_margin\":2,\"order_status\":\"PENDING\",\"entryprice\":39000.01,\"execution_price\":44440.02} }")
             .send()
