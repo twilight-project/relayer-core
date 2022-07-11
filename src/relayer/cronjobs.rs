@@ -98,7 +98,7 @@ pub fn start_cronjobs() {
     thread::Builder::new()
         .name(String::from("BTC Binance Websocket Connection"))
         .spawn(move || {
-            thread::sleep(time::Duration::from_millis(500));
+            thread::sleep(time::Duration::from_millis(1000));
             receive_btc_price();
         })
         .unwrap();

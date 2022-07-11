@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS binancebtctickernew(
 );
 
 CREATE TABLE IF NOT EXISTS newtraderorder(
-  uuid VARCHAR(100) NOT NULL PRIMARY KEY,
+  uuid VARCHAR(100) NOT NULL,
   account_id TEXT NOT NULL,
   position_type VARCHAR(50) NOT NULL -- ,position_side      INT  NOT NULL
 ,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS newtraderorder(
 --     pub tps2: f64, // total poolshare after lend payment/settlement
 -- }
 CREATE TABLE IF NOT EXISTS newlendorder(
-  uuid VARCHAR(100) NOT NULL PRIMARY KEY,
+  uuid VARCHAR(100) NOT NULL,
   account_id TEXT NOT NULL,
   balance NUMERIC NOT NULL,
   order_status VARCHAR(50) NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS newlendorder(
 
 --pendinglimittraderorder
 CREATE TABLE IF NOT EXISTS pendinglimittraderorder(
-  uuid VARCHAR(100) NOT NULL PRIMARY KEY,
+  uuid VARCHAR(100) NOT NULL,
   account_id TEXT NOT NULL,
   position_type VARCHAR(50) NOT NULL,
   -- ,position_side      INT  NOT NULL
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS settlementpriceforlimitorder(
 );
 
 CREATE TABLE IF NOT EXISTS btcpricehistory(
-  id SERIAL PRIMARY KEY,
+  id SERIAL,
   price NUMERIC NOT NULL,
   timestamp timestamp without time zone NOT NULL
 );
@@ -140,7 +140,7 @@ VALUES
 $ $;
 
 CREATE TABLE IF NOT EXISTS fundingratehistory(
-  id SERIAL PRIMARY KEY,
+  id SERIAL,
   fundingrate NUMERIC NOT NULL,
   price NUMERIC NOT NULL,
   timestamp timestamp without time zone NOT NULL

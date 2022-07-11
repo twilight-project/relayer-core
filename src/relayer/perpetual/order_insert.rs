@@ -1,11 +1,9 @@
 use crate::config::*;
 use crate::redislib::redis_db;
-use crate::redislib::redisdb_orderinsert::{
-    longorderinsert_pipeline, longorderinsert_pipeline_second,
-};
+use crate::redislib::redisdb_orderinsert::{orderinsert_pipeline, orderinsert_pipeline_second};
 use crate::relayer::*;
 
-pub fn longrorderinsert(order: TraderOrder) -> TraderOrder {
+pub fn orderinsert(order: TraderOrder) -> TraderOrder {
     let mut ordertx = order.clone();
     let mut order_entry_status: bool = false;
     let current_price = get_localdb("CurrentPrice");
@@ -59,15 +57,14 @@ pub fn longrorderinsert(order: TraderOrder) -> TraderOrder {
             cmd_array.push(String::from("TotalPoolPositionSize"));
 
             //insert data into redis for sorting
-            let (lend_nonce, entrysequence): (u128, u128) =
-                longorderinsert_pipeline(ordertx.clone(), cmd_array);
+            let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline(ordertx.clone());
 
             // update latest nonce in order transaction
             ordertx.entry_nonce = lend_nonce;
             ordertx.entry_sequence = entrysequence;
 
             // update order json array and entry sequence in redisdb
-            longorderinsert_pipeline_second(ordertx.clone());
+            orderinsert_pipeline_second(ordertx.clone(), cmd_array);
             // update order data in postgreSQL
             new_trader_order_insert_sql_query(ordertx.clone());
 
@@ -100,18 +97,10 @@ pub fn longrorderinsert(order: TraderOrder) -> TraderOrder {
                     );
                 }
             }
+            redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
             pending_trader_order_insert_sql_query(ordertx);
         }
     });
     drop(threadpool_max_order_insert_pool);
     ordertx_return
 }
-
-// ordertx.entry_nonce = redis_db::get_nonce_u128();
-// ordertx.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-// redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
-// redis_db::zadd(
-//     &"TraderOrder",
-//     &ordertx.uuid.to_string(),           //value
-//     &ordertx.entry_sequence.to_string(), //score
-// );

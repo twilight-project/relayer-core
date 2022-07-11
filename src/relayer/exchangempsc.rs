@@ -6,12 +6,44 @@ use crate::relayer::*;
 //check for negative leverage
 //put limit of leverage
 // best lender selection for lend trans
+
+// pub struct CreateTraderOrder {
+//     pub account_id: String,
+//     pub position_type: PositionType,
+//     pub order_type: OrderType,
+//     pub leverage: f64,
+//     pub initial_margin: f64,
+//     pub available_margin: f64,
+//     pub order_status: OrderStatus,
+//     pub entryprice: f64,
+//     pub execution_price: f64,
+// }
 pub fn get_new_trader_order(msg: String) {
-    let trader_order_msg = CreateTraderOrder::deserialize(msg);
+    let mut trader_order_msg = CreateTraderOrder::deserialize(msg);
+    let current_price = get_localdb("CurrentPrice");
+    if trader_order_msg.order_type == OrderType::LIMIT {
+        match trader_order_msg.position_type {
+            PositionType::LONG => {
+                if trader_order_msg.entryprice >= current_price {
+                    // may cancel the order
+                    trader_order_msg.order_type = OrderType::MARKET;
+                } else {
+                }
+            }
+            PositionType::SHORT => {
+                if trader_order_msg.entryprice <= current_price {
+                    // may cancel the order
+                    trader_order_msg.order_type = OrderType::MARKET;
+                } else {
+                }
+            }
+        }
+    } else if trader_order_msg.order_type == OrderType::MARKET {
+    }
     let ordertx = trader_order_msg.fill_order();
     // println!("{:#?}", ordertx);
     // let ordertx_inserted = ordertx.newtraderorderinsert();
-    let ordertx_inserted = longrorderinsert(ordertx);
+    let ordertx_inserted = orderinsert(ordertx);
 }
 
 pub fn get_new_lend_order(msg: String) {

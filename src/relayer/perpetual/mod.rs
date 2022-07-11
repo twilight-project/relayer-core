@@ -1,6 +1,4 @@
-mod longorder_insert;
+mod order_insert;
 mod query;
-mod shortorder_insert;
-pub use self::longorder_insert::*;
+pub use self::order_insert::*;
 pub use self::query::*;
-pub use self::shortorder_insert::*;

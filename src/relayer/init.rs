@@ -71,7 +71,7 @@ pub fn init_psql() {
 fn create_binance_ticker_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS binancebtctickernew(
-        id SERIAL PRIMARY KEY
+        id SERIAL 
        ,e VARCHAR(14) NOT NULL
       ,TimeStamp_E BIGINT  NOT NULL
       ,s VARCHAR(7) NOT NULL
@@ -97,7 +97,7 @@ fn create_binance_ticker_table() -> Result<(), r2d2_postgres::postgres::Error> {
 fn create_newtraderorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS newtraderorder(
-           uuid               VARCHAR(100) NOT NULL PRIMARY KEY
+           uuid               VARCHAR(100) NOT NULL 
           ,account_id         TEXT NOT NULL
           ,position_type      VARCHAR(50) NOT NULL
           -- ,position_side      INT  NOT NULL
@@ -132,7 +132,7 @@ fn create_newtraderorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
 fn create_newlendorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS newlendorder(
-            uuid                    VARCHAR(100) NOT NULL PRIMARY KEY
+            uuid                    VARCHAR(100) NOT NULL 
            ,account_id              TEXT NOT NULL
            ,balance                 NUMERIC NOT NULL
            ,order_status            VARCHAR(50) NOT NULL
@@ -166,7 +166,7 @@ fn create_newlendorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
 fn create_pendinglimittraderorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS pendinglimittraderorder(
-            uuid               VARCHAR(100) NOT NULL PRIMARY KEY
+            uuid               VARCHAR(100) NOT NULL 
            ,account_id         TEXT NOT NULL
            ,position_type      VARCHAR(50) NOT NULL
            -- ,position_side      INT  NOT NULL
@@ -200,7 +200,7 @@ fn create_pendinglimittraderorder_table() -> Result<(), r2d2_postgres::postgres:
 fn create_settlementpriceforlimitorder_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS settlementpriceforlimitorder(
-            id SERIAL PRIMARY KEY
+            id SERIAL 
            ,uuid               VARCHAR(100) NOT NULL
            ,account_id         TEXT NOT NULL
            ,position_type      VARCHAR(50) NOT NULL
@@ -221,7 +221,7 @@ fn create_settlementpriceforlimitorder_table() -> Result<(), r2d2_postgres::post
 fn create_btcpricehistory_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS btcpricehistory(
-            id SERIAL PRIMARY KEY
+            id SERIAL 
            ,price   NUMERIC NOT NULL
            ,timestamp    timestamp without time zone NOT NULL
         );
@@ -237,7 +237,7 @@ fn create_btcpricehistory_table() -> Result<(), r2d2_postgres::postgres::Error> 
 fn create_fundingratehistory_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS api.fundingratehistory(
-            id SERIAL PRIMARY KEY
+            id SERIAL 
            ,fundingrate   NUMERIC NOT NULL
            ,price   NUMERIC NOT NULL
            ,timestamp    timestamp without time zone NOT NULL
