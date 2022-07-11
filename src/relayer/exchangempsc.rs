@@ -21,12 +21,14 @@ use crate::relayer::*;
 pub fn get_new_trader_order(msg: String) {
     let mut trader_order_msg = CreateTraderOrder::deserialize(msg);
     let current_price = get_localdb("CurrentPrice");
+    let mut order_entry_status: bool = false;
     if trader_order_msg.order_type == OrderType::LIMIT {
         match trader_order_msg.position_type {
             PositionType::LONG => {
                 if trader_order_msg.entryprice >= current_price {
                     // may cancel the order
                     trader_order_msg.order_type = OrderType::MARKET;
+                    order_entry_status = true;
                 } else {
                 }
             }
@@ -34,16 +36,18 @@ pub fn get_new_trader_order(msg: String) {
                 if trader_order_msg.entryprice <= current_price {
                     // may cancel the order
                     trader_order_msg.order_type = OrderType::MARKET;
+                    order_entry_status = true;
                 } else {
                 }
             }
         }
     } else if trader_order_msg.order_type == OrderType::MARKET {
+        order_entry_status = true;
     }
     let ordertx = trader_order_msg.fill_order();
     // println!("{:#?}", ordertx);
     // let ordertx_inserted = ordertx.newtraderorderinsert();
-    let ordertx_inserted = orderinsert(ordertx);
+    let ordertx_inserted = orderinsert(ordertx, order_entry_status);
 }
 
 pub fn get_new_lend_order(msg: String) {

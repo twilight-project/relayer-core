@@ -46,12 +46,15 @@ impl TraderOrder {
         leverage: f64,
         initial_margin: f64,
         available_margin: f64,
-        order_status: OrderStatus,
+        mut order_status: OrderStatus,
         mut entryprice: f64,
         execution_price: f64,
     ) -> Self {
         if order_type == OrderType::MARKET {
             entryprice = get_localdb("CurrentPrice");
+            order_status = OrderStatus::FILLED;
+        } else if order_type == OrderType::LIMIT {
+            order_status = OrderStatus::PENDING;
         }
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
@@ -611,7 +614,7 @@ impl TraderOrder {
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
         thread::spawn(move || {
-            rt.entry_nonce = redis_db::get_nonce_u128();
+            // rt.entry_nonce = redis_db::get_nonce_u128();
 
             let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},'{}',{},{},{},{},{},{},{},{},{});",
                 &rt.uuid,
@@ -691,7 +694,7 @@ impl TraderOrder {
                 _ => {}
             }
             // thread to store trader order data in postgreSQL
-            let handle = thread::spawn(move || {
+            thread::spawn(move || {
                 let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
                 client.execute(&query, &[]).unwrap();
             });

@@ -3,7 +3,7 @@ use crate::config::REDIS_POOL_CONNECTION;
 use crate::relayer::*;
 use r2d2_redis::redis;
 
-pub fn orderinsert_pipeline(ordertx: TraderOrder) -> (u128, u128) {
+pub fn orderinsert_pipeline() -> (u128, u128) {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let (lend_nonce, entrysequence): (u128, u128) = redis::pipe()
         .cmd("GET")
@@ -44,9 +44,16 @@ pub fn orderinsert_pipeline_second(ordertx: TraderOrder, key_array: Vec<String>)
         .unwrap();
 }
 
-// redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
-// redis_db::zadd(
-//     &"TraderOrder",
-//     &ordertx.uuid.to_string(),           //value
-//     &ordertx.entry_sequence.to_string(), //score
-// );
+pub fn orderinsert_pipeline_pending(ordertx: TraderOrder, key_array: String) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let (_status, _entrysequence): (bool, i32) = redis::pipe()
+        .cmd("SET")
+        .arg(&ordertx.uuid.to_string())
+        .arg(&ordertx.serialize())
+        .cmd("ZADD")
+        .arg(key_array)
+        .arg(&ordertx.entryprice.to_string())
+        .arg(&ordertx.uuid.to_string())
+        .query(&mut *conn)
+        .unwrap();
+}

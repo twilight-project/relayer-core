@@ -99,6 +99,11 @@ lazy_static! {
 
  pub static ref THREADPOOL_MAX_ORDER_INSERT:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_MAX_ORDER_INSERT")));
 
+
+ pub static ref THREADPOOL_PRICE_CHECK_PENDING_ORDER:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_PENDING_ORDER")));
+ pub static ref THREADPOOL_PRICE_CHECK_LIQUIDATION:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_LIQUIDATION")));
+ pub static ref THREADPOOL_PRICE_CHECK_SETTLE_PENDING:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_SETTLE_PENDING")));
+
 }
 
 pub fn check_new_key(name: &str) {

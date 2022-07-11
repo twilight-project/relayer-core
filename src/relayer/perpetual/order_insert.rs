@@ -1,43 +1,14 @@
 use crate::config::*;
 use crate::redislib::redis_db;
-use crate::redislib::redisdb_orderinsert::{orderinsert_pipeline, orderinsert_pipeline_second};
+use crate::redislib::redisdb_orderinsert::{
+    orderinsert_pipeline, orderinsert_pipeline_pending, orderinsert_pipeline_second,
+};
 use crate::relayer::*;
 
-pub fn orderinsert(order: TraderOrder) -> TraderOrder {
+pub fn orderinsert(order: TraderOrder, order_entry_status: bool) -> TraderOrder {
     let mut ordertx = order.clone();
-    let mut order_entry_status: bool = false;
-    let current_price = get_localdb("CurrentPrice");
-
-    match ordertx.order_type {
-        OrderType::LIMIT => match ordertx.position_type {
-            PositionType::LONG => {
-                if ordertx.entryprice >= current_price {
-                    order_entry_status = true;
-                    ordertx.order_status = OrderStatus::FILLED;
-                    ordertx.entryprice = current_price;
-                } else {
-                    ordertx.order_status = OrderStatus::PENDING;
-                }
-            }
-            PositionType::SHORT => {
-                if ordertx.entryprice <= current_price {
-                    order_entry_status = true;
-                    ordertx.order_status = OrderStatus::FILLED;
-                    ordertx.entryprice = current_price;
-                } else {
-                    ordertx.order_status = OrderStatus::PENDING;
-                }
-            }
-        },
-        OrderType::MARKET => {
-            ordertx.order_status = OrderStatus::FILLED;
-            order_entry_status = true;
-        }
-        _ => {}
-    }
-
-    let threadpool_max_order_insert_pool = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
     let ordertx_return = ordertx.clone();
+    let threadpool_max_order_insert_pool = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
     threadpool_max_order_insert_pool.execute(move || {
         if order_entry_status {
             let mut cmd_array: Vec<String> = Vec::new();
@@ -57,7 +28,7 @@ pub fn orderinsert(order: TraderOrder) -> TraderOrder {
             cmd_array.push(String::from("TotalPoolPositionSize"));
 
             //insert data into redis for sorting
-            let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline(ordertx.clone());
+            let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline();
 
             // update latest nonce in order transaction
             ordertx.entry_nonce = lend_nonce;
@@ -83,21 +54,19 @@ pub fn orderinsert(order: TraderOrder) -> TraderOrder {
             // trader order set by timestamp
             match ordertx.position_type {
                 PositionType::LONG => {
-                    redis_db::zadd(
-                        &"TraderOrder_LimitOrder_Pending_FOR_Long",
-                        &ordertx.uuid.to_string(),       //value
-                        &ordertx.entryprice.to_string(), //score
+                    orderinsert_pipeline_pending(
+                        ordertx.clone(),
+                        String::from("TraderOrder_LimitOrder_Pending_FOR_Long"),
                     );
                 }
                 PositionType::SHORT => {
-                    redis_db::zadd(
-                        &"TraderOrder_LimitOrder_Pending_FOR_Short",
-                        &ordertx.uuid.to_string(),       //value
-                        &ordertx.entryprice.to_string(), //score
+                    orderinsert_pipeline_pending(
+                        ordertx.clone(),
+                        String::from("TraderOrder_LimitOrder_Pending_FOR_Short"),
                     );
                 }
             }
-            redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
+            // redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
             pending_trader_order_insert_sql_query(ordertx);
         }
     });

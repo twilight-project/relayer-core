@@ -2,24 +2,59 @@ use crate::config::LIMITSTATUS;
 use crate::config::LIQUIDATIONORDERSTATUS;
 use crate::config::LIQUIDATIONTICKERSTATUS;
 use crate::config::SETTLEMENTLIMITSTATUS;
-use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL, THREADPOOL_PSQL_SEQ_QUEUE};
+use crate::config::*;
 use crate::redislib::redis_db;
 use crate::relayer::traderorder::TraderOrder;
 use crate::relayer::types::*;
 use crate::relayer::utils::*;
 use crate::relayer::ThreadPool;
 use crate::relayer::{update_recent_orders, CloseTrade, Side};
+use std::convert::{From, TryFrom};
 use std::thread;
 // use stopwatch::Stopwatch;
 
+pub fn getsetlatestprice() {
+    // btc:price is websocket price getting updated via websocket external feed
+    // let rev_data: Vec<f64>;
+    let (old_price, currentprice): (f64, f64);
+    currentprice = redis_db::get_type_f64("btc:price");
+    old_price = get_localdb("CurrentPrice");
+    if currentprice == old_price {
+        // println!("Price update: same price");
+    } else {
+        set_localdb("CurrentPrice", currentprice);
+        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
+        let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
+        treadpool_pending_order.execute(move || {
+            check_pending_limit_order_on_price_ticker_update(currentprice.clone());
+        });
+        let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+        treadpool_liquidation_order.execute(move || {
+            check_liquidating_orders_on_price_ticker_update(currentprice.clone());
+        });
+        let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+        treadpool_settling_order.execute(move || {
+            check_settling_limit_order_on_price_ticker_update(currentprice.clone());
+        });
+        // println!("Price update: not same price");
+        let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
+        pool.execute(move || {
+            insert_current_price_psql(currentprice.clone());
+        });
+        drop(treadpool_pending_order);
+        drop(treadpool_liquidation_order);
+        drop(treadpool_settling_order);
+        drop(pool);
+    }
+}
+
 pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     let limit_lock = LIMITSTATUS.lock().unwrap();
-    // let sw1 = Stopwatch::start_new();
 
-    // let current_price = get_localdb("CurrentPrice");
     let orderid_list_short = redis_db::zrangegetpendinglimitorderforshort(current_price);
-
     let orderid_list_long = redis_db::zrangegetpendinglimitorderforlong(current_price);
+    let orderid_list_short_len = orderid_list_short.len();
+    let orderid_list_long_len = orderid_list_long.len();
     if orderid_list_short.len() > 0 {
         redis_db::zdel_bulk(
             "TraderOrder_LimitOrder_Pending_FOR_Short",
@@ -32,39 +67,61 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
             orderid_list_long.clone(),
         );
     }
-    let total_order_count = orderid_list_short.len() + orderid_list_long.len();
+    let total_order_count = orderid_list_short_len + orderid_list_long_len;
     let mut thread_count: usize = (total_order_count) / 10;
-    if thread_count > 5 {
-        thread_count = 5;
+    if thread_count > 10 {
+        thread_count = 10;
     } else if thread_count == 0 {
         thread_count = 1;
     }
+
     if total_order_count > 0 {
         let entry_nonce = redis_db::get_nonce_u128();
         //get all order by mget command and then process all order
+
+        let mut ordertx_short: Vec<TraderOrder> = Vec::new();
+        let mut ordertx_long: Vec<TraderOrder> = Vec::new();
+        let mut starting_entry_sequence_short: u128 = 0;
+        let mut starting_entry_sequence_long: u128 = 0;
+        if orderid_list_short_len > 0 {
+            ordertx_short = redis_db::mget_trader_order(orderid_list_short.clone()).unwrap();
+            let bulk_entry_sequence_short =
+                redis_db::incr_entry_sequence_bulk_trader_order(orderid_list_short_len);
+            starting_entry_sequence_short =
+                bulk_entry_sequence_short - u128::try_from(orderid_list_short_len).unwrap();
+        }
+        if orderid_list_long_len > 0 {
+            ordertx_long = redis_db::mget_trader_order(orderid_list_long.clone()).unwrap();
+            let bulk_entry_sequence_long =
+                redis_db::incr_entry_sequence_bulk_trader_order(orderid_list_long_len);
+            starting_entry_sequence_long =
+                bulk_entry_sequence_long - u128::try_from(orderid_list_long_len).unwrap();
+        }
+
         let local_threadpool: ThreadPool =
             ThreadPool::new(thread_count, String::from("local_threadpool"));
-        for orderid in orderid_list_short {
+
+        for ordertx in ordertx_short {
+            starting_entry_sequence_short += 1;
             local_threadpool.execute(move || {
-                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
                 let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-                let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+                let entry_sequence = starting_entry_sequence_short;
                 update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
             });
         }
-        for orderid in orderid_list_long {
+
+        for ordertx in ordertx_long {
+            starting_entry_sequence_long += 1;
             local_threadpool.execute(move || {
-                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
                 let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-                let entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
+                let entry_sequence = starting_entry_sequence_long;
                 update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
             });
         }
     }
-    // std::thread::sleep(std::time::Duration::from_millis(5000));
     drop(limit_lock);
-    // println!("mutex took {:#?}", sw1.elapsed());
 }
+
 // error issues
 pub fn update_limit_pendingorder(
     ordertx: TraderOrder,
@@ -90,7 +147,7 @@ pub fn update_limit_pendingorder(
     );
     let ordertx = pending_order.pending_limit_traderorderinsert();
     let ordertx_clone = ordertx.clone();
-    let pool = THREADPOOL.lock().unwrap();
+    let pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
     pool.execute(move || {
         let query = format!(
             "UPDATE public.pendinglimittraderorder
@@ -103,6 +160,7 @@ pub fn update_limit_pendingorder(
 
         client.execute(&query, &[]).unwrap();
     });
+    drop(pool);
     let side = match ordertx.position_type {
         PositionType::SHORT => Side::SELL,
         PositionType::LONG => Side::BUY,
@@ -115,51 +173,6 @@ pub fn update_limit_pendingorder(
     });
 }
 
-pub fn getsetlatestprice() {
-    // btc:price is websocket price getting updated via websocket external feed
-    // let rev_data: Vec<f64>;
-    let (old_price, currentprice): (f64, f64);
-    currentprice = redis_db::get_type_f64("btc:price");
-    old_price = get_localdb("CurrentPrice");
-    // match redis_db::mget_f64(vec!["CurrentPrice", "btc:price"]) {
-    //     Ok(rev_data) => {
-    //         old_price = rev_data[0];
-    //         currentprice = rev_data[1];
-    //     }
-    //     Err(e) => {
-    //         println!("Error in btc price {:#?}", e);
-    //         currentprice = redis_db::get_type_f64("btc:price");
-    //     }
-    // }
-    // let currentprice = redis_db::get("btc:price");
-    // let old_price = redis_db::get("CurrentPrice");
-    if currentprice == old_price {
-        // println!("Price update: same price");
-    } else {
-        set_localdb("CurrentPrice", currentprice);
-        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
-        thread::spawn(move || {
-            check_pending_limit_order_on_price_ticker_update(currentprice.clone());
-        });
-        thread::spawn(move || {
-            check_liquidating_orders_on_price_ticker_update(currentprice.clone());
-        });
-        thread::spawn(move || {
-            check_settling_limit_order_on_price_ticker_update(currentprice.clone());
-        });
-        // println!("Price update: not same price");
-        let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
-        pool.execute(move || {
-            insert_current_price_psql(currentprice.clone());
-        });
-        drop(pool);
-    }
-}
-// pub fn runloop_price_ticker() -> thread::JoinHandle<()> {
-//     thread::spawn(move || loop {
-//         getsetlatestprice();
-//     })
-// }
 pub fn check_liquidating_orders_on_price_ticker_update(current_price: f64) {
     let liquidation_lock = LIQUIDATIONTICKERSTATUS.lock().unwrap();
 

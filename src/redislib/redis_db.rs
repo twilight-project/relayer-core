@@ -18,9 +18,9 @@
 // extern crate redis;
 // extern crate stopwatch;
 use crate::config::REDIS_POOL_CONNECTION;
+use crate::relayer::*;
 use r2d2_redis::redis;
 use std::process::Command;
-
 /// use to set key/value in redis
 /// return type bool
 pub fn set(key: &str, value: &str) -> bool {
@@ -77,6 +77,26 @@ pub fn mget_f64(key_array: Vec<&str>) -> Result<Vec<f64>, std::io::Error> {
         Ok(s) => Ok(s),
         Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
     };
+}
+
+pub fn mget_trader_order(key_array: Vec<String>) -> Result<Vec<TraderOrder>, std::io::Error> {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("MGET")
+        .arg(key_array)
+        .query::<Vec<TraderOrder>>(&mut *conn)
+    {
+        Ok(s) => Ok(s),
+        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+    };
+}
+
+use self::redis::{from_redis_value, FromRedisValue, RedisResult, Value};
+impl FromRedisValue for TraderOrder {
+    fn from_redis_value(v: &Value) -> RedisResult<Self> {
+        let json_str: String = from_redis_value(v)?;
+        Ok(TraderOrder::deserialize(&json_str))
+    }
 }
 
 // let (k1, k2, k3): (i32, i32, f64) = redis::pipe()
@@ -298,6 +318,15 @@ pub fn incr_entry_sequence_by_one_trader_order() -> u128 {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCR")
         .arg("EntrySequence_TraderOrder")
+        .query::<u128>(&mut *conn)
+        .unwrap();
+    return i;
+}
+pub fn incr_entry_sequence_bulk_trader_order(count: usize) -> u128 {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let i = redis::cmd("INCRBY")
+        .arg("EntrySequence_TraderOrder")
+        .arg(count)
         .query::<u128>(&mut *conn)
         .unwrap();
     return i;
