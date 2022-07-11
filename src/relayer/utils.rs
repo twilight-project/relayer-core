@@ -85,7 +85,7 @@ pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
         let best_lend_account_order_id = redis_db::getbestlender();
         let mut best_lend_account: LendOrder =
             LendOrder::deserialize(&redis_db::get(&best_lend_account_order_id[0]));
-        println!("lend order id {}", best_lend_account.uuid);
+        // println!("lend order id {}", best_lend_account.uuid);
         if best_lend_account.new_lend_state_amount >= remaining_payment {
             is_payment_done = false;
             let lend_state_amount = best_lend_account.new_lend_state_amount;

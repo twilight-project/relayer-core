@@ -51,27 +51,28 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
     let orderid_list_long = redis_db::zrangegetpendinglimitorderforlong(current_price);
     let orderid_list_short_len = orderid_list_short.len();
     let orderid_list_long_len = orderid_list_long.len();
-    if orderid_list_short_len > 0 {
-        redis_db::zdel_bulk(
-            "TraderOrder_LimitOrder_Pending_FOR_Short",
-            orderid_list_short.clone(),
-        );
-    }
-    if orderid_list_long_len > 0 {
-        redis_db::zdel_bulk(
-            "TraderOrder_LimitOrder_Pending_FOR_Long",
-            orderid_list_long.clone(),
-        );
-    }
+
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     let mut thread_count: usize = (total_order_count) / 10;
-    if thread_count > 10 {
-        thread_count = 10;
-    } else if thread_count == 0 {
-        thread_count = 1;
-    }
 
     if total_order_count > 0 {
+        if orderid_list_short_len > 0 {
+            redis_db::zdel_bulk(
+                "TraderOrder_LimitOrder_Pending_FOR_Short",
+                orderid_list_short.clone(),
+            );
+        }
+        if orderid_list_long_len > 0 {
+            redis_db::zdel_bulk(
+                "TraderOrder_LimitOrder_Pending_FOR_Long",
+                orderid_list_long.clone(),
+            );
+        }
+        if thread_count > 10 {
+            thread_count = 10;
+        } else if thread_count == 0 {
+            thread_count = 1;
+        }
         let entry_nonce = redis_db::get_nonce_u128();
         let mut ordertx_short: Vec<TraderOrder> = Vec::new();
         let mut ordertx_long: Vec<TraderOrder> = Vec::new();
@@ -211,61 +212,59 @@ pub fn liquidate_trader_order(order: TraderOrder, current_price: f64) {
 
 pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
     let limit_lock = SETTLEMENTLIMITSTATUS.lock().unwrap();
-    // let sw1 = Stopwatch::start_new();
-
-    // let current_price = get_localdb("CurrentPrice");
 
     let orderid_list_short = redis_db::zrangegetsettlinglimitorderforshort(current_price);
-    // println!("short array:{:#?}", orderid_list_short);
+
     let orderid_list_long = redis_db::zrangegetsettlinglimitorderforlong(current_price);
-    // println!("Long array:{:#?}", orderid_list_long);
-    let total_order_count = orderid_list_short.len() + orderid_list_long.len();
+    let orderid_list_short_len = orderid_list_short.len();
+    let orderid_list_long_len = orderid_list_long.len();
+
+    let total_order_count = orderid_list_short_len + orderid_list_long_len;
     let mut thread_count: usize = (total_order_count) / 10;
 
     if total_order_count > 0 {
-        if thread_count > 5 {
-            thread_count = 5;
+        if orderid_list_short_len > 0 {
+            redis_db::zdel_bulk(
+                "TraderOrder_Settelment_by_SHORT_Limit",
+                orderid_list_short.clone(),
+            );
+        }
+        if orderid_list_long_len > 0 {
+            redis_db::zdel_bulk(
+                "TraderOrder_Settelment_by_LONG_Limit",
+                orderid_list_long.clone(),
+            );
+        }
+        if thread_count > 10 {
+            thread_count = 10;
         } else if thread_count == 0 {
             thread_count = 1;
         }
-        let local_threadpool: ThreadPool =
-            ThreadPool::new(thread_count, String::from("local_threadpool"));
 
-        if orderid_list_short.len() > 0 {
-            let orderid_list_short_clone = orderid_list_short.clone();
-            local_threadpool.execute(move || {
-                redis_db::zdel_bulk(
-                    "TraderOrder_Settelment_by_SHORT_Limit",
-                    orderid_list_short_clone,
-                );
-            });
+        let mut ordertx_short: Vec<TraderOrder> = Vec::new();
+        let mut ordertx_long: Vec<TraderOrder> = Vec::new();
+
+        if orderid_list_short_len > 0 {
+            ordertx_short = redis_db::mget_trader_order(orderid_list_short.clone()).unwrap();
         }
-        if orderid_list_long.len() > 0 {
-            let orderid_list_long_clone = orderid_list_long.clone();
-            local_threadpool.execute(move || {
-                redis_db::zdel_bulk(
-                    "TraderOrder_Settelment_by_LONG_Limit",
-                    orderid_list_long_clone,
-                );
-            });
+        if orderid_list_long_len > 0 {
+            ordertx_long = redis_db::mget_trader_order(orderid_list_long.clone()).unwrap();
         }
 
-        for orderid in orderid_list_short {
-            local_threadpool.execute(move || {
-                let current_price_clone = current_price.clone();
-                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-                ordertx.calculatepayment_with_current_price(current_price_clone);
+        let settleorder_local_threadpool: ThreadPool =
+            ThreadPool::new(thread_count, String::from("settleorder_local_threadpool"));
+
+        for ordertx in ordertx_short {
+            settleorder_local_threadpool.execute(move || {
+                ordertx.calculatepayment_with_current_price(current_price.clone());
             });
         }
-        for orderid in orderid_list_long {
-            local_threadpool.execute(move || {
-                let current_price_clone = current_price.clone();
-                let ordertx: TraderOrder = TraderOrder::deserialize(&redis_db::get(&orderid));
-                ordertx.calculatepayment_with_current_price(current_price_clone);
+        for ordertx in ordertx_long {
+            settleorder_local_threadpool.execute(move || {
+                ordertx.calculatepayment_with_current_price(current_price.clone());
             });
         }
     }
-
     drop(limit_lock);
     // println!("mutex took {:#?}", sw1.elapsed());
 }
