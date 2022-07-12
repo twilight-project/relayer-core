@@ -16,7 +16,7 @@ use config::local_serial_core;
 use config::*;
 use kafkalib::consumer_kafka::consume_kafka;
 use r2d2_redis::redis;
-use redislib::{redis_db, redis_db_orderbook};
+use redislib::*;
 use relayer::*;
 use std::{thread, time};
 use stopwatch::Stopwatch;
@@ -38,49 +38,51 @@ fn main() {
     // loop {
     //     thread::sleep(time::Duration::from_millis(100000000));
     // }
-
+    // println!("Count:{}", redis_batch::zrangeallopenorders_batch_count());
+    // println!("Count:{}", redis_db::zrangeallopenorders().len());
     let sw = Stopwatch::start_new();
+    // check_pipe();
 
-    let orderid_list = redis_db::zrangeallopenorders();
-    let length = orderid_list.len();
-    let mut handle_array:Vec<thread::JoinHandle<()>>=Vec::new();
-    if length > 0 {
-        
-        get_size_in_mb(&orderid_list);
-        let part_size = 250000;
-        let loop_length: usize = (length + part_size) / part_size;
-        println!("length:{}", length);
-        println!("loop_length:{}", loop_length);
-        let threadpool:ThreadPool=ThreadPool::new(10,String::from("redisbhai"));
-
-        for i in 0..loop_length {
-            let mut endlimit = (i + 1) * part_size;
-            if endlimit > length {
-                endlimit = length;
-            }
-            // println!("{:?}", &orderid_list[i * part_size..endlimit].len());
-            // println!("i:{}", i);
-            let mut orderid_list_part: Vec<String> = Vec::new();
-            orderid_list_part = orderid_list[i * part_size..endlimit].to_vec();
-            threadpool.execute(move || {
-                let sw1 = Stopwatch::start_new();
-                let ordertx_array: Vec<TraderOrder> =
-                redis_db::mget_trader_order(orderid_list_part).unwrap();
-            let t_c2 = sw1.elapsed();
-            // println!("pool took{} - {:#?}", i, t_c2);
-            // get_size_in_mb(&format!("{:#?}", ordertx_array));
-            // println!("{} - {:#?}MB",i, data_size(&format!("{:#?}", ordertx_array)) / (8 * 1024 * 1024 ));
-            });  
-           
-        }
+    let (loop_count, lenght, data_receiver) = redis_batch::getdata_redis_batch(250000);
+    for i in 0..loop_count {
+        let order_array = data_receiver.lock().unwrap().recv().unwrap();
+        println!(
+            "data length : {}, data size: {:#?}MB",
+            order_array.len(),
+            data_size(&format!("{:#?}", order_array)) / (8 * 1024 * 1024)
+        );
     }
-    
-      let t_c = sw.elapsed();
-        println!("total pool {:#?}", t_c);
-    //     loop {
-    //     thread::sleep(time::Duration::from_millis(100000000));
-    // }
-}
 
+    let time = sw.elapsed();
+    println!("time took {:#?}", time);
+}
+use crate::config::REDIS_POOL_CONNECTION;
+// use crate::relayer::*;
 use datasize::data_size;
 use datasize::DataSize;
+// use r2d2_redis::redis;
+use std::collections::HashSet;
+pub fn check_pipe() {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    // let (v1, v2): (String, String);
+    let mut pipeline = redis::pipe();
+    pipeline
+        .cmd("mset")
+        .arg(format!("wikey-{}", -1))
+        .arg(format!("ivalue-{}", -1));
+    pipeline
+        .arg(format!("wikey-{}", 0))
+        .arg(format!("ivalue-{}", 0));
+    for i in 0..500000 {
+        pipeline
+            .arg(format!("wikey-{}", i))
+            .arg(format!("ivalue-{}ivalue-ivalue-ivalue-ivalue-ivalue-i-ivalue-ivalue-ivalivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-iv-ivalue-ivalue-ivalue-", i));
+    }
+    pipeline
+        .cmd("mset")
+        .arg(format!("wikey-{}", -3))
+        .arg(format!("ivalue-{}", -3));
+    println!("Im here");
+    let (v1, v2): (String, String) = pipeline.query(&mut *conn).unwrap();
+    println!("{}{}", v1, v2);
+}
