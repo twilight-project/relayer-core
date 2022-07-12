@@ -43,7 +43,7 @@ fn main() {
     let sw = Stopwatch::start_new();
     // check_pipe();
 
-    let (loop_count, lenght, data_receiver) = redis_batch::getdata_redis_batch(250000);
+    let (loop_count, length, data_receiver) = redis_batch::getdata_redis_batch(250000);
     println!("total length : {}", length);
     for i in 0..loop_count {
         let order_array = data_receiver.lock().unwrap().recv().unwrap();
