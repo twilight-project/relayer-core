@@ -44,6 +44,7 @@ fn main() {
     // check_pipe();
 
     let (loop_count, lenght, data_receiver) = redis_batch::getdata_redis_batch(250000);
+    println!("total length : {}", length);
     for i in 0..loop_count {
         let order_array = data_receiver.lock().unwrap().recv().unwrap();
         println!(

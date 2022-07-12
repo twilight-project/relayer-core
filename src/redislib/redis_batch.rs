@@ -38,7 +38,7 @@ pub fn getdata_redis_batch(
 
         for i in 0..loop_length {
             let startlimit = i * part_size;
-            let mut endlimit = (i + 1) * part_size;
+            let mut endlimit = (i + 1) * part_size - 1;
             if endlimit > length {
                 endlimit = length;
             }
