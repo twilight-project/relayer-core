@@ -276,3 +276,12 @@ pub fn set_localdb_string(key: &'static str, value: String) {
     local_storage.insert(key, value);
     drop(local_storage);
 }
+
+use datasize::data_size;
+use datasize::DataSize;
+pub fn get_size_in_mb<T>(value: &T)
+where
+    T: DataSize,
+{
+    println!("{:#?}MB", data_size(value) / (8 * 1024 * 1024));
+}
