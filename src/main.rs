@@ -43,29 +43,44 @@ fn main() {
 
     let orderid_list = redis_db::zrangeallopenorders();
     let length = orderid_list.len();
+    let mut handle_array:Vec<thread::JoinHandle<()>>=Vec::new();
     if length > 0 {
-        let t_c = sw.elapsed();
-        println!("pool took1 {:#?}", t_c);
+        
         get_size_in_mb(&orderid_list);
-        let part_size = 500000;
+        let part_size = 250000;
         let loop_length: usize = (length + part_size) / part_size;
         println!("length:{}", length);
         println!("loop_length:{}", loop_length);
+        let threadpool:ThreadPool=ThreadPool::new(10,String::from("redisbhai"));
 
         for i in 0..loop_length {
             let mut endlimit = (i + 1) * part_size;
             if endlimit > length {
                 endlimit = length;
             }
-            println!("{:?}", &orderid_list[i * part_size..endlimit].len());
-            println!("i:{}", i);
+            // println!("{:?}", &orderid_list[i * part_size..endlimit].len());
+            // println!("i:{}", i);
             let mut orderid_list_part: Vec<String> = Vec::new();
             orderid_list_part = orderid_list[i * part_size..endlimit].to_vec();
-            let ordertx_array: Vec<TraderOrder> =
+            threadpool.execute(move || {
+                let sw1 = Stopwatch::start_new();
+                let ordertx_array: Vec<TraderOrder> =
                 redis_db::mget_trader_order(orderid_list_part).unwrap();
-            let t_c2 = sw.elapsed();
-            println!("pool took{} - {:#?}", i, t_c2);
-            get_size_in_mb(&format!("{:#?}", ordertx_array));
+            let t_c2 = sw1.elapsed();
+            // println!("pool took{} - {:#?}", i, t_c2);
+            // get_size_in_mb(&format!("{:#?}", ordertx_array));
+            // println!("{} - {:#?}MB",i, data_size(&format!("{:#?}", ordertx_array)) / (8 * 1024 * 1024 ));
+            });  
+           
         }
     }
+    
+      let t_c = sw.elapsed();
+        println!("total pool {:#?}", t_c);
+    //     loop {
+    //     thread::sleep(time::Duration::from_millis(100000000));
+    // }
 }
+
+use datasize::data_size;
+use datasize::DataSize;
