@@ -131,11 +131,14 @@ CREATE TABLE IF NOT EXISTS btcpricehistory(
 );
 
 CREATE
-OR REPLACE PROCEDURE insert_btcprice(price numeric) LANGUAGE SQL AS $ $
+OR REPLACE PROCEDURE insert_btcprice(
+  price numeric,
+  current_time_ timestamp without time zone
+) LANGUAGE SQL AS $ $
 INSERT INTO
   btcpricehistory (price, "timestamp")
 VALUES
-  (price, CURRENT_TIMESTAMP);
+  (price, current_time_);
 
 $ $;
 
@@ -147,11 +150,19 @@ CREATE TABLE IF NOT EXISTS fundingratehistory(
 );
 
 CREATE
-OR REPLACE PROCEDURE api.insert_fundingrate(fundingrate numeric, price numeric) LANGUAGE SQL AS $ $
+OR REPLACE PROCEDURE api.insert_fundingrate(
+  fundingrate numeric,
+  price numeric,
+  current_time_ timestamp without time zone
+) LANGUAGE SQL AS $ $
 INSERT INTO
-  api.fundingratehistory (fundingrate, price, "timestamp")
+  api.fundingratehistory (
+    fundingrate,
+    price,
+    "timestamp"
+  )
 VALUES
-  (fundingrate, price, CURRENT_TIMESTAMP);
+  (fundingrate, price, current_time_);
 
 $ $;
 
