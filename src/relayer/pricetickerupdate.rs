@@ -12,6 +12,7 @@ use std::thread;
 pub fn getsetlatestprice() {
     // btc:price is websocket price getting updated via websocket external feed
     // let rev_data: Vec<f64>;
+    let current_time = std::time::SystemTime::now();
     let (old_price, currentprice): (f64, f64);
     currentprice = redis_db::get_type_f64("btc:price");
     old_price = get_localdb("CurrentPrice");
@@ -35,7 +36,7 @@ pub fn getsetlatestprice() {
         // println!("Price update: not same price");
         let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
         pool.execute(move || {
-            insert_current_price_psql(currentprice.clone());
+            insert_current_price_psql(currentprice.clone(), current_time);
         });
         drop(treadpool_pending_order);
         drop(treadpool_liquidation_order);
@@ -269,9 +270,9 @@ pub fn check_settling_limit_order_on_price_ticker_update(current_price: f64) {
     // println!("mutex took {:#?}", sw1.elapsed());
 }
 
-fn insert_current_price_psql(current_price: f64) {
-    let query = format!("call insert_btcprice({});", current_price);
+fn insert_current_price_psql(current_price: f64, timestamp: std::time::SystemTime) {
+    let query = format!("call public.insert_btcprice({},$1);", current_price);
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-    client.execute(&query, &[]).unwrap();
+    client.execute(&query, &[&timestamp]).unwrap();
     // drop(client);
 }

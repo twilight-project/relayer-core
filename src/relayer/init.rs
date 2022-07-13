@@ -252,10 +252,12 @@ fn create_fundingratehistory_table() -> Result<(), r2d2_postgres::postgres::Erro
 }
 fn create_insert_btcprice_procedure() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
-        "CREATE OR REPLACE PROCEDURE public.insert_btcprice(price numeric)
-        LANGUAGE SQL
-        AS $$
-          INSERT INTO public.btcpricehistory ( price, \"timestamp\") VALUES (price,CURRENT_TIMESTAMP);
+        "CREATE
+        OR REPLACE PROCEDURE insert_btcprice(price numeric,current_time_ timestamp without time zone) LANGUAGE SQL AS $$
+        INSERT INTO
+        btcpricehistory (price, \"timestamp\")
+        VALUES
+        (price, current_time_);
         $$;"
     );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
@@ -267,10 +269,10 @@ fn create_insert_btcprice_procedure() -> Result<(), r2d2_postgres::postgres::Err
 }
 fn create_insert_fundingrate_procedure() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
-        "CREATE OR REPLACE PROCEDURE api.insert_fundingrate(fundingrate numeric,price numeric)
+        "CREATE OR REPLACE PROCEDURE api.insert_fundingrate(fundingrate numeric,price numeric, current_time_ timestamp without time zone)
         LANGUAGE SQL
         AS $$
-          INSERT INTO api.fundingratehistory ( fundingrate,price, \"timestamp\") VALUES (fundingrate,price,CURRENT_TIMESTAMP);
+          INSERT INTO api.fundingratehistory ( fundingrate,price, \"timestamp\") VALUES (fundingrate,price,current_time_);
         $$;"
     );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();

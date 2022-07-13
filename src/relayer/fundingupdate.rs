@@ -9,9 +9,19 @@ use crate::relayer::utils::*;
 ////********* operation on each funding cycle **** //////
 
 pub fn updatefundingrate(psi: f64) {
-    let totalshort = redis_db::get_type_f64("TotalShortPositionSize");
-    let totallong = redis_db::get_type_f64("TotalLongPositionSize");
-    let allpositionsize = redis_db::get_type_f64("TotalPoolPositionSize");
+    // let totalshort = redis_db::get_type_f64("TotalShortPositionSize");
+    // let totallong = redis_db::get_type_f64("TotalLongPositionSize");
+    // let allpositionsize = redis_db::get_type_f64("TotalPoolPositionSize");
+    let current_time = std::time::SystemTime::now();
+    let current_price = get_localdb("CurrentPrice");
+    let redis_result = redis_db::mget_f64(vec![
+        "TotalShortPositionSize",
+        "TotalLongPositionSize",
+        "TotalPoolPositionSize",
+    ])
+    .unwrap();
+    let (totalshort, totallong, allpositionsize): (f64, f64, f64) =
+        (redis_result[0], redis_result[1], redis_result[2]);
     println!(
         "totalshort:{}, totallong:{}, allpositionsize:{}",
         totalshort, totallong, allpositionsize
@@ -30,29 +40,36 @@ pub fn updatefundingrate(psi: f64) {
     } else {
         fundingrate = fundingrate * (-1.0);
     }
-    let current_price = get_localdb("CurrentPrice");
-    updatefundingrateindb(fundingrate.clone(), current_price);
+    updatefundingrateindb(fundingrate.clone(), current_price, current_time);
     get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
     println!("fundingrate:{}", fundingrate);
 }
 
-pub fn updatefundingrateindb(fundingrate: f64, currentprice: f64) {
+pub fn updatefundingrateindb(
+    fundingrate: f64,
+    currentprice: f64,
+    timestamp: std::time::SystemTime,
+) {
     redis_db::set("FundingRate", &fundingrate.to_string());
     let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
     pool.execute(move || {
-        insert_funding_rate_psql(fundingrate, currentprice);
+        insert_funding_rate_psql(fundingrate, currentprice, timestamp);
     });
     drop(pool);
     // need to create parameter table in psql and then update funding rate in psql, same for all pool size n all
 }
 
-fn insert_funding_rate_psql(funding_rate: f64, currentprice: f64) {
+fn insert_funding_rate_psql(
+    funding_rate: f64,
+    currentprice: f64,
+    timestamp: std::time::SystemTime,
+) {
     let query = format!(
-        "call api.insert_fundingrate({},{});",
+        "call api.insert_fundingrate({},{},$1);",
         funding_rate, currentprice
     );
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-    client.execute(&query, &[]).unwrap();
+    client.execute(&query, &[&timestamp]).unwrap();
 }
 
 pub fn updatechangesineachordertxonfundingratechange(
