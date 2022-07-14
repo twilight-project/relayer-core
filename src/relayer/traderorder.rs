@@ -337,7 +337,21 @@ impl TraderOrder {
         if isliquidated {
             ordertx.removeorderfromredis().updatepsqlonliquidation();
         } else {
-            redis_db::set(&orderid, &ordertx.serialize());
+            // redis_db::set(&orderid, &ordertx.serialize());
+            match ordertx.position_type {
+                PositionType::LONG => {
+                    funding_order_liquidation_price_update(
+                        ordertx.clone(),
+                        String::from("TraderOrderbyLiquidationPriceFORLong"),
+                    );
+                }
+                PositionType::SHORT => {
+                    funding_order_liquidation_price_update(
+                        ordertx.clone(),
+                        String::from("TraderOrderbyLiquidationPriceFORShort"),
+                    );
+                }
+            }
             ordertx.updatepsqlonfundingcycle();
         }
     }

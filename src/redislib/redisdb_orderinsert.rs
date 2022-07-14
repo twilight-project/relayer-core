@@ -85,3 +85,17 @@ pub fn order_remove_from_redis_pipeline(ordertx: TraderOrder, key_array: Vec<Str
         .query(&mut *conn)
         .unwrap();
 }
+// redis data update on funding cycle
+pub fn funding_order_liquidation_price_update(ordertx: TraderOrder, key_array: String) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let (_status, _entrysequence): (bool, i32) = redis::pipe()
+        .cmd("SET")
+        .arg(&ordertx.uuid.to_string())
+        .arg(&ordertx.serialize())
+        .cmd("ZADD")
+        .arg(key_array)
+        .arg(&ordertx.liquidation_price.to_string())
+        .arg(&ordertx.uuid.to_string())
+        .query(&mut *conn)
+        .unwrap();
+}

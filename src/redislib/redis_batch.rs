@@ -16,7 +16,7 @@ pub fn getdata_redis_batch(
 ) -> (usize, usize, Arc<Mutex<mpsc::Receiver<Vec<TraderOrder>>>>) {
     let (sender, receiver) = mpsc::channel();
 
-    let mut length: usize = 0;
+    let length: usize;
     let mut loop_length: usize = 0;
     length = zrangeallopenorders_batch_count();
     let key_threadpool: ThreadPool;

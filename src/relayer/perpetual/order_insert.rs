@@ -1,5 +1,4 @@
 use crate::config::*;
-use crate::redislib::redis_db;
 use crate::redislib::redisdb_orderinsert::*;
 use crate::relayer::*;
 

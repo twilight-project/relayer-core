@@ -2,7 +2,6 @@ use crate::config::POSTGRESQL_POOL_CONNECTION;
 use crate::config::*;
 use crate::redislib::redis_db;
 use crate::relayer::*;
-use std::thread;
 
 pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
     initial_margin * leverage

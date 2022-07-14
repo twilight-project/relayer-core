@@ -6,7 +6,6 @@ use crate::config::*;
 use crate::redislib::redis_db;
 use crate::relayer::*;
 use std::convert::{From, TryFrom};
-use std::thread;
 // use stopwatch::Stopwatch;
 
 pub fn getsetlatestprice() {

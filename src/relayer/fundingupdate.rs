@@ -3,9 +3,8 @@ use crate::relayer::types::*;
 use crate::relayer::utils::{entryvalue, liquidationprice, maintenancemargin, positionside};
 // use std::thread;
 use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL_PSQL_SEQ_QUEUE};
-use crate::redislib::redis_db;
+use crate::redislib::*;
 use crate::relayer::utils::*;
-
 ////********* operation on each funding cycle **** //////
 
 pub fn updatefundingrate(psi: f64) {
@@ -20,8 +19,12 @@ pub fn updatefundingrate(psi: f64) {
         "TotalPoolPositionSize",
     ])
     .unwrap();
-    let (totalshort, totallong, allpositionsize): (f64, f64, f64) =
-        (redis_result[0], redis_result[1], redis_result[2]);
+    let (mut totalshort, mut totallong, mut allpositionsize): (f64, f64, f64) = (0.0, 0.0, 0.0);
+    if redis_result.len() > 2 {
+        totalshort = redis_result[0];
+        totallong = redis_result[1];
+        allpositionsize = redis_result[2];
+    }
     println!(
         "totalshort:{}, totallong:{}, allpositionsize:{}",
         totalshort, totallong, allpositionsize
@@ -41,6 +44,8 @@ pub fn updatefundingrate(psi: f64) {
         fundingrate = fundingrate * (-1.0);
     }
     updatefundingrateindb(fundingrate.clone(), current_price, current_time);
+
+    println!("funding cycle processing...");
     get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
     println!("fundingrate:{}", fundingrate);
 }
@@ -139,15 +144,20 @@ pub fn updatechangesineachordertxonfundingratechange(
 }
 
 pub fn get_and_update_all_orders_on_funding_cycle(current_price: f64, fundingrate: f64) {
-    let orderid_list = redis_db::zrangeallopenorders();
     let fee = get_localdb("Fee");
-    let mut ordertx_array: Vec<TraderOrder> = Vec::new();
-    if orderid_list.len() > 0 {
-        ordertx_array = redis_db::mget_trader_order(orderid_list.clone()).unwrap();
-    }
-    for ordertx in ordertx_array {
-        let state =
-            updatechangesineachordertxonfundingratechange(ordertx, fundingrate, current_price, fee);
+
+    let (loop_count, length, data_receiver) = redis_batch::getdata_redis_batch(10000);
+    println!("total length : {}", length);
+    for i in 0..loop_count {
+        let ordertx_array = data_receiver.lock().unwrap().recv().unwrap();
+        for ordertx in ordertx_array {
+            let state = updatechangesineachordertxonfundingratechange(
+                ordertx,
+                fundingrate,
+                current_price,
+                fee,
+            );
+        }
     }
 }
 

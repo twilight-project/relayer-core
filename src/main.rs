@@ -30,32 +30,21 @@ fn main() {
     // println!("time:{}", relayer::check_server_time());
     // relayer::get_fudning_data_from_psql(10);
 
-    // init_psql();
-    // ordertest::initprice();
-    // ordertest::generatelendorder();
-    // thread::sleep(time::Duration::from_millis(100));
-    // start_cronjobs();
-    // loop {
-    //     thread::sleep(time::Duration::from_millis(100000000));
-    // }
+    init_psql();
+    ordertest::initprice();
+    ordertest::generatelendorder();
+    thread::sleep(time::Duration::from_millis(100));
+    start_cronjobs();
+    thread::sleep(time::Duration::from_millis(10000));
+    updatefundingrate(1.0);
+
+    loop {
+        thread::sleep(time::Duration::from_millis(100000000));
+    }
     // println!("Count:{}", redis_batch::zrangeallopenorders_batch_count());
     // println!("Count:{}", redis_db::zrangeallopenorders().len());
-    let sw = Stopwatch::start_new();
-    // check_pipe();
-
-    let (loop_count, length, data_receiver) = redis_batch::getdata_redis_batch(250000);
-    println!("total length : {}", length);
-    for i in 0..loop_count {
-        let order_array = data_receiver.lock().unwrap().recv().unwrap();
-        println!(
-            "data length : {}, data size: {:#?}MB",
-            order_array.len(),
-            data_size(&format!("{:#?}", order_array)) / (8 * 1024 * 1024)
-        );
-    }
-
-    let time = sw.elapsed();
-    println!("time took {:#?}", time);
+    // let sw = Stopwatch::start_new();
+    // // check_pipe();
 }
 use crate::config::REDIS_POOL_CONNECTION;
 // use crate::relayer::*;
