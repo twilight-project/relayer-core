@@ -34,10 +34,10 @@ pub fn start_cronjobs() {
 
         // funding update every 1 hour //comments for local test
         // scheduler.every(600.seconds()).run(move || {
-        //     // scheduler.every(1.hour()).run(move || {
-        //     updatefundingrate(1.0);
-        //     // get_and_update_all_orders_on_funding_cycle();
-        // });
+        scheduler.every(1.hour()).run(move || {
+            // updatefundingrate(1.0);
+            // get_and_update_all_orders_on_funding_cycle();
+        });
 
         let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
         loop {

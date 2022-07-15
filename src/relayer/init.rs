@@ -313,3 +313,38 @@ fn create_schema_api_questdb() -> Result<(), r2d2_postgres::postgres::Error> {
         Err(arg) => Err(arg),
     }
 }
+
+pub fn delele_all_data_table() -> Result<(), r2d2_postgres::postgres::Error> {
+    let query = format!(
+        "DELETE FROM
+        public.binancebtctickernew;
+      
+      DELETE FROM
+        public.btcpricehistory;
+      
+      DELETE FROM
+        api.fundingratehistory;
+      
+      DELETE FROM
+        public.newlendorder;
+      
+      DELETE FROM
+        public.newtraderorder;
+      
+      DELETE FROM
+        public.pendinglimittraderorder;
+      
+      DELETE FROM
+        public.settlementpriceforlimitorder;
+      
+      DELETE FROM
+        api.fundingratehistory;
+    "
+    );
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+    match client.batch_execute(&query) {
+        Ok(_) => Ok(()),
+        Err(arg) => Err(arg),
+    }
+}

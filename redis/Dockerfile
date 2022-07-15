@@ -5,4 +5,6 @@ COPY config/redis.conf /etc/redis/redis.conf
 RUN chown -Rv redis /etc/redis/redis.conf
 # RUN mkdir /etc/redis/
 RUN chown redis:redis /etc/redis/
-CMD [ "redis-server", "/etc/redis/redis.conf" ]
+EXPOSE 6379
+CMD [ "redis-server", "/etc/redis/redis.conf", "--requirepass", "foobared" ]
+# CMD [ "redis-server" ]

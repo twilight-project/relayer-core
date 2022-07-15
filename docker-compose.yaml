@@ -16,7 +16,8 @@ services:
       - redis_master_data:/data
       # - ./redis/redis.conf:/config/redis.conf
       - ./redis/config/:/etc/redis/
-    # command: redis-server /config/redis.conf --requirepass foobared
+    # command: redis-server --requirepass foobared
+    # ipc: host
 
   postgresql-master:
     hostname: postgresql
