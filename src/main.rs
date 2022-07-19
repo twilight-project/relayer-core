@@ -52,27 +52,3 @@ use datasize::data_size;
 use datasize::DataSize;
 // use r2d2_redis::redis;
 use std::collections::HashSet;
-pub fn check_pipe() {
-    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
-    // let (v1, v2): (String, String);
-    let mut pipeline = redis::pipe();
-    pipeline
-        .cmd("mset")
-        .arg(format!("wikey-{}", -1))
-        .arg(format!("ivalue-{}", -1));
-    pipeline
-        .arg(format!("wikey-{}", 0))
-        .arg(format!("ivalue-{}", 0));
-    for i in 0..500000 {
-        pipeline
-            .arg(format!("wikey-{}", i))
-            .arg(format!("ivalue-{}ivalue-ivalue-ivalue-ivalue-ivalue-i-ivalue-ivalue-ivalivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-ivalue-iv-ivalue-ivalue-ivalue-", i));
-    }
-    pipeline
-        .cmd("mset")
-        .arg(format!("wikey-{}", -3))
-        .arg(format!("ivalue-{}", -3));
-    println!("Im here");
-    let (v1, v2): (String, String) = pipeline.query(&mut *conn).unwrap();
-    println!("{}{}", v1, v2);
-}
