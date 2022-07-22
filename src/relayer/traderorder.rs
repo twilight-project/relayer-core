@@ -12,7 +12,7 @@ pub struct TraderOrder {
     pub uuid: Uuid,
     pub account_id: String,
     pub position_type: PositionType,
-    pub order_status: OrderStatus, //SETTLED or LIQUIDATE or PENDING or FILLED
+    pub order_status: OrderStatus,
     pub order_type: OrderType,
     pub entryprice: f64,
     pub execution_price: f64,
@@ -31,7 +31,6 @@ pub struct TraderOrder {
     pub exit_nonce: u128,
     pub entry_sequence: u128,
 }
-
 impl TraderOrder {
     pub fn new(
         account_id: &str,
@@ -703,5 +702,144 @@ impl TraderOrder {
             success = false;
         }
         return (ordertx, success);
+    }
+
+    pub fn orderinsert(self, order_entry_status: bool) -> TraderOrder {
+        let mut ordertx = self.clone();
+        let ordertx_return = ordertx.clone();
+        let threadpool_max_order_insert_pool = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
+        threadpool_max_order_insert_pool.execute(move || {
+            if order_entry_status {
+                let mut cmd_array: Vec<String> = Vec::new();
+                // position type wise TotalLongPositionSize and liquidation sorting
+                match ordertx.position_type {
+                    PositionType::LONG => {
+                        cmd_array.push(String::from("TotalLongPositionSize"));
+                        cmd_array.push(String::from("TraderOrderbyLiquidationPriceFORLong"));
+                    }
+                    PositionType::SHORT => {
+                        cmd_array.push(String::from("TotalShortPositionSize"));
+                        cmd_array.push(String::from("TraderOrderbyLiquidationPriceFORShort"));
+                    }
+                }
+                // total position size for funding rate
+                cmd_array.push(String::from("TotalPoolPositionSize"));
+                if ordertx.order_type == OrderType::MARKET {
+                    // update order json array and entry sequence in redisdb
+                    let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline();
+                    // update latest nonce in order transaction
+                    ordertx.entry_nonce = lend_nonce;
+                    ordertx.entry_sequence = entrysequence;
+                }
+                //insert data into redis for sorting
+                orderinsert_pipeline_second(ordertx.clone(), cmd_array);
+                // update order data in postgreSQL
+                new_trader_order_insert_sql_query(ordertx.clone());
+                // undate recent order table and add candle data
+                let side = match ordertx.position_type {
+                    PositionType::SHORT => Side::SELL,
+                    PositionType::LONG => Side::BUY,
+                };
+                update_recent_orders(CloseTrade {
+                    side: side,
+                    positionsize: ordertx.positionsize,
+                    price: ordertx.entryprice,
+                    timestamp: std::time::SystemTime::now(),
+                });
+            } else {
+                // trader order set by timestamp
+                match ordertx.position_type {
+                    PositionType::LONG => {
+                        orderinsert_pipeline_pending(
+                            ordertx.clone(),
+                            String::from("TraderOrder_LimitOrder_Pending_FOR_Long"),
+                        );
+                    }
+                    PositionType::SHORT => {
+                        orderinsert_pipeline_pending(
+                            ordertx.clone(),
+                            String::from("TraderOrder_LimitOrder_Pending_FOR_Short"),
+                        );
+                    }
+                }
+                // redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
+                pending_trader_order_insert_sql_query(ordertx);
+            }
+        });
+        drop(threadpool_max_order_insert_pool);
+        ordertx_return
+    }
+    pub fn to_hmset_arg_array(self) -> Vec<String> {
+        let mut result_vec: Vec<String> = Vec::new();
+        result_vec.push("uuid".to_string());
+        result_vec.push(self.uuid.to_string());
+        result_vec.push("account_id".to_string());
+        result_vec.push(self.account_id.to_string());
+        result_vec.push("position_type".to_string());
+        result_vec.push(serde_json::to_string(&self.position_type).unwrap());
+        result_vec.push("order_status".to_string());
+        result_vec.push(serde_json::to_string(&self.order_status).unwrap());
+        result_vec.push("order_type".to_string());
+        result_vec.push(serde_json::to_string(&self.order_type).unwrap());
+        result_vec.push("entryprice".to_string());
+        result_vec.push(self.entryprice.to_string());
+        result_vec.push("execution_price".to_string());
+        result_vec.push(self.execution_price.to_string());
+        result_vec.push("positionsize".to_string());
+        result_vec.push(self.positionsize.to_string());
+        result_vec.push("leverage".to_string());
+        result_vec.push(self.leverage.to_string());
+        result_vec.push("initial_margin".to_string());
+        result_vec.push(self.initial_margin.to_string());
+        result_vec.push("available_margin".to_string());
+        result_vec.push(self.available_margin.to_string());
+        result_vec.push("timestamp".to_string());
+        result_vec.push(serde_json::to_string(&self.timestamp).unwrap());
+        result_vec.push("bankruptcy_price".to_string());
+        result_vec.push(self.bankruptcy_price.to_string());
+        result_vec.push("bankruptcy_value".to_string());
+        result_vec.push(self.bankruptcy_value.to_string());
+        result_vec.push("maintenance_margin".to_string());
+        result_vec.push(self.maintenance_margin.to_string());
+        result_vec.push("liquidation_price".to_string());
+        result_vec.push(self.liquidation_price.to_string());
+        result_vec.push("unrealized_pnl".to_string());
+        result_vec.push(self.unrealized_pnl.to_string());
+        result_vec.push("settlement_price".to_string());
+        result_vec.push(self.settlement_price.to_string());
+        result_vec.push("entry_nonce".to_string());
+        result_vec.push(self.entry_nonce.to_string());
+        result_vec.push("exit_nonce".to_string());
+        result_vec.push(self.exit_nonce.to_string());
+        result_vec.push("entry_sequence".to_string());
+        result_vec.push(self.entry_sequence.to_string());
+
+        return result_vec;
+    }
+
+    pub fn from_hgetll_trader_order(json_str: Vec<String>) -> Result<Self, std::io::Error> {
+        Ok(TraderOrder {
+            uuid: serde_json::from_str(&json_str[1]).unwrap(),
+            account_id: serde_json::from_str(&json_str[3]).unwrap(),
+            position_type: serde_json::from_str(&json_str[5]).unwrap(),
+            order_status: serde_json::from_str(&json_str[7]).unwrap(),
+            order_type: serde_json::from_str(&json_str[9]).unwrap(),
+            entryprice: serde_json::from_str(&json_str[11]).unwrap(),
+            execution_price: serde_json::from_str(&json_str[13]).unwrap(),
+            positionsize: serde_json::from_str(&json_str[15]).unwrap(),
+            leverage: serde_json::from_str(&json_str[17]).unwrap(),
+            initial_margin: serde_json::from_str(&json_str[19]).unwrap(),
+            available_margin: serde_json::from_str(&json_str[21]).unwrap(),
+            timestamp: serde_json::from_str(&json_str[23]).unwrap(),
+            bankruptcy_price: serde_json::from_str(&json_str[25]).unwrap(),
+            bankruptcy_value: serde_json::from_str(&json_str[27]).unwrap(),
+            maintenance_margin: serde_json::from_str(&json_str[29]).unwrap(),
+            liquidation_price: serde_json::from_str(&json_str[31]).unwrap(),
+            unrealized_pnl: serde_json::from_str(&json_str[33]).unwrap(),
+            settlement_price: serde_json::from_str(&json_str[35]).unwrap(),
+            entry_nonce: serde_json::from_str(&json_str[37]).unwrap(),
+            exit_nonce: serde_json::from_str(&json_str[39]).unwrap(),
+            entry_sequence: serde_json::from_str(&json_str[41]).unwrap(),
+        })
     }
 }

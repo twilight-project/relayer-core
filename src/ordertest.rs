@@ -177,12 +177,12 @@ pub fn initprice() {
         }
     }
 
-    // let mut local_storage = LOCALDB.lock().unwrap();
-    // local_storage.insert("CurrentPrice", 18000.0);
-    // local_storage.insert("btc:price", 18000.0);
-    // local_storage.insert("FundingRate", 0.0);
-    // local_storage.insert("Fee", 0.0);
-    // // drop(local_storage);
-    // initialize_lend_pool(100000.0, 10.0);
-    // update_recent_order_from_db();
+    let mut local_storage = LOCALDB.lock().unwrap();
+    local_storage.insert("CurrentPrice", 18000.0);
+    local_storage.insert("btc:price", 18000.0);
+    local_storage.insert("FundingRate", 0.0);
+    local_storage.insert("Fee", 0.0);
+    // drop(local_storage);
+    initialize_lend_pool(100000.0, 10.0);
+    update_recent_order_from_db();
 }

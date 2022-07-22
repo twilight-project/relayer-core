@@ -1,6 +1,7 @@
 // pub mod aeronlib;
 // pub mod aeronlibmpsc;
 pub mod config;
+pub mod db;
 pub mod kafkalib;
 pub mod ordertest;
 pub mod postgresqllib;

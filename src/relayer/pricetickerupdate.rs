@@ -139,7 +139,7 @@ pub fn update_limit_pendingorder(
         entry_sequence,
     );
     // let ordertx = pending_order.pending_limit_traderorderinsert();
-    let ordertx_new = orderinsert(pending_order, true);
+    let ordertx_new = pending_order.orderinsert(true);
     pending_trader_order_update_sql_query(ordertx_new.uuid.clone());
     let side = match ordertx_new.position_type {
         PositionType::SHORT => Side::SELL,

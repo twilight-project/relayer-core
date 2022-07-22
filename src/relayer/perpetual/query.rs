@@ -24,7 +24,7 @@ pub fn new_trader_order_insert_sql_query(ordertx: TraderOrder) {
     &ordertx.entry_nonce,
     &ordertx.exit_nonce,
     &ordertx.entry_sequence,
-);
+    );
     let psql_insert_order_pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
     psql_insert_order_pool.execute(move || {
         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
@@ -56,7 +56,7 @@ pub fn pending_trader_order_insert_sql_query(ordertx: TraderOrder) {
     &ordertx.entry_nonce,
     &ordertx.exit_nonce,
     &ordertx.entry_sequence,
-);
+    );
     let psql_insert_order_pool = THREADPOOL_PSQL_ORDER_INSERT_QUEUE.lock().unwrap();
     psql_insert_order_pool.execute(move || {
         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();

@@ -1,7 +1,8 @@
 #![allow(dead_code)]
-use self::redis::{from_redis_value, FromRedisValue, RedisResult, Value};
+// use self::redis::{from_redis_value, FromRedisValue, RedisResult, Value};
+use self::redis::{RedisResult, Value};
 use crate::config::REDIS_POOL_CONNECTION;
-use crate::redislib::redis_db;
+// use crate::redislib::redis_db;
 use crate::relayer::*;
 use r2d2_redis::redis;
 use std::sync::mpsc;

@@ -47,7 +47,7 @@ pub fn get_new_trader_order(msg: String) {
     let ordertx = trader_order_msg.fill_order();
     // println!("{:#?}", ordertx);
     // let ordertx_inserted = ordertx.newtraderorderinsert();
-    let ordertx_inserted = orderinsert(ordertx, order_entry_status);
+    let ordertx_inserted = ordertx.orderinsert(order_entry_status);
 }
 
 pub fn get_new_lend_order(msg: String) {

@@ -99,3 +99,32 @@ pub fn funding_order_liquidation_price_update(ordertx: TraderOrder, key_array: S
         .query(&mut *conn)
         .unwrap();
 }
+
+pub fn order_insert_hmset(ordertx: TraderOrder) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+    let _ = redis::cmd("HMSET")
+        .arg(ordertx.uuid.clone().to_string())
+        .arg(ordertx.to_hmset_arg_array())
+        .query::<String>(&mut *conn)
+        .unwrap();
+
+    // return true;
+
+    // let mut hcmd = redis::cmd("HMSET");
+    // for arg in ordertx.to_hmset_arg_array() {
+    //     hcmd.arg(arg);
+    // }
+    // hcmd.query::<String>(&mut *conn).unwrap();
+}
+
+pub fn order_get_hgetall(key: String) -> Result<TraderOrder, std::io::Error> {
+    // pub fn order_get_hgetall(key: String) {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    let order: Vec<String> = redis::cmd("HGETALL")
+        .arg(key)
+        .query::<Vec<String>>(&mut *conn)
+        .unwrap();
+    TraderOrder::from_hgetll_trader_order(order)
+    // println!("order get from redis{:#?}", order);
+}
