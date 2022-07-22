@@ -186,6 +186,22 @@ pub fn startserver() {
     //     Ok(serde_json::to_value(&check_server_time()).unwrap())
     // });
 
+    io.add_method("checklocaldb", move |params: Params| async move {
+        match params.parse::<TestLocaldb>() {
+            Ok(value) => {
+                // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
+                let mut db = DB_IN_MEMORY.lock().unwrap();
+                println!("{:#?}", db);
+                drop(db);
+                Ok(serde_json::to_value(&check_server_time()).unwrap())
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                Err(err)
+            }
+        }
+    });
+
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
         .threads(25)
@@ -193,3 +209,4 @@ pub fn startserver() {
         .unwrap();
     server.wait();
 }
+use crate::db::*;

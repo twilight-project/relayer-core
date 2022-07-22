@@ -15,7 +15,7 @@ mod relayer;
 
 use config::local_serial_core;
 use config::*;
-use db::localdb::{OrderLog, Rcmd};
+use db::*;
 use kafkalib::consumer_kafka::consume_kafka;
 use r2d2_redis::redis;
 use redislib::*;
@@ -28,27 +28,27 @@ extern crate lazy_static;
 use questdb::questdb::send_candledata_in_questdb;
 use std::sync::{mpsc, Arc, Mutex};
 
-// fn main() {
-//     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
+fn main() {
+    //     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
 
-//     init_psql();
-//     ordertest::initprice();
-//     ordertest::generatelendorder();
-//     thread::sleep(time::Duration::from_millis(100));
-//     start_cronjobs();
-//     thread::sleep(time::Duration::from_millis(10000));
-//     updatefundingrate(1.0);
+    init_psql();
+    ordertest::initprice();
+    ordertest::generatelendorder();
+    thread::sleep(time::Duration::from_millis(100));
+    start_cronjobs();
+    thread::sleep(time::Duration::from_millis(10000));
+    updatefundingrate(1.0);
 
-//     loop {
-//         thread::sleep(time::Duration::from_millis(100000000));
-//     }
-// }
+    loop {
+        thread::sleep(time::Duration::from_millis(100000000));
+    }
+}
 
 // use std::collections::HashSet;
 use std::sync::RwLock;
 
 // many reader locks can be held at once
-fn main() {
+fn dmain() {
     // // let lock = RwLock::new(5);
     // let lock = Arc::new(RwLock::new(5));
     // let lock_2 = Arc::clone(&lock);
@@ -70,7 +70,7 @@ fn main() {
     //     println!("read r2:{}", *r2);
     // });
 
-    let traderorder=TraderOrder::deserialize(&"{\"uuid\":\"22f940be-79ca-4365-8ec2-d93f3e8d6233\",\"account_id\":\"test order\",\"position_type\":\"LONG\",\"order_status\":\"FILLED\",\"order_type\":\"MARKET\",\"entryprice\":20000.0,\"execution_price\":20000.0,\"positionsize\":200000.0,\"leverage\":10.0,\"initial_margin\":1.0,\"available_margin\":1.0,\"timestamp\":{\"secs_since_epoch\":1657919055,\"nanos_since_epoch\":663796000},\"bankruptcy_price\":18181.81818181818,\"bankruptcy_value\":11.000000000000002,\"maintenance_margin\":4400.040000000001,\"liquidation_price\":-45.568051327853006,\"unrealized_pnl\":0.0,\"settlement_price\":0.0,\"entry_nonce\":3,\"exit_nonce\":0,\"entry_sequence\":1}".to_string());
+    let traderorder=TraderOrder::deserialize(&"{\"uuid\":\"22f940be-79ca-4365-8ec2-d93f3e8d6233\",\"account_id\":\"test order\",\"position_type\":\"LONG\",\"order_status\":\"FILLED\",\"order_type\":\"MARKET\",\"entryprice\":20000.0,\"execution_price\":20000.0,\"positionsize\":200000.0,\"leverage\":10.0,\"initial_margin\":1.0,\"available_margin\":1.0,\"timestamp\":{\"secs_since_epoch\":1657919055,\"nanos_since_epoch\":663796000},\"bankruptcy_price\":18181.81818181818,\"bankruptcy_value\":11.000000000000002,\"maintenance_margin\":4400.040000000001,\"liquidation_price\":45.568051327853006,\"unrealized_pnl\":0.0,\"settlement_price\":0.0,\"entry_nonce\":3,\"exit_nonce\":0,\"entry_sequence\":1}".to_string());
 
     let orderlog = OrderLog::new(traderorder.clone());
     match OrderLog::insert_new_order_log(orderlog, traderorder.uuid.clone().to_string()) {
@@ -83,23 +83,35 @@ fn main() {
     }
     let traderorder_clone = traderorder.clone();
     thread::spawn(move || {
+        thread::sleep(time::Duration::from_millis(1000));
+
         let ordertrader = OrderLog::get_order(&traderorder_clone.uuid.clone().to_string());
-        let ordertrader1 = OrderLog::get_order(&traderorder_clone.uuid.clone().to_string());
-        let ordertrader2 = OrderLog::get_order(&traderorder_clone.uuid.clone().to_string());
-        println!("order 11 :{:#?}", ordertrader2);
+        // let ordertrader1 = OrderLog::get_order(&traderorder_clone.uuid.clone().to_string());
+        // let ordertrader2 = OrderLog::get_order(&traderorder_clone.uuid.clone().to_string());
+        // println!("order 11 :{:#?}", ordertrader2);
         let mut orx = ordertrader.write().unwrap();
-        orx.orderlog.push(Rcmd::new());
+        // orx.orderlog.push(Rcmd::new(OrderCommand::NewOrder));
         orx.orderdata.leverage = 12.0;
-        // println!("order:{:#?}", orx);
+        println!("order:{:#?}", orx);
     });
 
     thread::spawn(move || {
-        thread::sleep(time::Duration::from_millis(1000));
-        let ordertrader = OrderLog::get_order(&traderorder.uuid.clone().to_string());
-        let mut orx = ordertrader.write().unwrap();
+        // thread::sleep(time::Duration::from_millis(1000));
+        // let ordertrader = OrderLog::get_order(&traderorder.uuid.clone().to_string());
+        // let mut orx = ordertrader.read().unwrap();
+        // orx.orderdata.clone().orderinsert(true);
         // orx.orderlog.push(Rcmd::new());
         // orx.orderdata.leverage = 12.0;
-        println!("order write :{:#?}", orx);
+        // println!("order write :{:#?}", orx);
+        let order_read_only = OrderLog::get_order_readonly(&traderorder.uuid.clone().to_string());
+        match order_read_only {
+            Ok(value) => {
+                println!("order get only :{:#?}", value);
+            }
+            Err(arg) => {
+                println!("Error : {:#?}", arg);
+            }
+        }
     });
 
     thread::sleep(time::Duration::from_millis(10000));

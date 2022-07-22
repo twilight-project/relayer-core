@@ -40,8 +40,7 @@ pub struct OrderLog {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Rcmd {
-    pub cmd: OrderType,
-    pub price: f64,
+    pub cmd: TraderOrderCommand,
     pub timestamp: SystemTime,
 }
 
@@ -58,20 +57,100 @@ impl OrderLog {
         Arc::clone(db.get_mut(orderid).unwrap())
     }
 
+    pub fn get_order_readonly(orderid: &str) -> Result<OrderLog, std::io::Error> {
+        let mut db = DB_IN_MEMORY.lock().unwrap();
+        let ordertrader = match db.get_mut(orderid) {
+            Some(value) => value,
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Order not found",
+                ))
+            }
+        };
+
+        let orx = ordertrader.read().unwrap();
+        Ok(orx.clone())
+    }
+
     pub fn insert_new_order_log(orderlog: OrderLog, orderid: String) -> Result<(), std::io::Error> {
         let orderlog_arc = Arc::new(RwLock::new(orderlog));
         let mut db = DB_IN_MEMORY.lock().unwrap();
-        let db_hash = db.insert(orderid, orderlog_arc);
+        let _db_hash = db.insert(orderid, orderlog_arc);
+        Ok(())
+    }
+
+    pub fn insert_new_traderorder(ordertx: TraderOrder, log: Rcmd) -> Result<(), std::io::Error> {
+        let orderlog_arc = Arc::new(RwLock::new(OrderLog {
+            orderdata: ordertx.clone(),
+            orderlog: vec![log],
+        }));
+
+        let mut db = DB_IN_MEMORY.lock().unwrap();
+        let _db_hash = db.insert(ordertx.uuid.to_string(), orderlog_arc);
         Ok(())
     }
 }
 
 impl Rcmd {
-    pub fn new() -> Self {
+    pub fn new(cmd: TraderOrderCommand) -> Self {
         Rcmd {
-            cmd: OrderType::MARKET,
-            price: 0.0,
+            cmd: cmd,
             timestamp: SystemTime::now(),
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OrderCommand {
+    NewOrder,
+    CancelOrder,
+    SettleOrder,
+    FundingRate,
+    Liquidate,
+    Filled,
+    PendingOrder,
+    OpenLimit,
+    CloseLimit,
+    StopLimit,
+    CloseMarket,
+    LimitTPSL,
+    PriceTicker,
+    Snapshot,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum TraderOrderCommand {
+    NewOrder {
+        position_type: PositionType,
+        order_type: OrderType,
+        leverage: f64,
+        initial_margin: f64,
+        order_status: OrderStatus,
+        entryprice: f64,
+    },
+    Liquidate {
+        liquidation_price: f64,
+        available_margin: f64,
+        nonce: u128,
+    },
+    CancelOrder {
+        uuid: Uuid,
+        order_type: OrderType,
+        order_status: OrderStatus,
+    },
+    CloseMarket {
+        uuid: Uuid,
+        order_type: OrderType,
+        order_status: OrderStatus,
+        execution_price: f64,
+    },
+}
+
+//  position_type: PositionType,
+//  order_type: OrderType,
+//  leverage: f64,
+//  initial_margin: f64,
+//  order_status: OrderStatus,
+//  entryprice: f64,
+//  execution_price: f64,

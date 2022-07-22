@@ -1,1 +1,3 @@
-pub mod localdb;
+mod localdb;
+
+pub use self::localdb::*;

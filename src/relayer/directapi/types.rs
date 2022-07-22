@@ -18,7 +18,10 @@ lazy_static! {
         ThreadPool::new(15, String::from("EXECUTE_TRADER_ORDER_THREAD_POOL"))
     );
 }
-
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct TestLocaldb {
+    pub orderid: String,
+}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateTraderOrder {
     pub account_id: String,
