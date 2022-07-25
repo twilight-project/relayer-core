@@ -17,19 +17,10 @@ use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::time::SystemTime;
 use uuid::Uuid;
 lazy_static! {
-
-    // local database hashmap
-    pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
-
-    // local orderbook
-    pub static ref LOCALDBSTRING: Mutex<HashMap<&'static str,String>> = Mutex::new(HashMap::new());
-
-    // https://github.com/palfrey/serial_test/blob/main/serial_test/src/code_lock.rs
-    pub static ref LOCK: Arc<RwLock<HashMap<String, ReentrantMutex<()>>>> = Arc::new(RwLock::new(HashMap::new()));
-
-    pub static ref DB_IN_MEMORY:Mutex<HashMap<String, Arc<RwLock<OrderLog>>>>=Mutex::new(HashMap::new());
-
-    pub static ref DB_THREADPOOL:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(5,String::from("DB_THREADPOOL")));
+    pub static ref DB_IN_MEMORY: Mutex<HashMap<String, Arc<RwLock<OrderLog>>>> =
+        Mutex::new(HashMap::new());
+    pub static ref DB_THREADPOOL: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(5, String::from("DB_THREADPOOL")));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -42,7 +33,25 @@ pub struct OrderLog {
 pub struct Rcmd {
     pub cmd: TraderOrderCommand,
     pub timestamp: SystemTime,
+    pub metadata: HashMap<String, String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct Snapshot {
+    pub payload: HashMap<String, Arc<RwLock<OrderLog>>>,
+    pub timestamp: SystemTime,
+    pub snapshot_version: String,
+}
+
+// impl Snapshot {
+//     pub fn take_snapshot() {
+//         let mut db = DB_IN_MEMORY.lock().unwrap();
+//         let snapshot = Snapshot {
+//             payload: db.to_value(),
+//             timestamp: SystemTime::now(),
+//         };
+//     }
+// }
 
 impl OrderLog {
     pub fn new(traderorder: TraderOrder) -> Self {
@@ -81,6 +90,7 @@ impl OrderLog {
     }
 
     pub fn insert_new_traderorder(ordertx: TraderOrder, log: Rcmd) -> Result<(), std::io::Error> {
+        // let threadpool = DB_THREADPOOL.lock().unwrap();
         let orderlog_arc = Arc::new(RwLock::new(OrderLog {
             orderdata: ordertx.clone(),
             orderlog: vec![log],
@@ -94,9 +104,11 @@ impl OrderLog {
 
 impl Rcmd {
     pub fn new(cmd: TraderOrderCommand) -> Self {
+        let metadata: HashMap<String, String> = HashMap::new();
         Rcmd {
             cmd: cmd,
             timestamp: SystemTime::now(),
+            metadata: metadata,
         }
     }
 }
@@ -129,6 +141,14 @@ pub enum TraderOrderCommand {
         order_status: OrderStatus,
         entryprice: f64,
     },
+    OpenLimit {
+        position_type: PositionType,
+        order_type: OrderType,
+        leverage: f64,
+        initial_margin: f64,
+        order_status: OrderStatus,
+        entryprice: f64,
+    },
     Liquidate {
         liquidation_price: f64,
         available_margin: f64,
@@ -154,3 +174,22 @@ pub enum TraderOrderCommand {
 //  order_status: OrderStatus,
 //  entryprice: f64,
 //  execution_price: f64,
+
+use std::fmt::{Debug, Display, Formatter};
+
+#[derive(Debug)]
+pub struct TaderOrderError(String);
+
+impl Display for TaderOrderError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for TaderOrderError {}
+
+impl From<&str> for TaderOrderError {
+    fn from(message: &str) -> Self {
+        TaderOrderError(message.to_string())
+    }
+}

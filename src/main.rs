@@ -30,6 +30,7 @@ use std::sync::{mpsc, Arc, Mutex};
 
 fn main() {
     //     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
+    dotenv::dotenv().expect("Failed loading dotenv");
 
     init_psql();
     ordertest::initprice();

@@ -190,7 +190,7 @@ pub fn startserver() {
         match params.parse::<TestLocaldb>() {
             Ok(value) => {
                 // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
-                let mut db = DB_IN_MEMORY.lock().unwrap();
+                let db = DB_IN_MEMORY.lock().unwrap();
                 println!("{:#?}", db);
                 drop(db);
                 Ok(serde_json::to_value(&check_server_time()).unwrap())

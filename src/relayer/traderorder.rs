@@ -69,9 +69,16 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
+        let uuid_key = Uuid::new_v4();
+        let new_account_id;
+        if String::from(account_id) == String::from("account_id") {
+            new_account_id = uuid_key.to_string();
+        } else {
+            new_account_id = String::from(account_id);
+        }
         TraderOrder {
-            uuid: Uuid::new_v4(),
-            account_id: String::from(account_id),
+            uuid: uuid_key,
+            account_id: new_account_id,
             position_type,
             order_status,
             order_type,
@@ -746,6 +753,7 @@ impl TraderOrder {
                     price: ordertx.entryprice,
                     timestamp: std::time::SystemTime::now(),
                 });
+
                 match OrderLog::insert_new_traderorder(
                     ordertx.clone(),
                     Rcmd::new(TraderOrderCommand::NewOrder {
@@ -758,7 +766,7 @@ impl TraderOrder {
                     }),
                 ) {
                     Ok(_) => {
-                        println!("Order inserted successfully");
+                        // println!("Order inserted successfully");
                     }
                     Err(arg) => {
                         println!("Error: {:#?}", arg);
@@ -781,6 +789,25 @@ impl TraderOrder {
                     }
                 }
                 // redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
+                let order_clone = ordertx.clone();
+                match OrderLog::insert_new_traderorder(
+                    order_clone.clone(),
+                    Rcmd::new(TraderOrderCommand::OpenLimit {
+                        position_type: order_clone.position_type,
+                        order_type: order_clone.order_type,
+                        leverage: order_clone.leverage,
+                        initial_margin: order_clone.initial_margin,
+                        order_status: order_clone.order_status,
+                        entryprice: order_clone.entryprice,
+                    }),
+                ) {
+                    Ok(_) => {
+                        // println!("Order inserted successfully");
+                    }
+                    Err(arg) => {
+                        println!("Error: {:#?}", arg);
+                    }
+                }
                 pending_trader_order_insert_sql_query(ordertx);
             }
         });
