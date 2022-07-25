@@ -49,8 +49,8 @@ strum_macros = "0.24"
 rust_decimal =  { version = "1.23", features = ["db-postgres"]}
 rust_decimal_macros = "1.23"
 
-cqrs-es = "0.4.4"
-rql = "0.5.2"
+# cqrs-es = "0.4.4"
+# rql = "0.5.2"
 # yata = "0.6.1"
 # questdb = "0.1.3"
 
