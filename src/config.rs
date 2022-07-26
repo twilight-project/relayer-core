@@ -103,7 +103,9 @@ lazy_static! {
     pub static ref THREADPOOL_REDIS_ORDER_REMOVE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_REDIS_ORDER_REMOVE")));
 
     pub static ref RELAYER_VERSION: String = std::env::var("RelayerVersion").expect("missing environment variable RelayerVersion");
-    pub static ref SNAPSHOT_VERSION: String = std::env::var("SnapshotVersion=1.000").expect("missing environment variable SnapshotVersion=1.000");
+    pub static ref SNAPSHOT_VERSION: String = std::env::var("SnapshotVersion").expect("missing environment variable SnapshotVersion");
+    pub static ref RPC_QUEUE_MODE: String = std::env::var("RPC_QUEUE_MODE").expect("missing environment variable RPC_QUEUE_MODE");
+    pub static ref RPC_SERVER_THREAD: usize = std::env::var("RPC_SERVER_THREAD").expect("missing environment variable RPC_SERVER_THREAD").parse::<usize>().unwrap();
 }
 
 pub fn check_new_key(name: &str) {

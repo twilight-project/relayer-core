@@ -18,7 +18,7 @@ old code
 
 backup/redisdb
 src/redislib/backup/dump.rdb
-code doc.txt
+code doc.txt.rs
 redis/data
 # aeron-rs
 
@@ -27,3 +27,4 @@ docker-aeron/id*
 aeron
 my_db
 test_database_example
+rpckafka
