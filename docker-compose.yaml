@@ -127,6 +127,7 @@ services:
       - KAFKA_NUM_PARTITIONS=3
       - CONFLUENT_SUPPORT_METRICS_ENABLE=0
       - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CREATE_TOPICS="BinanceMiniTickerPayload,CLIENT-REQUEST"
     ports:
       - "9092:9092"
     links: [zookeeper]
@@ -144,12 +145,12 @@ services:
   rpckafka:
     build:
       context: ./rpckafka
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     hostname: rpckafka
     stdin_open: true
     # restart: always
     ports:
-      - "3032:3030"
+      - "3032:3032"
     depends_on:
       - kafka
       - zookeeper
@@ -157,9 +158,9 @@ services:
       - /rpckafka/target
       - ./rpckafka:/rpckafka/
     container_name: rpckafka
-    ipc: host
+    # ipc: host
 
-  # swagger:
+  # swagger:~
   #   image: swaggerapi/swagger-ui
   #   hostname: swagger
   #   container_name: swagger

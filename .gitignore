@@ -27,4 +27,4 @@ docker-aeron/id*
 aeron
 my_db
 test_database_example
-rpckafka
+rpckafka/target
