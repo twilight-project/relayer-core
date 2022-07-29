@@ -1,5 +1,5 @@
 # FROM rust as build
-FROM neomantra/aeron-cpp-debian:1.28.2 AS aeron-builder
+FROM neomantra/aeron-cpp-debian:1.28.2
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \

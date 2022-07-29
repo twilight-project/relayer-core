@@ -29,20 +29,22 @@ use questdb::questdb::send_candledata_in_questdb;
 use std::sync::{mpsc, Arc, Mutex};
 
 fn main() {
-    //     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
+    // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
+    // kafkalib::kafka_topic::kafka_new_topic("CLIENT-REQUEST");
     dotenv::dotenv().expect("Failed loading dotenv");
-
-    init_psql();
+    // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
     ordertest::initprice();
-    ordertest::generatelendorder();
-    thread::sleep(time::Duration::from_millis(100));
-    start_cronjobs();
-    thread::sleep(time::Duration::from_millis(10000));
-    updatefundingrate(1.0);
+    client_cmd_receiver();
+    // init_psql();
+    // ordertest::generatelendorder();
+    // thread::sleep(time::Duration::from_millis(100));
+    // start_cronjobs();
+    // thread::sleep(time::Duration::from_millis(10000));
+    // updatefundingrate(1.0);
 
-    loop {
-        thread::sleep(time::Duration::from_millis(100000000));
-    }
+    // loop {
+    //     thread::sleep(time::Duration::from_millis(100000000));
+    // }
 }
 
 // use std::collections::HashSet;

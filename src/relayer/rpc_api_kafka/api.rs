@@ -6,8 +6,6 @@ use crate::relayer::rpc_api_kafka::{
         CancelTraderOrder, CreateLendOrder, CreateTraderOrder, ExecuteLendOrder, ExecuteTraderOrder,
     },
 };
-use std::time::SystemTime;
-
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_http_server::{
     hyper,
@@ -16,10 +14,11 @@ use jsonrpc_http_server::{
 };
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::SystemTime;
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct Meta {
-    matadata: HashMap<String, Option<String>>,
+    pub matadata: HashMap<String, Option<String>>,
 }
 impl Metadata for Meta {}
 pub fn kafka_queue_rpc_server() {

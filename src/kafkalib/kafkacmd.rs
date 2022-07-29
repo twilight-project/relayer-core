@@ -35,21 +35,27 @@ pub fn check_kafka_topics() -> Vec<String> {
     kafka_client.load_metadata_all().unwrap();
     let mut result: Vec<String> = Vec::new();
     for topic in kafka_client.topics() {
-        for _spartition in topic.partitions() {
-            // println!("{} #{} => {}",topic.name(),partition.id(),partition.leader().map(Broker::host).unwrap_or("no-leader!"));
+        for partition in topic.partitions() {
+            // println!(
+            //     "{} #{} => {}",
+            //     topic.name(),
+            //     partition.id(),
+            //     partition.leader().map(Broker::host).unwrap_or("no-leader!")
+            // );
             result.push(topic.name().to_string());
         }
     }
     result
 }
-
+// use bstr::ext_slice::ByteSlice;
 pub fn send_to_kafka_queue(cmd: RpcCommand, topic: String, key: &str) {
     let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
     let data = serde_json::to_vec(&cmd).unwrap();
+    // let data = serde_json::to_string(&cmd).unwrap();
+    // let data = data.as_bytes();
     // kafka_producer
     //     .send(&Record::from_value(&topic, data))
     //     .unwrap();
-    // let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
     kafka_producer
         .send(&Record::from_key_value(&topic, key, data))
         .unwrap();
@@ -58,8 +64,9 @@ pub fn send_to_kafka_queue(cmd: RpcCommand, topic: String, key: &str) {
 pub fn receive_from_kafka_queue(
     topic: String,
     group: String,
-) -> Result<Arc<Mutex<mpsc::Receiver<Message>>>, KafkaError> {
+) -> Result<Arc<Mutex<mpsc::Receiver<RpcCommand>>>, KafkaError> {
     let (sender, receiver) = mpsc::channel();
+    let _topic_clone = topic.clone();
     thread::spawn(move || {
         let broker = vec![std::env::var("BROKER")
             .expect("missing environment variable BROKER")
@@ -72,7 +79,9 @@ pub fn receive_from_kafka_queue(
             .with_offset_storage(GroupOffsetStorage::Kafka)
             .create()
             .unwrap();
-        loop {
+        let mut connection_status = true;
+        let _partition: i32 = 0;
+        while connection_status {
             let sender_clone = sender.clone();
             let mss = con.poll().unwrap();
             if mss.is_empty() {
@@ -81,20 +90,31 @@ pub fn receive_from_kafka_queue(
             } else {
                 for ms in mss.iter() {
                     for m in ms.messages() {
-                        sender_clone
-                            .send(Message {
-                                offset: m.offset,
-                                key: String::from_utf8_lossy(&m.key).to_string(),
-                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-                                    .unwrap(),
-                            })
-                            .unwrap();
+                        let message = Message {
+                            offset: m.offset,
+                            key: String::from_utf8_lossy(&m.key).to_string(),
+                            value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
+                                .unwrap(),
+                        };
+                        match sender_clone.send(Message::new(message)) {
+                            Ok(_) => {
+                                // let _ = con.consume_message(&topic_clone, partition, m.offset);
+                                // println!("Im here");
+                            }
+                            Err(arg) => {
+                                println!("Closing Kafka Consumer Connection : {:#?}", arg);
+                                connection_status = false;
+                                break;
+                            }
+                        }
                     }
                     let _ = con.consume_messageset(ms);
                 }
                 con.commit_consumed().unwrap();
             }
         }
+        con.commit_consumed().unwrap();
+        thread::park();
     });
 
     Ok(Arc::new(Mutex::new(receiver)))
@@ -112,3 +132,25 @@ pub struct Message {
     /// data for this message.
     pub value: RpcCommand,
 }
+
+impl Message {
+    pub fn new(value: Message) -> RpcCommand {
+        match value.value {
+            RpcCommand::CreateTraderOrder(
+                createtraderorder,
+                Meta {
+                    matadata: mut metadata,
+                },
+            ) => {
+                metadata.insert(String::from("offset"), Some(value.offset.to_string()));
+                metadata.insert(String::from("kafka_key"), Some(value.key));
+                let rcmd =
+                    RpcCommand::CreateTraderOrder(createtraderorder, Meta { matadata: metadata });
+                return rcmd;
+            }
+            _ => return value.value,
+        }
+    }
+}
+use crate::relayer::rpc_api_kafka::api::Meta;
+use crate::relayer::rpc_api_kafka::types::CreateTraderOrder;
