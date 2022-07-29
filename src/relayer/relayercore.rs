@@ -2,6 +2,7 @@ use crate::config::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use std::sync::{Arc, Mutex};
+use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_NORMAL_ORDER")));
@@ -34,11 +35,14 @@ pub fn client_cmd_receiver() {
 
 pub fn core_event_handler(command: RpcCommand) {
     match command {
-        RpcCommand::CreateTraderOrder(trader_order_msg, metadata) => {
+        RpcCommand::CreateTraderOrder(rpc_request, metadata) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
-                let order = get_new_trader_order_core(trader_order_msg);
-                // println!("order data: {:#?}", order);
+                let sw = Stopwatch::start_new();
+                let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
+                orderdata.orderinsert_localdb(status);
+                let time_taken = sw.elapsed();
+                println!("time_taken data: {:#?}", time_taken,);
                 // println!("meta data: {:#?}", metadata);
             });
         }

@@ -19,6 +19,8 @@ use uuid::Uuid;
 lazy_static! {
     pub static ref DB_IN_MEMORY: Mutex<HashMap<String, Arc<RwLock<OrderLog>>>> =
         Mutex::new(HashMap::new());
+    pub static ref POSITION_SIZE_LOG: Arc<Mutex<PositionSizeLog>> =
+        Arc::new(Mutex::new(PositionSizeLog::new()));
     pub static ref DB_THREADPOOL: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("DB_THREADPOOL")));
 }
@@ -27,6 +29,61 @@ lazy_static! {
 pub struct OrderLog {
     pub orderdata: TraderOrder,
     pub orderlog: Vec<Rcmd>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct PositionSizeLog {
+    pub total_short_positionsize: f64,
+    pub total_long_positionsize: f64,
+    pub totalpositionsize: f64,
+    pub orderlog: Vec<Rcmd>,
+}
+impl PositionSizeLog {
+    pub fn add_order(positiontype: PositionType, positionsize: f64) {
+        match positiontype {
+            PositionType::LONG => {
+                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+                position_size_log.total_long_positionsize += positionsize;
+                position_size_log.totalpositionsize += positionsize;
+                drop(position_size_log);
+                // send log to kafka
+            }
+            PositionType::SHORT => {
+                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+                position_size_log.total_short_positionsize += positionsize;
+                position_size_log.totalpositionsize += positionsize;
+                drop(position_size_log);
+                // send log to kafka
+            }
+        }
+    }
+    pub fn remove_order(positiontype: PositionType, positionsize: f64) {
+        match positiontype {
+            PositionType::LONG => {
+                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+                position_size_log.total_long_positionsize -= positionsize;
+                position_size_log.totalpositionsize -= positionsize;
+                drop(position_size_log);
+                // send log to kafka
+            }
+            PositionType::SHORT => {
+                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+                position_size_log.total_short_positionsize -= positionsize;
+                position_size_log.totalpositionsize -= positionsize;
+                drop(position_size_log);
+                // send log to kafka
+            }
+        }
+    }
+    pub fn new() -> Self {
+        // impl to read from redis or event logs
+        PositionSizeLog {
+            total_short_positionsize: 0.0,
+            total_long_positionsize: 0.0,
+            totalpositionsize: 0.0,
+            orderlog: Vec::new(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
