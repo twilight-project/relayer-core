@@ -84,6 +84,13 @@ pub struct CandleRequest {
     pub limit: i32,
     pub pagination: i32,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct GetOrderDetail {
+    pub account_id: String,
+    pub order_id: Uuid,
+}
+
 impl CreateTraderOrder {
     pub fn push(self) {
         let create_trader_order_thread_pool = CREATE_TRADER_ORDER_THREAD_POOL.lock().unwrap();

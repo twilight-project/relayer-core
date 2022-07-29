@@ -1,7 +1,7 @@
 //https://docs.rs/kafka/0.4.1/kafka/client/struct.KafkaClient.html
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::relayer::RpcCommand;
+use crate::relayer::*;
 use kafka::client::{metadata::Broker, FetchPartition, KafkaClient};
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
@@ -152,5 +152,5 @@ impl Message {
         }
     }
 }
-use crate::relayer::rpc_api_kafka::api::Meta;
-use crate::relayer::rpc_api_kafka::types::CreateTraderOrder;
+use crate::relayer::CreateTraderOrder;
+use crate::relayer::Meta;

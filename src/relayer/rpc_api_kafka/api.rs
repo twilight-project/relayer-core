@@ -1,11 +1,7 @@
 use crate::config::*;
 use crate::kafkalib::kafkacmd;
-use crate::relayer::rpc_api_kafka::{
-    rpc_cmd::RpcCommand,
-    types::{
-        CancelTraderOrder, CreateLendOrder, CreateTraderOrder, ExecuteLendOrder, ExecuteTraderOrder,
-    },
-};
+// use crate::relayer::RpcCommand;
+use crate::relayer::*;
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_http_server::{
     hyper,

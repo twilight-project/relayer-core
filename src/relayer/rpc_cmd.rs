@@ -1,8 +1,6 @@
-use crate::relayer::rpc_api_kafka::api::Meta;
-use crate::relayer::rpc_api_kafka::types::{
-    CancelTraderOrder, CreateLendOrder, CreateTraderOrder, ExecuteLendOrder, ExecuteTraderOrder,
-};
 use crate::relayer::types::*;
+use crate::relayer::Meta;
+use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
 
