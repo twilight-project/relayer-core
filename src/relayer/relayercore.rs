@@ -1,11 +1,7 @@
-use crate::config::*; //KAFKA_STATUS
+use crate::config::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
-// use crate::kafkalib::kafkacmd::Message;
-// use crate::relayer::RpcCommand;
-// use crate::relayer::{ThreadPool, TraderOrder};
 use crate::relayer::*;
 use std::sync::{Arc, Mutex};
-// use std::sync::Arc;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_NORMAL_ORDER")));
@@ -38,24 +34,12 @@ pub fn client_cmd_receiver() {
 
 pub fn core_event_handler(command: RpcCommand) {
     match command {
-        RpcCommand::CreateTraderOrder(rpc_command, metadata) => {
+        RpcCommand::CreateTraderOrder(trader_order_msg, metadata) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
-                let order = TraderOrder::new(
-                    &rpc_command.account_id,
-                    rpc_command.position_type,
-                    rpc_command.order_type,
-                    rpc_command.leverage,
-                    rpc_command.initial_margin,
-                    rpc_command.available_margin,
-                    rpc_command.order_status,
-                    rpc_command.entryprice,
-                    rpc_command.execution_price,
-                );
-                let order = order.orderinsert(true);
-
-                println!("order data: {:#?}", order);
-                println!("meta data: {:#?}", metadata);
+                let order = get_new_trader_order_core(trader_order_msg);
+                // println!("order data: {:#?}", order);
+                // println!("meta data: {:#?}", metadata);
             });
         }
         _ => {}

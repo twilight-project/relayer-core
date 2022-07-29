@@ -1,8 +1,7 @@
 use crate::config::*;
 use crate::kafkalib::kafkacmd;
+// use crate::relayer::RpcCommand;
 use crate::relayer::*;
-use std::time::SystemTime;
-
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_http_server::{
     hyper,
@@ -11,10 +10,11 @@ use jsonrpc_http_server::{
 };
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::time::SystemTime;
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct Meta {
-    matadata: HashMap<String, Option<String>>,
+    pub matadata: HashMap<String, Option<String>>,
 }
 impl Metadata for Meta {}
 pub fn kafka_queue_rpc_server() {
@@ -43,10 +43,10 @@ pub fn kafka_queue_rpc_server() {
 
     io.add_method_with_meta(
         "CreateLendOrder",
-        move |params: Params, _meta: Meta| async move {
+        move |params: Params, meta: Meta| async move {
             match params.parse::<CreateLendOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::CreateLendOrder(ordertx.clone());
+                    let data = RpcCommand::CreateLendOrder(ordertx.clone(), meta);
                     kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
                     Ok(Value::String(
                         "Order request submitted successfully.".into(),
@@ -63,10 +63,10 @@ pub fn kafka_queue_rpc_server() {
 
     io.add_method_with_meta(
         "ExecuteTraderOrder",
-        move |params: Params, _meta: Meta| async move {
+        move |params: Params, meta: Meta| async move {
             match params.parse::<ExecuteTraderOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::ExecuteTraderOrder(ordertx.clone());
+                    let data = RpcCommand::ExecuteTraderOrder(ordertx.clone(), meta);
                     kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
                     Ok(Value::String(
                         "Execution request submitted successfully".into(),
@@ -82,10 +82,10 @@ pub fn kafka_queue_rpc_server() {
     );
     io.add_method_with_meta(
         "ExecuteLendOrder",
-        move |params: Params, _meta: Meta| async move {
+        move |params: Params, meta: Meta| async move {
             match params.parse::<ExecuteLendOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::ExecuteLendOrder(ordertx.clone());
+                    let data = RpcCommand::ExecuteLendOrder(ordertx.clone(), meta);
                     kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
                     Ok(Value::String(
                         "Execution request submitted successfully.".into(),
@@ -101,10 +101,10 @@ pub fn kafka_queue_rpc_server() {
     );
     io.add_method_with_meta(
         "CancelTraderOrder",
-        move |params: Params, _meta: Meta| async move {
+        move |params: Params, meta: Meta| async move {
             match params.parse::<CancelTraderOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::CancelTraderOrder(ordertx.clone());
+                    let data = RpcCommand::CancelTraderOrder(ordertx.clone(), meta);
                     kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Cancel");
                     Ok(Value::String(
                         "Cancellation request submitted successfully.".into(),
