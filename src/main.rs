@@ -22,30 +22,120 @@ use redislib::*;
 use relayer::*;
 use std::{thread, time};
 use stopwatch::Stopwatch;
-
+use uuid::Uuid;
 #[macro_use]
 extern crate lazy_static;
 use questdb::questdb::send_candledata_in_questdb;
+// use skiplist::OrderedSkipList;
 use std::sync::{mpsc, Arc, Mutex};
 
+use std::collections::HashSet;
 fn main() {
-    // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
-    // kafkalib::kafka_topic::kafka_new_topic("CLIENT-REQUEST");
-    dotenv::dotenv().expect("Failed loading dotenv");
-    // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
-    ordertest::initprice();
-    client_cmd_receiver();
-    // init_psql();
-    // ordertest::generatelendorder();
-    // thread::sleep(time::Duration::from_millis(100));
-    // start_cronjobs();
-    // thread::sleep(time::Duration::from_millis(10000));
-    // updatefundingrate(1.0);
-
-    // loop {
-    //     thread::sleep(time::Duration::from_millis(100000000));
-    // }
+    let xs = [1, 2, 3, 4, 5, 6];
+    let xss = [1, 2];
+    let mut set: HashSet<isize> = xs.iter().cloned().collect();
+    set.retain(|&k| xss.contains(&k) == false);
+    println!("{:#?}", set);
 }
+
+// fn main() {
+//     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
+//     // kafkalib::kafka_topic::kafka_new_topic("CLIENT-REQUEST");
+//     dotenv::dotenv().expect("Failed loading dotenv");
+//     // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
+//     ordertest::initprice();
+//     // thread::spawn(move || {
+//     //     client_cmd_receiver();
+//     // });
+//     // init_psql();
+//     // ordertest::generatelendorder();
+//     // thread::sleep(time::Duration::from_millis(100));
+//     // start_cronjobs();
+//     // thread::sleep(time::Duration::from_millis(10000));
+//     // updatefundingrate(1.0);
+//     let prices = 150;
+//     let mut trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+//     trader_lp_long.add(
+//         "b0747cfc-a94b-4ae4-8e17-b166701545a1".parse().unwrap(),
+//         prices,
+//     );
+//     let prices = 200;
+//     trader_lp_long.add(
+//         "b0747cfc-a94b-4ae4-8e17-b166701545a2".parse().unwrap(),
+//         prices,
+//     );
+//     let prices = 14;
+//     trader_lp_long.add(
+//         "b0747cfc-a94b-4ae4-8e17-b166701545a3".parse().unwrap(),
+//         prices,
+//     );
+//     drop(trader_lp_long);
+//     let sw = Stopwatch::start_new();
+//     let threadpool = ThreadPool::new(30, String::from("testt"));
+//     for i in 0..400000 {
+//         // let f1 = format!("b0747cfc-a94b-4ae4-8e17-b1667015{}", i);
+//         // let f2 = format!("{}.0", i, i);
+//         // let uuid: Uuid = serde_json::from_str(&f1).unwrap();
+//         // let price: f64 = serde_json::from_str(&f2).unwrap();
+//         let price: i64 = i;
+//         threadpool.execute(move || {
+//             let mut trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+//             trader_lp_long.add(Uuid::new_v4(), price);
+//             drop(trader_lp_long)
+//         });
+//     }
+//     drop(threadpool);
+//     let mut trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+//     trader_lp_long.sort();
+//     // let sw3 = Stopwatch::start_new();
+
+//     // let mut data = TRADER_LP_LONG.lock().unwrap();
+//     // let key_of_two = data
+//     //     .sorted_order
+//     //     .iter()
+//     //     .position(|&(x, _y)| x == "b0747cfc-a94b-4ae4-8e17-b166701545a2".parse().unwrap());
+//     // // let key_of_two = data
+//     // //     .sorted_order
+//     // //     .contains(&("b0747cfc-a94b-4ae4-8e17-b166701545a2".parse().unwrap()));
+//     // // let key_of_two = data
+//     // //     .sorted_order
+//     // //     .iter()
+//     // //     .any(|&(x, _y)| x == "b0747cfc-a94b-4ae4-8e17-b166701545a2".parse().unwrap());
+//     // let time_contain = sw3.elapsed();
+
+//     // let array: Vec<(Uuid, i64)>;
+//     // let data_clone = data.clone();
+//     // let len = data.clone().len;
+//     // if key_of_two.is_some() {
+//     //     array = data
+//     //         .sorted_order
+//     //         .drain((key_of_two.unwrap())..(key_of_two.unwrap() + 1))
+//     //         .collect();
+//     // } else {
+//     //     array = Vec::new();
+//     // }
+//     // drop(data);
+//     // println!("Complete data:{:?}\n\n", trader_lp_long.read());
+//     let sw2 = Stopwatch::start_new();
+//     match trader_lp_long.remove("b0747cfc-a94b-4ae4-8e17-b166701545a2".parse().unwrap()) {
+//         Ok(_x) => {}
+//         Err(arg) => {
+//             println!("ErrorCustom:{:#?}", arg);
+//         }
+//     }
+//     let time_2 = sw2.elapsed();
+//     let orderdata = trader_lp_long.read();
+//     // println!("removed data:{:?}\n\n", orderdata.clone());
+
+//     println!("\nmix:{:#?}", orderdata.sorted_order[0].1);
+//     println!("\nmax:{:#?}", orderdata.sorted_order[orderdata.len - 1].1);
+//     println!("\ntime_remove:{:#?}", time_2);
+//     let time_taken = sw.elapsed();
+//     println!("time : {:#?}", time_taken);
+//     loop {
+//         thread::sleep(time::Duration::from_millis(100000000));
+//     }
+// }
 
 // use std::collections::HashSet;
 use std::sync::RwLock;

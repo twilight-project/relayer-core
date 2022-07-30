@@ -258,6 +258,35 @@ pub fn startserver() {
         },
     );
 
+    io.add_method_with_meta(
+        "CheckVector",
+        move |params: Params, _meta: Meta| async move {
+            match params.parse::<TestLocaldb>() {
+                Ok(value) => {
+                    // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
+                    // let db = TRADER_LP_LONG.lock().unwrap();
+                    // println!("{:#?}", db);
+                    // drop(db);
+                    let mut trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+                    let sw = Stopwatch::start_new();
+
+                    trader_lp_long.add(value.orderid, value.price);
+                    trader_lp_long.sort();
+                    let time_taken = sw.elapsed();
+                    println!("\n db : {:?}", trader_lp_long.read());
+                    println!("\n time taken : {:#?}", time_taken);
+                    drop(trader_lp_long);
+                    Ok(serde_json::to_value(&check_server_time()).unwrap())
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
         .threads(*RPC_SERVER_THREAD)
@@ -285,3 +314,4 @@ pub fn startserver() {
         .unwrap();
     server.wait();
 }
+use stopwatch::Stopwatch;

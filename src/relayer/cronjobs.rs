@@ -77,12 +77,12 @@ pub fn start_cronjobs() {
             startserver();
         })
         .unwrap();
-    thread::Builder::new()
-        .name(String::from("json-RPC startserver_repl"))
-        .spawn(move || {
-            startserver_repl();
-        })
-        .unwrap();
+    // thread::Builder::new()
+    //     .name(String::from("json-RPC startserver_repl"))
+    //     .spawn(move || {
+    //         startserver_repl();
+    //     })
+    //     .unwrap();
 
     // initial aeron
     // init_aeron_queue();

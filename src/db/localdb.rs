@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 // use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
 // use crate::aeronlibmpsc;
+use crate::db::SortedSet;
 use crate::relayer::*;
 use crate::relayer::{ThreadPool, TraderOrder};
 use mpsc::{channel, Receiver, Sender};
@@ -11,7 +12,7 @@ use r2d2_postgres::PostgresConnectionManager;
 use r2d2_redis::RedisConnectionManager;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::time::SystemTime;
@@ -23,6 +24,15 @@ lazy_static! {
         Arc::new(Mutex::new(PositionSizeLog::new()));
     pub static ref DB_THREADPOOL: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("DB_THREADPOOL")));
+        //TraderOrderbyLiquidationPriceFORLong
+    pub static ref TRADER_LP_LONG: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_LP_SHORT: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_LIMIT_LONG: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_LIMIT_SHORT: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

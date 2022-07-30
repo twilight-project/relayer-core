@@ -148,7 +148,7 @@ services:
       dockerfile: Dockerfile
     hostname: rpckafka
     stdin_open: true
-    # restart: always
+    restart: always
     ports:
       - "3032:3032"
     depends_on:

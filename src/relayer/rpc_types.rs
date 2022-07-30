@@ -20,7 +20,8 @@ lazy_static! {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TestLocaldb {
-    pub orderid: String,
+    pub orderid: Uuid,
+    pub price: i64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateTraderOrder {
