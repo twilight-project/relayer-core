@@ -3,24 +3,25 @@
 
 // use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
 // use crate::aeronlibmpsc;
-use crate::db::SortedSet;
+use crate::db::*;
+use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
-use crate::relayer::{ThreadPool, TraderOrder};
-use mpsc::{channel, Receiver, Sender};
-use parking_lot::ReentrantMutex;
-use r2d2_postgres::postgres::NoTls;
-use r2d2_postgres::PostgresConnectionManager;
-use r2d2_redis::RedisConnectionManager;
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
+use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
+use kafka::error::Error as KafkaError;
+use kafka::producer::Record;
+use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
 
 lazy_static! {
     pub static ref GLOBAL_NONCE: Arc<RwLock<usize>> = Arc::new(RwLock::new(0));
+    pub static ref KAFKA_EVENT_LOG_THREADPOOL: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
+        2,
+        String::from("KAFKA_EVENT_LOG_THREADPOOL")
+    ));
 }
 #[derive(Debug, Clone)]
 pub struct OrderDB<T> {
@@ -40,6 +41,99 @@ pub enum Event<T> {
     RelayerUpdate(T, RelayerCommand, usize),
 }
 
+// impl<T> Event<T> {
+//     fn clone(&self) -> Self {
+//         (*self).clone()
+//     }
+// }
+
+impl Event<TraderOrder> {
+    pub fn new(event: Event<TraderOrder>, key: String) -> Self {
+        match event {
+            Event::TraderOrder(order, cmd, seq) => {
+                let event = Event::TraderOrder(order, cmd, seq);
+                let event_clone = event.clone();
+                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
+                pool.execute(move || {
+                    Event::send_event_to_kafka_queue(
+                        event_clone,
+                        String::from("TraderOrderEventLog"),
+                        key,
+                    );
+                });
+                event
+            }
+            Event::LendOrder(order, cmd, seq) => Event::LendOrder(order, cmd, seq),
+            Event::RelayerUpdate(order, cmd, seq) => Event::RelayerUpdate(order, cmd, seq),
+        }
+    }
+    pub fn send_event_to_kafka_queue(event: Event<TraderOrder>, topic: String, key: String) {
+        let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
+        let data = serde_json::to_vec(&event).unwrap();
+        kafka_producer
+            .send(&Record::from_key_value(&topic, key, data))
+            .unwrap();
+    }
+
+    pub fn receive_event_from_kafka_queue(
+        topic: String,
+        group: String,
+    ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
+        let (sender, receiver) = mpsc::channel();
+        let _topic_clone = topic.clone();
+        thread::spawn(move || {
+            let broker = vec![std::env::var("BROKER")
+                .expect("missing environment variable BROKER")
+                .to_owned()];
+            let mut con = Consumer::from_hosts(broker)
+                // .with_topic(topic)
+                .with_group(group)
+                .with_topic_partitions(topic, &[0])
+                .with_fallback_offset(FetchOffset::Earliest)
+                .with_offset_storage(GroupOffsetStorage::Kafka)
+                .create()
+                .unwrap();
+            let mut connection_status = true;
+            let _partition: i32 = 0;
+            while connection_status {
+                let sender_clone = sender.clone();
+                let mss = con.poll().unwrap();
+                if mss.is_empty() {
+                    // println!("No messages available right now.");
+                    // return Ok(());
+                } else {
+                    for ms in mss.iter() {
+                        for m in ms.messages() {
+                            let message = EventLog {
+                                offset: m.offset,
+                                key: String::from_utf8_lossy(&m.key).to_string(),
+                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
+                                    .unwrap(),
+                            };
+                            match sender_clone.send(message) {
+                                Ok(_) => {
+                                    // let _ = con.consume_message(&topic_clone, partition, m.offset);
+                                    // println!("Im here");
+                                }
+                                Err(arg) => {
+                                    println!("Closing Kafka Consumer Connection : {:#?}", arg);
+                                    connection_status = false;
+                                    break;
+                                }
+                            }
+                        }
+                        let _ = con.consume_messageset(ms);
+                    }
+                    con.commit_consumed().unwrap();
+                }
+            }
+            con.commit_consumed().unwrap();
+            thread::park();
+        });
+        Ok(Arc::new(Mutex::new(receiver)))
+    }
+}
+
 pub trait LocalDB<T> {
     fn new() -> Self;
     fn add(&mut self, order: T, cmd: RpcCommand) -> T;
@@ -50,6 +144,8 @@ pub trait LocalDB<T> {
     fn update(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
     fn remove(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
     fn aggrigate_log_sequence(&mut self) -> usize;
+    fn load_data() -> bool;
+    fn check_backup() -> Self;
     // fn get_from_snapshot(&self) {
     //     println!("{} says {}", self.name(), self.noise());
     // }
@@ -76,10 +172,9 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.cmd.push(cmd.clone());
         self.aggrigate_log_sequence += 1;
-        self.event.push(Event::TraderOrder(
-            order.clone(),
-            cmd.clone(),
-            self.aggrigate_log_sequence,
+        self.event.push(Event::new(
+            Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
+            String::from("add_order"),
         ));
         order.clone()
     }
@@ -165,6 +260,21 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
     fn aggrigate_log_sequence(&mut self) -> usize {
         self.aggrigate_log_sequence
     }
+
+    fn load_data() -> bool {
+        // fn load_data() -> (bool, Self) {
+
+        false
+    }
+
+    fn check_backup() -> Self {
+        let redis_data: bool = OrderDB::<TraderOrder>::load_data();
+        if redis_data {
+            LocalDB::<TraderOrder>::new()
+        } else {
+            LocalDB::<TraderOrder>::new()
+        }
+    }
 }
 
 pub fn get_nonce() -> usize {
@@ -175,4 +285,17 @@ pub fn update_nonce() -> usize {
     let mut nonce = GLOBAL_NONCE.write().unwrap();
     *nonce += 1;
     *nonce
+}
+
+#[derive(Debug)]
+pub struct EventLog {
+    /// The offset at which this message resides in the remote kafka
+    /// broker topic partition.
+    pub offset: i64,
+    /// The "key" data of this message.  Empty if there is no such
+    /// data for this message.
+    pub key: String,
+    /// The value data of this message.  Empty if there is no such
+    /// data for this message.
+    pub value: Event<TraderOrder>,
 }

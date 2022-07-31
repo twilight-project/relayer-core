@@ -29,12 +29,16 @@ lazy_static! {
         Arc::new(Mutex::new(SortedSet::new()));
     pub static ref TRADER_LP_SHORT: Arc<Mutex<SortedSet>> =
         Arc::new(Mutex::new(SortedSet::new()));
-    pub static ref TRADER_LIMIT_LONG: Arc<Mutex<SortedSet>> =
+    pub static ref TRADER_LIMIT_OPEN_LONG: Arc<Mutex<SortedSet>> =
         Arc::new(Mutex::new(SortedSet::new()));
-    pub static ref TRADER_LIMIT_SHORT: Arc<Mutex<SortedSet>> =
+    pub static ref TRADER_LIMIT_OPEN_SHORT: Arc<Mutex<SortedSet>> =
         Arc::new(Mutex::new(SortedSet::new()));
-        pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
-        Arc::new(Mutex::new(LocalDB::new()));
+    pub static ref TRADER_LIMIT_CLOSE_LONG: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_LIMIT_CLOSE_SHORT: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
+        Arc::new(Mutex::new(LocalDB::<TraderOrder>::check_backup()));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

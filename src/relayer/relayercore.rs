@@ -1,4 +1,5 @@
 use crate::config::*;
+use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use std::sync::{Arc, Mutex};
@@ -34,13 +35,17 @@ pub fn client_cmd_receiver() {
 }
 
 pub fn core_event_handler(command: RpcCommand) {
+    let command_clone = command.clone();
     match command {
         RpcCommand::CreateTraderOrder(rpc_request, metadata) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let sw = Stopwatch::start_new();
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
-                orderdata.orderinsert_localdb(status);
+                let order_state = orderdata.orderinsert_localdb(status);
+                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                let completed_order = trader_order_db.add(order_state, command_clone);
+                drop(trader_order_db);
                 let time_taken = sw.elapsed();
                 println!("time_taken data: {:#?}", time_taken,);
                 // println!("meta data: {:#?}", metadata);

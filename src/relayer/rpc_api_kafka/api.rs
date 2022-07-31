@@ -12,7 +12,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-#[derive(Default, Clone, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Meta {
     pub matadata: HashMap<String, Option<String>>,
 }

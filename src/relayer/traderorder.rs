@@ -924,19 +924,21 @@ impl TraderOrder {
         let mut order_status = rpc_request.order_status;
         let mut entryprice = rpc_request.entryprice;
         let execution_price = rpc_request.execution_price;
-        let fee: f64;
+        let mut fee: f64 = 0.0;
 
-        if order_type == OrderType::MARKET {
-            entryprice = get_localdb("CurrentPrice");
-            order_status = OrderStatus::FILLED;
-            fee = get_localdb("Fee"); //different fee for market order
-        } else if order_type == OrderType::LIMIT {
-            order_status = OrderStatus::PENDING;
-            fee = get_localdb("Fee"); //different fee for limit order
-        } else {
-            // order_status = OrderStatus::PENDING;
-            fee = get_localdb("Fee"); //different fee for limit order
+        match order_type {
+            OrderType::MARKET => {
+                entryprice = get_localdb("CurrentPrice");
+                order_status = OrderStatus::FILLED;
+                fee = get_localdb("Fee"); //different fee for market order
+            }
+            OrderType::LIMIT => {
+                order_status = OrderStatus::PENDING;
+                fee = get_localdb("Fee"); //different fee for limit order
+            }
+            _ => {}
         }
+
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
@@ -987,113 +989,49 @@ impl TraderOrder {
     }
 
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
-        let mut ordertx = self.clone();
-        let ordertx_return = ordertx.clone();
-        let threadpool_max_order_insert_pool = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
-        threadpool_max_order_insert_pool.execute(move || {
-            if order_entry_status {
-                // let mut cmd_array: Vec<String> = Vec::new();
-                // position type wise TotalLongPositionSize and liquidation sorting
-                PositionSizeLog::add_order(
-                    ordertx.position_type.clone(),
-                    ordertx.positionsize.clone(),
-                );
-                match ordertx.position_type {
-                    PositionType::LONG => {
-                        let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
-                        let _ = add_to_liquidation_list
-                            .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
-                        drop(add_to_liquidation_list);
-                    }
-                    PositionType::SHORT => {
-                        let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
-                        let _ = add_to_liquidation_list
-                            .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
-                        drop(add_to_liquidation_list);
-                    }
+        let ordertx = self.clone();
+        if order_entry_status {
+            PositionSizeLog::add_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+            match ordertx.position_type {
+                PositionType::LONG => {
+                    let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                    let _ = add_to_liquidation_list
+                        .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                    drop(add_to_liquidation_list);
                 }
-                // total position size for funding rate
-                if ordertx.order_type == OrderType::MARKET {
-                    // update order json array and entry sequence in redisdb
-                    let (lend_nonce, entrysequence): (usize, usize) = orderinsert_pipeline();
-                    // update latest nonce in order transaction
-                    ordertx.entry_nonce = lend_nonce;
-                    ordertx.entry_sequence = entrysequence;
+                PositionType::SHORT => {
+                    let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                    let _ = add_to_liquidation_list
+                        .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                    drop(add_to_liquidation_list);
                 }
-                //insert data into redis for sorting
-                // orderinsert_pipeline_second(ordertx.clone(), cmd_array);
-                // update order data in postgreSQL
-                new_trader_order_insert_sql_query(ordertx.clone());
-                // undate recent order table and add candle data
-                let side = match ordertx.position_type {
-                    PositionType::SHORT => Side::SELL,
-                    PositionType::LONG => Side::BUY,
-                };
-                update_recent_orders(CloseTrade {
-                    side: side,
-                    positionsize: ordertx.positionsize,
-                    price: ordertx.entryprice,
-                    timestamp: std::time::SystemTime::now(),
-                });
-
-                match OrderLog::insert_new_traderorder(
-                    ordertx.clone(),
-                    Rcmd::new(TraderOrderCommand::NewOrder {
-                        position_type: ordertx.position_type,
-                        order_type: ordertx.order_type,
-                        leverage: ordertx.leverage,
-                        initial_margin: ordertx.initial_margin,
-                        order_status: ordertx.order_status,
-                        entryprice: ordertx.entryprice,
-                    }),
-                ) {
-                    Ok(_) => {
-                        // println!("Order inserted successfully");
-                    }
-                    Err(arg) => {
-                        println!("Error: {:#?}", arg);
-                    }
-                }
-            } else {
-                // trader order set by timestamp
-                match ordertx.position_type {
-                    PositionType::LONG => {
-                        orderinsert_pipeline_pending(
-                            ordertx.clone(),
-                            String::from("TraderOrder_LimitOrder_Pending_FOR_Long"),
-                        );
-                    }
-                    PositionType::SHORT => {
-                        orderinsert_pipeline_pending(
-                            ordertx.clone(),
-                            String::from("TraderOrder_LimitOrder_Pending_FOR_Short"),
-                        );
-                    }
-                }
-                // redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
-                let order_clone = ordertx.clone();
-                match OrderLog::insert_new_traderorder(
-                    order_clone.clone(),
-                    Rcmd::new(TraderOrderCommand::OpenLimit {
-                        position_type: order_clone.position_type,
-                        order_type: order_clone.order_type,
-                        leverage: order_clone.leverage,
-                        initial_margin: order_clone.initial_margin,
-                        order_status: order_clone.order_status,
-                        entryprice: order_clone.entryprice,
-                    }),
-                ) {
-                    Ok(_) => {
-                        // println!("Order inserted successfully");
-                    }
-                    Err(arg) => {
-                        println!("Error: {:#?}", arg);
-                    }
-                }
-                pending_trader_order_insert_sql_query(ordertx);
             }
-        });
-        drop(threadpool_max_order_insert_pool);
-        ordertx_return
+            let side = match ordertx.position_type {
+                PositionType::SHORT => Side::SELL,
+                PositionType::LONG => Side::BUY,
+            };
+            update_recent_orders(CloseTrade {
+                side: side,
+                positionsize: ordertx.positionsize,
+                price: ordertx.entryprice,
+                timestamp: std::time::SystemTime::now(),
+            });
+        } else {
+            match ordertx.position_type {
+                PositionType::LONG => {
+                    let mut add_to_open_order_list = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                    let _ = add_to_open_order_list
+                        .add(ordertx.uuid, (ordertx.entryprice * 10000.0) as i64);
+                    drop(add_to_open_order_list);
+                }
+                PositionType::SHORT => {
+                    let mut add_to_open_order_list = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                    let _ = add_to_open_order_list
+                        .add(ordertx.uuid, (ordertx.entryprice * 10000.0) as i64);
+                    drop(add_to_open_order_list);
+                }
+            }
+        }
+        ordertx
     }
 }
