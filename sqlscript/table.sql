@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS newtraderorder(
 --     pub nonce: i32,
 --     pub deposit: f64,
 --     pub new_lend_state_amount: f64,
---     pub timestamp: u128,
+--     pub timestamp: usize,
 --     pub npoolshare: f64,
 --     pub nwithdraw: f64,
 --     pub payment: f64,

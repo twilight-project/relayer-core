@@ -61,6 +61,7 @@ impl SortedSet {
 
     pub fn sort(&mut self) {
         self.sorted_order.sort_by_key(|p| p.1);
+        self.len = self.sorted_order.len();
         self.min_price = self.sorted_order[0].1;
         self.max_price = self.sorted_order[self.len - 1].1;
     }
@@ -97,9 +98,10 @@ impl SortedSet {
             let key_index = self.sorted_order.iter().rposition(|&(_x, y)| y <= price);
             if key_index.is_some() {
                 let result_vec: Vec<(Uuid, i64)> =
-                    self.sorted_order.drain(0..key_index.unwrap()).collect();
+                    self.sorted_order.drain(0..key_index.unwrap() + 1).collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
                 self.hash.retain(|&x| left.contains(&x) == false);
+                self.len -= left.len();
                 return left;
             }
         }
@@ -118,6 +120,7 @@ impl SortedSet {
                     .collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
                 self.hash.retain(|&x| left.contains(&x) == false);
+                self.len -= left.len();
                 return left;
             }
         } else {

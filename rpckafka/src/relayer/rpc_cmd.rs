@@ -30,7 +30,7 @@ pub enum RpcCommand {
     Liquidate {
         liquidation_price: f64,
         available_margin: f64,
-        nonce: u128,
+        nonce: usize,
     },
     CancelOrder {
         uuid: Uuid,

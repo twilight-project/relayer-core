@@ -270,7 +270,7 @@ pub fn startserver() {
                     let mut trader_lp_long = TRADER_LP_LONG.lock().unwrap();
                     let sw = Stopwatch::start_new();
 
-                    trader_lp_long.add(value.orderid, value.price);
+                    let _ = trader_lp_long.add(value.orderid, value.price);
                     trader_lp_long.sort();
                     let time_taken = sw.elapsed();
                     println!("\n db : {:?}", trader_lp_long.read());

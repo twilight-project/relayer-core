@@ -3,9 +3,9 @@ use crate::config::REDIS_POOL_CONNECTION;
 use crate::relayer::*;
 use r2d2_redis::redis;
 
-pub fn orderinsert_pipeline() -> (u128, u128) {
+pub fn orderinsert_pipeline() -> (usize, usize) {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
-    let (lend_nonce, entrysequence): (u128, u128) = redis::pipe()
+    let (lend_nonce, entrysequence): (usize, usize) = redis::pipe()
         .cmd("GET")
         .arg("LendNonce")
         .cmd("INCR")

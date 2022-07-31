@@ -40,7 +40,7 @@ pub fn core_event_handler(command: RpcCommand) {
             buffer.execute(move || {
                 let sw = Stopwatch::start_new();
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
-                // orderdata.orderinsert_localdb(status);
+                orderdata.orderinsert_localdb(status);
                 let time_taken = sw.elapsed();
                 println!("time_taken data: {:#?}", time_taken,);
                 // println!("meta data: {:#?}", metadata);

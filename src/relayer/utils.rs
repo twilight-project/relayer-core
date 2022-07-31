@@ -70,7 +70,7 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 
 /// also add ammount in tlv **  update nonce also
 
-pub fn updatelendaccountontraderordersettlement(payment: f64) -> u128 {
+pub fn updatelendaccountontraderordersettlement(payment: f64) -> usize {
     let payment_lock = TRADERPAYMENT.lock().unwrap();
 
     let mut is_payment_done = true;
@@ -179,7 +179,7 @@ pub fn initialize_lend_pool(tlv: f64, tps: f64) -> f64 {
 
 pub fn getset_new_lend_order_tlv_tps_poolshare(
     deposit: f64,
-) -> (f64, f64, f64, f64, f64, f64, u128, u128) {
+) -> (f64, f64, f64, f64, f64, f64, usize, usize) {
     let lend_lock = LENDSTATUS.lock().unwrap();
 
     let ndeposit = deposit * 10000.0;
@@ -212,7 +212,7 @@ pub fn getset_new_lend_order_tlv_tps_poolshare(
 
 pub fn getset_settle_lend_order_tlv_tps_poolshare(
     npoolshare: f64,
-) -> Result<(f64, f64, f64, f64, f64, f64, u128), std::io::Error> {
+) -> Result<(f64, f64, f64, f64, f64, f64, usize), std::io::Error> {
     let lend_lock = LENDSTATUS.lock().unwrap();
     // let tlv2 = redis_db::get_type_f64("tlv");
     // let tps2 = redis_db::get_type_f64("tps");

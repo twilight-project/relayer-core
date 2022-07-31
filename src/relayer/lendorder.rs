@@ -20,8 +20,8 @@ pub struct LendOrder {
     pub balance: f64,
     pub order_status: OrderStatus, //lend or settle
     pub order_type: OrderType,     // LEND
-    pub entry_nonce: u128,         // change it to u256
-    pub exit_nonce: u128,          // change it to u256
+    pub entry_nonce: usize,        // change it to u256
+    pub exit_nonce: usize,         // change it to u256
     pub deposit: f64,
     pub new_lend_state_amount: f64,
     pub timestamp: SystemTime,
@@ -36,7 +36,7 @@ pub struct LendOrder {
     pub tps2: f64, // total poolshare before lend payment/settlement
     pub tlv3: f64, // total locked value after lend payment/settlement
     pub tps3: f64, // total poolshare after lend payment/settlement
-    pub entry_sequence: u128,
+    pub entry_sequence: usize,
 }
 
 impl LendOrder {
@@ -70,8 +70,8 @@ impl LendOrder {
             f64,
             f64,
             f64,
-            u128,
-            u128,
+            usize,
+            usize,
         ) = getset_new_lend_order_tlv_tps_poolshare(deposit);
 
         LendOrder {

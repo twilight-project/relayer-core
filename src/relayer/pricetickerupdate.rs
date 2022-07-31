@@ -73,24 +73,24 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
         } else if thread_count == 0 {
             thread_count = 1;
         }
-        let entry_nonce = redis_db::get_nonce_u128();
+        let entry_nonce = redis_db::get_nonce_usize();
         let mut ordertx_short: Vec<TraderOrder> = Vec::new();
         let mut ordertx_long: Vec<TraderOrder> = Vec::new();
-        let mut starting_entry_sequence_short: u128 = 0;
-        let mut starting_entry_sequence_long: u128 = 0;
+        let mut starting_entry_sequence_short: usize = 0;
+        let mut starting_entry_sequence_long: usize = 0;
         if orderid_list_short_len > 0 {
             ordertx_short = redis_db::mget_trader_order(orderid_list_short.clone()).unwrap();
             let bulk_entry_sequence_short =
                 redis_db::incr_entry_sequence_bulk_trader_order(orderid_list_short_len);
             starting_entry_sequence_short =
-                bulk_entry_sequence_short - u128::try_from(orderid_list_short_len).unwrap();
+                bulk_entry_sequence_short - usize::try_from(orderid_list_short_len).unwrap();
         }
         if orderid_list_long_len > 0 {
             ordertx_long = redis_db::mget_trader_order(orderid_list_long.clone()).unwrap();
             let bulk_entry_sequence_long =
                 redis_db::incr_entry_sequence_bulk_trader_order(orderid_list_long_len);
             starting_entry_sequence_long =
-                bulk_entry_sequence_long - u128::try_from(orderid_list_long_len).unwrap();
+                bulk_entry_sequence_long - usize::try_from(orderid_list_long_len).unwrap();
         }
 
         let local_threadpool: ThreadPool =
@@ -120,8 +120,8 @@ pub fn check_pending_limit_order_on_price_ticker_update(current_price: f64) {
 pub fn update_limit_pendingorder(
     ordertx: TraderOrder,
     current_price: f64,
-    entry_nonce: u128,
-    entry_sequence: u128,
+    entry_nonce: usize,
+    entry_sequence: usize,
 ) {
     //recalculate data for pending order with current entry price
     let pending_order: TraderOrder = TraderOrder::pending(
@@ -173,7 +173,7 @@ pub fn check_liquidating_orders_on_price_ticker_update(current_price: f64) {
         let local_threadpool: ThreadPool =
             ThreadPool::new(thread_count, String::from("liquidation_local_threadpool"));
 
-        let entry_nonce = redis_db::get_nonce_u128();
+        let entry_nonce = redis_db::get_nonce_usize();
         let mut ordertx_short: Vec<TraderOrder> = Vec::new();
         let mut ordertx_long: Vec<TraderOrder> = Vec::new();
         if orderid_list_short_len > 0 {

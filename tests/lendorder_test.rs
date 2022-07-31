@@ -100,11 +100,11 @@ fn test_lendorder_calculate_settlement_test1() {
 
     // pub order_status: OrderStatus, //lend or settle
     // pub order_type: OrderType,     // LEND
-    // pub entry_nonce: u128,         // change it to u256
-    // pub exit_nonce: u128,          // change it to u256
+    // pub entry_nonce: usize,         // change it to u256
+    // pub exit_nonce: usize,          // change it to u256
     // pub deposit: f64,
     // pub new_lend_state_amount: f64,
-    // pub timestamp: u128,
+    // pub timestamp: usize,
     // pub npoolshare: f64,
     // pub nwithdraw: f64,
     // pub payment: f64,
@@ -116,7 +116,7 @@ fn test_lendorder_calculate_settlement_test1() {
     // pub tps2: f64, // total poolshare before lend payment/settlement
     // pub tlv3: f64, // total locked value after lend payment/settlement
     // pub tps3: f64, // total poolshare after lend payment/settlement
-    // pub entry_sequence: u128,
+    // pub entry_sequence: usize,
 
     drop(mt);
 }

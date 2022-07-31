@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 // use crate::aeronlibmpsc::types::{AeronMessage, AeronMessageMPSC, StreamId};
 // use crate::aeronlibmpsc;
-use crate::db::SortedSet;
+use crate::db::{LocalDB, OrderDB, SortedSet};
 use crate::relayer::*;
 use crate::relayer::{ThreadPool, TraderOrder};
 use mpsc::{channel, Receiver, Sender};
@@ -33,6 +33,8 @@ lazy_static! {
         Arc::new(Mutex::new(SortedSet::new()));
     pub static ref TRADER_LIMIT_SHORT: Arc<Mutex<SortedSet>> =
         Arc::new(Mutex::new(SortedSet::new()));
+        pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
+        Arc::new(Mutex::new(LocalDB::new()));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -219,7 +221,7 @@ pub enum TraderOrderCommand {
     Liquidate {
         liquidation_price: f64,
         available_margin: f64,
-        nonce: u128,
+        nonce: usize,
     },
     CancelOrder {
         uuid: Uuid,

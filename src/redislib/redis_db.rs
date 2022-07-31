@@ -280,33 +280,21 @@ pub fn zrangeallopenorders() -> Vec<String> {
         .unwrap();
 }
 
-pub fn incr_lend_nonce_by_one() -> u128 {
+pub fn incr_lend_nonce_by_one() -> usize {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCR")
         .arg("LendNonce")
-        .query::<u128>(&mut *conn)
+        .query::<usize>(&mut *conn)
         .unwrap();
     return i;
 }
 
-pub fn get_nonce_u128() -> u128 {
-    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
-
-    return match redis::cmd("GET").arg("LendNonce").query::<u128>(&mut *conn) {
-        Ok(s) => s,
-        // Err(_) => String::from("key not found"),
-        Err(_) => 0,
-    };
-}
-
-//get_entry_sequence_u128
-
-pub fn get_entry_sequence_trader_order_u128() -> u128 {
+pub fn get_nonce_usize() -> usize {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
 
     return match redis::cmd("GET")
-        .arg("EntrySequence_TraderOrder")
-        .query::<u128>(&mut *conn)
+        .arg("LendNonce")
+        .query::<usize>(&mut *conn)
     {
         Ok(s) => s,
         // Err(_) => String::from("key not found"),
@@ -314,32 +302,47 @@ pub fn get_entry_sequence_trader_order_u128() -> u128 {
     };
 }
 
-pub fn incr_entry_sequence_by_one_trader_order() -> u128 {
+//get_entry_sequence_usize
+
+pub fn get_entry_sequence_trader_order_usize() -> usize {
+    let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
+
+    return match redis::cmd("GET")
+        .arg("EntrySequence_TraderOrder")
+        .query::<usize>(&mut *conn)
+    {
+        Ok(s) => s,
+        // Err(_) => String::from("key not found"),
+        Err(_) => 0,
+    };
+}
+
+pub fn incr_entry_sequence_by_one_trader_order() -> usize {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCR")
         .arg("EntrySequence_TraderOrder")
-        .query::<u128>(&mut *conn)
+        .query::<usize>(&mut *conn)
         .unwrap();
     return i;
 }
-pub fn incr_entry_sequence_bulk_trader_order(count: usize) -> u128 {
+pub fn incr_entry_sequence_bulk_trader_order(count: usize) -> usize {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCRBY")
         .arg("EntrySequence_TraderOrder")
         .arg(count)
-        .query::<u128>(&mut *conn)
+        .query::<usize>(&mut *conn)
         .unwrap();
     return i;
 }
 
-//get_entry_sequence_u128
+//get_entry_sequence_usize
 
-pub fn get_entry_sequence_lend_order_u128() -> u128 {
+pub fn get_entry_sequence_lend_order_usize() -> usize {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
 
     return match redis::cmd("GET")
         .arg("EntrySequence_LendOrder")
-        .query::<u128>(&mut *conn)
+        .query::<usize>(&mut *conn)
     {
         Ok(s) => s,
         // Err(_) => String::from("key not found"),
@@ -347,11 +350,11 @@ pub fn get_entry_sequence_lend_order_u128() -> u128 {
     };
 }
 
-pub fn incr_entry_sequence_by_one_lend_order() -> u128 {
+pub fn incr_entry_sequence_by_one_lend_order() -> usize {
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
     let i = redis::cmd("INCR")
         .arg("EntrySequence_LendOrder")
-        .query::<u128>(&mut *conn)
+        .query::<usize>(&mut *conn)
         .unwrap();
     return i;
 }
@@ -502,12 +505,15 @@ pub fn zrank_test(orderid: &str, table: &str) -> i32 {
     };
 }
 
-pub fn get_nonce_u128_test(
+pub fn get_nonce_usize_test(
     mut conn: r2d2::PooledConnection<r2d2_redis::RedisConnectionManager>,
-) -> u128 {
+) -> usize {
     // let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
 
-    return match redis::cmd("GET").arg("LendNonce").query::<u128>(&mut *conn) {
+    return match redis::cmd("GET")
+        .arg("LendNonce")
+        .query::<usize>(&mut *conn)
+    {
         Ok(s) => s,
         // Err(_) => String::from("key not found"),
         Err(_) => 0,

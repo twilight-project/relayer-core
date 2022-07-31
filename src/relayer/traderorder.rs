@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
-
+//inc last_update_at :timestamp
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TraderOrder {
     pub uuid: Uuid,
@@ -28,9 +28,9 @@ pub struct TraderOrder {
     pub liquidation_price: f64,
     pub unrealized_pnl: f64,
     pub settlement_price: f64,
-    pub entry_nonce: u128,
-    pub exit_nonce: u128,
-    pub entry_sequence: u128,
+    pub entry_nonce: usize,
+    pub exit_nonce: usize,
+    pub entry_sequence: usize,
 }
 impl TraderOrder {
     pub fn new(
@@ -113,7 +113,7 @@ impl TraderOrder {
                     if ordertx.entryprice >= current_price {
                         order_entry_status = true;
                         ordertx.order_status = OrderStatus::FILLED;
-                        ordertx.entry_nonce = redis_db::get_nonce_u128();
+                        ordertx.entry_nonce = redis_db::get_nonce_usize();
                         ordertx.entry_sequence =
                             redis_db::incr_entry_sequence_by_one_trader_order();
                         ordertx.entryprice = current_price;
@@ -125,7 +125,7 @@ impl TraderOrder {
                     if ordertx.entryprice <= current_price {
                         order_entry_status = true;
                         ordertx.order_status = OrderStatus::FILLED;
-                        ordertx.entry_nonce = redis_db::get_nonce_u128();
+                        ordertx.entry_nonce = redis_db::get_nonce_usize();
                         ordertx.entry_sequence =
                             redis_db::incr_entry_sequence_by_one_trader_order();
                         ordertx.entryprice = current_price;
@@ -136,7 +136,7 @@ impl TraderOrder {
             },
             OrderType::MARKET => {
                 ordertx.order_status = OrderStatus::FILLED;
-                ordertx.entry_nonce = redis_db::get_nonce_u128();
+                ordertx.entry_nonce = redis_db::get_nonce_usize();
                 ordertx.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
                 // ordertx.entryprice = current_price;
                 order_entry_status = true;
@@ -149,7 +149,7 @@ impl TraderOrder {
         //inside operations can also be called in different thread
         let threadpool_max_order_insert_pool = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
         threadpool_max_order_insert_pool.execute(move || {
-            // ordertx.entry_nonce = redis_db::get_nonce_u128();
+            // ordertx.entry_nonce = redis_db::get_nonce_usize();
 
             let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},'{}',{},{},{},{},{},{},{},{},{});",
                 &ordertx.uuid,
@@ -529,8 +529,8 @@ impl TraderOrder {
         entryprice: f64,
         execution_price: f64,
         uuid: Uuid,
-        entry_nonce: u128,
-        entry_sequence: u128,
+        entry_nonce: usize,
+        entry_sequence: usize,
     ) -> Self {
         // entryprice = get_localdb("CurrentPrice");
         let position_side = positionside(&position_type);
@@ -581,7 +581,7 @@ impl TraderOrder {
         // thread to store trader order data in redisDB
         //inside operations can also be called in different thread
         thread::spawn(move || {
-            // rt.entry_nonce = redis_db::get_nonce_u128();
+            // rt.entry_nonce = redis_db::get_nonce_usize();
 
             let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},'{}',{},{},{},{},{},{},{},{},{});",
                 &rt.uuid,
@@ -734,7 +734,7 @@ impl TraderOrder {
                 cmd_array.push(String::from("TotalPoolPositionSize"));
                 if ordertx.order_type == OrderType::MARKET {
                     // update order json array and entry sequence in redisdb
-                    let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline();
+                    let (lend_nonce, entrysequence): (usize, usize) = orderinsert_pipeline();
                     // update latest nonce in order transaction
                     ordertx.entry_nonce = lend_nonce;
                     ordertx.entry_sequence = entrysequence;
@@ -992,7 +992,7 @@ impl TraderOrder {
         let threadpool_max_order_insert_pool = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
         threadpool_max_order_insert_pool.execute(move || {
             if order_entry_status {
-                let mut cmd_array: Vec<String> = Vec::new();
+                // let mut cmd_array: Vec<String> = Vec::new();
                 // position type wise TotalLongPositionSize and liquidation sorting
                 PositionSizeLog::add_order(
                     ordertx.position_type.clone(),
@@ -1000,26 +1000,28 @@ impl TraderOrder {
                 );
                 match ordertx.position_type {
                     PositionType::LONG => {
-                        // cmd_array.push(String::from("TotalLongPositionSize"));
-                        cmd_array.push(String::from("TraderOrderbyLiquidationPriceFORLong"));
-                        // cmd_array.push(String::from("TotalPoolPositionSize"));
+                        let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                        let _ = add_to_liquidation_list
+                            .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                        drop(add_to_liquidation_list);
                     }
                     PositionType::SHORT => {
-                        // cmd_array.push(String::from("TotalShortPositionSize"));
-                        cmd_array.push(String::from("TraderOrderbyLiquidationPriceFORShort"));
-                        // cmd_array.push(String::from("TotalPoolPositionSize"));
+                        let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                        let _ = add_to_liquidation_list
+                            .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                        drop(add_to_liquidation_list);
                     }
                 }
                 // total position size for funding rate
                 if ordertx.order_type == OrderType::MARKET {
                     // update order json array and entry sequence in redisdb
-                    let (lend_nonce, entrysequence): (u128, u128) = orderinsert_pipeline();
+                    let (lend_nonce, entrysequence): (usize, usize) = orderinsert_pipeline();
                     // update latest nonce in order transaction
                     ordertx.entry_nonce = lend_nonce;
                     ordertx.entry_sequence = entrysequence;
                 }
                 //insert data into redis for sorting
-                orderinsert_pipeline_second(ordertx.clone(), cmd_array);
+                // orderinsert_pipeline_second(ordertx.clone(), cmd_array);
                 // update order data in postgreSQL
                 new_trader_order_insert_sql_query(ordertx.clone());
                 // undate recent order table and add candle data
