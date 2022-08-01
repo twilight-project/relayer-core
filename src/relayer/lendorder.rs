@@ -13,7 +13,7 @@ use std::time::SystemTime;
 use stopwatch::Stopwatch;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct LendOrder {
     pub uuid: Uuid,
     pub account_id: String,

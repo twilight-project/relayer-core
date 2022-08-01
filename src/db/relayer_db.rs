@@ -109,7 +109,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             }
             None => {
                 return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                    std::io::ErrorKind::NotFound,
                     "Order not found",
                 ))
             }
@@ -121,7 +121,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             Some(order) => Ok(Arc::clone(order)),
             None => {
                 return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                    std::io::ErrorKind::NotFound,
                     "Order not found",
                 ))
             }
@@ -164,7 +164,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             }
             None => {
                 return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                    std::io::ErrorKind::NotFound,
                     "Order not found",
                 ))
             }
@@ -251,7 +251,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             println!("TraderOrder Database Loaded ....");
             database
         } else {
-            println!("No old TraderOrder Database found ....");
+            println!("No old TraderOrder Database found ....\nCreating new database");
             LocalDB::<TraderOrder>::new()
         }
     }
@@ -512,14 +512,14 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
     }
 
     fn check_backup() -> Self {
-        println!("Loading TraderOrder Database ....");
+        println!("Loading LendOrder Database ....");
         let (redis_data, database): (bool, OrderDB<LendOrder>) = OrderDB::<LendOrder>::load_data();
         if redis_data {
             // println!("uploading db:{:?}", database);
-            println!("TraderOrder Database Loaded ....");
+            println!("LendOrder Database Loaded ....");
             database
         } else {
-            println!("No old TraderOrder Database found ....");
+            println!("No old LendOrder Database found ....\nCreating new database");
             LocalDB::<LendOrder>::new()
         }
     }

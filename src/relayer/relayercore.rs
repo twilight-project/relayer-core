@@ -40,16 +40,67 @@ pub fn core_event_handler(command: RpcCommand) {
         RpcCommand::CreateTraderOrder(rpc_request, metadata) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
-                let sw = Stopwatch::start_new();
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
                 let order_state = orderdata.orderinsert_localdb(status);
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let completed_order = trader_order_db.add(order_state, command_clone);
                 drop(trader_order_db);
-                let time_taken = sw.elapsed();
-                println!("time_taken data: {:#?}", time_taken,);
-                // println!("meta data: {:#?}", metadata);
             });
+            drop(buffer);
+        }
+        // RpcCommand::ExecuteTraderOrder(rpc_request, metadata) => {
+        //     let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
+        //     buffer.execute(move || {
+        //         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+        //         let order_data = trader_order_db.get(rpc_request.uuid);
+        //         drop(trader_order_db);
+        //         let execution_price = rpc_request.execution_price.clone();
+        //         match order_data {
+        //             Ok(order) => {
+        //                 match order.order_status {
+        //                     OrderStatus::FILLED => {
+        //                         let current_price = get_localdb("CurrentPrice");
+        //                         if rpc_request.order_type == OrderType::MARKET {
+        //                             let ordertx_caluculated = order.calculatepayment();
+        //                         } else {
+        //                             match order.position_type {
+        //                                 PositionType::LONG => {
+        //                                     if execution_price <= current_price {
+        //                                         let order_caluculated = order.calculatepayment();
+        //                                     } else {
+        //                                         let order_caluculated = order
+        //                                             .set_execution_price_for_limit_order(execution_price);
+        //                                     }
+        //                                 }
+        //                                 PositionType::SHORT => {
+        //                                     if execution_price >= current_price {
+        //                                         let order_caluculated = order.calculatepayment();
+        //                                     } else {
+        //                                         let order_caluculated = order
+        //                                             .set_execution_price_for_limit_order(execution_price);
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                     _ => {
+        //                         println!("order not found !!");
+        //                     }
+        //                 },
+        //             }
+        //             Err(arg) => {
+        //                 println!("Error found:{:#?}", arg);
+        //             }
+        //         }
+        //     });
+        //     drop(buffer);
+        // }
+        RpcCommand::CreateLendOrder(rpc_request, metadata) => {
+            let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
+            buffer.execute(move || {
+                println!("LendOrder data: {:#?}", rpc_request);
+            });
+            drop(buffer);
         }
         _ => {}
     }

@@ -1,3 +1,4 @@
+use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 // use uuid::Uuid;
@@ -9,4 +10,5 @@ pub enum RelayerCommand {
     PriceTickerOrderFill(ExecuteTraderOrder, Meta),
     PriceTickerOrderSettle(ExecuteLendOrder, Meta),
     FundingCycleLiquidation(CancelTraderOrder, Meta),
+    PoolUpdate(PoolOrder, Meta),
 }
