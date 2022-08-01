@@ -34,11 +34,12 @@ pub struct OrderDB<T> {
     last_snapshot_id: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Event<T> {
     TraderOrder(T, RpcCommand, usize),
     LendOrder(T, RpcCommand, usize),
     RelayerUpdate(T, RelayerCommand, usize),
+    Stop(String),
 }
 
 // impl<T> Event<T> {
@@ -57,7 +58,7 @@ impl Event<TraderOrder> {
                 pool.execute(move || {
                     Event::send_event_to_kafka_queue(
                         event_clone,
-                        String::from("TraderOrderEventLog"),
+                        String::from("TraderOrderEventLog1"),
                         key,
                     );
                 });
@@ -65,6 +66,7 @@ impl Event<TraderOrder> {
             }
             Event::LendOrder(order, cmd, seq) => Event::LendOrder(order, cmd, seq),
             Event::RelayerUpdate(order, cmd, seq) => Event::RelayerUpdate(order, cmd, seq),
+            Event::Stop(seq) => Event::Stop(seq.to_string()),
         }
     }
     pub fn send_event_to_kafka_queue(event: Event<TraderOrder>, topic: String, key: String) {
@@ -116,7 +118,7 @@ impl Event<TraderOrder> {
                                     // println!("Im here");
                                 }
                                 Err(arg) => {
-                                    println!("Closing Kafka Consumer Connection : {:#?}", arg);
+                                    // println!("Closing Kafka Consumer Connection : {:#?}", arg);
                                     connection_status = false;
                                     break;
                                 }
@@ -144,7 +146,7 @@ pub trait LocalDB<T> {
     fn update(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
     fn remove(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
     fn aggrigate_log_sequence(&mut self) -> usize;
-    fn load_data() -> bool;
+    fn load_data() -> (bool, OrderDB<T>);
     fn check_backup() -> Self;
     // fn get_from_snapshot(&self) {
     //     println!("{} says {}", self.name(), self.noise());
@@ -261,17 +263,83 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         self.aggrigate_log_sequence
     }
 
-    fn load_data() -> bool {
+    fn load_data() -> (bool, OrderDB<TraderOrder>) {
         // fn load_data() -> (bool, Self) {
+        let mut database: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
+        let time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_micros()
+            .to_string();
+        let eventstop: Event<TraderOrder> = Event::Stop(time.clone());
+        Event::<TraderOrder>::send_event_to_kafka_queue(
+            eventstop.clone(),
+            String::from("TraderOrderEventLog1"),
+            String::from("StopLoadMSG"),
+        );
+        let mut stop_signal: bool = true;
 
-        false
+        let recever = Event::receive_event_from_kafka_queue(
+            String::from("TraderOrderEventLog1"),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
+        )
+        .unwrap();
+        let recever1 = recever.lock().unwrap();
+        while stop_signal {
+            let data = recever1.recv().unwrap();
+            // pub struct EventLog {
+            //     pub offset: i64,
+            //     pub key: String,
+            //     pub value: Event<TraderOrder>,
+            // }
+            // println!("kafka msg:{:#?}", data.value.clone());
+            // if data.key == String::from("StopLoadMSG") {
+            match data.value.clone() {
+                Event::TraderOrder(order, cmd, seq) => {
+                    database
+                        .ordertable
+                        .insert(order.uuid, Arc::new(RwLock::new(order)));
+                    database.cmd.push(cmd);
+                    database.event.push(data.value);
+                    if database.sequence < seq {
+                        database.sequence = seq;
+                    }
+                }
+                Event::Stop(timex) => {
+                    if timex == time {
+                        database.aggrigate_log_sequence = database.cmd.len();
+                        stop_signal = false;
+                    }
+                }
+                Event::LendOrder { .. } => {
+                    println!("LendOrder Im here");
+                }
+                Event::RelayerUpdate { .. } => {
+                    println!("RelayerUpdate Im here");
+                }
+            }
+        }
+        if database.sequence > 0 {
+            (true, database.clone())
+        } else {
+            (false, database)
+        }
     }
 
     fn check_backup() -> Self {
-        let redis_data: bool = OrderDB::<TraderOrder>::load_data();
+        println!("Loading TraderOrder Database ....");
+        let (redis_data, database): (bool, OrderDB<TraderOrder>) =
+            OrderDB::<TraderOrder>::load_data();
         if redis_data {
-            LocalDB::<TraderOrder>::new()
+            // println!("uploading db:{:?}", database);
+            println!("TraderOrder Database Loaded ....");
+            database
         } else {
+            println!("No old TraderOrder Database found ....");
             LocalDB::<TraderOrder>::new()
         }
     }
@@ -289,13 +357,7 @@ pub fn update_nonce() -> usize {
 
 #[derive(Debug)]
 pub struct EventLog {
-    /// The offset at which this message resides in the remote kafka
-    /// broker topic partition.
     pub offset: i64,
-    /// The "key" data of this message.  Empty if there is no such
-    /// data for this message.
     pub key: String,
-    /// The value data of this message.  Empty if there is no such
-    /// data for this message.
     pub value: Event<TraderOrder>,
 }

@@ -29,26 +29,27 @@ use std::sync::{mpsc, Arc, Mutex};
 fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
     // kafkalib::kafka_topic::kafka_new_topic("CLIENT-REQUEST");
-    // kafkalib::kafka_topic::kafka_new_topic("TraderOrderEventLog");
+    // kafkalib::kafka_topic::kafka_new_topic("TraderOrderEventLog1");
     dotenv::dotenv().expect("Failed loading dotenv");
     // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
+    let load_data = TRADER_ORDER_DB.lock().unwrap();
+    drop(load_data);
     ordertest::initprice();
     thread::spawn(move || {
         client_cmd_receiver();
     });
-    thread::spawn(move || {
-        let recever = Event::receive_event_from_kafka_queue(
-            String::from("TraderOrderEventLog"),
-            String::from("client_event_receiver"),
-        )
-        .unwrap();
-        let recever1 = recever.lock().unwrap();
-
-        loop {
-            let data = recever1.recv().unwrap();
-            println!("{:#?}", data);
-        }
-    });
+    // thread::spawn(move || {
+    //     let recever = Event::receive_event_from_kafka_queue(
+    //         String::from("TraderOrderEventLog1"),
+    //         String::from("client_event_receiver"),
+    //     )
+    //     .unwrap();
+    //     let recever1 = recever.lock().unwrap();
+    //     loop {
+    //         let data = recever1.recv().unwrap();
+    //         println!("{:#?}", data);
+    //     }
+    // });
     init_psql();
     ordertest::generatelendorder();
     thread::sleep(time::Duration::from_millis(100));

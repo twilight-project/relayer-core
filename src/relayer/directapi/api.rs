@@ -267,14 +267,14 @@ pub fn startserver() {
                     // let db = TRADER_LP_LONG.lock().unwrap();
                     // println!("{:#?}", db);
                     // drop(db);
-                    let mut trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+                    let mut trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
                     let sw = Stopwatch::start_new();
 
-                    let _ = trader_lp_long.add(value.orderid, value.price);
-                    trader_lp_long.sort();
+                    // let _ = trader_lp_long.add(value.orderid, value.price);
+                    // trader_lp_long.sort();
                     let time_taken = sw.elapsed();
-                    println!("\n db : {:?}", trader_lp_long.read());
-                    println!("\n time taken : {:#?}", time_taken);
+                    // println!("\n db : {:?}", trader_lp_long.read());
+                    println!("\n trader_lp_long taken : {:#?}", trader_lp_long);
                     drop(trader_lp_long);
                     Ok(serde_json::to_value(&check_server_time()).unwrap())
                 }
