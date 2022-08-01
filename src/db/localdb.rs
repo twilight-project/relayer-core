@@ -39,6 +39,8 @@ lazy_static! {
         Arc::new(Mutex::new(SortedSet::new()));
     pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
         Arc::new(Mutex::new(LocalDB::<TraderOrder>::check_backup()));
+    pub static ref LEND_ORDER_DB: Arc<Mutex<OrderDB<LendOrder>>> =
+        Arc::new(Mutex::new(LocalDB::<LendOrder>::check_backup()));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

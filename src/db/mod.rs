@@ -1,4 +1,5 @@
 // pub mod kafkaevent;
+pub mod lendpool;
 mod localdb;
 mod relayer_db;
 mod sortedset;
