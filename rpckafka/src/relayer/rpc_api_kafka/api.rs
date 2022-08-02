@@ -14,7 +14,7 @@ use std::time::SystemTime;
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Meta {
-    pub matadata: HashMap<String, Option<String>>,
+    pub metadata: HashMap<String, Option<String>>,
 }
 impl Metadata for Meta {}
 pub fn kafka_queue_rpc_server() {
@@ -131,7 +131,7 @@ pub fn kafka_queue_rpc_server() {
                 .get("Relayer")
                 .map(|h| h.to_str().unwrap_or("").to_owned());
             Meta {
-                matadata: {
+                metadata: {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(String::from("CONTENT_TYPE"), auth);
                     hashmap.insert(String::from("Relayer"), relayer);

@@ -1128,7 +1128,7 @@ impl TraderOrder {
         self.clone()
     }
 
-    pub fn transiction_with_lendpool(&mut self) -> usize {
+    pub fn transaction_with_lendpool(&mut self) -> usize {
         0
     }
 }

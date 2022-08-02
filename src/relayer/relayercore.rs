@@ -88,6 +88,7 @@ pub fn core_event_handler(command: RpcCommand) {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 println!("LendOrder data: {:#?}", rpc_request);
+                // let (orderdata, status)=LendOrder::new(account_id: &str, balance: f64, order_type: OrderType, order_status: OrderStatus, deposit: f64)
             });
             drop(buffer);
         }

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 #[derive(Default, Clone, Debug)]
 struct Meta {
-    matadata: HashMap<String, Option<String>>,
+    metadata: HashMap<String, Option<String>>,
 }
 impl Metadata for Meta {}
 pub fn startserver() {
@@ -267,14 +267,14 @@ pub fn startserver() {
                     // let db = TRADER_LP_LONG.lock().unwrap();
                     // println!("{:#?}", db);
                     // drop(db);
-                    let mut trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                    // let mut trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
                     let sw = Stopwatch::start_new();
+                    let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
 
+                    println!("\n LEND_POOL_DB : {:?}", trader_lp_long);
                     // let _ = trader_lp_long.add(value.orderid, value.price);
-                    // trader_lp_long.sort();
                     let time_taken = sw.elapsed();
                     // println!("\n db : {:?}", trader_lp_long.read());
-                    println!("\n trader_lp_long taken : {:#?}", trader_lp_long);
                     drop(trader_lp_long);
                     Ok(serde_json::to_value(&check_server_time()).unwrap())
                 }
@@ -302,7 +302,7 @@ pub fn startserver() {
 
             println!("I'm Here");
             Meta {
-                matadata: {
+                metadata: {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(String::from("CONTENT_TYPE"), auth);
                     hashmap.insert(String::from("Relayer"), relayer);

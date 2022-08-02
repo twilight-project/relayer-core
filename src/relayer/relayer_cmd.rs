@@ -11,4 +11,5 @@ pub enum RelayerCommand {
     PriceTickerOrderSettle(PoolOrder, Meta),
     FundingCycleLiquidation(PoolOrder, Meta),
     RpcCommandPoolupdate(PoolOrder, Meta),
+    InitiateNewPool(PoolOrder, Meta),
 }

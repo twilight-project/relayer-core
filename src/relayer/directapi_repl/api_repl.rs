@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 #[derive(Default, Clone, Debug)]
 struct Meta {
-    matadata: HashMap<String, Option<String>>,
+    metadata: HashMap<String, Option<String>>,
 }
 impl Metadata for Meta {}
 pub fn startserver_repl() {
@@ -273,7 +273,7 @@ pub fn startserver_repl() {
 
             println!("I'm Here");
             Meta {
-                matadata: {
+                metadata: {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(String::from("CONTENT_TYPE"), auth);
                     hashmap.insert(String::from("Relayer"), relayer);

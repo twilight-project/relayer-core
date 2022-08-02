@@ -212,18 +212,21 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             // if data.key == String::from("StopLoadMSG") {
             match data.value.clone() {
                 Event::TraderOrder(order, cmd, seq) => {
+                    let order_clone = order.clone();
                     database
                         .ordertable
                         .insert(order.uuid, Arc::new(RwLock::new(order)));
                     database.cmd.push(cmd);
                     database.event.push(data.value);
-                    if database.sequence < seq {
-                        database.sequence = seq;
+                    if database.sequence < order_clone.entry_sequence {
+                        database.sequence = order_clone.entry_sequence;
+                    }
+                    if database.aggrigate_log_sequence < seq {
+                        database.aggrigate_log_sequence = seq;
                     }
                 }
                 Event::Stop(timex) => {
                     if timex == time {
-                        database.aggrigate_log_sequence = database.cmd.len();
                         stop_signal = false;
                     }
                 }
@@ -481,18 +484,21 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
             let data = recever1.recv().unwrap();
             match data.value.clone() {
                 Event::LendOrder(order, cmd, seq) => {
+                    let order_clone = order.clone();
                     database
                         .ordertable
                         .insert(order.uuid, Arc::new(RwLock::new(order)));
                     database.cmd.push(cmd);
                     database.event.push(data.value);
-                    if database.sequence < seq {
-                        database.sequence = seq;
+                    if database.sequence < order_clone.entry_sequence {
+                        database.sequence = order_clone.entry_sequence;
+                    }
+                    if database.aggrigate_log_sequence < seq {
+                        database.aggrigate_log_sequence = seq;
                     }
                 }
                 Event::Stop(timex) => {
                     if timex == time {
-                        database.aggrigate_log_sequence = database.cmd.len();
                         stop_signal = false;
                     }
                 }

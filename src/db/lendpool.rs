@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::db::*;
+
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
@@ -47,10 +48,50 @@ pub struct PoolOrder {
     nonce: usize,
     sequence: usize,
     price: f64,
-    amount: f64,
-    trader_order_data: Vec<Uuid>,
-    lend_order_data: Vec<Uuid>,
+    amount: f64, //sats
+    trader_order_data: Vec<TraderOrder>,
+    lend_order_data: Vec<LendOrder>,
 }
+
+impl PoolOrder {
+    fn initiate_pool() -> Self {
+        let relayer_initial_lend_order = LendOrder {
+            uuid: Uuid::new_v4(),
+            account_id: String::from("Relayer Initial Transaction, with public key"),
+            balance: 10.0,
+            order_status: OrderStatus::SETTLED,
+            order_type: OrderType::LEND,
+            entry_nonce: 0,
+            exit_nonce: 0,
+            deposit: 10.0,
+            new_lend_state_amount: 10.0 * 10000.0,
+            timestamp: SystemTime::now(),
+            npoolshare: 10.0,
+            nwithdraw: 0.0,
+            payment: 0.0,
+            tlv0: 0.0,
+            tps0: 0.0,
+            tlv1: 100000.0,
+            tps1: 10.0,
+            tlv2: 100000.0,
+            tps2: 10.0,
+            tlv3: 100000.0,
+            tps3: 10.0,
+            entry_sequence: 0,
+        };
+        let mut lend_transaction: Vec<LendOrder> = Vec::new();
+        lend_transaction.push(relayer_initial_lend_order);
+        PoolOrder {
+            nonce: 0,
+            sequence: 0,
+            price: get_localdb("CurrentPrice"),
+            amount: 100000.0, //100,000 sats
+            trader_order_data: Vec::new(),
+            lend_order_data: lend_transaction,
+        }
+    }
+}
+
 // pub trait LocalDB<T> {
 //     fn new() -> Self;
 //     fn add(&mut self, order: T, cmd: RpcCommand) -> T;
@@ -66,7 +107,56 @@ pub struct PoolOrder {
 // }
 impl LendPool {
     pub fn new() -> Self {
+        let init_poolorder = PoolOrder::initiate_pool();
+        let total_pool_share = init_poolorder.amount;
+        let total_locked_value = init_poolorder.amount * 10000.0;
+        let mut metadata = HashMap::new();
+        metadata.insert(
+            String::from("Relayer_Public_Key"),
+            Some(String::from("Relayer Initial Transaction, with public key")),
+        );
+        metadata.insert(
+            String::from("Pool_Initiate_time"),
+            Some(
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+                    .to_string(),
+            ),
+        );
+
+        let relayer_command = RelayerCommand::InitiateNewPool(init_poolorder, Meta { metadata });
+        let pool_event = PoolEvent::PoolUpdate(relayer_command.clone(), 0);
+        let pool_event_execute = PoolEvent::new(
+            pool_event,
+            String::from("Initiate_Lend_Pool"),
+            String::from("LendPoolEventLog1"),
+        );
         LendPool {
+            sequence: 0,
+            nonce: 0,
+            total_pool_share: total_pool_share,
+            total_locked_value: total_locked_value,
+            cmd_log: {
+                let mut cmd_log = Vec::new();
+                cmd_log.push(relayer_command);
+                cmd_log
+            },
+            event_log: {
+                let mut event_log = Vec::new();
+                event_log.push(pool_event_execute);
+                event_log
+            },
+            pending_orders: HashMap::new(),
+            aggrigate_log_sequence: 0,
+            last_snapshot_id: 0,
+        }
+    }
+
+    pub fn load_data() -> (bool, LendPool) {
+        // fn load_data() -> (bool, Self) {
+        let mut database: LendPool = LendPool {
             sequence: 0,
             nonce: 0,
             total_pool_share: 0.0,
@@ -76,12 +166,7 @@ impl LendPool {
             pending_orders: HashMap::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
-        }
-    }
-
-    pub fn load_data() -> (bool, LendPool) {
-        // fn load_data() -> (bool, Self) {
-        let mut database: LendPool = LendPool::new();
+        };
         let time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -108,16 +193,27 @@ impl LendPool {
         while stop_signal {
             let data = recever1.recv().unwrap();
             match data.value.clone() {
-                PoolEvent::PoolUpdate(cmd, seq) => {
-                    // database
-                    //     .ordertable
-                    //     .insert(order.uuid, Arc::new(RwLock::new(order)));
-                    // database.cmd.push(cmd);
-                    // database.event.push(data.value);
-                    // if database.sequence < seq {
-                    //     database.sequence = seq;
-                    // }
-                }
+                PoolEvent::PoolUpdate(cmd, seq) => match cmd.clone() {
+                    RelayerCommand::FundingCycle(pool_order, metadata) => {}
+                    RelayerCommand::PriceTickerLiquidation(pool_order, metadata) => {}
+                    RelayerCommand::PriceTickerOrderFill(pool_order, metadata) => {}
+                    RelayerCommand::PriceTickerOrderSettle(pool_order, metadata) => {}
+                    RelayerCommand::FundingCycleLiquidation(pool_order, metadata) => {}
+                    RelayerCommand::RpcCommandPoolupdate(pool_order, metadata) => {}
+                    RelayerCommand::InitiateNewPool(pool_order, metadata) => {
+                        let total_pool_share = pool_order.amount;
+                        let total_locked_value = pool_order.amount * 10000.0;
+                        database.sequence = pool_order.nonce;
+                        database.nonce = pool_order.nonce;
+                        database.total_pool_share += total_pool_share;
+                        database.total_locked_value += total_locked_value;
+                        database.cmd_log.push(cmd);
+                        database.event_log.push(data.value);
+                        if database.aggrigate_log_sequence < seq {
+                            database.aggrigate_log_sequence = seq;
+                        }
+                    }
+                },
                 PoolEvent::Stop(timex) => {
                     if timex == time {
                         // database.aggrigate_log_sequence = database.cmd.len();

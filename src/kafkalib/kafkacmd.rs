@@ -139,13 +139,13 @@ impl Message {
             RpcCommand::CreateTraderOrder(
                 createtraderorder,
                 Meta {
-                    matadata: mut metadata,
+                    metadata: mut metadata,
                 },
             ) => {
                 metadata.insert(String::from("offset"), Some(value.offset.to_string()));
                 metadata.insert(String::from("kafka_key"), Some(value.key));
                 let rcmd =
-                    RpcCommand::CreateTraderOrder(createtraderorder, Meta { matadata: metadata });
+                    RpcCommand::CreateTraderOrder(createtraderorder, Meta { metadata: metadata });
                 return rcmd;
             }
             _ => return value.value,
