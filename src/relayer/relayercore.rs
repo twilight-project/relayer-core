@@ -48,42 +48,53 @@ pub fn core_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        // RpcCommand::ExecuteTraderOrder(rpc_request, metadata) => {
-        //     let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
-        //     buffer.execute(move || {
-        //         let execution_price = rpc_request.execution_price.clone();
-        //         let current_price = get_localdb("CurrentPrice");
-        //         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-        //         let order_detail_wraped = trader_order_db.get_mut(rpc_request.uuid);
-        //         drop(trader_order_db);
-        //         match order_detail_wraped {
-        //             Ok(order_detail) => {
-        //                 let mut order = order_detail.write().unwrap();
-
-        //                 match order.order_status {
-        //                     OrderStatus::FILLED => {
-        //                         let order_updated = order.check_for_settlement(
-        //                             execution_price,
-        //                             current_price,
-        //                             rpc_request.order_type,
-        //                         );
-        //                     }
-        //                     _ => {
-        //                         println!(
-        //                             "Order {} not found or invalid order status !!",
-        //                             rpc_request.uuid
-        //                         );
-        //                     }
-        //                 }
-        //                 drop(order);
-        //             }
-        //             Err(arg) => {
-        //                 println!("Error found:{:#?}", arg);
-        //             }
-        //         }
-        //     });
-        //     drop(buffer);
-        // }
+        RpcCommand::ExecuteTraderOrder(rpc_request, metadata) => {
+            let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
+            buffer.execute(move || {
+                let execution_price = rpc_request.execution_price.clone();
+                let current_price = get_localdb("CurrentPrice");
+                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                let order_detail_wraped = trader_order_db.get_mut(rpc_request.uuid);
+                drop(trader_order_db);
+                match order_detail_wraped {
+                    Ok(order_detail) => {
+                        let mut order = order_detail.write().unwrap();
+                        println!("FILLED order:{:#?}", order);
+                        match order.order_status {
+                            OrderStatus::FILLED => {
+                                let (payment, order_status) = order.check_for_settlement(
+                                    execution_price,
+                                    current_price,
+                                    rpc_request.order_type,
+                                );
+                                match order_status {
+                                    OrderStatus::SETTLED => {
+                                        println!(
+                                            "SETTLED order:{:#?}\n payment:{:#?}",
+                                            order, payment
+                                        );
+                                        drop(order);
+                                    }
+                                    _ => {
+                                        drop(order);
+                                    }
+                                }
+                            }
+                            _ => {
+                                println!(
+                                    "Order {} not found or invalid order status !!",
+                                    rpc_request.uuid
+                                );
+                            }
+                        }
+                    }
+                    Err(arg) => {
+                        println!("Error found:{:#?}", arg);
+                    }
+                }
+            });
+            drop(buffer);
+        }
         // RpcCommand::CreateLendOrder(rpc_request, metadata) => {
         //     let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
         //     buffer.execute(move || {

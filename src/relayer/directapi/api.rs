@@ -267,9 +267,9 @@ pub fn startserver() {
                     // let db = TRADER_LP_LONG.lock().unwrap();
                     // println!("{:#?}", db);
                     // drop(db);
-                    // let mut trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
                     let sw = Stopwatch::start_new();
-                    let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                    let mut trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                    // let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
 
                     println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
                     // let _ = trader_lp_long.add(value.orderid, value.price);

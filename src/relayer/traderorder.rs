@@ -1040,17 +1040,19 @@ impl TraderOrder {
         execution_price: f64,
         current_price: f64,
         cmd_order_type: OrderType,
-    ) -> Self {
-        let mut order = self.clone();
-
+    ) -> (f64, OrderStatus) {
+        let mut payment: f64 = 0.0;
+        let mut orderstatus: OrderStatus = OrderStatus::FILLED;
         match cmd_order_type {
             OrderType::MARKET => {
-                let ordertx_caluculated = self.calculatepayment_localdb(current_price);
+                payment = self.calculatepayment_localdb(current_price);
+                orderstatus = OrderStatus::SETTLED;
             }
             OrderType::LIMIT => match self.position_type {
                 PositionType::LONG => {
                     if execution_price <= current_price {
-                        let order_caluculated = self.calculatepayment_localdb(current_price);
+                        payment = self.calculatepayment_localdb(current_price);
+                        orderstatus = OrderStatus::SETTLED;
                     } else {
                         let order_caluculated =
                             self.set_execution_price_for_limit_order_localdb(execution_price);
@@ -1058,7 +1060,8 @@ impl TraderOrder {
                 }
                 PositionType::SHORT => {
                     if execution_price >= current_price {
-                        let order_caluculated = self.calculatepayment_localdb(current_price);
+                        payment = self.calculatepayment_localdb(current_price);
+                        orderstatus = OrderStatus::SETTLED;
                     } else {
                         let order_caluculated =
                             self.set_execution_price_for_limit_order_localdb(execution_price);
@@ -1068,7 +1071,7 @@ impl TraderOrder {
             _ => {}
         }
 
-        order
+        (payment, orderstatus)
     }
 
     pub fn set_execution_price_for_limit_order_localdb(
@@ -1109,7 +1112,8 @@ impl TraderOrder {
         }
     }
 
-    pub fn calculatepayment_localdb(&mut self, current_price: f64) -> Self {
+    pub fn calculatepayment_localdb(&mut self, current_price: f64) -> f64 // returns payment
+    {
         let margindifference = self.available_margin - self.initial_margin;
         let u_pnl = unrealizedpnl(
             &self.position_type,
@@ -1122,10 +1126,10 @@ impl TraderOrder {
         self.available_margin += payment;
         self.settlement_price = current_price;
         self.unrealized_pnl = u_pnl;
-        let exit_nonce = updatelendaccountontraderordersettlement(payment * 10000.0);
-        self.exit_nonce = exit_nonce;
+        // let exit_nonce = updatelendaccountontraderordersettlement(payment * 10000.0);
+        // self.exit_nonce = exit_nonce;
         // self = ordertx.removeorderfromredis().updatepsqlonsettlement();
-        self.clone()
+        payment
     }
 
     pub fn transaction_with_lendpool(&mut self) -> usize {

@@ -80,7 +80,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
     fn add(&mut self, mut order: TraderOrder, cmd: RpcCommand) -> TraderOrder {
         self.sequence += 1;
         order.entry_sequence = self.sequence;
-        order.entry_nonce = self.nonce;
+        order.entry_nonce = get_nonce();
         self.ordertable
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.cmd.push(cmd.clone());
@@ -133,16 +133,23 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         mut order: TraderOrder,
         cmd: RpcCommand,
     ) -> Result<TraderOrder, std::io::Error> {
-        self.ordertable
-            .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
-        self.cmd.push(cmd.clone());
-        self.aggrigate_log_sequence += 1;
-        self.event.push(Event::TraderOrder(
-            order.clone(),
-            cmd.clone(),
-            self.aggrigate_log_sequence,
-        ));
-        Ok(order.clone())
+        if self.ordertable.contains_key(&order.uuid) {
+            self.ordertable
+                .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
+            self.cmd.push(cmd.clone());
+            self.aggrigate_log_sequence += 1;
+            self.event.push(Event::TraderOrder(
+                order.clone(),
+                cmd.clone(),
+                self.aggrigate_log_sequence,
+            ));
+            Ok(order.clone())
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Order not found",
+            ));
+        }
     }
 
     fn remove(
@@ -150,24 +157,31 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         mut order: TraderOrder,
         cmd: RpcCommand,
     ) -> Result<TraderOrder, std::io::Error> {
-        match self.ordertable.remove(&order.uuid) {
-            Some(_) => {
-                self.cmd.push(cmd.clone());
-                self.aggrigate_log_sequence += 1;
-                order.exit_nonce = get_nonce();
-                self.event.push(Event::TraderOrder(
-                    order.clone(),
-                    cmd.clone(),
-                    self.aggrigate_log_sequence,
-                ));
-                Ok(order)
+        if self.ordertable.contains_key(&order.uuid) {
+            match self.ordertable.remove(&order.uuid) {
+                Some(_) => {
+                    self.cmd.push(cmd.clone());
+                    self.aggrigate_log_sequence += 1;
+                    order.exit_nonce = get_nonce();
+                    self.event.push(Event::TraderOrder(
+                        order.clone(),
+                        cmd.clone(),
+                        self.aggrigate_log_sequence,
+                    ));
+                    Ok(order)
+                }
+                None => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "Order not found",
+                    ))
+                }
             }
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Order not found",
-                ))
-            }
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Order not found",
+            ));
         }
     }
 
