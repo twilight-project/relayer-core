@@ -72,7 +72,7 @@ impl SortedSet {
         result
     }
 
-    pub fn update(&mut self, uuid: Uuid, entry_price_i64: i64) -> Result<(), std::io::Error> {
+    pub fn update(&mut self, uuid: Uuid, price: i64) -> Result<(), std::io::Error> {
         if self.hash.insert(uuid) {
             self.hash.remove(&uuid);
             Err(std::io::Error::new(
@@ -86,7 +86,7 @@ impl SortedSet {
                 .position(|&(x, _y)| x == uuid)
                 .unwrap();
 
-            self.sorted_order[key_index].1 = entry_price_i64;
+            self.sorted_order[key_index].1 = price;
             Ok(())
         }
     }

@@ -594,7 +594,7 @@ impl Event<LendOrder> {
                                     // let _ = con.consume_message(&topic_clone, partition, m.offset);
                                     // println!("Im here");
                                 }
-                                Err(arg) => {
+                                Err(_arg) => {
                                     // println!("Closing Kafka Consumer Connection : {:#?}", arg);
                                     connection_status = false;
                                     break;

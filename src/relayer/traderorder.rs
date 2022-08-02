@@ -1034,4 +1034,101 @@ impl TraderOrder {
         }
         ordertx
     }
+
+    pub fn check_for_settlement(
+        &mut self,
+        execution_price: f64,
+        current_price: f64,
+        cmd_order_type: OrderType,
+    ) -> Self {
+        let mut order = self.clone();
+
+        match cmd_order_type {
+            OrderType::MARKET => {
+                let ordertx_caluculated = self.calculatepayment_localdb(current_price);
+            }
+            OrderType::LIMIT => match self.position_type {
+                PositionType::LONG => {
+                    if execution_price <= current_price {
+                        let order_caluculated = self.calculatepayment_localdb(current_price);
+                    } else {
+                        let order_caluculated =
+                            self.set_execution_price_for_limit_order_localdb(execution_price);
+                    }
+                }
+                PositionType::SHORT => {
+                    if execution_price >= current_price {
+                        let order_caluculated = self.calculatepayment_localdb(current_price);
+                    } else {
+                        let order_caluculated =
+                            self.set_execution_price_for_limit_order_localdb(execution_price);
+                    }
+                }
+            },
+            _ => {}
+        }
+
+        order
+    }
+
+    pub fn set_execution_price_for_limit_order_localdb(
+        &mut self,
+        execution_price: f64,
+    ) -> Result<(), std::io::Error> {
+        match self.position_type {
+            PositionType::LONG => {
+                let mut add_to_limit_order_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                match add_to_limit_order_list.add(self.uuid, (execution_price * 10000.0) as i64) {
+                    Ok(()) => {
+                        drop(add_to_limit_order_list);
+                        return Ok(());
+                    }
+                    Err(_) => {
+                        let result = add_to_limit_order_list
+                            .update(self.uuid, (execution_price * 10000.0) as i64);
+                        drop(add_to_limit_order_list);
+                        return result;
+                    }
+                }
+            }
+            PositionType::SHORT => {
+                let mut add_to_limit_order_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                match add_to_limit_order_list.add(self.uuid, (execution_price * 10000.0) as i64) {
+                    Ok(()) => {
+                        drop(add_to_limit_order_list);
+                        return Ok(());
+                    }
+                    Err(_) => {
+                        let result = add_to_limit_order_list
+                            .update(self.uuid, (execution_price * 10000.0) as i64);
+                        drop(add_to_limit_order_list);
+                        return result;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn calculatepayment_localdb(&mut self, current_price: f64) -> Self {
+        let margindifference = self.available_margin - self.initial_margin;
+        let u_pnl = unrealizedpnl(
+            &self.position_type,
+            self.positionsize,
+            self.entryprice,
+            current_price,
+        );
+        let payment = u_pnl + margindifference;
+        self.order_status = OrderStatus::SETTLED;
+        self.available_margin += payment;
+        self.settlement_price = current_price;
+        self.unrealized_pnl = u_pnl;
+        let exit_nonce = updatelendaccountontraderordersettlement(payment * 10000.0);
+        self.exit_nonce = exit_nonce;
+        // self = ordertx.removeorderfromredis().updatepsqlonsettlement();
+        self.clone()
+    }
+
+    pub fn transiction_with_lendpool(&mut self) -> usize {
+        0
+    }
 }

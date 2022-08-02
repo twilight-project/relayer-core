@@ -17,15 +17,19 @@ pub fn unrealizedpnl(
     entryprice: f64,
     settleprice: f64,
 ) -> f64 {
-    match position_type {
-        // &PositionType::LONG => positionsize * (1.0 / entryprice - 1.0 / settleprice),
-        &PositionType::LONG => {
-            (positionsize * (settleprice - entryprice)) / (entryprice * settleprice)
+    if entryprice > 0.0 && settleprice > 0.0 {
+        match position_type {
+            // &PositionType::LONG => positionsize * (1.0 / entryprice - 1.0 / settleprice),
+            &PositionType::LONG => {
+                (positionsize * (settleprice - entryprice)) / (entryprice * settleprice)
+            }
+            // &PositionType::SHORT => positionsize * (1.0 / settleprice - 1.0 / entryprice),
+            &PositionType::SHORT => {
+                (positionsize * (entryprice - settleprice)) / (entryprice * settleprice)
+            }
         }
-        // &PositionType::SHORT => positionsize * (1.0 / settleprice - 1.0 / entryprice),
-        &PositionType::SHORT => {
-            (positionsize * (entryprice - settleprice)) / (entryprice * settleprice)
-        }
+    } else {
+        0.0
     }
 }
 

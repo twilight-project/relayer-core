@@ -5,10 +5,10 @@ use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
-    FundingCycle(CreateTraderOrder, Meta),
-    PriceTickerLiquidation(CreateLendOrder, Meta),
-    PriceTickerOrderFill(ExecuteTraderOrder, Meta),
-    PriceTickerOrderSettle(ExecuteLendOrder, Meta),
-    FundingCycleLiquidation(CancelTraderOrder, Meta),
-    PoolUpdate(PoolOrder, Meta),
+    FundingCycle(PoolOrder, Meta),
+    PriceTickerLiquidation(PoolOrder, Meta),
+    PriceTickerOrderFill(PoolOrder, Meta),
+    PriceTickerOrderSettle(PoolOrder, Meta),
+    FundingCycleLiquidation(PoolOrder, Meta),
+    RpcCommandPoolupdate(PoolOrder, Meta),
 }
