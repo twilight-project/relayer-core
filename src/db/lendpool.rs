@@ -80,12 +80,12 @@ impl PoolOrder {
             entry_sequence: 0,
         };
         let mut lend_transaction: Vec<LendOrder> = Vec::new();
-        lend_transaction.push(relayer_initial_lend_order);
+        lend_transaction.push(relayer_initial_lend_order.clone());
         PoolOrder {
             nonce: 0,
             sequence: 0,
             price: get_localdb("CurrentPrice"),
-            amount: 100000.0, //100,000 sats
+            amount: relayer_initial_lend_order.deposit, //100,000 sats
             trader_order_data: Vec::new(),
             lend_order_data: lend_transaction,
         }
@@ -194,17 +194,21 @@ impl LendPool {
             let data = recever1.recv().unwrap();
             match data.value.clone() {
                 PoolEvent::PoolUpdate(cmd, seq) => match cmd.clone() {
-                    RelayerCommand::FundingCycle(pool_order, metadata) => {}
-                    RelayerCommand::PriceTickerLiquidation(pool_order, metadata) => {}
-                    RelayerCommand::PriceTickerOrderFill(pool_order, metadata) => {}
-                    RelayerCommand::PriceTickerOrderSettle(pool_order, metadata) => {}
-                    RelayerCommand::FundingCycleLiquidation(pool_order, metadata) => {}
-                    RelayerCommand::RpcCommandPoolupdate(pool_order, metadata) => {}
-                    RelayerCommand::InitiateNewPool(pool_order, metadata) => {
+                    RelayerCommand::FundingCycle(pool_order, _metadata) => {}
+                    RelayerCommand::PriceTickerLiquidation(pool_order, _metadata) => {}
+                    RelayerCommand::PriceTickerOrderFill(pool_order, _metadata) => {}
+                    RelayerCommand::PriceTickerOrderSettle(pool_order, _metadata) => {}
+                    RelayerCommand::FundingCycleLiquidation(pool_order, _metadata) => {}
+                    RelayerCommand::RpcCommandPoolupdate(pool_order, _metadata) => {}
+                    RelayerCommand::InitiateNewPool(pool_order, _metadata) => {
                         let total_pool_share = pool_order.amount;
                         let total_locked_value = pool_order.amount * 10000.0;
-                        database.sequence = pool_order.nonce;
-                        database.nonce = pool_order.nonce;
+                        if database.sequence < pool_order.sequence {
+                            database.sequence = pool_order.sequence;
+                        }
+                        if database.nonce < pool_order.nonce {
+                            database.nonce = pool_order.nonce;
+                        }
                         database.total_pool_share += total_pool_share;
                         database.total_locked_value += total_locked_value;
                         database.cmd_log.push(cmd);
@@ -222,7 +226,7 @@ impl LendPool {
                 }
             }
         }
-        if database.sequence > 0 {
+        if database.total_locked_value > 0.0 {
             (true, database.clone())
         } else {
             (false, database)

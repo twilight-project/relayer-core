@@ -33,6 +33,7 @@ fn main() {
     // kafkalib::kafka_topic::kafka_new_topic("LendOrderEventLog1");
     // kafkalib::kafka_topic::kafka_new_topic("LendPoolEventLog1");
     dotenv::dotenv().expect("Failed loading dotenv");
+    ordertest::initprice();
     // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
     let load_trader_data = TRADER_ORDER_DB.lock().unwrap();
     drop(load_trader_data);
@@ -40,7 +41,6 @@ fn main() {
     drop(load_lend_data);
     let load_pool_data = LEND_POOL_DB.lock().unwrap();
     drop(load_pool_data);
-    ordertest::initprice();
     thread::spawn(move || {
         client_cmd_receiver();
     });

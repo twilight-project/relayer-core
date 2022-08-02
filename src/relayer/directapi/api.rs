@@ -271,7 +271,7 @@ pub fn startserver() {
                     let sw = Stopwatch::start_new();
                     let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
 
-                    println!("\n LEND_POOL_DB : {:?}", trader_lp_long);
+                    println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
                     // let _ = trader_lp_long.add(value.orderid, value.price);
                     let time_taken = sw.elapsed();
                     // println!("\n db : {:?}", trader_lp_long.read());
