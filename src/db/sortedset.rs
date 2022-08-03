@@ -37,25 +37,36 @@ impl SortedSet {
     }
 
     pub fn remove(&mut self, uuid: Uuid) -> Result<(Uuid, i64), std::io::Error> {
-        let mut value: Vec<(Uuid, i64)> = Vec::new();
+        // let mut value: Vec<(Uuid, i64)> = Vec::new();
 
         if self.hash.remove(&uuid) {
             let key_index = self.sorted_order.iter().position(|&(x, _y)| x == uuid);
             if key_index.is_some() {
-                value = self
+                let mut value: Vec<(Uuid, i64)> = self
                     .sorted_order
                     .drain(key_index.unwrap()..(key_index.unwrap() + 1))
                     .collect();
-                self.len -= 1;
+                match value.pop() {
+                    Some((id, price)) => {
+                        self.len -= 1;
+                        Ok((id, price))
+                    }
+                    None => Err(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "Key does not exist",
+                    )),
+                }
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Key does not exist",
+                ));
             }
         } else {
-        }
-        match value.pop() {
-            Some((id, price)) => Ok((id, price)),
-            None => Err(std::io::Error::new(
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "Key does not exist",
-            )),
+            ));
         }
     }
 

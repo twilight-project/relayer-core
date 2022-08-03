@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::db::*;
-
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
@@ -41,6 +40,7 @@ pub struct PoolEventLog {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum PoolEvent {
     PoolUpdate(RelayerCommand, usize),
+    // LendOrder(LendOrder, usize),
     Stop(String),
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -50,7 +50,7 @@ pub struct PoolOrder {
     price: f64,
     amount: f64, //sats
     trader_order_data: Vec<TraderOrder>,
-    lend_order_data: Vec<LendOrder>,
+    lend_order_data: LendOrder,
 }
 
 impl PoolOrder {
@@ -79,32 +79,34 @@ impl PoolOrder {
             tps3: 10.0,
             entry_sequence: 0,
         };
-        let mut lend_transaction: Vec<LendOrder> = Vec::new();
-        lend_transaction.push(relayer_initial_lend_order.clone());
         PoolOrder {
             nonce: 0,
             sequence: 0,
             price: get_localdb("CurrentPrice"),
             amount: relayer_initial_lend_order.deposit, //100,000 sats
             trader_order_data: Vec::new(),
-            lend_order_data: lend_transaction,
+            lend_order_data: relayer_initial_lend_order,
         }
     }
+    // fn new_lendorder(lend_order: LendOrder) -> Self {
+    //     let mut poolorder = PoolOrder::new(lend_order);
+    //     let mut lendpool = LEND_POOL_DB.lock().unwrap();
+    //     poolorder.nonce = lendpool.next_nonce();
+
+    //     poolorder
+    // }
+    // fn new(lend_order: LendOrder) -> Self {
+    //     PoolOrder {
+    //         nonce: 0,
+    //         sequence: 0,
+    //         price: 0.0,
+    //         amount: 0.0, //sats
+    //         trader_order_data: Vec::new(),
+    //         lend_order_data: lend_order,
+    //     }
+    // }
 }
 
-// pub trait LocalDB<T> {
-//     fn new() -> Self;
-//     fn add(&mut self, order: T, cmd: RpcCommand) -> T;
-//     fn get_nonce(&mut self) -> usize;
-//     fn update_nonce(&mut self) -> usize;
-//     fn get(&mut self, id: Uuid) -> Result<T, std::io::Error>;
-//     fn get_mut(&mut self, id: Uuid) -> Result<Arc<RwLock<T>>, std::io::Error>;
-//     fn update(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
-//     fn remove(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
-//     fn aggrigate_log_sequence(&mut self) -> usize;
-//     fn load_data() -> (bool, OrderDB<T>);
-//     fn check_backup() -> Self;
-// }
 impl LendPool {
     pub fn new() -> Self {
         let init_poolorder = PoolOrder::initiate_pool();
@@ -244,6 +246,24 @@ impl LendPool {
             LendPool::new()
         }
     }
+
+    pub fn make_pool_transaction(&mut self) {}
+
+    pub fn get_nonce(&mut self) -> usize {
+        self.nonce.clone()
+    }
+    pub fn next_nonce(&mut self) -> usize {
+        self.nonce += 1;
+        self.nonce.clone()
+    }
+
+    // fn new_lendorder(
+    //     &mut self,
+    //     mut lend_order_db: &OrderDB<LendOrder>,
+    //     lendorder: LendOrder,
+    // ) -> LendOrder {
+    //     lendorder
+    // }
 }
 
 impl PoolEvent {

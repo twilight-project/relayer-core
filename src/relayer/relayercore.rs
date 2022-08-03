@@ -95,14 +95,64 @@ pub fn core_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        // RpcCommand::CreateLendOrder(rpc_request, metadata) => {
-        //     let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
-        //     buffer.execute(move || {
-        //         println!("LendOrder data: {:#?}", rpc_request);
-        //         // let (orderdata, status)=LendOrder::new(account_id: &str, balance: f64, order_type: OrderType, order_status: OrderStatus, deposit: f64)
-        //     });
-        //     drop(buffer);
-        // }
+        RpcCommand::CreateLendOrder(rpc_request, metadata) => {
+            let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
+            buffer.execute(move || {
+                println!("LendOrder data: {:#?}", rpc_request);
+                // let (orderdata, status)=LendOrder::new(account_id: &str, balance: f64, order_type: OrderType, order_status: OrderStatus, deposit: f64)
+            });
+            drop(buffer);
+        }
+        RpcCommand::ExecuteLendOrder(rpc_request, metadata) => {
+            let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
+            buffer.execute(move || {
+                println!("LendOrder data: {:#?}", rpc_request);
+            });
+            drop(buffer);
+        }
+        RpcCommand::CancelTraderOrder(rpc_request, metadata) => {
+            let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
+            buffer.execute(move || {
+                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                let order_detail_wraped = trader_order_db.get_mut(rpc_request.uuid);
+                drop(trader_order_db);
+                match order_detail_wraped {
+                    Ok(order_detail) => {
+                        let mut order = order_detail.write().unwrap();
+                        println!("FILLED order:{:#?}", order);
+                        match order.order_status {
+                            OrderStatus::PENDING => {
+                                let (cancel_status, order_status) = order.cancelorder_localdb();
+                                match order_status {
+                                    OrderStatus::CANCELLED => {
+                                        let order_clone = order.clone();
+                                        drop(order);
+                                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                        let cancelled_order =
+                                            trader_order_db.remove(order_clone, command_clone);
+                                        drop(trader_order_db);
+                                    }
+                                    _ => {
+                                        drop(order);
+                                    }
+                                }
+                            }
+                            _ => {
+                                drop(order);
+                                println!(
+                                    "Order {} not found or invalid order status !!",
+                                    rpc_request.uuid
+                                );
+                            }
+                        }
+                    }
+                    Err(arg) => {
+                        println!("Error found:{:#?}", arg);
+                    }
+                }
+            });
+            drop(buffer);
+        }
         _ => {}
     }
 }

@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::relayer::types::*;
-use crate::relayer::utils::*;
-use crate::relayer::ServerTime;
+use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
 use crate::config::QUERYSTATUS;
@@ -325,42 +323,73 @@ impl LendOrder {
         return self;
     }
 
-    // pub fn new_order(prc_command: ExecuteTraderOrder) -> Self {
-    //     let ndeposit = deposit * 10000.0;
-    //     let (tlv0, tps0, tlv1, tps1, poolshare, npoolshare, entry_nonce, entry_sequence): (
-    //         f64,
-    //         f64,
-    //         f64,
-    //         f64,
-    //         f64,
-    //         f64,
-    //         usize,
-    //         usize,
-    //     ) = getset_new_lend_order_tlv_tps_poolshare(deposit);
+    pub fn new_order(prc_command: CreateLendOrder) -> Self {
+        let account_id = prc_command.account_id;
+        let balance = prc_command.balance;
+        let order_type = prc_command.order_type;
+        let order_status = prc_command.order_status;
+        let deposit = prc_command.deposit;
+        let ndeposit = deposit * 10000.0;
+        // let lend_lock = LENDSTATUS.lock().unwrap();
 
-    //     LendOrder {
-    //         uuid: Uuid::new_v4(),
-    //         account_id: String::from(account_id),
-    //         balance,
-    //         order_status,
-    //         order_type,
-    //         entry_nonce,
-    //         exit_nonce: 0,
-    //         deposit,
-    //         new_lend_state_amount: ndeposit,
-    //         timestamp: SystemTime::now(),
-    //         npoolshare,
-    //         nwithdraw: 0.0,
-    //         payment: 0.0,
-    //         tlv0,
-    //         tps0,
-    //         tlv1,
-    //         tps1,
-    //         tlv2: 0.0,
-    //         tps2: 0.0,
-    //         tlv3: 0.0,
-    //         tps3: 0.0,
-    //         entry_sequence,
-    //     }
-    // }
+        let ndeposit = deposit * 10000.0;
+        // let tlv0 = redis_db::get_type_f64("tlv");
+        // let tps0 = redis_db::get_type_f64("tps");
+        let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]).unwrap();
+        let (tlv0, tps0) = (rev_data[0], rev_data[1]);
+
+        let npoolshare = tps0 * deposit * 10000.0 / tlv0;
+        let poolshare = tps0 * deposit / tlv0;
+        let tps1 = redis_db::incrbyfloat_type_f64("tps", poolshare);
+        let tlv1 = redis_db::incrbyfloat_type_f64("tlv", ndeposit);
+        let entry_nonce = redis_db::incr_lend_nonce_by_one();
+        let entry_sequence = redis_db::incr_entry_sequence_by_one_lend_order();
+        // drop(lend_lock);
+        // return (
+        //     tlv0,
+        //     tps0,
+        //     tlv1,
+        //     tps1,
+        //     poolshare,
+        //     npoolshare,
+        //     entry_nonce,
+        //     entry_sequence,
+        // );
+
+        let (tlv0, tps0, tlv1, tps1, poolshare, npoolshare, entry_nonce, entry_sequence): (
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            f64,
+            usize,
+            usize,
+        ) = getset_new_lend_order_tlv_tps_poolshare(deposit);
+
+        LendOrder {
+            uuid: Uuid::new_v4(),
+            account_id: String::from(account_id),
+            balance,
+            order_status,
+            order_type,
+            entry_nonce,
+            exit_nonce: 0,
+            deposit,
+            new_lend_state_amount: ndeposit,
+            timestamp: SystemTime::now(),
+            npoolshare,
+            nwithdraw: 0.0,
+            payment: 0.0,
+            tlv0,
+            tps0,
+            tlv1,
+            tps1,
+            tlv2: 0.0,
+            tps2: 0.0,
+            tlv3: 0.0,
+            tps3: 0.0,
+            entry_sequence,
+        }
+    }
 }

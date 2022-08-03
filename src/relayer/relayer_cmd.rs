@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 pub enum RelayerCommand {
     FundingCycle(PoolOrder, Meta),
     PriceTickerLiquidation(PoolOrder, Meta),
-    PriceTickerOrderFill(PoolOrder, Meta),
+    PriceTickerOrderFill(PoolOrder, Meta), //no update for lend pool
     PriceTickerOrderSettle(PoolOrder, Meta),
     FundingCycleLiquidation(PoolOrder, Meta),
     RpcCommandPoolupdate(PoolOrder, Meta),

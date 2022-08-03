@@ -1135,4 +1135,37 @@ impl TraderOrder {
     pub fn transaction_with_lendpool(&mut self) -> usize {
         0
     }
+
+    pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
+        let result: Result<(Uuid, i64), std::io::Error>;
+        match self.order_type {
+            OrderType::LIMIT => match self.position_type {
+                PositionType::LONG => {
+                    let mut remove_from_open_order_list = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                    result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            self.order_status = OrderStatus::CANCELLED;
+                            return (true, OrderStatus::CANCELLED);
+                        }
+                        Err(_) => return (false, self.order_status.clone()),
+                    }
+                }
+                PositionType::SHORT => {
+                    let mut remove_from_open_order_list = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                    result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            self.order_status = OrderStatus::CANCELLED;
+                            return (true, OrderStatus::CANCELLED);
+                        }
+                        Err(_) => return (false, self.order_status.clone()),
+                    }
+                }
+            },
+            _ => return (false, self.order_status.clone()),
+        }
+    }
 }

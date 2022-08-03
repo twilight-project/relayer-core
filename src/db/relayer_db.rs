@@ -163,10 +163,10 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     self.cmd.push(cmd.clone());
                     self.aggrigate_log_sequence += 1;
                     order.exit_nonce = get_nonce();
-                    self.event.push(Event::TraderOrder(
-                        order.clone(),
-                        cmd.clone(),
-                        self.aggrigate_log_sequence,
+                    self.event.push(Event::<TraderOrder>::new(
+                        Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
+                        String::from("remove_order"),
+                        String::from("TraderOrderEventLog1"),
                     ));
                     Ok(order)
                 }
@@ -372,6 +372,8 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
     }
 
     fn add(&mut self, mut order: LendOrder, cmd: RpcCommand) -> LendOrder {
+        let mut lendpool = LEND_POOL_DB.lock().unwrap();
+        // lendpool.sequence;
         self.sequence += 1;
         order.entry_sequence = self.sequence;
         order.entry_nonce = self.nonce;
