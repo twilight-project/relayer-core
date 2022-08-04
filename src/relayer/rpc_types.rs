@@ -1,5 +1,4 @@
 use crate::relayer;
-use crate::relayer::ThreadPool;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::Mutex;

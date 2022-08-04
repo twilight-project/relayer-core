@@ -74,7 +74,6 @@ use std::{thread, time};
 use twilight_relayer_rust::config::*;
 use twilight_relayer_rust::redislib::*;
 use twilight_relayer_rust::*;
-#[macro_use]
 extern crate lazy_static;
 // cargo test -- --nocapture --test test_zzneworderfb --test-threads 1
 #[test]

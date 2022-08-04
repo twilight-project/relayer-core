@@ -3,7 +3,7 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use std::sync::{Arc, Mutex};
-use stopwatch::Stopwatch;
+// use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_NORMAL_ORDER")));
@@ -24,7 +24,7 @@ pub fn client_cmd_receiver() {
                 loop {
                     i += 1;
                     let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap().recv().unwrap();
-                    core_event_handler(rpc_client_cmd_request);
+                    rpc_event_handler(rpc_client_cmd_request);
                 }
             }
             Err(arg) => {
@@ -34,7 +34,7 @@ pub fn client_cmd_receiver() {
     }
 }
 
-pub fn core_event_handler(command: RpcCommand) {
+pub fn rpc_event_handler(command: RpcCommand) {
     let command_clone = command.clone();
     match command {
         RpcCommand::CreateTraderOrder(rpc_request, metadata) => {
@@ -153,6 +153,19 @@ pub fn core_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        _ => {}
+        RpcCommand::Liquidation(trader_order, metadata) => {}
+    }
+}
+
+pub fn relayer_event_handler(command: RelayerCommand) {
+    let command_clone = command.clone();
+    match command {
+        RelayerCommand::FundingCycle(pool_batch_order, metadata) => {}
+        RelayerCommand::PriceTickerLiquidation(pool_batch_order, metadata) => {}
+        RelayerCommand::PriceTickerOrderFill(pool_batch_order, metadata) => {}
+        RelayerCommand::PriceTickerOrderSettle(pool_batch_order, metadata) => {}
+        RelayerCommand::FundingCycleLiquidation(pool_batch_order, metadata) => {}
+        RelayerCommand::RpcCommandPoolupdate(pool_batch_order, metadata) => {}
+        RelayerCommand::AddTraderOrderToBatch(trader_order, rpc_request, metadata, price) => {}
     }
 }

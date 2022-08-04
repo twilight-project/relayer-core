@@ -23,11 +23,23 @@ pub struct LendPool {
     nonce: usize,
     total_pool_share: f64,
     total_locked_value: f64,
-    cmd_log: Vec<RelayerCommand>,
     event_log: Vec<PoolEvent>,
-    pending_orders: HashMap<String, PoolOrder>,
+    pending_orders: HashMap<String, PoolBatchOrder>,
     aggrigate_log_sequence: usize,
     last_snapshot_id: usize,
+}
+// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+type Payment = f64;
+type Deposit = f64;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum LendPoolCommand {
+    AddTraderOrderSettlement(RpcCommand, TraderOrder, Meta, Payment),
+    AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Meta, Payment),
+    LendOrderCreateOrder(RpcCommand, LendOrder, Meta, Deposit),
+    LendOrderSettleOrder(RpcCommand, LendOrder, Meta, Deposit),
+    BatchExecuteTraderOrder(RelayerCommand, Meta),
+    InitiateNewPool(LendOrder, Meta),
 }
 
 #[derive(Debug)]
@@ -39,22 +51,41 @@ pub struct PoolEventLog {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum PoolEvent {
-    PoolUpdate(RelayerCommand, usize),
-    // LendOrder(LendOrder, usize),
+    PoolUpdate(LendPoolCommand, usize),
     Stop(String),
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct PoolOrder {
+pub struct PoolBatchOrder {
     nonce: usize,
     sequence: usize,
     price: f64,
     amount: f64, //sats
-    trader_order_data: Vec<TraderOrder>,
-    lend_order_data: LendOrder,
+    trader_order_data: Vec<LendPoolCommand>,
 }
 
-impl PoolOrder {
-    fn initiate_pool() -> Self {
+impl PoolBatchOrder {
+    //     fn initiate_pool() -> Self {}
+    //     // fn new_lendorder(lend_order: LendOrder) -> Self {
+    //     //     let mut poolorder = PoolOrder::new(lend_order);
+    //     //     let mut lendpool = LEND_POOL_DB.lock().unwrap();
+    //     //     poolorder.nonce = lendpool.next_nonce();
+
+    //     //     poolorder
+    //     // }
+    //     // fn new(lend_order: LendOrder) -> Self {
+    //     //     PoolOrder {
+    //     //         nonce: 0,
+    //     //         sequence: 0,
+    //     //         price: 0.0,
+    //     //         amount: 0.0, //sats
+    //     //         trader_order_data: Vec::new(),
+    //     //         lend_order_data: lend_order,
+    //     //     }
+    //     // }
+}
+
+impl LendPool {
+    pub fn new() -> Self {
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
             account_id: String::from("Relayer Initial Transaction, with public key"),
@@ -79,39 +110,8 @@ impl PoolOrder {
             tps3: 10.0,
             entry_sequence: 0,
         };
-        PoolOrder {
-            nonce: 0,
-            sequence: 0,
-            price: get_localdb("CurrentPrice"),
-            amount: relayer_initial_lend_order.deposit, //100,000 sats
-            trader_order_data: Vec::new(),
-            lend_order_data: relayer_initial_lend_order,
-        }
-    }
-    // fn new_lendorder(lend_order: LendOrder) -> Self {
-    //     let mut poolorder = PoolOrder::new(lend_order);
-    //     let mut lendpool = LEND_POOL_DB.lock().unwrap();
-    //     poolorder.nonce = lendpool.next_nonce();
-
-    //     poolorder
-    // }
-    // fn new(lend_order: LendOrder) -> Self {
-    //     PoolOrder {
-    //         nonce: 0,
-    //         sequence: 0,
-    //         price: 0.0,
-    //         amount: 0.0, //sats
-    //         trader_order_data: Vec::new(),
-    //         lend_order_data: lend_order,
-    //     }
-    // }
-}
-
-impl LendPool {
-    pub fn new() -> Self {
-        let init_poolorder = PoolOrder::initiate_pool();
-        let total_pool_share = init_poolorder.amount;
-        let total_locked_value = init_poolorder.amount * 10000.0;
+        let total_pool_share = relayer_initial_lend_order.npoolshare;
+        let total_locked_value = relayer_initial_lend_order.deposit * 10000.0;
         let mut metadata = HashMap::new();
         metadata.insert(
             String::from("Relayer_Public_Key"),
@@ -128,7 +128,8 @@ impl LendPool {
             ),
         );
 
-        let relayer_command = RelayerCommand::InitiateNewPool(init_poolorder, Meta { metadata });
+        let relayer_command =
+            LendPoolCommand::InitiateNewPool(relayer_initial_lend_order, Meta { metadata });
         let pool_event = PoolEvent::PoolUpdate(relayer_command.clone(), 0);
         let pool_event_execute = PoolEvent::new(
             pool_event,
@@ -140,11 +141,6 @@ impl LendPool {
             nonce: 0,
             total_pool_share: total_pool_share,
             total_locked_value: total_locked_value,
-            cmd_log: {
-                let mut cmd_log = Vec::new();
-                cmd_log.push(relayer_command);
-                cmd_log
-            },
             event_log: {
                 let mut event_log = Vec::new();
                 event_log.push(pool_event_execute);
@@ -163,7 +159,6 @@ impl LendPool {
             nonce: 0,
             total_pool_share: 0.0,
             total_locked_value: 0.0,
-            cmd_log: Vec::new(),
             event_log: Vec::new(),
             pending_orders: HashMap::new(),
             aggrigate_log_sequence: 0,
@@ -196,29 +191,27 @@ impl LendPool {
             let data = recever1.recv().unwrap();
             match data.value.clone() {
                 PoolEvent::PoolUpdate(cmd, seq) => match cmd.clone() {
-                    RelayerCommand::FundingCycle(pool_order, _metadata) => {}
-                    RelayerCommand::PriceTickerLiquidation(pool_order, _metadata) => {}
-                    RelayerCommand::PriceTickerOrderFill(pool_order, _metadata) => {}
-                    RelayerCommand::PriceTickerOrderSettle(pool_order, _metadata) => {}
-                    RelayerCommand::FundingCycleLiquidation(pool_order, _metadata) => {}
-                    RelayerCommand::RpcCommandPoolupdate(pool_order, _metadata) => {}
-                    RelayerCommand::InitiateNewPool(pool_order, _metadata) => {
-                        let total_pool_share = pool_order.amount;
-                        let total_locked_value = pool_order.amount * 10000.0;
-                        if database.sequence < pool_order.sequence {
-                            database.sequence = pool_order.sequence;
+                    LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
+                        let total_pool_share = lend_order.deposit;
+                        let total_locked_value = lend_order.deposit * 10000.0;
+                        if database.sequence < lend_order.entry_sequence {
+                            database.sequence = lend_order.entry_sequence;
                         }
-                        if database.nonce < pool_order.nonce {
-                            database.nonce = pool_order.nonce;
+                        if database.nonce < lend_order.entry_nonce {
+                            database.nonce = lend_order.entry_nonce;
                         }
                         database.total_pool_share += total_pool_share;
                         database.total_locked_value += total_locked_value;
-                        database.cmd_log.push(cmd);
                         database.event_log.push(data.value);
                         if database.aggrigate_log_sequence < seq {
                             database.aggrigate_log_sequence = seq;
                         }
                     }
+                    LendPoolCommand::AddTraderOrderSettlement(..) => {}
+                    LendPoolCommand::AddTraderOrderLiquidation(..) => {}
+                    LendPoolCommand::LendOrderCreateOrder(..) => {}
+                    LendPoolCommand::LendOrderSettleOrder(..) => {}
+                    LendPoolCommand::BatchExecuteTraderOrder(..) => {}
                 },
                 PoolEvent::Stop(timex) => {
                     if timex == time {
@@ -264,6 +257,7 @@ impl LendPool {
     // ) -> LendOrder {
     //     lendorder
     // }
+    pub fn add_traderorder(&mut self, trader_order: TraderOrder, payment: f64, cmd: RpcCommand) {}
 }
 
 impl PoolEvent {

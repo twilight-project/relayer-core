@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 extern crate uuid;
@@ -330,18 +331,14 @@ impl LendOrder {
         let order_status = prc_command.order_status;
         let deposit = prc_command.deposit;
         let ndeposit = deposit * 10000.0;
-        // let lend_lock = LENDSTATUS.lock().unwrap();
-
-        let ndeposit = deposit * 10000.0;
-        // let tlv0 = redis_db::get_type_f64("tlv");
-        // let tps0 = redis_db::get_type_f64("tps");
         let rev_data: Vec<f64> = redis_db::mget_f64(vec!["tlv", "tps"]).unwrap();
+        // let mut lend_pool = LEND_POOL_DB.lock().unwrap();
         let (tlv0, tps0) = (rev_data[0], rev_data[1]);
 
         let npoolshare = tps0 * deposit * 10000.0 / tlv0;
         let poolshare = tps0 * deposit / tlv0;
-        let tps1 = redis_db::incrbyfloat_type_f64("tps", poolshare);
-        let tlv1 = redis_db::incrbyfloat_type_f64("tlv", ndeposit);
+        let tps1 = tps0 + poolshare;
+        let tlv1 = tlv0 + ndeposit;
         let entry_nonce = redis_db::incr_lend_nonce_by_one();
         let entry_sequence = redis_db::incr_entry_sequence_by_one_lend_order();
         // drop(lend_lock);
