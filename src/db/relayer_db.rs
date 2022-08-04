@@ -93,41 +93,6 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         order.clone()
     }
 
-    fn get_nonce(&mut self) -> usize {
-        get_nonce()
-    }
-
-    fn update_nonce(&mut self) -> usize {
-        update_nonce()
-    }
-
-    fn get(&mut self, id: Uuid) -> Result<TraderOrder, std::io::Error> {
-        match self.ordertable.get(&id) {
-            Some(order) => {
-                let orx = order.read().unwrap();
-                Ok(orx.clone())
-            }
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Order not found",
-                ))
-            }
-        }
-    }
-
-    fn get_mut(&mut self, id: Uuid) -> Result<Arc<RwLock<TraderOrder>>, std::io::Error> {
-        match self.ordertable.get_mut(&id) {
-            Some(order) => Ok(Arc::clone(order)),
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Order not found",
-                ))
-            }
-        }
-    }
-
     fn update(
         &mut self,
         order: TraderOrder,
@@ -217,10 +182,6 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 "Order not found",
             ));
         }
-    }
-
-    fn aggrigate_log_sequence(&mut self) -> usize {
-        self.aggrigate_log_sequence
     }
 
     fn load_data() -> (bool, OrderDB<TraderOrder>) {
@@ -330,6 +291,44 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             println!("No old TraderOrder Database found ....\nCreating new database");
             LocalDB::<TraderOrder>::new()
         }
+    }
+
+    fn get_nonce(&mut self) -> usize {
+        get_nonce()
+    }
+
+    fn update_nonce(&mut self) -> usize {
+        update_nonce()
+    }
+
+    fn get(&mut self, id: Uuid) -> Result<TraderOrder, std::io::Error> {
+        match self.ordertable.get(&id) {
+            Some(order) => {
+                let orx = order.read().unwrap();
+                Ok(orx.clone())
+            }
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Order not found",
+                ))
+            }
+        }
+    }
+
+    fn get_mut(&mut self, id: Uuid) -> Result<Arc<RwLock<TraderOrder>>, std::io::Error> {
+        match self.ordertable.get_mut(&id) {
+            Some(order) => Ok(Arc::clone(order)),
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Order not found",
+                ))
+            }
+        }
+    }
+    fn aggrigate_log_sequence(&mut self) -> usize {
+        self.aggrigate_log_sequence
     }
 }
 
@@ -452,7 +451,6 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         // lendpool.sequence;
         self.sequence += 1;
         order.entry_sequence = self.sequence;
-        order.entry_nonce = get_nonce();
         self.ordertable
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.aggrigate_log_sequence += 1;
@@ -506,19 +504,13 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         Ok(order.clone())
     }
 
-    fn remove(
-        &mut self,
-        mut order: LendOrder,
-        cmd: RpcCommand,
-    ) -> Result<LendOrder, std::io::Error> {
+    fn remove(&mut self, order: LendOrder, cmd: RpcCommand) -> Result<LendOrder, std::io::Error> {
         match self.ordertable.remove(&order.uuid) {
             Some(_) => {
                 self.aggrigate_log_sequence += 1;
-                order.exit_nonce = get_nonce();
-                self.event.push(Event::LendOrder(
-                    order.clone(),
-                    cmd.clone(),
-                    self.aggrigate_log_sequence,
+                self.event.push(Event::<LendOrder>::new(
+                    Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
+                    String::from("remove_order"),
                 ));
                 Ok(order)
             }

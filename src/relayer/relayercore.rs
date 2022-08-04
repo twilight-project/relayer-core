@@ -59,7 +59,6 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 match order_detail_wraped {
                     Ok(order_detail) => {
                         let mut order = order_detail.write().unwrap();
-                        println!("FILLED order:{:#?}", order);
                         match order.order_status {
                             OrderStatus::FILLED => {
                                 let (payment, order_status) = order.check_for_settlement(
@@ -69,11 +68,17 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 );
                                 match order_status {
                                     OrderStatus::SETTLED => {
-                                        println!(
-                                            "SETTLED order:{:#?}\n payment:{:#?}",
-                                            order, payment
-                                        );
+                                        let order_clone = order.clone();
                                         drop(order);
+                                        let mut lendpool = LEND_POOL_DB.lock().unwrap();
+                                        lendpool.add_transaction(
+                                            LendPoolCommand::AddTraderOrderSettlement(
+                                                command_clone,
+                                                order_clone.clone(),
+                                                payment,
+                                            ),
+                                        );
+                                        drop(lendpool);
                                     }
                                     _ => {
                                         drop(order);
@@ -81,6 +86,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 }
                             }
                             _ => {
+                                drop(order);
                                 println!(
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
@@ -98,15 +104,66 @@ pub fn rpc_event_handler(command: RpcCommand) {
         RpcCommand::CreateLendOrder(rpc_request, metadata) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
-                println!("LendOrder data: {:#?}", rpc_request);
-                // let (orderdata, status)=LendOrder::new(account_id: &str, balance: f64, order_type: OrderType, order_status: OrderStatus, deposit: f64)
+                let mut lend_pool = LEND_POOL_DB.lock().unwrap();
+                let (tlv0, tps0) = lend_pool.get_lendpool();
+                let lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
+                lend_pool.add_transaction(LendPoolCommand::LendOrderCreateOrder(
+                    command_clone,
+                    lendorder.clone(),
+                    lendorder.deposit,
+                ));
+                drop(lend_pool);
             });
             drop(buffer);
         }
         RpcCommand::ExecuteLendOrder(rpc_request, metadata) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
-                println!("LendOrder data: {:#?}", rpc_request);
+                let mut lend_pool = LEND_POOL_DB.lock().unwrap();
+                let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
+                let order_detail_wraped = lendorder_db.get_mut(rpc_request.uuid);
+                drop(lendorder_db);
+                match order_detail_wraped {
+                    Ok(order_detail) => {
+                        let mut order = order_detail.write().unwrap();
+                        match order.order_status {
+                            OrderStatus::FILLED => {
+                                let (tlv2, tps2) = lend_pool.get_lendpool();
+                                match order.calculatepayment_localdb(tlv2, tps2) {
+                                    Ok(_) => {
+                                        let order_clone = order.clone();
+                                        drop(order);
+                                        lend_pool.add_transaction(
+                                            LendPoolCommand::LendOrderSettleOrder(
+                                                command_clone,
+                                                order_clone.clone(),
+                                                order_clone.nwithdraw,
+                                            ),
+                                        );
+                                        drop(lend_pool);
+                                    }
+                                    Err(arg) => {
+                                        drop(order);
+                                        drop(lend_pool);
+                                        println!("Error found:{:#?}", arg);
+                                    }
+                                }
+                            }
+                            _ => {
+                                drop(order);
+                                drop(lend_pool);
+                                println!(
+                                    "Order {} not found or invalid order status !!",
+                                    rpc_request.uuid
+                                );
+                            }
+                        }
+                    }
+                    Err(arg) => {
+                        drop(lend_pool);
+                        println!("Error found:{:#?}", arg);
+                    }
+                }
             });
             drop(buffer);
         }
@@ -152,8 +209,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 }
             });
             drop(buffer);
-        }
-        RpcCommand::Liquidation(trader_order, metadata) => {}
+        } // RpcCommand::Liquidation(trader_order, metadata) => {}
     }
 }
 
