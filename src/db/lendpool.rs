@@ -207,7 +207,13 @@ impl LendPool {
                     }
                     LendPoolCommand::AddTraderOrderSettlement(..) => {}
                     LendPoolCommand::AddTraderOrderLiquidation(..) => {}
-                    LendPoolCommand::LendOrderCreateOrder(..) => {}
+                    LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
+                        database.nonce += 1;
+                        database.aggrigate_log_sequence += 1;
+                        database.total_locked_value += deposit * 10000.0;
+                        database.total_pool_share += lend_order.npoolshare;
+                        database.event_log.push(data.value);
+                    }
                     LendPoolCommand::LendOrderSettleOrder(..) => {}
                     LendPoolCommand::BatchExecuteTraderOrder(..) => {}
                 },
@@ -287,9 +293,9 @@ impl LendPool {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
                 self.total_locked_value += deposit * 10000.0;
-                self.total_pool_share += lend_order.npoolshare / 10000.0;
-                lend_order.tps1 = self.total_pool_share;
-                lend_order.tlv1 = self.total_locked_value;
+                self.total_pool_share += lend_order.npoolshare;
+                lend_order.tps1 = self.total_pool_share.clone();
+                lend_order.tlv1 = self.total_locked_value.clone();
                 lend_order.order_status = OrderStatus::FILLED;
                 lend_order.entry_nonce = self.nonce;
                 self.event_log.push(PoolEvent::new(

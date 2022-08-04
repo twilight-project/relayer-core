@@ -263,19 +263,29 @@ pub fn startserver() {
         move |params: Params, _meta: Meta| async move {
             match params.parse::<TestLocaldb>() {
                 Ok(value) => {
-                    // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
-                    // let db = TRADER_LP_LONG.lock().unwrap();
-                    // println!("{:#?}", db);
-                    // drop(db);
-                    let sw = Stopwatch::start_new();
-                    let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
-                    // let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
-
-                    println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
-                    // let _ = trader_lp_long.add(value.orderid, value.price);
-                    let time_taken = sw.elapsed();
-                    // println!("\n db : {:?}", trader_lp_long.read());
-                    drop(trader_lp_long);
+                    // let sw = Stopwatch::start_new();
+                    match value.price {
+                        1 => {
+                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                            println!("\n LEND_ORDER_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        2 => {
+                            let trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        3 => {
+                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                            println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        _ => {
+                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                    }
                     Ok(serde_json::to_value(&check_server_time()).unwrap())
                 }
                 Err(args) => {
