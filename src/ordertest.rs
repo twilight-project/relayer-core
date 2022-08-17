@@ -179,6 +179,7 @@ pub fn initprice() {
 
     let mut local_storage = LOCALDB.lock().unwrap();
     local_storage.insert("CurrentPrice", 18000.0);
+    local_storage.insert("Latest_Price", 18000.0);
     local_storage.insert("btc:price", 18000.0);
     local_storage.insert("FundingRate", 0.0);
     local_storage.insert("Fee", 0.0);

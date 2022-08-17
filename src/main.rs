@@ -60,6 +60,7 @@ fn main() {
     ordertest::generatelendorder();
     thread::sleep(time::Duration::from_millis(100));
     start_cronjobs();
+    heartbeat();
     // thread::sleep(time::Duration::from_millis(10000));
     // updatefundingrate(1.0);
     loop {

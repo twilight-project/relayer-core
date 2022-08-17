@@ -8,6 +8,7 @@ mod directapi; //without aeron
 mod directapi_repl;
 mod exchangempsc;
 mod fundingupdate;
+mod heartbeat;
 mod init;
 mod lendorder;
 mod perpetual;
@@ -29,6 +30,7 @@ pub use self::directapi::*;
 pub use self::directapi_repl::*;
 pub use self::exchangempsc::*;
 pub use self::fundingupdate::*;
+pub use self::heartbeat::*;
 pub use self::init::*;
 pub use self::lendorder::LendOrder;
 pub use self::perpetual::*;

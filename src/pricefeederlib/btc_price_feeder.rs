@@ -9,6 +9,7 @@ use crate::config::{
 };
 // use crate::kafkalib::producer_kafka;
 use crate::redislib::redis_db;
+use crate::relayer::set_localdb;
 // use std::thread;
 
 /// BTC Price updater
@@ -22,9 +23,15 @@ pub fn update_btc_price(payload: String) {
         let psql_pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
         let redis_pool = THREADPOOL_REDIS_SEQ_QUEUE.lock().unwrap();
         //btc price update on redis DB
+        let binance_payload: BinanceMiniTickerPayload =
+            serde_json::from_str(&payload.clone()).unwrap();
+        let binance_payload_clone = binance_payload.clone();
+        set_localdb(
+            "Latest_Price",
+            binance_payload_clone.clone().c.parse::<f64>().unwrap(),
+        );
         redis_pool.execute(move || {
-            let binance_payload: BinanceMiniTickerPayload = serde_json::from_str(&payload).unwrap();
-            redis_db::set("btc:price", &binance_payload.c);
+            redis_db::set("btc:price", &binance_payload.clone().c);
             redis_db::set("btc:price:full_payload", &payload);
             // println!("rate :{}", &binance_payload.c);
         });
@@ -33,9 +40,7 @@ pub fn update_btc_price(payload: String) {
             // println!("Producer payload :{:#?}", &payload_clone);
             // producer::produce_main(message_data, topic);
             // producer_kafka::produce_main(&payload_clone, "BinanceMiniTickerPayload");
-            let binance_payload: BinanceMiniTickerPayload =
-                serde_json::from_str(&payload_clone).unwrap();
-            psql_sink("BinanceMiniTickerPayload", &0, &0, binance_payload);
+            psql_sink("BinanceMiniTickerPayload", &0, &0, binance_payload_clone);
         });
     }
 }

@@ -280,6 +280,16 @@ pub fn startserver() {
                             println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long);
                             drop(trader_lp_long);
                         }
+                        4 => {
+                            let trader_lp_long = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        5 => {
+                            let trader_lp_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
@@ -296,6 +306,20 @@ pub fn startserver() {
             }
         },
     );
+
+    io.add_method_with_meta("SetPrice", move |params: Params, _meta: Meta| async move {
+        match params.parse::<TestLocaldb>() {
+            Ok(value) => {
+                // let sw = Stopwatch::start_new();
+                set_localdb("Latest_Price", value.price as f64);
+                Ok(serde_json::to_value(&check_server_time()).unwrap())
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                Err(err)
+            }
+        }
+    });
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)

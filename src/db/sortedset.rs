@@ -73,8 +73,10 @@ impl SortedSet {
     pub fn sort(&mut self) {
         self.sorted_order.sort_by_key(|p| p.1);
         self.len = self.sorted_order.len();
-        self.min_price = self.sorted_order[0].1;
-        self.max_price = self.sorted_order[self.len - 1].1;
+        if self.len > 0 {
+            self.min_price = self.sorted_order[0].1;
+            self.max_price = self.sorted_order[self.len - 1].1;
+        }
     }
 
     pub fn read(&mut self) -> SortedSet {
