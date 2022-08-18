@@ -2,7 +2,7 @@ use crate::config::*;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 // use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
@@ -11,6 +11,8 @@ lazy_static! {
         Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_URGENT_ORDER")));
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
+    pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_FIFO_ORDER")));
 }
 pub fn client_cmd_receiver() {
     if *KAFKA_STATUS == "Enabled" {
@@ -218,7 +220,55 @@ pub fn relayer_event_handler(command: RelayerCommand) {
     match command {
         RelayerCommand::FundingCycle(pool_batch_order, metadata) => {}
         RelayerCommand::PriceTickerLiquidation(pool_batch_order, metadata) => {}
-        RelayerCommand::PriceTickerOrderFill(pool_batch_order, metadata) => {}
+        RelayerCommand::PriceTickerOrderFill(order_id_array, metadata, currentprice) => {
+            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+                Vec::new();
+            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+            for order_id in order_id_array {
+                let orderdetail = trader_order_db.get_mut(order_id);
+                orderdetails_array.push(orderdetail);
+            }
+            drop(trader_order_db);
+            let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
+            for order_detail_wraped in orderdetails_array {
+                let current_price_clone = currentprice.clone();
+                let metadata_clone = metadata.clone();
+                buffer.execute(move || match order_detail_wraped {
+                    Ok(order_detail) => {
+                        let mut order = order_detail.write().unwrap();
+                        match order.order_status {
+                            OrderStatus::PENDING => {
+                                let (update_order_detail, order_status) =
+                                    order.pending_order(current_price_clone);
+
+                                let filled_order =
+                                    update_order_detail.orderinsert_localdb(order_status);
+                                order.order_status = OrderStatus::FILLED;
+                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                drop(order);
+                                let _ = trader_order_db.update(
+                                    filled_order.clone(),
+                                    RelayerCommand::PriceTickerOrderFill(
+                                        vec![filled_order.uuid.clone()],
+                                        metadata_clone,
+                                        current_price_clone,
+                                    ),
+                                );
+                                drop(trader_order_db);
+                            }
+                            _ => {
+                                drop(order);
+                                println!("Invalid order status !!\n");
+                            }
+                        }
+                    }
+                    Err(arg) => {
+                        println!("Error found:{:#?}", arg);
+                    }
+                });
+            }
+            drop(buffer);
+        }
         RelayerCommand::PriceTickerOrderSettle(pool_batch_order, metadata) => {}
         RelayerCommand::FundingCycleLiquidation(pool_batch_order, metadata) => {}
         RelayerCommand::RpcCommandPoolupdate(pool_batch_order, metadata) => {}

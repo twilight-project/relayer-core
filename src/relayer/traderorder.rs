@@ -988,10 +988,60 @@ impl TraderOrder {
         )
     }
 
+    pub fn pending_order(&mut self, current_price: f64) -> (Self, bool) {
+        let mut order_entry_status: bool = true;
+        let position_type = self.position_type.clone();
+        let leverage = self.leverage;
+        let initial_margin = self.initial_margin.clone();
+        let mut entryprice = current_price;
+        let fee: f64 = get_localdb("Fee"); //different fee for market order
+        let fundingrate = get_localdb("FundingRate");
+        let position_side = positionside(&position_type);
+        let entry_value = entryvalue(initial_margin, leverage);
+        let positionsize = positionsize(entry_value, entryprice);
+        let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
+        let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
+        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
+        let liquidation_price = liquidationprice(
+            entryprice,
+            positionsize,
+            position_side,
+            maintenance_margin,
+            initial_margin,
+        );
+        (
+            TraderOrder {
+                uuid: self.uuid,
+                account_id: self.account_id.clone(),
+                position_type,
+                order_status: OrderStatus::FILLED,
+                order_type: self.order_type.clone(),
+                entryprice,
+                execution_price: self.execution_price,
+                positionsize,
+                leverage,
+                initial_margin,
+                available_margin: self.available_margin,
+                timestamp: SystemTime::now(),
+                bankruptcy_price,
+                bankruptcy_value,
+                maintenance_margin,
+                liquidation_price,
+                unrealized_pnl: 0.0,
+                settlement_price: 0.0,
+                entry_nonce: self.entry_nonce.clone(),
+                exit_nonce: 0,
+                entry_sequence: self.entry_sequence.clone(),
+            },
+            order_entry_status,
+        )
+    }
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
         if order_entry_status {
+            // Adding in side wise and total position size
             PositionSizeLog::add_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+            // Adding in liquidation search table
             match ordertx.position_type {
                 PositionType::LONG => {
                     let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
@@ -1006,6 +1056,8 @@ impl TraderOrder {
                     drop(add_to_liquidation_list);
                 }
             }
+
+            // adding candle data
             let side = match ordertx.position_type {
                 PositionType::SHORT => Side::SELL,
                 PositionType::LONG => Side::BUY,
@@ -1016,6 +1068,7 @@ impl TraderOrder {
                 price: ordertx.entryprice,
                 timestamp: std::time::SystemTime::now(),
             });
+            //
         } else {
             match ordertx.position_type {
                 PositionType::LONG => {

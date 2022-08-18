@@ -322,7 +322,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             None => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    "Order not found",
+                    format!("Order {} not found", &id),
                 ))
             }
         }

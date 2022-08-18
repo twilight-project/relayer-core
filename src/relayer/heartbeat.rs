@@ -4,6 +4,7 @@ use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
+use std::collections::HashMap;
 use std::{thread, time};
 use uuid::Uuid;
 
@@ -97,7 +98,7 @@ pub fn price_check_and_update() {
 pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f64) {
     let limit_lock = LIMITSTATUS.lock().unwrap();
     let mut get_open_order_short_list = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
-    let orderid_list_short: Vec<Uuid> =
+    let mut orderid_list_short: Vec<Uuid> =
         get_open_order_short_list.search_lt((current_price * 10000.0) as i64);
     drop(get_open_order_short_list);
     let mut get_open_order_long_list = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
@@ -108,61 +109,40 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     let orderid_list_long_len = orderid_list_long.len();
 
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
-    let mut thread_count: usize = (total_order_count) / 10;
     if total_order_count > 0 {
         println!(
             "long:{:#?},\n Short:{:#?}",
             orderid_list_long, orderid_list_short
         );
-    }
 
-    if total_order_count > 0 {
-        if thread_count > 10 {
-            thread_count = 10;
-        } else if thread_count == 0 {
-            thread_count = 1;
-        }
-        // let entry_nonce = redis_db::get_nonce_usize();
-        let mut ordertx_short: Vec<TraderOrder> = Vec::new();
-        let mut ordertx_long: Vec<TraderOrder> = Vec::new();
-        let mut starting_entry_sequence_short: usize = 0;
-        let mut starting_entry_sequence_long: usize = 0;
-        if orderid_list_short_len > 0 {
-            // ordertx_short = redis_db::mget_trader_order(orderid_list_short.clone()).unwrap();
-            // let bulk_entry_sequence_short =
-            //     redis_db::incr_entry_seque
-            nce_bulk_trader_order(orderid_list_short_len);
-            // starting_entry_sequence_short =
-            //     bulk_entry_sequence_short - usize::try_from(orderid_list_short_len).unwrap();
-        }
+        let meta = Meta {
+            metadata: {
+                let mut hashmap = HashMap::new();
+                hashmap.insert(
+                    String::from("request_server_time"),
+                    Some(
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_micros()
+                            .to_string(),
+                    ),
+                );
+                hashmap.insert(
+                    String::from("CurrentPrice"),
+                    Some(current_price.to_string()),
+                );
+                hashmap
+            },
+        };
         if orderid_list_long_len > 0 {
-            // ordertx_long = redis_db::mget_trader_order(orderid_list_long.clone()).unwrap();
-            // let bulk_entry_sequence_long =
-            //     redis_db::incr_entry_sequence_bulk_trader_order(orderid_list_long_len);
-            // starting_entry_sequence_long =
-            //     bulk_entry_sequence_long - usize::try_from(orderid_list_long_len).unwrap();
+            orderid_list_short.extend(orderid_list_long);
         }
-
-        let local_threadpool: ThreadPool =
-            ThreadPool::new(thread_count, String::from("limitorder_local_threadpool"));
-
-        for ordertx in ordertx_short {
-            starting_entry_sequence_short += 1;
-            local_threadpool.execute(move || {
-                // let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-                let entry_sequence = starting_entry_sequence_short;
-                update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
-            });
-        }
-
-        for ordertx in ordertx_long {
-            starting_entry_sequence_long += 1;
-            local_threadpool.execute(move || {
-                // let state = println!("order of {} is {:#?}", ordertx.uuid, OrderStatus::FILLED);
-                let entry_sequence = starting_entry_sequence_long;
-                update_limit_pendingorder(ordertx, current_price, entry_nonce, entry_sequence);
-            });
-        }
+        relayer_event_handler(RelayerCommand::PriceTickerOrderFill(
+            orderid_list_short,
+            meta,
+            current_price,
+        ));
     }
     drop(limit_lock);
 }

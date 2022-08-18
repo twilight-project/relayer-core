@@ -1,13 +1,13 @@
 use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
-// use uuid::Uuid;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
     FundingCycle(PoolBatchOrder, Meta),
     PriceTickerLiquidation(PoolBatchOrder, Meta),
-    PriceTickerOrderFill(PoolBatchOrder, Meta), //no update for lend pool
+    PriceTickerOrderFill(Vec<Uuid>, Meta, f64), //no update for lend pool
     PriceTickerOrderSettle(PoolBatchOrder, Meta),
     FundingCycleLiquidation(PoolBatchOrder, Meta),
     RpcCommandPoolupdate(PoolBatchOrder, Meta),

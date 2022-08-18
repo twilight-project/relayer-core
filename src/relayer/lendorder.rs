@@ -369,7 +369,7 @@ impl LendOrder {
                 "insufficient pool fund!",
             ));
         }
-        let payment = withdraw - self.new_lend_state_amount;
+        let payment = nwithdraw - self.new_lend_state_amount;
         self.nwithdraw = nwithdraw;
         self.payment = payment;
         self.tlv2 = tlv2;
