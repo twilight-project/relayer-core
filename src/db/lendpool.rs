@@ -312,13 +312,20 @@ impl LendPool {
                 self.aggrigate_log_sequence += 1;
                 // self.total_locked_value -= withdraw * 10000.0;
                 self.total_locked_value -= withdraw;
-                self.total_pool_share -= lend_order.npoolshare / 10000.0;
+                self.total_pool_share -= lend_order.npoolshare;
                 lend_order.tps3 = self.total_pool_share;
                 lend_order.tlv3 = self.total_locked_value;
                 lend_order.order_status = OrderStatus::SETTLED;
                 lend_order.exit_nonce = self.nonce;
                 self.event_log.push(PoolEvent::new(
-                    PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                    PoolEvent::PoolUpdate(
+                        LendPoolCommand::LendOrderSettleOrder(
+                            rpc_request.clone(),
+                            lend_order.clone(),
+                            withdraw.clone(),
+                        ),
+                        self.aggrigate_log_sequence,
+                    ),
                     String::from("LendOrderSettleOrder"),
                     String::from("LendPoolEventLog1"),
                 ));
