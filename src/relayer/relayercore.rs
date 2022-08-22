@@ -239,9 +239,22 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                             OrderStatus::FILLED => {
                                 order.order_status = OrderStatus::LIQUIDATE;
                                 //update batch process
-                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                let payment = order.liquidate(current_price_clone);
+                                let order_clone = order.clone();
                                 drop(order);
-                                drop(trader_order_db);
+                                let mut lendpool = LEND_POOL_DB.lock().unwrap();
+                                lendpool.add_transaction(
+                                    LendPoolCommand::AddTraderOrderLiquidation(
+                                        RelayerCommand::PriceTickerOrderSettle(
+                                            vec![order_clone.uuid.clone()],
+                                            metadata_clone,
+                                            current_price_clone,
+                                        ),
+                                        order_clone.clone(),
+                                        payment,
+                                    ),
+                                );
+                                drop(lendpool);
                             }
                             _ => {
                                 drop(order);

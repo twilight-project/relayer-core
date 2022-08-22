@@ -1221,4 +1221,11 @@ impl TraderOrder {
             _ => return (false, self.order_status.clone()),
         }
     }
+
+    pub fn liquidate(&mut self, current_price: f64) -> f64 {
+        self.settlement_price = current_price;
+        self.liquidation_price = current_price;
+        self.available_margin = 0.0;
+        self.initial_margin.clone()
+    }
 }
