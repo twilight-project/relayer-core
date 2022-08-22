@@ -1167,6 +1167,7 @@ impl TraderOrder {
 
     pub fn calculatepayment_localdb(&mut self, current_price: f64) -> f64 // returns payment
     {
+        let mut ordertx = self.clone();
         let margindifference = self.available_margin - self.initial_margin;
         let u_pnl = unrealizedpnl(
             &self.position_type,
@@ -1179,9 +1180,33 @@ impl TraderOrder {
         self.available_margin += payment;
         self.settlement_price = current_price;
         self.unrealized_pnl = u_pnl;
-        // let exit_nonce = updatelendaccountontraderordersettlement(payment * 10000.0);
-        // self.exit_nonce = exit_nonce;
-        // self = ordertx.removeorderfromredis().updatepsqlonsettlement();
+
+        // remove from liquidation sorted set and candle update (test required)
+        PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+        match ordertx.position_type {
+            PositionType::LONG => {
+                let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                drop(add_to_liquidation_list);
+            }
+            PositionType::SHORT => {
+                let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                drop(add_to_liquidation_list);
+            }
+        }
+        // adding candle data
+        let side = match ordertx.position_type {
+            PositionType::SHORT => Side::BUY,
+            PositionType::LONG => Side::SELL,
+        };
+        update_recent_orders(CloseTrade {
+            side: side,
+            positionsize: ordertx.positionsize,
+            price: ordertx.entryprice,
+            timestamp: std::time::SystemTime::now(),
+        });
+
         payment
     }
 
@@ -1223,9 +1248,21 @@ impl TraderOrder {
     }
 
     pub fn liquidate(&mut self, current_price: f64) -> f64 {
+        let ordertx = self.clone();
         self.settlement_price = current_price;
         self.liquidation_price = current_price;
         self.available_margin = 0.0;
+        // adding candle data
+        let side = match ordertx.position_type {
+            PositionType::SHORT => Side::BUY,
+            PositionType::LONG => Side::SELL,
+        };
+        update_recent_orders(CloseTrade {
+            side: side,
+            positionsize: ordertx.positionsize,
+            price: ordertx.entryprice,
+            timestamp: std::time::SystemTime::now(),
+        });
         self.initial_margin.clone()
     }
 }
