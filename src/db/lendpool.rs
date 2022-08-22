@@ -214,7 +214,13 @@ impl LendPool {
                         database.total_pool_share += lend_order.npoolshare;
                         database.event_log.push(data.value);
                     }
-                    LendPoolCommand::LendOrderSettleOrder(..) => {}
+                    LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
+                        database.nonce += 1;
+                        database.aggrigate_log_sequence += 1;
+                        database.total_locked_value -= withdraw;
+                        database.total_pool_share -= lend_order.npoolshare;
+                        database.event_log.push(data.value);
+                    }
                     LendPoolCommand::BatchExecuteTraderOrder(..) => {}
                 },
                 PoolEvent::Stop(timex) => {

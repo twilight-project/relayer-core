@@ -562,19 +562,35 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         while stop_signal {
             let data = recever1.recv().unwrap();
             match data.value.clone() {
-                Event::LendOrder(order, _cmd, seq) => {
-                    let order_clone = order.clone();
-                    database
-                        .ordertable
-                        .insert(order.uuid, Arc::new(RwLock::new(order)));
-                    database.event.push(data.value);
-                    if database.sequence < order_clone.entry_sequence {
-                        database.sequence = order_clone.entry_sequence;
+                Event::LendOrder(order, cmd, seq) => match cmd {
+                    RpcCommand::CreateLendOrder(..) => {
+                        let order_clone = order.clone();
+                        database
+                            .ordertable
+                            .insert(order.uuid, Arc::new(RwLock::new(order)));
+                        database.event.push(data.value);
+                        if database.sequence < order_clone.entry_sequence {
+                            database.sequence = order_clone.entry_sequence;
+                        }
+                        if database.aggrigate_log_sequence < seq {
+                            database.aggrigate_log_sequence = seq;
+                        }
                     }
-                    if database.aggrigate_log_sequence < seq {
-                        database.aggrigate_log_sequence = seq;
+                    RpcCommand::ExecuteLendOrder(..) => {
+                        database.event.push(data.value);
+
+                        if database.ordertable.contains_key(&order.uuid) {
+                            database.ordertable.remove(&order.uuid);
+                        }
+                        if database.aggrigate_log_sequence < seq {
+                            database.aggrigate_log_sequence = seq;
+                        }
+                        if database.sequence < order.entry_sequence {
+                            database.sequence = order.entry_sequence;
+                        }
                     }
-                }
+                    _ => {}
+                },
                 Event::Stop(timex) => {
                     if timex == time {
                         stop_signal = false;

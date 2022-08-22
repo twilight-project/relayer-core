@@ -75,22 +75,22 @@ pub fn price_check_and_update() {
         treadpool_pending_order.execute(move || {
             check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
         });
-        // let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
-        // treadpool_liquidation_order.execute(move || {
-        //     // check_liquidating_orders_on_price_ticker_update(currentprice.clone());
-        // });
-        // let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
-        // treadpool_settling_order.execute(move || {
-        //     // check_settling_limit_order_on_price_ticker_update(currentprice.clone());
-        // });
+        let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+        treadpool_liquidation_order.execute(move || {
+            check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
+        });
+        let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+        treadpool_settling_order.execute(move || {
+            check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+        });
         // // println!("Price update: not same price");
         // let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
         // pool.execute(move || {
         //     // insert_current_price_psql(currentprice.clone(), current_time);
         // });
         drop(treadpool_pending_order);
-        // drop(treadpool_liquidation_order);
-        // drop(treadpool_settling_order);
+        drop(treadpool_liquidation_order);
+        drop(treadpool_settling_order);
         // drop(pool);
     }
 }
@@ -139,6 +139,110 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
             orderid_list_short.extend(orderid_list_long);
         }
         relayer_event_handler(RelayerCommand::PriceTickerOrderFill(
+            orderid_list_short,
+            meta,
+            current_price,
+        ));
+    }
+    drop(limit_lock);
+}
+
+pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f64) {
+    let liquidation_lock = LIQUIDATIONTICKERSTATUS.lock().unwrap();
+
+    let mut get_open_order_short_list = TRADER_LP_SHORT.lock().unwrap();
+    let mut orderid_list_short: Vec<Uuid> =
+        get_open_order_short_list.search_lt((current_price * 10000.0) as i64);
+    drop(get_open_order_short_list);
+    let mut get_open_order_long_list = TRADER_LP_LONG.lock().unwrap();
+    let orderid_list_long: Vec<Uuid> =
+        get_open_order_long_list.search_gt((current_price * 10000.0) as i64);
+    drop(get_open_order_long_list);
+    let orderid_list_short_len = orderid_list_short.len();
+    let orderid_list_long_len = orderid_list_long.len();
+    let total_order_count = orderid_list_short_len + orderid_list_long_len;
+    if total_order_count > 0 {
+        println!(
+            "long:{:#?},\n Short:{:#?}",
+            orderid_list_long, orderid_list_short
+        );
+
+        let meta = Meta {
+            metadata: {
+                let mut hashmap = HashMap::new();
+                hashmap.insert(
+                    String::from("request_server_time"),
+                    Some(
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_micros()
+                            .to_string(),
+                    ),
+                );
+                hashmap.insert(
+                    String::from("CurrentPrice"),
+                    Some(current_price.to_string()),
+                );
+                hashmap
+            },
+        };
+        if orderid_list_long_len > 0 {
+            orderid_list_short.extend(orderid_list_long);
+        }
+
+        relayer_event_handler(RelayerCommand::PriceTickerLiquidation(
+            orderid_list_short,
+            meta,
+            current_price,
+        ));
+    }
+    drop(liquidation_lock);
+}
+pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: f64) {
+    let limit_lock = SETTLEMENTLIMITSTATUS.lock().unwrap();
+    let mut get_open_order_short_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+    let mut orderid_list_short: Vec<Uuid> =
+        get_open_order_short_list.search_gt((current_price * 10000.0) as i64);
+    drop(get_open_order_short_list);
+    let mut get_open_order_long_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+    let orderid_list_long: Vec<Uuid> =
+        get_open_order_long_list.search_lt((current_price * 10000.0) as i64);
+    drop(get_open_order_long_list);
+    let orderid_list_short_len = orderid_list_short.len();
+    let orderid_list_long_len = orderid_list_long.len();
+    let total_order_count = orderid_list_short_len + orderid_list_long_len;
+    if total_order_count > 0 {
+        println!(
+            "long:{:#?},\n Short:{:#?}",
+            orderid_list_long, orderid_list_short
+        );
+
+        let meta = Meta {
+            metadata: {
+                let mut hashmap = HashMap::new();
+                hashmap.insert(
+                    String::from("request_server_time"),
+                    Some(
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                            .unwrap()
+                            .as_micros()
+                            .to_string(),
+                    ),
+                );
+                hashmap.insert(
+                    String::from("CurrentPrice"),
+                    Some(current_price.to_string()),
+                );
+                hashmap
+            },
+        };
+        if orderid_list_long_len > 0 {
+            orderid_list_short.extend(orderid_list_long);
+        }
+
+        relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
             orderid_list_short,
             meta,
             current_price,

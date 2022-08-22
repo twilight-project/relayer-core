@@ -6,9 +6,9 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
     FundingCycle(PoolBatchOrder, Meta),
-    PriceTickerLiquidation(PoolBatchOrder, Meta),
+    PriceTickerLiquidation(Vec<Uuid>, Meta, f64),
     PriceTickerOrderFill(Vec<Uuid>, Meta, f64), //no update for lend pool
-    PriceTickerOrderSettle(PoolBatchOrder, Meta),
+    PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
     FundingCycleLiquidation(PoolBatchOrder, Meta),
     RpcCommandPoolupdate(PoolBatchOrder, Meta),
     AddTraderOrderToBatch(TraderOrder, RpcCommand, Meta, f64),

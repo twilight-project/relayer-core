@@ -219,7 +219,43 @@ pub fn relayer_event_handler(command: RelayerCommand) {
     let command_clone = command.clone();
     match command {
         RelayerCommand::FundingCycle(pool_batch_order, metadata) => {}
-        RelayerCommand::PriceTickerLiquidation(pool_batch_order, metadata) => {}
+        RelayerCommand::PriceTickerLiquidation(order_id_array, metadata, currentprice) => {
+            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+                Vec::new();
+            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+            for order_id in order_id_array {
+                let orderdetail = trader_order_db.get_mut(order_id);
+                orderdetails_array.push(orderdetail);
+            }
+            drop(trader_order_db);
+            let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
+            for order_detail_wraped in orderdetails_array {
+                let current_price_clone = currentprice.clone();
+                let metadata_clone = metadata.clone();
+                buffer.execute(move || match order_detail_wraped {
+                    Ok(order_detail) => {
+                        let mut order = order_detail.write().unwrap();
+                        match order.order_status {
+                            OrderStatus::FILLED => {
+                                order.order_status = OrderStatus::LIQUIDATE;
+                                //update batch process
+                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                drop(order);
+                                drop(trader_order_db);
+                            }
+                            _ => {
+                                drop(order);
+                                println!("Invalid order status !!\n");
+                            }
+                        }
+                    }
+                    Err(arg) => {
+                        println!("Error found:{:#?}", arg);
+                    }
+                });
+            }
+            drop(buffer);
+        }
         RelayerCommand::PriceTickerOrderFill(order_id_array, metadata, currentprice) => {
             let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
                 Vec::new();
@@ -269,7 +305,43 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             }
             drop(buffer);
         }
-        RelayerCommand::PriceTickerOrderSettle(pool_batch_order, metadata) => {}
+        RelayerCommand::PriceTickerOrderSettle(order_id_array, metadata, currentprice) => {
+            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+                Vec::new();
+            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+            for order_id in order_id_array {
+                let orderdetail = trader_order_db.get_mut(order_id);
+                orderdetails_array.push(orderdetail);
+            }
+            drop(trader_order_db);
+            let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
+            for order_detail_wraped in orderdetails_array {
+                let current_price_clone = currentprice.clone();
+                let metadata_clone = metadata.clone();
+                buffer.execute(move || match order_detail_wraped {
+                    Ok(order_detail) => {
+                        let mut order = order_detail.write().unwrap();
+                        match order.order_status {
+                            OrderStatus::FILLED => {
+                                order.order_status = OrderStatus::SETTLED;
+                                //update code here
+                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                drop(order);
+                                drop(trader_order_db);
+                            }
+                            _ => {
+                                drop(order);
+                                println!("Invalid order status !!\n");
+                            }
+                        }
+                    }
+                    Err(arg) => {
+                        println!("Error found:{:#?}", arg);
+                    }
+                });
+            }
+            drop(buffer);
+        }
         RelayerCommand::FundingCycleLiquidation(pool_batch_order, metadata) => {}
         RelayerCommand::RpcCommandPoolupdate(pool_batch_order, metadata) => {}
         RelayerCommand::AddTraderOrderToBatch(trader_order, rpc_request, metadata, price) => {}
