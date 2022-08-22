@@ -323,11 +323,33 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                         let mut order = order_detail.write().unwrap();
                         match order.order_status {
                             OrderStatus::FILLED => {
-                                order.order_status = OrderStatus::SETTLED;
-                                //update code here
-                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                                drop(order);
-                                drop(trader_order_db);
+                                let (payment, order_status) = order.check_for_settlement(
+                                    current_price_clone,
+                                    current_price_clone,
+                                    OrderType::MARKET,
+                                );
+                                match order_status {
+                                    OrderStatus::SETTLED => {
+                                        let order_clone = order.clone();
+                                        drop(order);
+                                        let mut lendpool = LEND_POOL_DB.lock().unwrap();
+                                        lendpool.add_transaction(
+                                            LendPoolCommand::AddTraderLimitOrderSettlement(
+                                                RelayerCommand::PriceTickerOrderSettle(
+                                                    vec![order_clone.uuid.clone()],
+                                                    metadata_clone,
+                                                    current_price_clone,
+                                                ),
+                                                order_clone.clone(),
+                                                payment,
+                                            ),
+                                        );
+                                        drop(lendpool);
+                                    }
+                                    _ => {
+                                        drop(order);
+                                    }
+                                }
                             }
                             _ => {
                                 drop(order);

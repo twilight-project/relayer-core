@@ -36,6 +36,7 @@ type Withdraw = f64;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum LendPoolCommand {
     AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment),
+    AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment),
     AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment),
     LendOrderCreateOrder(RpcCommand, LendOrder, Deposit),
     LendOrderSettleOrder(RpcCommand, LendOrder, Withdraw),
@@ -206,6 +207,7 @@ impl LendPool {
                         }
                     }
                     LendPoolCommand::AddTraderOrderSettlement(..) => {}
+                    LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
                     LendPoolCommand::AddTraderOrderLiquidation(..) => {}
                     LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
                         database.nonce += 1;
@@ -273,6 +275,24 @@ impl LendPool {
                 self.event_log.push(PoolEvent::new(
                     PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     String::from("AddTraderOrderSettlement"),
+                    String::from("LendPoolEventLog1"),
+                ));
+                // check pending order length
+            }
+            LendPoolCommand::AddTraderLimitOrderSettlement(
+                _relayer_request,
+                _trader_order,
+                payment,
+            ) => {
+                self.pending_orders.len += 1;
+                self.aggrigate_log_sequence += 1;
+                self.pending_orders.amount += payment;
+                self.pending_orders
+                    .trader_order_data
+                    .push(command_clone.clone());
+                self.event_log.push(PoolEvent::new(
+                    PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                    String::from("AddTraderLimitOrderSettlement"),
                     String::from("LendPoolEventLog1"),
                 ));
                 // check pending order length
