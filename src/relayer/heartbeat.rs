@@ -1,6 +1,6 @@
 use crate::config::*;
 use crate::db::*;
-use crate::pricefeederlib::price_feeder::receive_btc_price;
+// use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
@@ -10,23 +10,23 @@ use uuid::Uuid;
 
 pub fn heartbeat() {
     // main thread for scheduler
-    // thread::Builder::new()
-    //     .name(String::from("cronjob scheduler"))
-    //     .spawn(move || {
-    //         let mut scheduler = Scheduler::with_tz(chrono::Utc);
+    thread::Builder::new()
+        .name(String::from("heartbeat scheduler"))
+        .spawn(move || {
+            let mut scheduler = Scheduler::with_tz(chrono::Utc);
 
-    //         // funding update every 1 hour //comments for local test
-    //         // scheduler.every(600.seconds()).run(move || {
-    //         scheduler.every(1.hour()).run(move || {
-    //             // updatefundingrate(1.0);
-    //         });
+            // funding update every 1 hour //comments for local test
+            // scheduler.every(600.seconds()).run(move || {
+            scheduler.every(1.hour()).run(move || {
+                updatefundingrate_localdb(1.0);
+            });
 
-    //         let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
-    //         loop {
-    //             thread::sleep(time::Duration::from_millis(100000000));
-    //         }
-    //     })
-    //     .unwrap();
+            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
+            loop {
+                thread::sleep(time::Duration::from_millis(100000000));
+            }
+        })
+        .unwrap();
 
     // can't use scheduler because it allows minimum 1 second time to schedule any job
     thread::Builder::new()
@@ -249,4 +249,38 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
         ));
     }
     drop(limit_lock);
+}
+
+pub fn updatefundingrate_localdb(psi: f64) {
+    let current_time = std::time::SystemTime::now();
+    let current_price = get_localdb("CurrentPrice");
+    let position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+    let totalshort = position_size_log.total_short_positionsize.clone();
+    let totallong = position_size_log.total_long_positionsize.clone();
+    let allpositionsize = position_size_log.totalpositionsize.clone();
+    drop(position_size_log);
+    println!(
+        "totalshort:{}, totallong:{}, allpositionsize:{}",
+        totalshort, totallong, allpositionsize
+    );
+    //powi is faster then powf
+    //psi = 8.0 or  ψ = 8.0
+    let mut fundingrate;
+    if allpositionsize == 0.0 {
+        fundingrate = 0.0;
+    } else {
+        fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / (psi * 8.0);
+    }
+
+    //positive funding if totallong > totalshort else negative funding
+    if totallong > totalshort {
+    } else {
+        fundingrate = fundingrate * (-1.0);
+    }
+    // comment below code and add kafka msg producer for fl=unding rate
+    updatefundingrateindb(fundingrate.clone(), current_price, current_time);
+    println!("funding cycle processing...");
+
+    get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
+    println!("fundingrate:{}", fundingrate);
 }
