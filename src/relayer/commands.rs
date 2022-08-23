@@ -11,7 +11,7 @@ pub enum RelayerCommand {
     PriceTickerOrderFill(Vec<Uuid>, Meta, f64), //no update for lend pool
     PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
     FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
-    RpcCommandPoolupdate(PoolBatchOrder, Meta),
+    RpcCommandPoolupdate(),
     AddTraderOrderToBatch(TraderOrder, RpcCommand, Meta, f64),
 }
 
@@ -22,5 +22,6 @@ pub enum RpcCommand {
     ExecuteTraderOrder(ExecuteTraderOrder, Meta),
     ExecuteLendOrder(ExecuteLendOrder, Meta),
     CancelTraderOrder(CancelTraderOrder, Meta),
+    RelayerCommandTraderOrderOnLimit(TraderOrder, Meta, f64),
     // Liquidation(TraderOrder, Meta),
 }

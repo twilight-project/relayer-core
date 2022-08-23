@@ -21,6 +21,9 @@ pub fn heartbeat() {
             scheduler.every(1.hour()).run(move || {
                 updatefundingrate_localdb(1.0);
             });
+            scheduler.every(1.seconds()).run(move || {
+                relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
+            });
 
             let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
             loop {

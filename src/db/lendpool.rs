@@ -59,10 +59,10 @@ pub enum PoolEvent {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct PoolBatchOrder {
-    nonce: usize,
-    len: usize,
-    amount: f64, //sats
-    trader_order_data: Vec<LendPoolCommand>,
+    pub nonce: usize,
+    pub len: usize,
+    pub amount: f64, //sats
+    pub trader_order_data: Vec<LendPoolCommand>,
 }
 
 impl PoolBatchOrder {
@@ -222,7 +222,21 @@ impl LendPool {
                         database.total_pool_share -= lend_order.npoolshare;
                         database.event_log.push(data.value);
                     }
-                    LendPoolCommand::BatchExecuteTraderOrder(..) => {}
+                    LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
+                        database.nonce += 1;
+                        database.aggrigate_log_sequence += 1;
+                        match cmd {
+                            RelayerCommand::FundingCycle(batch, _metadata) => {
+                                database.total_locked_value -= batch.amount * 10000.0;
+                            }
+                            RelayerCommand::RpcCommandPoolupdate() => {
+                                let batch = database.pending_orders.clone();
+                                database.total_locked_value -= batch.amount * 10000.0;
+                                database.pending_orders = PoolBatchOrder::new();
+                            }
+                            _ => {}
+                        }
+                    }
                     LendPoolCommand::AddFundingData(..) => {}
                 },
                 PoolEvent::Stop(timex) => {
@@ -360,7 +374,71 @@ impl LendPool {
                 drop(lendorder_db);
             }
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => {
+                self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
+                match relayer_command {
+                    RelayerCommand::FundingCycle(pool_batch_order, _metadata) => {
+                        self.total_locked_value -= pool_batch_order.amount * 10000.0;
+                        self.event_log.push(PoolEvent::new(
+                            PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                            String::from("FundingCycleDataUpdate"),
+                            String::from("LendPoolEventLog1"),
+                        ));
+                    }
+                    RelayerCommand::RpcCommandPoolupdate() => {
+                        let batch = self.pending_orders.clone();
+                        self.total_locked_value -= batch.amount * 10000.0;
+                        self.event_log.push(PoolEvent::new(
+                            PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                            String::from("FundingCycleDataUpdate"),
+                            String::from("LendPoolEventLog1"),
+                        ));
+                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                        for cmd in batch.trader_order_data {
+                            let cmd_clone = cmd.clone();
+                            match cmd {
+                                LendPoolCommand::AddTraderOrderSettlement(
+                                    rpc_cmd,
+                                    order,
+                                    payment,
+                                ) => {
+                                    trader_order_db.remove(order, rpc_cmd);
+                                }
+                                LendPoolCommand::AddTraderLimitOrderSettlement(
+                                    relayer_cmd,
+                                    order,
+                                    payment,
+                                ) => match relayer_cmd {
+                                    RelayerCommand::PriceTickerOrderSettle(
+                                        _,
+                                        metadata,
+                                        current_price,
+                                    ) => {
+                                        let dummy_rpccommand =
+                                            RpcCommand::RelayerCommandTraderOrderOnLimit(
+                                                order.clone(),
+                                                metadata,
+                                                current_price,
+                                            );
+                                        trader_order_db.remove(order.clone(), dummy_rpccommand);
+                                    }
+                                    _ => {}
+                                },
+                                LendPoolCommand::AddTraderOrderLiquidation(
+                                    relayer_cmd,
+                                    order,
+                                    payment,
+                                ) => {
+                                    trader_order_db.liquidate(order, relayer_cmd);
+                                }
+                                _ => {}
+                            }
+                        }
+                        drop(trader_order_db);
+                        self.pending_orders = PoolBatchOrder::new();
+                    }
+                    _ => {}
+                }
             }
             LendPoolCommand::InitiateNewPool(lend_order, metadata) => {
                 // self.aggrigate_log_sequence += 1;

@@ -212,13 +212,18 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         } // RpcCommand::Liquidation(trader_order, metadata) => {}
+        RpcCommand::RelayerCommandTraderOrderOnLimit(..) => {}
     }
 }
 
 pub fn relayer_event_handler(command: RelayerCommand) {
     let command_clone = command.clone();
     match command {
-        RelayerCommand::FundingCycle(pool_batch_order, metadata) => {}
+        RelayerCommand::FundingCycle(pool_batch_order, metadata) => {
+            let mut lendpool = LEND_POOL_DB.lock().unwrap();
+            lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
+            drop(lendpool);
+        }
         RelayerCommand::PriceTickerLiquidation(order_id_array, metadata, currentprice) => {
             let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
                 Vec::new();
@@ -378,7 +383,11 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(buffer);
         }
         RelayerCommand::FundingCycleLiquidation(order_id_array, metadata, currentprice) => {}
-        RelayerCommand::RpcCommandPoolupdate(pool_batch_order, metadata) => {}
+        RelayerCommand::RpcCommandPoolupdate() => {
+            let mut lendpool = LEND_POOL_DB.lock().unwrap();
+            lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
+            drop(lendpool);
+        }
         RelayerCommand::AddTraderOrderToBatch(trader_order, rpc_request, metadata, price) => {}
         RelayerCommand::FundingOrderEventUpdate(trader_order, metadata) => {
             Event::<TraderOrder>::new(
