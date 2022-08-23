@@ -222,19 +222,51 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             // println!("kafka msg:{:#?}", data.value.clone());
             // if data.key == String::from("StopLoadMSG") {
             match data.value.clone() {
-                Event::TraderOrder(order, _cmd, seq) => {
-                    let order_clone = order.clone();
-                    database
-                        .ordertable
-                        .insert(order.uuid, Arc::new(RwLock::new(order)));
-                    database.event.push(data.value);
-                    if database.sequence < order_clone.entry_sequence {
-                        database.sequence = order_clone.entry_sequence;
+                Event::TraderOrder(order, cmd, seq) => match cmd {
+                    RpcCommand::ExecuteTraderOrder(rpc_request, metadata) => {
+                        let order_clone = order.clone();
+                        if database.ordertable.contains_key(&order.uuid) {
+                            database.ordertable.remove(&order.uuid);
+                        }
+                        database.event.push(data.value);
+                        if database.sequence < order_clone.entry_sequence {
+                            database.sequence = order_clone.entry_sequence;
+                        }
+                        if database.aggrigate_log_sequence < seq {
+                            database.aggrigate_log_sequence = seq;
+                        }
                     }
-                    if database.aggrigate_log_sequence < seq {
-                        database.aggrigate_log_sequence = seq;
+                    RpcCommand::RelayerCommandTraderOrderOnLimit(
+                        rpc_request,
+                        metadata,
+                        payment,
+                    ) => {
+                        let order_clone = order.clone();
+                        if database.ordertable.contains_key(&order.uuid) {
+                            database.ordertable.remove(&order.uuid);
+                        }
+                        database.event.push(data.value);
+                        if database.sequence < order_clone.entry_sequence {
+                            database.sequence = order_clone.entry_sequence;
+                        }
+                        if database.aggrigate_log_sequence < seq {
+                            database.aggrigate_log_sequence = seq;
+                        }
                     }
-                }
+                    _ => {
+                        let order_clone = order.clone();
+                        database
+                            .ordertable
+                            .insert(order.uuid, Arc::new(RwLock::new(order)));
+                        database.event.push(data.value);
+                        if database.sequence < order_clone.entry_sequence {
+                            database.sequence = order_clone.entry_sequence;
+                        }
+                        if database.aggrigate_log_sequence < seq {
+                            database.aggrigate_log_sequence = seq;
+                        }
+                    }
+                },
                 Event::TraderOrderUpdate(order, _cmd, seq) => {
                     let order_clone = order.clone();
                     database
