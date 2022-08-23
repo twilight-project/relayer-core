@@ -316,26 +316,29 @@ pub fn fundingcycle(
 ) {
     // let mut orderdetails_array: Vec<Arc<RwLock<TraderOrder>>> = Vec::new();
     let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-    let mut orderdetails_array = trader_order_db.getall_mut();
+    let orderdetails_array = trader_order_db.getall_mut();
     drop(trader_order_db);
 
     let length = orderdetails_array.len();
     if length > 0 {
+        let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
         for ordertx in orderdetails_array {
             let meta_clone = metadata.clone();
-            let state = updatechangesineachordertxonfundingratechange_localdb(
-                ordertx,
-                fundingrate,
-                current_price,
-                fee,
-                meta_clone,
-            );
+            threadpool.execute(move || {
+                updatechangesineachordertxonfundingratechange_localdb(
+                    ordertx,
+                    fundingrate,
+                    current_price,
+                    fee,
+                    meta_clone,
+                );
+            });
         }
     }
 }
 
 pub fn updatechangesineachordertxonfundingratechange_localdb(
-    mut order: Arc<RwLock<TraderOrder>>,
+    order: Arc<RwLock<TraderOrder>>,
     fundingratechange: f64,
     current_price: f64,
     fee: f64,
@@ -401,6 +404,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 ordertx.maintenance_margin,
                 ordertx.initial_margin,
             );
+            // need to add poolbatch payment
             // idliquidate = false;
         }
         // let ordertxclone = ordertx.clone();
