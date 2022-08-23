@@ -5,7 +5,7 @@ use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::{thread, time};
 use uuid::Uuid;
 
@@ -288,7 +288,7 @@ pub fn updatefundingrate_localdb(psi: f64) {
             hashmap.insert(
                 String::from("request_server_time"),
                 Some(
-                    std::time::SystemTime::now()
+                    current_time
                         .duration_since(std::time::SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_micros()
@@ -299,6 +299,8 @@ pub fn updatefundingrate_localdb(psi: f64) {
                 String::from("CurrentPrice"),
                 Some(current_price.to_string()),
             );
+            hashmap.insert(String::from("FundingRate"), Some(fundingrate.to_string()));
+            hashmap.insert(String::from("Fee"), Some(fee.to_string()));
             hashmap
         },
     };
@@ -322,8 +324,11 @@ pub fn fundingcycle(
     let length = orderdetails_array.len();
     if length > 0 {
         let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
+        let mut poolbatch = PoolBatchOrder::new();
+        let (send, recv) = mpsc::channel();
         for ordertx in orderdetails_array {
             let meta_clone = metadata.clone();
+            let sender_clone = send.clone();
             threadpool.execute(move || {
                 updatechangesineachordertxonfundingratechange_localdb(
                     ordertx,
@@ -331,9 +336,17 @@ pub fn fundingcycle(
                     current_price,
                     fee,
                     meta_clone,
+                    sender_clone,
                 );
             });
         }
+        for _i in 0..length {
+            let (funding_payment, order) = recv.recv().unwrap();
+            if funding_payment != 0.0 {
+                poolbatch.add(funding_payment, order);
+            }
+        }
+        relayer_event_handler(RelayerCommand::FundingCycle(poolbatch, metadata));
     }
 }
 
@@ -343,28 +356,18 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
     current_price: f64,
     fee: f64,
     meta: Meta,
+    sender: mpsc::Sender<(f64, TraderOrder)>,
 ) {
     let mut ordertx = order.write().unwrap();
     if ordertx.order_status == OrderStatus::FILLED {
         //update available margin
+        let funding_payment = (fundingratechange * ordertx.positionsize) / (current_price * 100.0);
         match ordertx.position_type {
             PositionType::LONG => {
-                if fundingratechange > 0.0 {
-                    ordertx.available_margin = ordertx.available_margin
-                        - ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
-                } else {
-                    ordertx.available_margin = ordertx.available_margin
-                        - ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
-                }
+                ordertx.available_margin -= funding_payment;
             }
             PositionType::SHORT => {
-                if fundingratechange > 0.0 {
-                    ordertx.available_margin = ordertx.available_margin
-                        + ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
-                } else {
-                    ordertx.available_margin = ordertx.available_margin
-                        + ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
-                }
+                ordertx.available_margin += funding_payment;
             }
         }
 
@@ -382,14 +385,13 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
         // check if AM <= MM if true then call liquidate position else update liquidation price
         if ordertx.available_margin <= ordertx.maintenance_margin {
             //call liquidation
-            // ordertx = liquidateposition(ordertx, current_price);
             let payment = ordertx.liquidate(current_price);
             ordertx.order_status = OrderStatus::LIQUIDATE;
             let mut lendpool = LEND_POOL_DB.lock().unwrap();
             lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
                 RelayerCommand::FundingCycleLiquidation(
                     vec![ordertx.uuid.clone()],
-                    meta,
+                    meta.clone(),
                     current_price,
                 ),
                 ordertx.clone(),
@@ -404,13 +406,24 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 ordertx.maintenance_margin,
                 ordertx.initial_margin,
             );
-            // need to add poolbatch payment
-            // idliquidate = false;
+
+            relayer_event_handler(RelayerCommand::FundingOrderEventUpdate(
+                ordertx.clone(),
+                meta,
+            ));
         }
-        // let ordertxclone = ordertx.clone();
-        // ordertxclone.update_trader_order_table_into_db_on_funding_cycle(
-        //     ordertx.uuid.to_string(),
-        //     isliquidated,
-        // );
+
+        match ordertx.position_type {
+            PositionType::LONG => {
+                sender
+                    .send(((funding_payment * -1.0), ordertx.clone()))
+                    .unwrap();
+            }
+            PositionType::SHORT => {
+                sender.send((funding_payment, ordertx.clone())).unwrap();
+            }
+        }
+    } else {
+        sender.send((0.0, ordertx.clone())).unwrap();
     }
 }

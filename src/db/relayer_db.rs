@@ -35,6 +35,7 @@ pub struct EventLog<T> {
 pub enum Event<T> {
     TraderOrder(T, RpcCommand, usize),
     TraderOrderUpdate(T, RelayerCommand, usize),
+    TraderOrderFundingUpdate(T, RelayerCommand),
     TraderOrderLiquidation(T, RelayerCommand, usize),
     LendOrder(T, RpcCommand, usize),
     RelayerUpdate(T, RelayerCommand, usize),
@@ -103,10 +104,10 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             self.ordertable
                 .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
             self.aggrigate_log_sequence += 1;
-            self.event.push(Event::TraderOrderUpdate(
-                order.clone(),
-                cmd.clone(),
-                self.aggrigate_log_sequence,
+            self.event.push(Event::<TraderOrder>::new(
+                Event::TraderOrderUpdate(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
+                String::from("update_order"),
+                String::from("TraderOrderEventLog1"),
             ));
             Ok(order.clone())
         } else {
@@ -247,6 +248,11 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                         database.aggrigate_log_sequence = seq;
                     }
                 }
+                Event::TraderOrderFundingUpdate(order, _cmd) => {
+                    database
+                        .ordertable
+                        .insert(order.uuid, Arc::new(RwLock::new(order)));
+                }
                 Event::TraderOrderLiquidation(order, _cmd, seq) => {
                     let order_clone = order.clone();
                     if database.ordertable.contains_key(&order.uuid) {
@@ -374,6 +380,15 @@ impl Event<TraderOrder> {
             }
             Event::LendOrder(order, cmd, seq) => Event::LendOrder(order, cmd, seq),
             Event::RelayerUpdate(order, cmd, seq) => Event::RelayerUpdate(order, cmd, seq),
+            Event::TraderOrderFundingUpdate(order, cmd) => {
+                let event = Event::TraderOrderFundingUpdate(order, cmd);
+                let event_clone = event.clone();
+                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
+                pool.execute(move || {
+                    Event::<TraderOrder>::send_event_to_kafka_queue(event_clone, topic, key);
+                });
+                event
+            }
             Event::Stop(seq) => Event::Stop(seq.to_string()),
         }
     }
@@ -628,6 +643,9 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 Event::TraderOrderLiquidation { .. } => {
                     println!("RelayerUpdate Im here");
                 }
+                Event::TraderOrderFundingUpdate { .. } => {
+                    println!("RelayerUpdate Im here");
+                }
             }
         }
         if database.sequence > 0 {
@@ -659,6 +677,9 @@ impl Event<LendOrder> {
                 Event::TraderOrderLiquidation(order, cmd, seq)
             }
             Event::TraderOrderUpdate(order, cmd, seq) => Event::TraderOrderUpdate(order, cmd, seq),
+            Event::TraderOrderFundingUpdate(order, cmd) => {
+                Event::TraderOrderFundingUpdate(order, cmd)
+            }
             Event::LendOrder(order, cmd, seq) => {
                 let event = Event::LendOrder(order, cmd, seq);
                 let event_clone = event.clone();

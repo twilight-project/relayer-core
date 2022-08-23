@@ -380,5 +380,12 @@ pub fn relayer_event_handler(command: RelayerCommand) {
         RelayerCommand::FundingCycleLiquidation(order_id_array, metadata, currentprice) => {}
         RelayerCommand::RpcCommandPoolupdate(pool_batch_order, metadata) => {}
         RelayerCommand::AddTraderOrderToBatch(trader_order, rpc_request, metadata, price) => {}
+        RelayerCommand::FundingOrderEventUpdate(trader_order, metadata) => {
+            Event::<TraderOrder>::new(
+                Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),
+                String::from("update_order_funding"),
+                String::from("TraderOrderEventLog1"),
+            );
+        }
     }
 }

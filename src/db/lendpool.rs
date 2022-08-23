@@ -37,6 +37,7 @@ type Withdraw = f64;
 pub enum LendPoolCommand {
     AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment),
     AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment),
+    AddFundingData(TraderOrder, Payment),
     AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment),
     LendOrderCreateOrder(RpcCommand, LendOrder, Deposit),
     LendOrderSettleOrder(RpcCommand, LendOrder, Withdraw),
@@ -65,21 +66,19 @@ pub struct PoolBatchOrder {
 }
 
 impl PoolBatchOrder {
-    //     fn initiate_pool() -> Self {}
-    //     // fn new_lendorder(lend_order: LendOrder) -> Self {
-    //     //     let mut poolorder = PoolOrder::new(lend_order);
-    //     //     let mut lendpool = LEND_POOL_DB.lock().unwrap();
-    //     //     poolorder.nonce = lendpool.next_nonce();
-
-    //     //     poolorder
-    //     // }
-    fn new() -> Self {
+    pub fn new() -> Self {
         PoolBatchOrder {
             nonce: 0,
             len: 0,
             amount: 0.0, //sats
             trader_order_data: Vec::new(),
         }
+    }
+    pub fn add(&mut self, payment: f64, order: TraderOrder) {
+        self.amount += payment;
+        self.trader_order_data
+            .push(LendPoolCommand::AddFundingData(order, payment));
+        self.len += 1;
     }
 }
 
@@ -224,6 +223,7 @@ impl LendPool {
                         database.event_log.push(data.value);
                     }
                     LendPoolCommand::BatchExecuteTraderOrder(..) => {}
+                    LendPoolCommand::AddFundingData(..) => {}
                 },
                 PoolEvent::Stop(timex) => {
                     if timex == time {
@@ -365,6 +365,7 @@ impl LendPool {
             LendPoolCommand::InitiateNewPool(lend_order, metadata) => {
                 // self.aggrigate_log_sequence += 1;
             }
+            LendPoolCommand::AddFundingData(..) => {}
         }
     }
 
