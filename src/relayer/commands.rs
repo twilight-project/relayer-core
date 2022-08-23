@@ -9,7 +9,7 @@ pub enum RelayerCommand {
     PriceTickerLiquidation(Vec<Uuid>, Meta, f64),
     PriceTickerOrderFill(Vec<Uuid>, Meta, f64), //no update for lend pool
     PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
-    FundingCycleLiquidation(PoolBatchOrder, Meta),
+    FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
     RpcCommandPoolupdate(PoolBatchOrder, Meta),
     AddTraderOrderToBatch(TraderOrder, RpcCommand, Meta, f64),
 }

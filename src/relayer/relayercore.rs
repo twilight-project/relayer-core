@@ -245,7 +245,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 let mut lendpool = LEND_POOL_DB.lock().unwrap();
                                 lendpool.add_transaction(
                                     LendPoolCommand::AddTraderOrderLiquidation(
-                                        RelayerCommand::PriceTickerOrderSettle(
+                                        RelayerCommand::PriceTickerLiquidation(
                                             vec![order_clone.uuid.clone()],
                                             metadata_clone,
                                             current_price_clone,
@@ -377,7 +377,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             }
             drop(buffer);
         }
-        RelayerCommand::FundingCycleLiquidation(pool_batch_order, metadata) => {}
+        RelayerCommand::FundingCycleLiquidation(order_id_array, metadata, currentprice) => {}
         RelayerCommand::RpcCommandPoolupdate(pool_batch_order, metadata) => {}
         RelayerCommand::AddTraderOrderToBatch(trader_order, rpc_request, metadata, price) => {}
     }

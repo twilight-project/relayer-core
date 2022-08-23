@@ -5,6 +5,7 @@ use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
 use std::{thread, time};
 use uuid::Uuid;
 
@@ -254,6 +255,7 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
 pub fn updatefundingrate_localdb(psi: f64) {
     let current_time = std::time::SystemTime::now();
     let current_price = get_localdb("CurrentPrice");
+    let fee = get_localdb("Fee");
     let position_size_log = POSITION_SIZE_LOG.lock().unwrap();
     let totalshort = position_size_log.total_short_positionsize.clone();
     let totallong = position_size_log.total_long_positionsize.clone();
@@ -278,9 +280,133 @@ pub fn updatefundingrate_localdb(psi: f64) {
         fundingrate = fundingrate * (-1.0);
     }
     // comment below code and add kafka msg producer for fl=unding rate
-    updatefundingrateindb(fundingrate.clone(), current_price, current_time);
+    // updatefundingrateindb(fundingrate.clone(), current_price, current_time);
     println!("funding cycle processing...");
-
-    get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
+    let meta = Meta {
+        metadata: {
+            let mut hashmap = HashMap::new();
+            hashmap.insert(
+                String::from("request_server_time"),
+                Some(
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros()
+                        .to_string(),
+                ),
+            );
+            hashmap.insert(
+                String::from("CurrentPrice"),
+                Some(current_price.to_string()),
+            );
+            hashmap
+        },
+    };
+    // get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
+    fundingcycle(current_price, fundingrate, fee, current_time, meta);
     println!("fundingrate:{}", fundingrate);
+}
+
+pub fn fundingcycle(
+    current_price: f64,
+    fundingrate: f64,
+    fee: f64,
+    current_time: std::time::SystemTime,
+    metadata: Meta,
+) {
+    // let mut orderdetails_array: Vec<Arc<RwLock<TraderOrder>>> = Vec::new();
+    let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+    let mut orderdetails_array = trader_order_db.getall_mut();
+    drop(trader_order_db);
+
+    let length = orderdetails_array.len();
+    if length > 0 {
+        for ordertx in orderdetails_array {
+            let meta_clone = metadata.clone();
+            let state = updatechangesineachordertxonfundingratechange_localdb(
+                ordertx,
+                fundingrate,
+                current_price,
+                fee,
+                meta_clone,
+            );
+        }
+    }
+}
+
+pub fn updatechangesineachordertxonfundingratechange_localdb(
+    mut order: Arc<RwLock<TraderOrder>>,
+    fundingratechange: f64,
+    current_price: f64,
+    fee: f64,
+    meta: Meta,
+) {
+    let mut ordertx = order.write().unwrap();
+    if ordertx.order_status == OrderStatus::FILLED {
+        //update available margin
+        match ordertx.position_type {
+            PositionType::LONG => {
+                if fundingratechange > 0.0 {
+                    ordertx.available_margin = ordertx.available_margin
+                        - ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
+                } else {
+                    ordertx.available_margin = ordertx.available_margin
+                        - ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
+                }
+            }
+            PositionType::SHORT => {
+                if fundingratechange > 0.0 {
+                    ordertx.available_margin = ordertx.available_margin
+                        + ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
+                } else {
+                    ordertx.available_margin = ordertx.available_margin
+                        + ((fundingratechange * ordertx.positionsize) / (current_price * 100.0))
+                }
+            }
+        }
+
+        if ordertx.available_margin < 0.0 {
+            ordertx.available_margin = 0.0;
+        }
+        // update maintenancemargin
+        ordertx.maintenance_margin = maintenancemargin(
+            entryvalue(ordertx.initial_margin, ordertx.leverage),
+            ordertx.bankruptcy_value,
+            fee,
+            fundingratechange,
+        );
+
+        // check if AM <= MM if true then call liquidate position else update liquidation price
+        if ordertx.available_margin <= ordertx.maintenance_margin {
+            //call liquidation
+            // ordertx = liquidateposition(ordertx, current_price);
+            let payment = ordertx.liquidate(current_price);
+            ordertx.order_status = OrderStatus::LIQUIDATE;
+            let mut lendpool = LEND_POOL_DB.lock().unwrap();
+            lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
+                RelayerCommand::FundingCycleLiquidation(
+                    vec![ordertx.uuid.clone()],
+                    meta,
+                    current_price,
+                ),
+                ordertx.clone(),
+                payment,
+            ));
+            drop(lendpool);
+        } else {
+            ordertx.liquidation_price = liquidationprice(
+                ordertx.entryprice,
+                ordertx.positionsize,
+                positionside(&ordertx.position_type),
+                ordertx.maintenance_margin,
+                ordertx.initial_margin,
+            );
+            // idliquidate = false;
+        }
+        // let ordertxclone = ordertx.clone();
+        // ordertxclone.update_trader_order_table_into_db_on_funding_cycle(
+        //     ordertx.uuid.to_string(),
+        //     isliquidated,
+        // );
+    }
 }

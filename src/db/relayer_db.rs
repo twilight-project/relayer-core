@@ -58,6 +58,7 @@ pub trait LocalDB<T> {
     fn update_nonce(&mut self) -> usize;
     fn get(&mut self, id: Uuid) -> Result<T, std::io::Error>;
     fn get_mut(&mut self, id: Uuid) -> Result<Arc<RwLock<T>>, std::io::Error>;
+    fn getall_mut(&mut self) -> Vec<Arc<RwLock<T>>>;
     fn update(&mut self, order: T, cmd: RelayerCommand) -> Result<T, std::io::Error>;
     fn remove(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
     fn aggrigate_log_sequence(&mut self) -> usize;
@@ -327,6 +328,15 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             }
         }
     }
+    fn getall_mut(&mut self) -> Vec<Arc<RwLock<TraderOrder>>> {
+        let mut orderdetails_array: Vec<Arc<RwLock<TraderOrder>>> = Vec::new();
+
+        for (_, order) in self.ordertable.iter_mut() {
+            orderdetails_array.push(Arc::clone(order));
+        }
+
+        orderdetails_array
+    }
     fn aggrigate_log_sequence(&mut self) -> usize {
         self.aggrigate_log_sequence
     }
@@ -494,6 +504,16 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 ))
             }
         }
+    }
+
+    fn getall_mut(&mut self) -> Vec<Arc<RwLock<LendOrder>>> {
+        let mut orderdetails_array: Vec<Arc<RwLock<LendOrder>>> = Vec::new();
+
+        for (_, order) in self.ordertable.iter_mut() {
+            orderdetails_array.push(Arc::clone(order));
+        }
+
+        orderdetails_array
     }
 
     fn update(
