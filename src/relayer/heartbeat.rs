@@ -410,6 +410,20 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 ordertx.initial_margin,
             );
 
+            match ordertx.position_type {
+                PositionType::LONG => {
+                    let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                    let _ = add_to_liquidation_list
+                        .update(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                    drop(add_to_liquidation_list);
+                }
+                PositionType::SHORT => {
+                    let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                    let _ = add_to_liquidation_list
+                        .update(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                    drop(add_to_liquidation_list);
+                }
+            }
             relayer_event_handler(RelayerCommand::FundingOrderEventUpdate(
                 ordertx.clone(),
                 meta,

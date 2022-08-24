@@ -373,20 +373,23 @@ impl LendPool {
                 let _ = lendorder_db.remove(lend_order, rpc_request);
                 drop(lendorder_db);
             }
-            LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => {
-                self.nonce += 1;
-                self.aggrigate_log_sequence += 1;
-                match relayer_command {
-                    RelayerCommand::FundingCycle(pool_batch_order, _metadata) => {
-                        self.total_locked_value -= pool_batch_order.amount * 10000.0;
-                        self.event_log.push(PoolEvent::new(
-                            PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
-                            String::from("FundingCycleDataUpdate"),
-                            String::from("LendPoolEventLog1"),
-                        ));
-                    }
-                    RelayerCommand::RpcCommandPoolupdate() => {
-                        let batch = self.pending_orders.clone();
+            LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {
+                RelayerCommand::FundingCycle(pool_batch_order, _metadata) => {
+                    self.nonce += 1;
+                    self.aggrigate_log_sequence += 1;
+                    self.total_locked_value -= pool_batch_order.amount * 10000.0;
+                    self.event_log.push(PoolEvent::new(
+                        PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                        String::from("FundingCycleDataUpdate"),
+                        String::from("LendPoolEventLog1"),
+                    ));
+                }
+                RelayerCommand::RpcCommandPoolupdate() => {
+                    let batch = self.pending_orders.clone();
+                    if batch.trader_order_data.len() > 0 {
+                        self.nonce += 1;
+                        self.aggrigate_log_sequence += 1;
+
                         self.total_locked_value -= batch.amount * 10000.0;
                         self.event_log.push(PoolEvent::new(
                             PoolEvent::PoolUpdate(command_clone, self.aggrigate_log_sequence),
@@ -399,14 +402,16 @@ impl LendPool {
                             match cmd {
                                 LendPoolCommand::AddTraderOrderSettlement(
                                     rpc_cmd,
-                                    order,
+                                    mut order,
                                     payment,
                                 ) => {
+                                    // println!("hey, im here");
+                                    order.exit_nonce = self.nonce;
                                     trader_order_db.remove(order, rpc_cmd);
                                 }
                                 LendPoolCommand::AddTraderLimitOrderSettlement(
                                     relayer_cmd,
-                                    order,
+                                    mut order,
                                     payment,
                                 ) => match relayer_cmd {
                                     RelayerCommand::PriceTickerOrderSettle(
@@ -414,6 +419,7 @@ impl LendPool {
                                         metadata,
                                         current_price,
                                     ) => {
+                                        order.exit_nonce = self.nonce;
                                         let dummy_rpccommand =
                                             RpcCommand::RelayerCommandTraderOrderOnLimit(
                                                 order.clone(),
@@ -426,9 +432,10 @@ impl LendPool {
                                 },
                                 LendPoolCommand::AddTraderOrderLiquidation(
                                     relayer_cmd,
-                                    order,
+                                    mut order,
                                     payment,
                                 ) => {
+                                    order.exit_nonce = self.nonce;
                                     trader_order_db.liquidate(order, relayer_cmd);
                                 }
                                 _ => {}
@@ -437,9 +444,9 @@ impl LendPool {
                         drop(trader_order_db);
                         self.pending_orders = PoolBatchOrder::new();
                     }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
             LendPoolCommand::InitiateNewPool(lend_order, metadata) => {
                 // self.aggrigate_log_sequence += 1;
             }

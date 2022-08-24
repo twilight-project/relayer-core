@@ -127,7 +127,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             match self.ordertable.remove(&order.uuid) {
                 Some(_) => {
                     self.aggrigate_log_sequence += 1;
-                    order.exit_nonce = get_nonce();
+                    // order.exit_nonce = get_nonce();
                     self.event.push(Event::<TraderOrder>::new(
                         Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                         String::from("remove_order"),
@@ -159,7 +159,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             match self.ordertable.remove(&order.uuid) {
                 Some(_) => {
                     self.aggrigate_log_sequence += 1;
-                    order.exit_nonce = get_nonce();
+                    // order.exit_nonce = get_nonce();
                     self.event.push(Event::<TraderOrder>::new(
                         Event::TraderOrderLiquidation(
                             order.clone(),

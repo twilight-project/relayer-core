@@ -12,7 +12,7 @@ lazy_static! {
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_FIFO_ORDER")));
+        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
 }
 pub fn client_cmd_receiver() {
     if *KAFKA_STATUS == "Enabled" {
@@ -388,7 +388,6 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
             drop(lendpool);
         }
-        RelayerCommand::AddTraderOrderToBatch(trader_order, rpc_request, metadata, price) => {}
         RelayerCommand::FundingOrderEventUpdate(trader_order, metadata) => {
             Event::<TraderOrder>::new(
                 Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),

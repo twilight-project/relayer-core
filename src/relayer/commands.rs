@@ -12,7 +12,7 @@ pub enum RelayerCommand {
     PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
     FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
     RpcCommandPoolupdate(),
-    AddTraderOrderToBatch(TraderOrder, RpcCommand, Meta, f64),
+    // AddTraderOrderToBatch(TraderOrder, RpcCommand, Meta, f64),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
