@@ -238,25 +238,25 @@ pub fn startserver_repl() {
     //     Ok(serde_json::to_value(&check_server_time()).unwrap())
     // });
 
-    io.add_method_with_meta(
-        "checklocaldb",
-        move |params: Params, _meta: Meta| async move {
-            match params.parse::<TestLocaldb>() {
-                Ok(value) => {
-                    // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
-                    let db = DB_IN_MEMORY.lock().unwrap();
-                    println!("{:#?}", db);
-                    drop(db);
-                    Ok(serde_json::to_value(&check_server_time()).unwrap())
-                }
-                Err(args) => {
-                    let err =
-                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
-                    Err(err)
-                }
-            }
-        },
-    );
+    // io.add_method_with_meta(
+    //     "checklocaldb",
+    //     move |params: Params, _meta: Meta| async move {
+    //         match params.parse::<TestLocaldb>() {
+    //             Ok(value) => {
+    //                 // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
+    //                 let db = DB_IN_MEMORY.lock().unwrap();
+    //                 println!("{:#?}", db);
+    //                 drop(db);
+    //                 Ok(serde_json::to_value(&check_server_time()).unwrap())
+    //             }
+    //             Err(args) => {
+    //                 let err =
+    //                     JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+    //                 Err(err)
+    //             }
+    //         }
+    //     },
+    // );
 
     println!("Starting jsonRPC server @ 127.0.0.1:3031");
     let server = ServerBuilder::new(io)

@@ -150,11 +150,6 @@ pub fn initprice() {
         arg: vec![String::from("FundingRate"), String::from("0.0")],
         ignore: false,
     });
-    // cmd_array.push(RedisPinelineQuery {
-    //     cmd: String::from("set"),
-    //     arg: vec![String::from("LendNonce"), String::from("0")],
-    //     ignore: false,
-    // });
     cmd_array.push(RedisPinelineQuery {
         cmd: String::from("set"),
         arg: vec![String::from("CurrentPrice"), String::from("18000.0")],
@@ -162,7 +157,7 @@ pub fn initprice() {
     });
     cmd_array.push(RedisPinelineQuery {
         cmd: String::from("set"),
-        arg: vec![String::from("btc:price"), String::from("17000.0")],
+        arg: vec![String::from("btc:price"), String::from("18000.0")],
         ignore: false,
     });
 

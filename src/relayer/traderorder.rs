@@ -755,24 +755,24 @@ impl TraderOrder {
                     timestamp: std::time::SystemTime::now(),
                 });
 
-                match OrderLog::insert_new_traderorder(
-                    ordertx.clone(),
-                    Rcmd::new(TraderOrderCommand::NewOrder {
-                        position_type: ordertx.position_type,
-                        order_type: ordertx.order_type,
-                        leverage: ordertx.leverage,
-                        initial_margin: ordertx.initial_margin,
-                        order_status: ordertx.order_status,
-                        entryprice: ordertx.entryprice,
-                    }),
-                ) {
-                    Ok(_) => {
-                        // println!("Order inserted successfully");
-                    }
-                    Err(arg) => {
-                        println!("Error: {:#?}", arg);
-                    }
-                }
+                // match OrderLog::insert_new_traderorder(
+                //     ordertx.clone(),
+                //     Rcmd::new(TraderOrderCommand::NewOrder {
+                //         position_type: ordertx.position_type,
+                //         order_type: ordertx.order_type,
+                //         leverage: ordertx.leverage,
+                //         initial_margin: ordertx.initial_margin,
+                //         order_status: ordertx.order_status,
+                //         entryprice: ordertx.entryprice,
+                //     }),
+                // ) {
+                //     Ok(_) => {
+                //         // println!("Order inserted successfully");
+                //     }
+                //     Err(arg) => {
+                //         println!("Error: {:#?}", arg);
+                //     }
+                // }
             } else {
                 // trader order set by timestamp
                 match ordertx.position_type {
@@ -791,24 +791,24 @@ impl TraderOrder {
                 }
                 // redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
                 let order_clone = ordertx.clone();
-                match OrderLog::insert_new_traderorder(
-                    order_clone.clone(),
-                    Rcmd::new(TraderOrderCommand::OpenLimit {
-                        position_type: order_clone.position_type,
-                        order_type: order_clone.order_type,
-                        leverage: order_clone.leverage,
-                        initial_margin: order_clone.initial_margin,
-                        order_status: order_clone.order_status,
-                        entryprice: order_clone.entryprice,
-                    }),
-                ) {
-                    Ok(_) => {
-                        // println!("Order inserted successfully");
-                    }
-                    Err(arg) => {
-                        println!("Error: {:#?}", arg);
-                    }
-                }
+                // match OrderLog::insert_new_traderorder(
+                //     order_clone.clone(),
+                //     Rcmd::new(TraderOrderCommand::OpenLimit {
+                //         position_type: order_clone.position_type,
+                //         order_type: order_clone.order_type,
+                //         leverage: order_clone.leverage,
+                //         initial_margin: order_clone.initial_margin,
+                //         order_status: order_clone.order_status,
+                //         entryprice: order_clone.entryprice,
+                //     }),
+                // ) {
+                //     Ok(_) => {
+                //         // println!("Order inserted successfully");
+                //     }
+                //     Err(arg) => {
+                //         println!("Error: {:#?}", arg);
+                //     }
+                // }
                 pending_trader_order_insert_sql_query(ordertx);
             }
         });

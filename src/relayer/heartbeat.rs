@@ -1,11 +1,11 @@
 use crate::config::*;
 use crate::db::*;
-// use crate::pricefeederlib::price_feeder::receive_btc_price;
+use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::sync::{mpsc, Arc, RwLock};
 use std::{thread, time};
 use uuid::Uuid;
 
@@ -17,7 +17,7 @@ pub fn heartbeat() {
             let mut scheduler = Scheduler::with_tz(chrono::Utc);
 
             // funding update every 1 hour //comments for local test
-            // scheduler.every(600.seconds()).run(move || {
+            // scheduler.every(30.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
                 updatefundingrate_localdb(1.0);
             });
@@ -43,22 +43,22 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    // thread::Builder::new()
-    //     .name(String::from("json-RPC startserver"))
-    //     .spawn(move || {
-    //         startserver();
-    //     })
-    //     .unwrap();
+    thread::Builder::new()
+        .name(String::from("json-RPC startserver"))
+        .spawn(move || {
+            startserver();
+        })
+        .unwrap();
 
-    // thread::Builder::new()
-    //     .name(String::from("BTC Binance Websocket Connection"))
-    //     .spawn(move || {
-    //         thread::sleep(time::Duration::from_millis(1000));
-    //         // receive_btc_price();
-    //     })
-    //     .unwrap();
+    thread::Builder::new()
+        .name(String::from("BTC Binance Websocket Connection"))
+        .spawn(move || {
+            // thread::sleep(time::Duration::from_millis(1000));
+            receive_btc_price();
+        })
+        .unwrap();
 
-    // QueueResolver::new(String::from("questdb_queue"));
+    QueueResolver::new(String::from("questdb_queue"));
 
     println!("Initialization done..................................");
 }
@@ -87,15 +87,9 @@ pub fn price_check_and_update() {
         treadpool_settling_order.execute(move || {
             check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
         });
-        // // println!("Price update: not same price");
-        // let pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
-        // pool.execute(move || {
-        //     // insert_current_price_psql(currentprice.clone(), current_time);
-        // });
         drop(treadpool_pending_order);
         drop(treadpool_liquidation_order);
         drop(treadpool_settling_order);
-        // drop(pool);
     }
 }
 
@@ -325,6 +319,8 @@ pub fn fundingcycle(
     drop(trader_order_db);
 
     let length = orderdetails_array.len();
+    println!("length : {}", length);
+
     if length > 0 {
         let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
         let mut poolbatch = PoolBatchOrder::new();
@@ -343,12 +339,17 @@ pub fn fundingcycle(
                 );
             });
         }
+        println!("funding test 1");
         for _i in 0..length {
             let (funding_payment, order) = recv.recv().unwrap();
             if funding_payment != 0.0 {
                 poolbatch.add(funding_payment, order);
             }
         }
+        println!(
+            "funding complete, poolbatch amount: {:#?}",
+            poolbatch.amount
+        );
         relayer_event_handler(RelayerCommand::FundingCycle(poolbatch, metadata));
     }
 }
