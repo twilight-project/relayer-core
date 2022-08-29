@@ -57,7 +57,7 @@ fn main() {
     //     }
     // });
     init_psql();
-    ordertest::generatelendorder();
+    // ordertest::generatelendorder();
     thread::sleep(time::Duration::from_millis(100));
     // start_cronjobs();
     heartbeat();

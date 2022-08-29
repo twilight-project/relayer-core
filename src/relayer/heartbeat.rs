@@ -350,7 +350,11 @@ pub fn fundingcycle(
             "funding complete, poolbatch amount: {:#?}",
             poolbatch.amount
         );
-        relayer_event_handler(RelayerCommand::FundingCycle(poolbatch, metadata));
+        relayer_event_handler(RelayerCommand::FundingCycle(
+            poolbatch,
+            metadata,
+            fundingrate,
+        ));
     }
 }
 

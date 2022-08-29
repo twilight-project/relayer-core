@@ -226,7 +226,7 @@ impl LendPool {
                         database.nonce += 1;
                         database.aggrigate_log_sequence += 1;
                         match cmd {
-                            RelayerCommand::FundingCycle(batch, _metadata) => {
+                            RelayerCommand::FundingCycle(batch, _metadata, _fundingrate) => {
                                 database.total_locked_value -= batch.amount * 10000.0;
                             }
                             RelayerCommand::RpcCommandPoolupdate() => {
@@ -374,7 +374,7 @@ impl LendPool {
                 drop(lendorder_db);
             }
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {
-                RelayerCommand::FundingCycle(pool_batch_order, _metadata) => {
+                RelayerCommand::FundingCycle(pool_batch_order, _metadata, _fundingrate) => {
                     self.nonce += 1;
                     self.aggrigate_log_sequence += 1;
                     self.total_locked_value -= pool_batch_order.amount * 10000.0;

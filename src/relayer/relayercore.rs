@@ -108,7 +108,8 @@ pub fn rpc_event_handler(command: RpcCommand) {
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
                 let (tlv0, tps0) = lend_pool.get_lendpool();
-                let lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
+                let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
+                lendorder.order_status = OrderStatus::FILLED;
                 lend_pool.add_transaction(LendPoolCommand::LendOrderCreateOrder(
                     command_clone,
                     lendorder.clone(),
@@ -219,7 +220,12 @@ pub fn rpc_event_handler(command: RpcCommand) {
 pub fn relayer_event_handler(command: RelayerCommand) {
     let command_clone = command.clone();
     match command {
-        RelayerCommand::FundingCycle(pool_batch_order, metadata) => {
+        RelayerCommand::FundingCycle(pool_batch_order, metadata, fundingrate) => {
+            Event::new(
+                Event::FundingRateUpdate(fundingrate),
+                String::from("insert_fundingrate"),
+                String::from("TraderOrderEventLog1"),
+            );
             let mut lendpool = LEND_POOL_DB.lock().unwrap();
             lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
             drop(lendpool);
@@ -389,7 +395,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(lendpool);
         }
         RelayerCommand::FundingOrderEventUpdate(trader_order, metadata) => {
-            Event::<TraderOrder>::new(
+            Event::new(
                 Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),
                 String::from("update_order_funding"),
                 String::from("TraderOrderEventLog1"),
