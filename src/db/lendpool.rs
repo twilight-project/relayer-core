@@ -67,6 +67,18 @@ impl PoolBatchOrder {
 }
 
 impl LendPool {
+    pub fn default() -> Self {
+        LendPool {
+            sequence: 0,
+            nonce: 0,
+            total_pool_share: 0.0,
+            total_locked_value: 0.0,
+            event_log: Vec::new(),
+            pending_orders: PoolBatchOrder::new(),
+            aggrigate_log_sequence: 0,
+            last_snapshot_id: 0,
+        }
+    }
     pub fn new() -> Self {
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
@@ -112,7 +124,7 @@ impl LendPool {
 
         let relayer_command =
             LendPoolCommand::InitiateNewPool(relayer_initial_lend_order, Meta { metadata });
-        let pool_event = Event::PoolUpdate(relayer_command.clone(), 0);
+        let pool_event = Event::PoolUpdate(relayer_command.clone(), 1);
         let pool_event_execute = Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
@@ -129,7 +141,7 @@ impl LendPool {
                 event_log
             },
             pending_orders: PoolBatchOrder::new(),
-            aggrigate_log_sequence: 0,
+            aggrigate_log_sequence: 1,
             last_snapshot_id: 0,
         }
     }

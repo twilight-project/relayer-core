@@ -16,20 +16,11 @@ use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-fn load_data() -> (bool, OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
+pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     // fn load_data() -> (bool, Self) {
     let mut orderdb_traderorder: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
     let mut orderdb_lendrorder: OrderDB<LendOrder> = LocalDB::<LendOrder>::new();
-    let mut lendpool_database: LendPool = LendPool {
-        sequence: 0,
-        nonce: 0,
-        total_pool_share: 0.0,
-        total_locked_value: 0.0,
-        event_log: Vec::new(),
-        pending_orders: PoolBatchOrder::new(),
-        aggrigate_log_sequence: 0,
-        last_snapshot_id: 0,
-    };
+    let mut lendpool_database: LendPool = LendPool::default();
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -55,6 +46,7 @@ fn load_data() -> (bool, OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     let recever1 = recever.lock().unwrap();
     while stop_signal {
         let data = recever1.recv().unwrap();
+        println!("Envent log: {:#?}", data.value);
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
                 RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
@@ -231,13 +223,13 @@ fn load_data() -> (bool, OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     } else {
         println!("No old LendOrder Database found ....\nCreating new lendpool_database");
     }
-    if lendpool_database.total_locked_value > 0.0 {
+    if lendpool_database.aggrigate_log_sequence > 0 {
         println!("LendPool Database Loaded ....");
     } else {
+        lendpool_database = LendPool::new();
         println!("No old LendPool Database found ....\nCreating new database");
     }
     (
-        true,
         orderdb_traderorder.clone(),
         orderdb_lendrorder.clone(),
         lendpool_database.clone(),
