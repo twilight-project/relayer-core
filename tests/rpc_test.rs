@@ -84,7 +84,7 @@ fn test_zzneworderfb() {
     ordertest::initprice();
     ordertest::generatelendorder();
     println!("pslq successfull...");
-    start_cronjobs();
+    // start_cronjobs();
     thread::sleep(time::Duration::from_millis(2000));
     let orderrequest: CreateTraderOrder = CreateTraderOrder {
         account_id: String::from("test order"),

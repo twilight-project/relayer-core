@@ -17,14 +17,12 @@ lazy_static! {
 pub fn client_cmd_receiver() {
     if *KAFKA_STATUS == "Enabled" {
         match receive_from_kafka_queue(
-            String::from("CLIENT-REQUEST"),
+            RPC_CLIENT_REQUEST.clone().to_string(),
             String::from("client_cmd_receiver3"),
         ) {
             Ok(rpc_cmd_receiver) => {
-                let mut i = 0;
                 let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
                 loop {
-                    i += 1;
                     let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap().recv().unwrap();
                     rpc_event_handler(rpc_client_cmd_request);
                 }
@@ -222,9 +220,9 @@ pub fn relayer_event_handler(command: RelayerCommand) {
     match command {
         RelayerCommand::FundingCycle(pool_batch_order, metadata, fundingrate) => {
             Event::new(
-                Event::FundingRateUpdate(fundingrate),
+                Event::FundingRateUpdate(fundingrate, std::time::SystemTime::now()),
                 String::from("insert_fundingrate"),
-                String::from("TraderOrderEventLog1"),
+                TRADERORDER_EVENT_LOG.clone().to_string(),
             );
             let mut lendpool = LEND_POOL_DB.lock().unwrap();
             lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
@@ -398,7 +396,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             Event::new(
                 Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),
                 String::from("update_order_funding"),
-                String::from("TraderOrderEventLog1"),
+                TRADERORDER_EVENT_LOG.clone().to_string(),
             );
         }
     }

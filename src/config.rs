@@ -116,6 +116,18 @@ pub static ref RPC_SERVER_THREAD: usize = std::env::var("RPC_SERVER_THREAD")
     .unwrap();
     pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS")
     .expect("missing environment variable KAFKA_STATUS");
+    pub static ref RPC_CLIENT_REQUEST: String = std::env::var("RPC_CLIENT_REQUEST")
+    .expect("missing environment variable RPC_CLIENT_REQUEST");
+    pub static ref CORE_EVENT_LOG: String = std::env::var("CORE_EVENT_LOG")
+    .expect("missing environment variable CORE_EVENT_LOG");
+    pub static ref TRADERORDER_EVENT_LOG: String = std::env::var("TRADERORDER_EVENT_LOG")
+    .expect("missing environment variable TRADERORDER_EVENT_LOG");
+    pub static ref LENDORDER_EVENT_LOG: String = std::env::var("LENDORDER_EVENT_LOG")
+    .expect("missing environment variable LENDORDER_EVENT_LOG");
+    pub static ref LENDPOOL_EVENT_LOG: String = std::env::var("LENDPOOL_EVENT_LOG")
+    .expect("missing environment variable LENDPOOL_EVENT_LOG");
+
+
 }
 
 pub fn check_new_key(name: &str) {

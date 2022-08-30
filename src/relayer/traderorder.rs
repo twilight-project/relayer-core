@@ -989,11 +989,11 @@ impl TraderOrder {
     }
 
     pub fn pending_order(&mut self, current_price: f64) -> (Self, bool) {
-        let mut order_entry_status: bool = true;
+        let order_entry_status: bool = true;
         let position_type = self.position_type.clone();
         let leverage = self.leverage;
         let initial_margin = self.initial_margin.clone();
-        let mut entryprice = current_price;
+        let entryprice = current_price;
         let fee: f64 = get_localdb("Fee"); //different fee for market order
         let fundingrate = get_localdb("FundingRate");
         let position_side = positionside(&position_type);
@@ -1167,7 +1167,7 @@ impl TraderOrder {
 
     pub fn calculatepayment_localdb(&mut self, current_price: f64) -> f64 // returns payment
     {
-        let mut ordertx = self.clone();
+        let ordertx = self.clone();
         let margindifference = self.available_margin - self.initial_margin;
         let u_pnl = unrealizedpnl(
             &self.position_type,

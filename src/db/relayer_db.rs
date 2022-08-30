@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::config::*;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
@@ -15,41 +16,14 @@ use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref GLOBAL_NONCE: Arc<RwLock<usize>> = Arc::new(RwLock::new(0));
-    pub static ref KAFKA_EVENT_LOG_THREADPOOL: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
-        2,
-        String::from("KAFKA_EVENT_LOG_THREADPOOL")
-    ));
-}
-
-#[derive(Debug)]
-pub struct EventLog {
-    pub offset: i64,
-    pub key: String,
-    pub value: Event,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum Event {
-    TraderOrder(TraderOrder, RpcCommand, usize),
-    TraderOrderUpdate(TraderOrder, RelayerCommand, usize),
-    TraderOrderFundingUpdate(TraderOrder, RelayerCommand),
-    TraderOrderLiquidation(TraderOrder, RelayerCommand, usize),
-    LendOrder(LendOrder, RpcCommand, usize),
-    // RelayerUpdate(TraderOrder, RelayerCommand, usize),
-    FundingRateUpdate(f64),
-    Stop(String),
-}
-
 #[derive(Debug, Clone)]
 pub struct OrderDB<T> {
-    ordertable: HashMap<Uuid, Arc<RwLock<T>>>,
-    sequence: usize,
-    nonce: usize,
-    event: Vec<Event>,
-    aggrigate_log_sequence: usize,
-    last_snapshot_id: usize,
+    pub ordertable: HashMap<Uuid, Arc<RwLock<T>>>,
+    pub sequence: usize,
+    pub nonce: usize,
+    pub event: Vec<Event>,
+    pub aggrigate_log_sequence: usize,
+    pub last_snapshot_id: usize,
 }
 
 pub trait LocalDB<T> {
@@ -90,7 +64,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         self.event.push(Event::new(
             Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             String::from("add_order"),
-            String::from("TraderOrderEventLog1"),
+            TRADERORDER_EVENT_LOG.clone().to_string(),
         ));
         order.clone()
     }
@@ -107,7 +81,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             self.event.push(Event::new(
                 Event::TraderOrderUpdate(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                 String::from("update_order"),
-                String::from("TraderOrderEventLog1"),
+                TRADERORDER_EVENT_LOG.clone().to_string(),
             ));
             Ok(order.clone())
         } else {
@@ -120,7 +94,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
 
     fn remove(
         &mut self,
-        mut order: TraderOrder,
+        order: TraderOrder,
         cmd: RpcCommand,
     ) -> Result<TraderOrder, std::io::Error> {
         if self.ordertable.contains_key(&order.uuid) {
@@ -131,7 +105,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     self.event.push(Event::new(
                         Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                         String::from("remove_order"),
-                        String::from("TraderOrderEventLog1"),
+                        TRADERORDER_EVENT_LOG.clone().to_string(),
                     ));
                     Ok(order)
                 }
@@ -152,7 +126,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
 
     fn liquidate(
         &mut self,
-        mut order: TraderOrder,
+        order: TraderOrder,
         cmd: RelayerCommand,
     ) -> Result<TraderOrder, std::io::Error> {
         if self.ordertable.contains_key(&order.uuid) {
@@ -167,7 +141,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                             self.aggrigate_log_sequence,
                         ),
                         String::from("remove_order"),
-                        String::from("TraderOrderEventLog1"),
+                        TRADERORDER_EVENT_LOG.clone().to_string(),
                     ));
                     Ok(order)
                 }
@@ -197,13 +171,13 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         let eventstop: Event = Event::Stop(time.clone());
         Event::send_event_to_kafka_queue(
             eventstop.clone(),
-            String::from("TraderOrderEventLog1"),
+            TRADERORDER_EVENT_LOG.clone().to_string(),
             String::from("StopLoadMSG"),
         );
         let mut stop_signal: bool = true;
 
         let recever = Event::receive_event_from_kafka_queue(
-            String::from("TraderOrderEventLog1"),
+            TRADERORDER_EVENT_LOG.clone().to_string(),
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
@@ -214,13 +188,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         let recever1 = recever.lock().unwrap();
         while stop_signal {
             let data = recever1.recv().unwrap();
-            // pub struct EventLog {
-            //     pub offset: i64,
-            //     pub key: String,
-            //     pub value: Event<TraderOrder>,
-            // }
-            // println!("kafka msg:{:#?}", data.value.clone());
-            // if data.key == String::from("StopLoadMSG") {
+            println!("Event logs:{:#?}", data.value);
             match data.value.clone() {
                 Event::TraderOrder(order, cmd, seq) => match cmd {
                     RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
@@ -228,7 +196,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                         if database.ordertable.contains_key(&order.uuid) {
                             database.ordertable.remove(&order.uuid);
                         }
-                        database.event.push(data.value);
+                        // database.event.push(data.value);
                         if database.sequence < order_clone.entry_sequence {
                             database.sequence = order_clone.entry_sequence;
                         }
@@ -245,7 +213,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                         if database.ordertable.contains_key(&order.uuid) {
                             database.ordertable.remove(&order.uuid);
                         }
-                        database.event.push(data.value);
+                        // database.event.push(data.value);
                         if database.sequence < order_clone.entry_sequence {
                             database.sequence = order_clone.entry_sequence;
                         }
@@ -258,7 +226,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                         database
                             .ordertable
                             .insert(order.uuid, Arc::new(RwLock::new(order)));
-                        database.event.push(data.value);
+                        // database.event.push(data.value);
                         if database.sequence < order_clone.entry_sequence {
                             database.sequence = order_clone.entry_sequence;
                         }
@@ -272,7 +240,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     database
                         .ordertable
                         .insert(order.uuid, Arc::new(RwLock::new(order)));
-                    database.event.push(data.value);
+                    // database.event.push(data.value);
                     if database.sequence < order_clone.entry_sequence {
                         database.sequence = order_clone.entry_sequence;
                     }
@@ -290,7 +258,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     if database.ordertable.contains_key(&order.uuid) {
                         database.ordertable.remove(&order.uuid);
                     }
-                    database.event.push(data.value);
+                    // database.event.push(data.value);
                     if database.sequence < order_clone.entry_sequence {
                         database.sequence = order_clone.entry_sequence;
                     }
@@ -306,8 +274,14 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 Event::LendOrder { .. } => {
                     println!("LendOrder Im here");
                 }
-                Event::FundingRateUpdate { .. } => {
-                    println!("LendOrder Im here");
+                Event::PoolUpdate { .. } => {
+                    println!("PoolUpdate Im here");
+                }
+                Event::FundingRateUpdate(funding_rate, _time) => {
+                    set_localdb("FundingRate", funding_rate);
+                }
+                Event::CurrentPriceUpdate(current_price, _time) => {
+                    set_localdb("CurrentPrice", current_price);
                 }
             }
         }
@@ -380,133 +354,6 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
     }
 }
 
-impl Event {
-    pub fn new(event: Event, key: String, topic: String) -> Self {
-        match event {
-            Event::TraderOrder(order, cmd, seq) => {
-                let event = Event::TraderOrder(order, cmd, seq);
-                let event_clone = event.clone();
-                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-                pool.execute(move || {
-                    Event::send_event_to_kafka_queue(event_clone, topic, key);
-                });
-                event
-            }
-            Event::TraderOrderLiquidation(order, cmd, seq) => {
-                let event = Event::TraderOrderLiquidation(order, cmd, seq);
-                let event_clone = event.clone();
-                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-                pool.execute(move || {
-                    Event::send_event_to_kafka_queue(event_clone, topic, key);
-                });
-                event
-            }
-            Event::TraderOrderUpdate(order, cmd, seq) => {
-                let event = Event::TraderOrderUpdate(order, cmd, seq);
-                let event_clone = event.clone();
-                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-                pool.execute(move || {
-                    Event::send_event_to_kafka_queue(event_clone, topic, key);
-                });
-                event
-            }
-            Event::LendOrder(order, cmd, seq) => {
-                let event = Event::LendOrder(order, cmd, seq);
-                let event_clone = event.clone();
-                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-                pool.execute(move || {
-                    Event::send_event_to_kafka_queue(event_clone, topic, key);
-                });
-                event
-            }
-            Event::TraderOrderFundingUpdate(order, cmd) => {
-                let event = Event::TraderOrderFundingUpdate(order, cmd);
-                let event_clone = event.clone();
-                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-                pool.execute(move || {
-                    Event::send_event_to_kafka_queue(event_clone, topic, key);
-                });
-                event
-            }
-            Event::FundingRateUpdate(fundingrate) => {
-                let event = Event::FundingRateUpdate(fundingrate);
-                let event_clone = event.clone();
-                let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-                pool.execute(move || {
-                    Event::send_event_to_kafka_queue(event_clone, topic, key);
-                });
-                event
-            }
-            Event::Stop(seq) => Event::Stop(seq.to_string()),
-        }
-    }
-    pub fn send_event_to_kafka_queue(event: Event, topic: String, key: String) {
-        let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
-        let data = serde_json::to_vec(&event).unwrap();
-        kafka_producer
-            .send(&Record::from_key_value(&topic, key, data))
-            .unwrap();
-    }
-
-    pub fn receive_event_from_kafka_queue(
-        topic: String,
-        group: String,
-    ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
-        let (sender, receiver) = mpsc::channel();
-        let _topic_clone = topic.clone();
-        thread::spawn(move || {
-            let broker = vec![std::env::var("BROKER")
-                .expect("missing environment variable BROKER")
-                .to_owned()];
-            let mut con = Consumer::from_hosts(broker)
-                // .with_topic(topic)
-                .with_group(group)
-                .with_topic_partitions(topic, &[0])
-                .with_fallback_offset(FetchOffset::Earliest)
-                .with_offset_storage(GroupOffsetStorage::Kafka)
-                .create()
-                .unwrap();
-            let mut connection_status = true;
-            let _partition: i32 = 0;
-            while connection_status {
-                let sender_clone = sender.clone();
-                let mss = con.poll().unwrap();
-                if mss.is_empty() {
-                    // println!("No messages available right now.");
-                    // return Ok(());
-                } else {
-                    for ms in mss.iter() {
-                        for m in ms.messages() {
-                            let message = EventLog {
-                                offset: m.offset,
-                                key: String::from_utf8_lossy(&m.key).to_string(),
-                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-                                    .unwrap(),
-                            };
-                            match sender_clone.send(message) {
-                                Ok(_) => {
-                                    // let _ = con.consume_message(&topic_clone, partition, m.offset);
-                                    // println!("Im here");
-                                }
-                                Err(_arg) => {
-                                    // println!("Closing Kafka Consumer Connection : {:#?}", arg);
-                                    connection_status = false;
-                                    break;
-                                }
-                            }
-                        }
-                        let _ = con.consume_messageset(ms);
-                    }
-                    con.commit_consumed().unwrap();
-                }
-            }
-            con.commit_consumed().unwrap();
-            thread::park();
-        });
-        Ok(Arc::new(Mutex::new(receiver)))
-    }
-}
-
 impl LocalDB<LendOrder> for OrderDB<LendOrder> {
     fn new() -> Self {
         OrderDB {
@@ -530,7 +377,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         self.event.push(Event::new(
             Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             String::from("add_order"),
-            String::from("LendOrderEventLog1"),
+            LENDORDER_EVENT_LOG.clone().to_string(),
         ));
         order.clone()
     }
@@ -582,8 +429,8 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
 
     fn update(
         &mut self,
-        mut order: LendOrder,
-        cmd: RelayerCommand,
+        order: LendOrder,
+        _cmd: RelayerCommand,
     ) -> Result<LendOrder, std::io::Error> {
         Ok(order.clone())
     }
@@ -595,7 +442,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 self.event.push(Event::new(
                     Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                     String::from("remove_order"),
-                    String::from("LendOrderEventLog1"),
+                    LENDORDER_EVENT_LOG.clone().to_string(),
                 ));
                 Ok(order)
             }
@@ -610,7 +457,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
     fn liquidate(
         &mut self,
         order: LendOrder,
-        cmd: RelayerCommand,
+        _cmd: RelayerCommand,
     ) -> Result<LendOrder, std::io::Error> {
         Ok(order)
     }
@@ -629,13 +476,13 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         let eventstop: Event = Event::Stop(time.clone());
         Event::send_event_to_kafka_queue(
             eventstop.clone(),
-            String::from("LendOrderEventLog1"),
+            LENDORDER_EVENT_LOG.clone().to_string(),
             String::from("StopLoadMSG"),
         );
         let mut stop_signal: bool = true;
 
         let recever = Event::receive_event_from_kafka_queue(
-            String::from("LendOrderEventLog1"),
+            LENDORDER_EVENT_LOG.clone().to_string(),
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .unwrap()
@@ -653,7 +500,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                         database
                             .ordertable
                             .insert(order.uuid, Arc::new(RwLock::new(order)));
-                        database.event.push(data.value);
+                        // database.event.push(data.value);
                         if database.sequence < order_clone.entry_sequence {
                             database.sequence = order_clone.entry_sequence;
                         }
@@ -662,7 +509,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                         }
                     }
                     RpcCommand::ExecuteLendOrder(..) => {
-                        database.event.push(data.value);
+                        // database.event.push(data.value);
 
                         if database.ordertable.contains_key(&order.uuid) {
                             database.ordertable.remove(&order.uuid);
@@ -681,21 +528,13 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                         stop_signal = false;
                     }
                 }
-                Event::TraderOrder { .. } => {
-                    println!("TraderOrder Im here");
-                }
-                Event::TraderOrderUpdate { .. } => {
-                    println!("TraderOrder Im here");
-                }
-                Event::TraderOrderLiquidation { .. } => {
-                    println!("RelayerUpdate Im here");
-                }
-                Event::TraderOrderFundingUpdate { .. } => {
-                    println!("RelayerUpdate Im here");
-                }
-                Event::FundingRateUpdate { .. } => {
-                    println!("RelayerUpdate Im here");
-                }
+                Event::TraderOrder { .. } => {}
+                Event::TraderOrderUpdate { .. } => {}
+                Event::TraderOrderLiquidation { .. } => {}
+                Event::TraderOrderFundingUpdate { .. } => {}
+                Event::FundingRateUpdate { .. } => {}
+                Event::PoolUpdate { .. } => {}
+                Event::CurrentPriceUpdate { .. } => {}
             }
         }
         if database.sequence > 0 {
@@ -718,101 +557,6 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         }
     }
 }
-
-// impl Event<LendOrder> {
-//     pub fn new(event: Event<LendOrder>, key: String) -> Self {
-//         match event {
-//             Event::TraderOrder(order, cmd, seq) => Event::TraderOrder(order, cmd, seq),
-//             Event::TraderOrderLiquidation(order, cmd, seq) => {
-//                 Event::TraderOrderLiquidation(order, cmd, seq)
-//             }
-//             Event::TraderOrderUpdate(order, cmd, seq) => Event::TraderOrderUpdate(order, cmd, seq),
-//             Event::TraderOrderFundingUpdate(order, cmd) => {
-//                 Event::TraderOrderFundingUpdate(order, cmd)
-//             }
-//             Event::LendOrder(order, cmd, seq) => {
-//                 let event = Event::LendOrder(order, cmd, seq);
-//                 let event_clone = event.clone();
-//                 let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
-//                 pool.execute(move || {
-//                     Event::send_event_to_kafka_queue(
-//                         event_clone,
-//                         String::from("LendOrderEventLog1"),
-//                         key,
-//                     );
-//                 });
-//                 event
-//             }
-//             Event::RelayerUpdate(order, cmd, seq) => Event::RelayerUpdate(order, cmd, seq),
-//             Event::Stop(seq) => Event::Stop(seq.to_string()),
-//         }
-//     }
-//     pub fn send_event_to_kafka_queue(event: Event<LendOrder>, topic: String, key: String) {
-//         let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
-//         let data = serde_json::to_vec(&event).unwrap();
-//         kafka_producer
-//             .send(&Record::from_key_value(&topic, key, data))
-//             .unwrap();
-//     }
-
-//     pub fn receive_event_from_kafka_queue(
-//         topic: String,
-//         group: String,
-//     ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog<LendOrder>>>>, KafkaError> {
-//         let (sender, receiver) = mpsc::channel();
-//         let _topic_clone = topic.clone();
-//         thread::spawn(move || {
-//             let broker = vec![std::env::var("BROKER")
-//                 .expect("missing environment variable BROKER")
-//                 .to_owned()];
-//             let mut con = Consumer::from_hosts(broker)
-//                 // .with_topic(topic)
-//                 .with_group(group)
-//                 .with_topic_partitions(topic, &[0])
-//                 .with_fallback_offset(FetchOffset::Earliest)
-//                 .with_offset_storage(GroupOffsetStorage::Kafka)
-//                 .create()
-//                 .unwrap();
-//             let mut connection_status = true;
-//             let _partition: i32 = 0;
-//             while connection_status {
-//                 let sender_clone = sender.clone();
-//                 let mss = con.poll().unwrap();
-//                 if mss.is_empty() {
-//                     // println!("No messages available right now.");
-//                     // return Ok(());
-//                 } else {
-//                     for ms in mss.iter() {
-//                         for m in ms.messages() {
-//                             let message = EventLog {
-//                                 offset: m.offset,
-//                                 key: String::from_utf8_lossy(&m.key).to_string(),
-//                                 value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-//                                     .unwrap(),
-//                             };
-//                             match sender_clone.send(message) {
-//                                 Ok(_) => {
-//                                     // let _ = con.consume_message(&topic_clone, partition, m.offset);
-//                                     // println!("Im here");
-//                                 }
-//                                 Err(_arg) => {
-//                                     // println!("Closing Kafka Consumer Connection : {:#?}", arg);
-//                                     connection_status = false;
-//                                     break;
-//                                 }
-//                             }
-//                         }
-//                         let _ = con.consume_messageset(ms);
-//                     }
-//                     con.commit_consumed().unwrap();
-//                 }
-//             }
-//             con.commit_consumed().unwrap();
-//             thread::park();
-//         });
-//         Ok(Arc::new(Mutex::new(receiver)))
-//     }
-// }
 
 pub fn get_nonce() -> usize {
     let mut lend_pool = LEND_POOL_DB.lock().unwrap();

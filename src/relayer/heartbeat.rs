@@ -10,6 +10,9 @@ use std::{thread, time};
 use uuid::Uuid;
 
 pub fn heartbeat() {
+    init_psql();
+    thread::sleep(time::Duration::from_millis(100));
+    // start_cronjobs();
     // main thread for scheduler
     thread::Builder::new()
         .name(String::from("heartbeat scheduler"))
@@ -32,7 +35,6 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    // can't use scheduler because it allows minimum 1 second time to schedule any job
     thread::Builder::new()
         .name(String::from("price_check_and_update"))
         .spawn(move || loop {
@@ -58,8 +60,15 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    QueueResolver::new(String::from("questdb_queue"));
+    thread::Builder::new()
+        .name(String::from("client_cmd_receiver"))
+        .spawn(move || {
+            thread::sleep(time::Duration::from_millis(5000));
+            client_cmd_receiver();
+        })
+        .unwrap();
 
+    QueueResolver::new(String::from("questdb_queue"));
     println!("Initialization done..................................");
 }
 
@@ -75,6 +84,11 @@ pub fn price_check_and_update() {
     if currentprice != old_price {
         set_localdb("CurrentPrice", currentprice);
         redis_db::set("CurrentPrice", &currentprice.clone().to_string());
+        Event::new(
+            Event::CurrentPriceUpdate(currentprice.clone(), current_time.clone()),
+            String::from("insert_CurrentPrice"),
+            TRADERORDER_EVENT_LOG.clone().to_string(),
+        );
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
         treadpool_pending_order.execute(move || {
             check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
