@@ -211,7 +211,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         } // RpcCommand::Liquidation(trader_order, metadata) => {}
-        RpcCommand::RelayerCommandTraderOrderOnLimit(..) => {}
+        RpcCommand::RelayerCommandTraderOrderSettleOnLimit(..) => {}
     }
 }
 

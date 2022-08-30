@@ -22,6 +22,6 @@ pub enum RpcCommand {
     ExecuteTraderOrder(ExecuteTraderOrder, Meta),
     ExecuteLendOrder(ExecuteLendOrder, Meta),
     CancelTraderOrder(CancelTraderOrder, Meta),
-    RelayerCommandTraderOrderOnLimit(TraderOrder, Meta, f64),
+    RelayerCommandTraderOrderSettleOnLimit(TraderOrder, Meta, f64),
     // Liquidation(TraderOrder, Meta),
 }

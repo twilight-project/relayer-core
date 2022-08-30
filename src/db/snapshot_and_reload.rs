@@ -46,9 +46,35 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     let recever1 = recever.lock().unwrap();
     while stop_signal {
         let data = recever1.recv().unwrap();
-        println!("Envent log: {:#?}", data.value);
+        // println!("Envent log: {:#?}", data.value);
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
+                    let order_clone = order.clone();
+                    orderdb_traderorder
+                        .ordertable
+                        .insert(order.uuid, Arc::new(RwLock::new(order)));
+                    // orderdb_traderorder.event.push(data.value);
+                    if orderdb_traderorder.sequence < order_clone.entry_sequence {
+                        orderdb_traderorder.sequence = order_clone.entry_sequence;
+                    }
+                    if orderdb_traderorder.aggrigate_log_sequence < seq {
+                        orderdb_traderorder.aggrigate_log_sequence = seq;
+                    }
+                }
+                RpcCommand::CancelTraderOrder(_rpc_request, _metadata) => {
+                    let order_clone = order.clone();
+                    if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
+                        orderdb_traderorder.ordertable.remove(&order.uuid);
+                    }
+                    // orderdb_traderorder.event.push(data.value);
+                    if orderdb_traderorder.sequence < order_clone.entry_sequence {
+                        orderdb_traderorder.sequence = order_clone.entry_sequence;
+                    }
+                    if orderdb_traderorder.aggrigate_log_sequence < seq {
+                        orderdb_traderorder.aggrigate_log_sequence = seq;
+                    }
+                }
                 RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
@@ -62,7 +88,11 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::RelayerCommandTraderOrderOnLimit(_rpc_request, _metadata, _payment) => {
+                RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
+                    _rpc_request,
+                    _metadata,
+                    _payment,
+                ) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -75,19 +105,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                _ => {
-                    let order_clone = order.clone();
-                    orderdb_traderorder
-                        .ordertable
-                        .insert(order.uuid, Arc::new(RwLock::new(order)));
-                    // orderdb_traderorder.event.push(data.value);
-                    if orderdb_traderorder.sequence < order_clone.entry_sequence {
-                        orderdb_traderorder.sequence = order_clone.entry_sequence;
-                    }
-                    if orderdb_traderorder.aggrigate_log_sequence < seq {
-                        orderdb_traderorder.aggrigate_log_sequence = seq;
-                    }
-                }
+                _ => {}
             },
             Event::TraderOrderUpdate(order, _cmd, seq) => {
                 let order_clone = order.clone();

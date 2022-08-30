@@ -290,6 +290,34 @@ pub fn startserver() {
                             println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
                             drop(trader_lp_long);
                         }
+                        6 => {
+                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                            println!(
+                                "\n Trader_ORDER_DB : {:#?}",
+                                trader_lp_long.sequence.clone()
+                            );
+                            drop(trader_lp_long);
+                        }
+                        7 => {
+                            let trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+                            println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.len);
+                            drop(trader_lp_long);
+                        }
+                        8 => {
+                            let trader_lp_long = TRADER_LP_SHORT.lock().unwrap();
+                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_long.len);
+                            drop(trader_lp_long);
+                        }
+                        9 => {
+                            let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        10 => {
+                            let trader_lp_long = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);

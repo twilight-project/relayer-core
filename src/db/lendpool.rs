@@ -418,7 +418,7 @@ impl LendPool {
                                     ) => {
                                         order.exit_nonce = self.nonce;
                                         let dummy_rpccommand =
-                                            RpcCommand::RelayerCommandTraderOrderOnLimit(
+                                            RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
                                                 order.clone(),
                                                 metadata,
                                                 current_price,

@@ -204,7 +204,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                             database.aggrigate_log_sequence = seq;
                         }
                     }
-                    RpcCommand::RelayerCommandTraderOrderOnLimit(
+                    RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
                         _rpc_request,
                         _metadata,
                         _payment,
