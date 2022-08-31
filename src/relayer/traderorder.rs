@@ -1056,6 +1056,15 @@ impl TraderOrder {
                     drop(add_to_liquidation_list);
                 }
             }
+            Event::new(
+                Event::SortedSetDBUpdate(SortedSetCommand::AddLiquidationPrice(
+                    ordertx.uuid.clone(),
+                    ordertx.liquidation_price.clone(),
+                    ordertx.position_type.clone(),
+                )),
+                String::from("AddLiquidationPrice"),
+                CORE_EVENT_LOG.clone().to_string(),
+            );
 
             // adding candle data
             let side = match ordertx.position_type {
@@ -1084,6 +1093,15 @@ impl TraderOrder {
                     drop(add_to_open_order_list);
                 }
             }
+            Event::new(
+                Event::SortedSetDBUpdate(SortedSetCommand::AddOpenLimitPrice(
+                    ordertx.uuid.clone(),
+                    ordertx.entryprice.clone(),
+                    ordertx.position_type.clone(),
+                )),
+                String::from("AddOpenLimitPrice"),
+                CORE_EVENT_LOG.clone().to_string(),
+            );
         }
         ordertx
     }
@@ -1137,12 +1155,30 @@ impl TraderOrder {
                 match add_to_limit_order_list.add(self.uuid, (execution_price * 10000.0) as i64) {
                     Ok(()) => {
                         drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            String::from("AddCloseLimitPrice"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
                         return Ok(());
                     }
                     Err(_) => {
                         let result = add_to_limit_order_list
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            String::from("UpdateCloseLimitPrice"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
                         return result;
                     }
                 }
@@ -1152,12 +1188,30 @@ impl TraderOrder {
                 match add_to_limit_order_list.add(self.uuid, (execution_price * 10000.0) as i64) {
                     Ok(()) => {
                         drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            String::from("AddCloseLimitPrice"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
                         return Ok(());
                     }
                     Err(_) => {
                         let result = add_to_limit_order_list
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            String::from("UpdateCloseLimitPrice"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
                         return result;
                     }
                 }
@@ -1195,6 +1249,15 @@ impl TraderOrder {
                 drop(add_to_liquidation_list);
             }
         }
+        Event::new(
+            Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
+                ordertx.uuid.clone(),
+                ordertx.position_type.clone(),
+            )),
+            String::from("RemoveLiquidationPrice"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+
         // adding candle data
         let side = match ordertx.position_type {
             PositionType::SHORT => Side::BUY,
@@ -1225,6 +1288,14 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                )),
+                                String::from("RemoveOpenLimitPrice"),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
                             return (true, OrderStatus::CANCELLED);
                         }
                         Err(_) => return (false, self.order_status.clone()),
@@ -1237,6 +1308,14 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                )),
+                                String::from("RemoveOpenLimitPrice"),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
                             return (true, OrderStatus::CANCELLED);
                         }
                         Err(_) => return (false, self.order_status.clone()),
@@ -1253,6 +1332,8 @@ impl TraderOrder {
         self.liquidation_price = current_price;
         self.available_margin = 0.0;
         // adding candle data
+        PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+
         let side = match ordertx.position_type {
             PositionType::SHORT => Side::BUY,
             PositionType::LONG => Side::SELL,

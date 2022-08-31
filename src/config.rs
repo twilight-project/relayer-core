@@ -101,6 +101,7 @@ lazy_static! {
     pub static ref THREADPOOL_PRICE_CHECK_SETTLE_PENDING:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_SETTLE_PENDING")));
     // removeorderfromredis
     pub static ref THREADPOOL_REDIS_ORDER_REMOVE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_REDIS_ORDER_REMOVE")));
+    pub static ref THREADPOOL_EVENT_AND_SORTED_SET_UPDATE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_EVENT_AND_SORTED_SET_UPDATE")));
 
     pub static ref RELAYER_VERSION: String =
     std::env::var("RelayerVersion").expect("missing environment variable RelayerVersion");

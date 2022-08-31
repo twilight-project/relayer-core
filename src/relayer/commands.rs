@@ -12,7 +12,6 @@ pub enum RelayerCommand {
     PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
     FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
     RpcCommandPoolupdate(),
-    // AddTraderOrderToBatch(TraderOrder, RpcCommand, Meta, f64),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -23,5 +22,25 @@ pub enum RpcCommand {
     ExecuteLendOrder(ExecuteLendOrder, Meta),
     CancelTraderOrder(CancelTraderOrder, Meta),
     RelayerCommandTraderOrderSettleOnLimit(TraderOrder, Meta, f64),
-    // Liquidation(TraderOrder, Meta),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum SortedSetCommand {
+    AddLiquidationPrice(Uuid, f64, PositionType),
+    AddOpenLimitPrice(Uuid, f64, PositionType),
+    AddCloseLimitPrice(Uuid, f64, PositionType),
+    RemoveLiquidationPrice(Uuid, PositionType),
+    RemoveOpenLimitPrice(Uuid, PositionType),
+    RemoveCloseLimitPrice(Uuid, PositionType),
+    UpdateLiquidationPrice(Uuid, f64, PositionType),
+    UpdateOpenLimitPrice(Uuid, f64, PositionType),
+    UpdateCloseLimitPrice(Uuid, f64, PositionType),
+    BulkSearchRemoveLiquidationPrice(Vec<Uuid>, f64, PositionType),
+    BulkSearchRemoveOpenLimitPrice(Vec<Uuid>, f64, PositionType),
+    BulkSearchRemoveCloseLimitPrice(Vec<Uuid>, f64, PositionType),
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum PositionSizeLogCommand {
+    AddPositionSize(PositionType, f64),
+    RemovePositionSize(PositionType, f64),
 }

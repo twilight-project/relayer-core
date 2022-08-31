@@ -40,6 +40,8 @@ pub enum Event {
     PoolUpdate(LendPoolCommand, usize),
     FundingRateUpdate(f64, SystemTime),
     CurrentPriceUpdate(f64, SystemTime),
+    SortedSetDBUpdate(SortedSetCommand),
+    PositionSizeLogDBUpdate(PositionSizeLogCommand),
     Stop(String),
 }
 

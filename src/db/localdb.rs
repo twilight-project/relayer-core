@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::config::*;
 use crate::db::*;
 use crate::relayer::*;
 use mpsc::{channel, Receiver, Sender};
@@ -60,6 +61,14 @@ impl PositionSizeLog {
                 // send log to kafka
             }
         }
+        Event::new(
+            Event::PositionSizeLogDBUpdate(PositionSizeLogCommand::AddPositionSize(
+                positiontype,
+                positionsize,
+            )),
+            String::from("AddPositionSize"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
     }
     pub fn remove_order(positiontype: PositionType, positionsize: f64) {
         match positiontype {
@@ -78,6 +87,14 @@ impl PositionSizeLog {
                 // send log to kafka
             }
         }
+        Event::new(
+            Event::PositionSizeLogDBUpdate(PositionSizeLogCommand::RemovePositionSize(
+                positiontype,
+                positionsize,
+            )),
+            String::from("RemovePositionSize"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
     }
     pub fn new() -> Self {
         // impl to read from redis or event logs

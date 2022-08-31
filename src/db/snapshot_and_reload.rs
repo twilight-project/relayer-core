@@ -229,6 +229,8 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
             Event::CurrentPriceUpdate(current_price, _time) => {
                 set_localdb("CurrentPrice", current_price);
             }
+            Event::SortedSetDBUpdate(..) => {}
+            Event::PositionSizeLogDBUpdate(..) => {}
         }
     }
     if orderdb_traderorder.sequence > 0 {
