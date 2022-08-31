@@ -21,6 +21,15 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     let mut orderdb_traderorder: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
     let mut orderdb_lendrorder: OrderDB<LendOrder> = LocalDB::<LendOrder>::new();
     let mut lendpool_database: LendPool = LendPool::default();
+
+    let mut liquidation_long_sortedset_db = TRADER_LP_LONG.lock().unwrap();
+    let mut liquidation_short_sortedset_db = TRADER_LP_SHORT.lock().unwrap();
+    let mut open_long_sortedset_db = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+    let mut open_short_sortedset_db = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+    let mut close_long_sortedset_db = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+    let mut close_short_sortedset_db = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+    let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -229,8 +238,178 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
             Event::CurrentPriceUpdate(current_price, _time) => {
                 set_localdb("CurrentPrice", current_price);
             }
-            Event::SortedSetDBUpdate(..) => {}
-            Event::PositionSizeLogDBUpdate(..) => {}
+            Event::SortedSetDBUpdate(cmd) => match cmd {
+                SortedSetCommand::AddOpenLimitPrice(order_id, entry_price, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = open_long_sortedset_db
+                                .add(order_id, (entry_price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ = open_short_sortedset_db
+                                .add(order_id, (entry_price * 10000.0) as i64);
+                        }
+                    }
+                }
+                SortedSetCommand::AddLiquidationPrice(
+                    order_id,
+                    liquidation_price,
+                    position_type,
+                ) => match position_type {
+                    PositionType::LONG => {
+                        let _sortedset_ = liquidation_long_sortedset_db
+                            .add(order_id, (liquidation_price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = liquidation_short_sortedset_db
+                            .add(order_id, (liquidation_price * 10000.0) as i64);
+                    }
+                },
+                SortedSetCommand::AddCloseLimitPrice(order_id, execution_price, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = close_long_sortedset_db
+                                .add(order_id, (execution_price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ = close_short_sortedset_db
+                                .add(order_id, (execution_price * 10000.0) as i64);
+                        }
+                    }
+                }
+                SortedSetCommand::RemoveOpenLimitPrice(order_id, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = open_long_sortedset_db.remove(order_id);
+                        }
+                        PositionType::SHORT => {
+                            let _ = open_short_sortedset_db.remove(order_id);
+                        }
+                    }
+                }
+                SortedSetCommand::RemoveLiquidationPrice(order_id, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = liquidation_long_sortedset_db.remove(order_id);
+                        }
+                        PositionType::SHORT => {
+                            let _ = liquidation_short_sortedset_db.remove(order_id);
+                        }
+                    }
+                }
+                SortedSetCommand::RemoveCloseLimitPrice(order_id, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = close_long_sortedset_db.remove(order_id);
+                        }
+                        PositionType::SHORT => {
+                            let _ = close_short_sortedset_db.remove(order_id);
+                        }
+                    }
+                }
+                SortedSetCommand::UpdateOpenLimitPrice(order_id, entry_price, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = open_long_sortedset_db
+                                .update(order_id, (entry_price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ = open_short_sortedset_db
+                                .update(order_id, (entry_price * 10000.0) as i64);
+                        }
+                    }
+                }
+                SortedSetCommand::UpdateLiquidationPrice(
+                    order_id,
+                    liquidation_price,
+                    position_type,
+                ) => match position_type {
+                    PositionType::LONG => {
+                        let _ = liquidation_long_sortedset_db
+                            .update(order_id, (liquidation_price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = liquidation_short_sortedset_db
+                            .update(order_id, (liquidation_price * 10000.0) as i64);
+                    }
+                },
+                SortedSetCommand::UpdateCloseLimitPrice(
+                    order_id,
+                    execution_price,
+                    position_type,
+                ) => match position_type {
+                    PositionType::LONG => {
+                        let _ = close_long_sortedset_db
+                            .update(order_id, (execution_price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = close_short_sortedset_db
+                            .update(order_id, (execution_price * 10000.0) as i64);
+                    }
+                },
+                SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
+                    _order_id_array,
+                    price,
+                    position_type,
+                ) => match position_type {
+                    PositionType::LONG => {
+                        let _ = open_long_sortedset_db.search_gt((price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = open_short_sortedset_db.search_lt((price * 10000.0) as i64);
+                    }
+                },
+                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
+                    _order_id_array,
+                    price,
+                    position_type,
+                ) => match position_type {
+                    PositionType::LONG => {
+                        let _ = close_long_sortedset_db.search_lt((price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = close_short_sortedset_db.search_gt((price * 10000.0) as i64);
+                    }
+                },
+                SortedSetCommand::BulkSearchRemoveLiquidationPrice(
+                    _order_id_array,
+                    price,
+                    position_type,
+                ) => match position_type {
+                    PositionType::LONG => {
+                        let _ = liquidation_long_sortedset_db.search_gt((price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = liquidation_short_sortedset_db.search_lt((price * 10000.0) as i64);
+                    }
+                },
+            },
+            Event::PositionSizeLogDBUpdate(cmd) => match cmd {
+                PositionSizeLogCommand::AddPositionSize(positiontype, positionsize) => {
+                    match positiontype {
+                        PositionType::LONG => {
+                            position_size_log.total_long_positionsize += positionsize;
+                            position_size_log.totalpositionsize += positionsize;
+                        }
+                        PositionType::SHORT => {
+                            position_size_log.total_short_positionsize += positionsize;
+                            position_size_log.totalpositionsize += positionsize;
+                        }
+                    }
+                }
+                PositionSizeLogCommand::RemovePositionSize(positiontype, positionsize) => {
+                    match positiontype {
+                        PositionType::LONG => {
+                            position_size_log.total_long_positionsize -= positionsize;
+                            position_size_log.totalpositionsize -= positionsize;
+                        }
+                        PositionType::SHORT => {
+                            position_size_log.total_short_positionsize -= positionsize;
+                            position_size_log.totalpositionsize -= positionsize;
+                        }
+                    }
+                }
+            },
         }
     }
     if orderdb_traderorder.sequence > 0 {
