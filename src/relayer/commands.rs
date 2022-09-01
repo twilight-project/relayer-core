@@ -39,6 +39,7 @@ pub enum SortedSetCommand {
     BulkSearchRemoveOpenLimitPrice(Vec<Uuid>, f64, PositionType),
     BulkSearchRemoveCloseLimitPrice(Vec<Uuid>, f64, PositionType),
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum PositionSizeLogCommand {
     AddPositionSize(PositionType, f64),
