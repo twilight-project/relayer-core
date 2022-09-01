@@ -412,6 +412,13 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
             },
         }
     }
+    drop(liquidation_long_sortedset_db);
+    drop(liquidation_short_sortedset_db);
+    drop(open_long_sortedset_db);
+    drop(open_short_sortedset_db);
+    drop(close_long_sortedset_db);
+    drop(close_short_sortedset_db);
+    drop(position_size_log);
     if orderdb_traderorder.sequence > 0 {
         println!("TraderOrder Database Loaded ....");
     } else {

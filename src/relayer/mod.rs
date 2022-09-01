@@ -5,7 +5,6 @@ mod commands;
 mod cronjobs;
 mod customeraccount;
 mod directapi; //without aeron
-mod directapi_repl;
 mod exchangempsc;
 mod fundingupdate;
 mod heartbeat;
@@ -27,7 +26,6 @@ pub use self::commands::*;
 pub use self::cronjobs::*;
 pub use self::customeraccount::*;
 pub use self::directapi::*;
-pub use self::directapi_repl::*;
 pub use self::exchangempsc::*;
 pub use self::fundingupdate::*;
 pub use self::heartbeat::*;

@@ -23,6 +23,7 @@ use std::sync::{mpsc, Arc, Mutex};
 
 fn main() {
     // to create kafka topics
+    // dotenv::dotenv().expect("Failed loading dotenv");
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
     // kafkalib::kafka_topic::kafka_new_topic(&*RPC_CLIENT_REQUEST);
     // kafkalib::kafka_topic::kafka_new_topic(&*TRADERORDER_EVENT_LOG);

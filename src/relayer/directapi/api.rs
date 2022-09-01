@@ -318,6 +318,11 @@ pub fn startserver() {
                             println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
                             drop(trader_lp_long);
                         }
+                        11 => {
+                            let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            println!("\n POSITION_SIZE_LOG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);

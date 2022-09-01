@@ -1273,10 +1273,6 @@ impl TraderOrder {
         payment
     }
 
-    pub fn transaction_with_lendpool(&mut self) -> usize {
-        0
-    }
-
     pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
         match self.order_type {
