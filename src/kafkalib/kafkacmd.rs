@@ -34,6 +34,7 @@ pub fn check_kafka_topics() -> Vec<String> {
     let mut kafka_client = KAFKA_CLIENT.lock().unwrap();
     kafka_client.load_metadata_all().unwrap();
     let mut result: Vec<String> = Vec::new();
+    println!("{:#?}", kafka_client);
     for topic in kafka_client.topics() {
         for _partition in topic.partitions() {
             // println!(

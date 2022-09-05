@@ -46,6 +46,7 @@ pub fn check_kafka_topics() -> Vec<String> {
 pub fn send_to_kafka_queue(cmd: RpcCommand, topic: String, key: &str) {
     let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
     let data = serde_json::to_vec(&cmd).unwrap();
+    // println!("my command:{:#?}", cmd);
     // kafka_producer
     //     .send(&Record::from_value(&topic, data))
     //     .unwrap();

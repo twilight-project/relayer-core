@@ -50,6 +50,12 @@ impl Event {
         let event_clone = event.clone();
         let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
         pool.execute(move || {
+            // match event_clone {
+            //     Event::CurrentPriceUpdate(..) => {}
+            //     _ => {
+            //         println!("{:#?}", event_clone);
+            //     }
+            // }
             Event::send_event_to_kafka_queue(event_clone, topic, key);
         });
         event

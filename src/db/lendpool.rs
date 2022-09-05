@@ -308,11 +308,7 @@ impl LendPool {
                 ));
                 // check pending order length
             }
-            LendPoolCommand::AddTraderOrderLiquidation(
-                _relayer_command,
-                _trader_order,
-                payment,
-            ) => {
+            LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
                 self.pending_orders.amount -= payment;
                 self.aggrigate_log_sequence += 1;
@@ -321,7 +317,7 @@ impl LendPool {
                     .push(command_clone.clone());
                 self.event_log.push(Event::new(
                     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
-                    String::from("AddTraderOrderLiquidation"),
+                    String::from(format!("AddTraderOrderLiquidation-{}", trader_order.uuid)),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 ));
                 // check pending order length

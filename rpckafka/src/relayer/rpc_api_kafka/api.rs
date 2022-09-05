@@ -26,7 +26,11 @@ pub fn kafka_queue_rpc_server() {
             match params.parse::<CreateTraderOrder>() {
                 Ok(ordertx) => {
                     let data = RpcCommand::CreateTraderOrder(ordertx.clone(), meta);
-                    kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        "CreateTraderOrder",
+                    );
                     Ok(Value::String(
                         "Order request submitted successfully.".into(),
                     ))
@@ -47,7 +51,18 @@ pub fn kafka_queue_rpc_server() {
             match params.parse::<CreateLendOrder>() {
                 Ok(ordertx) => {
                     let data = RpcCommand::CreateLendOrder(ordertx.clone(), meta);
-                    kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        &format!(
+                            "CreateLendOrder-{}",
+                            std::time::SystemTime::now()
+                                .duration_since(SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string()
+                        ),
+                    );
                     Ok(Value::String(
                         "Order request submitted successfully.".into(),
                     ))
@@ -67,7 +82,11 @@ pub fn kafka_queue_rpc_server() {
             match params.parse::<ExecuteTraderOrder>() {
                 Ok(ordertx) => {
                     let data = RpcCommand::ExecuteTraderOrder(ordertx.clone(), meta);
-                    kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        "ExecuteTraderOrder",
+                    );
                     Ok(Value::String(
                         "Execution request submitted successfully".into(),
                     ))
@@ -86,7 +105,11 @@ pub fn kafka_queue_rpc_server() {
             match params.parse::<ExecuteLendOrder>() {
                 Ok(ordertx) => {
                     let data = RpcCommand::ExecuteLendOrder(ordertx.clone(), meta);
-                    kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Normal");
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        "ExecuteLendOrder",
+                    );
                     Ok(Value::String(
                         "Execution request submitted successfully.".into(),
                     ))
@@ -105,7 +128,11 @@ pub fn kafka_queue_rpc_server() {
             match params.parse::<CancelTraderOrder>() {
                 Ok(ordertx) => {
                     let data = RpcCommand::CancelTraderOrder(ordertx.clone(), meta);
-                    kafkacmd::send_to_kafka_queue(data, String::from("CLIENT-REQUEST"), "Cancel");
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        "CancelTraderOrder",
+                    );
                     Ok(Value::String(
                         "Cancellation request submitted successfully.".into(),
                     ))

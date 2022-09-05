@@ -166,6 +166,20 @@ VALUES
 
 $ $;
 
+-- rpc query
+CREATE TABLE IF NOT EXISTS public.rpc_query (
+  "offset" bigint NOT NULL,
+  key VARCHAR(100) NOT NULL,
+  payload json NOT NULL
+);
+
+-- Event Logs query
+CREATE TABLE IF NOT EXISTS public.event_logs (
+  "offset" bigint NOT NULL,
+  key VARCHAR(100) NOT NULL,
+  payload json NOT NULL
+);
+
 -- to delete all data
 DELETE FROM
   public.binancebtctickernew;

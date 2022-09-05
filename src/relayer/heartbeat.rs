@@ -28,6 +28,19 @@ pub fn heartbeat() {
 
     ordertest::initprice();
     init_psql();
+    thread::Builder::new()
+        .name(String::from("upload_rpc_command_to_psql"))
+        .spawn(move || {
+            crate::query::upload_rpc_command_to_psql();
+        })
+        .unwrap();
+    thread::Builder::new()
+        .name(String::from("upload_event_log_to_psql"))
+        .spawn(move || {
+            crate::query::upload_event_log_to_psql();
+        })
+        .unwrap();
+
     thread::sleep(time::Duration::from_millis(100));
     // start_cronjobs();
     // main thread for scheduler

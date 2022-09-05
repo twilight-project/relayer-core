@@ -24,6 +24,7 @@ pub fn client_cmd_receiver() {
                 let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
                 loop {
                     let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap().recv().unwrap();
+                    // println!("print command : {:#?}", rpc_client_cmd_request);
                     rpc_event_handler(rpc_client_cmd_request);
                 }
             }
@@ -104,7 +105,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
         RpcCommand::CreateLendOrder(rpc_request, metadata) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
+                println!("hello 1");
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
+                println!("hello 2");
+
                 let (tlv0, tps0) = lend_pool.get_lendpool();
                 let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
                 lendorder.order_status = OrderStatus::FILLED;
@@ -251,6 +255,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 let payment = order.liquidate(current_price_clone);
                                 let order_clone = order.clone();
                                 drop(order);
+                                println!("locking mutex LEND_POOL_DB");
                                 let mut lendpool = LEND_POOL_DB.lock().unwrap();
                                 lendpool.add_transaction(
                                     LendPoolCommand::AddTraderOrderLiquidation(
@@ -263,6 +268,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         payment,
                                     ),
                                 );
+                                println!("dropping mutex LEND_POOL_DB");
+
                                 drop(lendpool);
                             }
                             _ => {

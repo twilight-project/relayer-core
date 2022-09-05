@@ -6,12 +6,14 @@ mod kafkalib;
 mod ordertest;
 mod postgresqllib;
 mod pricefeederlib;
+mod query;
 mod questdb;
 mod redislib;
 mod relayer;
 
 use config::*;
 use db::*;
+use query::*;
 use redislib::*;
 use relayer::*;
 use std::{thread, time};
@@ -23,7 +25,7 @@ use std::sync::{mpsc, Arc, Mutex};
 
 fn main() {
     // to create kafka topics
-    // dotenv::dotenv().expect("Failed loading dotenv");
+    dotenv::dotenv().expect("Failed loading dotenv");
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
     // kafkalib::kafka_topic::kafka_new_topic(&*RPC_CLIENT_REQUEST);
     // kafkalib::kafka_topic::kafka_new_topic(&*TRADERORDER_EVENT_LOG);
@@ -31,7 +33,6 @@ fn main() {
     // kafkalib::kafka_topic::kafka_new_topic(&*LENDPOOL_EVENT_LOG);
     // kafkalib::kafka_topic::kafka_new_topic(&*CORE_EVENT_LOG);
     // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
-
     heartbeat();
 
     loop {

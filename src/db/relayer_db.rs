@@ -21,7 +21,7 @@ pub struct OrderDB<T> {
     pub ordertable: HashMap<Uuid, Arc<RwLock<T>>>,
     pub sequence: usize,
     pub nonce: usize,
-    pub event: Vec<Event>,
+    // pub event: Vec<Event>,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
 }
@@ -48,7 +48,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             ordertable: HashMap::new(),
             sequence: 0,
             nonce: 0,
-            event: Vec::new(),
+            // event: Vec::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
         }
@@ -57,15 +57,16 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
     fn add(&mut self, mut order: TraderOrder, cmd: RpcCommand) -> TraderOrder {
         self.sequence += 1;
         order.entry_sequence = self.sequence;
-        order.entry_nonce = get_nonce();
+        // order.entry_nonce = get_nonce();
+        order.entry_nonce = 0;
         self.ordertable
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.aggrigate_log_sequence += 1;
-        self.event.push(Event::new(
+        Event::new(
             Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
-            String::from("add_order"),
+            String::from(format!("add_order-{}", order.uuid)),
             TRADERORDER_EVENT_LOG.clone().to_string(),
-        ));
+        );
         order.clone()
     }
 
@@ -78,11 +79,11 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             self.ordertable
                 .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
             self.aggrigate_log_sequence += 1;
-            self.event.push(Event::new(
+            Event::new(
                 Event::TraderOrderUpdate(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                 String::from("update_order"),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
-            ));
+            );
             Ok(order.clone())
         } else {
             return Err(std::io::Error::new(
@@ -102,11 +103,11 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 Some(_) => {
                     self.aggrigate_log_sequence += 1;
                     // order.exit_nonce = get_nonce();
-                    self.event.push(Event::new(
+                    Event::new(
                         Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                         String::from("remove_order"),
                         TRADERORDER_EVENT_LOG.clone().to_string(),
-                    ));
+                    );
                     Ok(order)
                 }
                 None => {
@@ -134,7 +135,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 Some(_) => {
                     self.aggrigate_log_sequence += 1;
                     // order.exit_nonce = get_nonce();
-                    self.event.push(Event::new(
+                    Event::new(
                         Event::TraderOrderLiquidation(
                             order.clone(),
                             cmd.clone(),
@@ -142,7 +143,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                         ),
                         String::from("remove_order"),
                         TRADERORDER_EVENT_LOG.clone().to_string(),
-                    ));
+                    );
                     Ok(order)
                 }
                 None => {
@@ -214,7 +215,6 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
             ordertable: HashMap::new(),
             sequence: 0,
             nonce: 0,
-            event: Vec::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
         }
@@ -228,11 +228,11 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         self.ordertable
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.aggrigate_log_sequence += 1;
-        self.event.push(Event::new(
+        Event::new(
             Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             String::from("add_order"),
             LENDORDER_EVENT_LOG.clone().to_string(),
-        ));
+        );
         order.clone()
     }
 
@@ -293,11 +293,11 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         match self.ordertable.remove(&order.uuid) {
             Some(_) => {
                 self.aggrigate_log_sequence += 1;
-                self.event.push(Event::new(
+                Event::new(
                     Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                     String::from("remove_order"),
                     LENDORDER_EVENT_LOG.clone().to_string(),
-                ));
+                );
                 Ok(order)
             }
             None => {
