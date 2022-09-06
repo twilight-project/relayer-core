@@ -44,8 +44,8 @@ pub fn kafka_new_topic(new_topic: &str) {
     output5.arg("sh");
     output5.arg("-c");
     //docker exec -it <Container-name> sh -c "cd usr/bin && kafka-topics --topic <New Topic> --create --zookeeper <localhost:2181> --partitions 1 --replication-factor 1"
-    // output5.arg(format!("cd usr/bin && kafka-topics --topic {} --create --zookeeper zookeeper:2181 --partitions 3 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact",new_topic));
-    output5.arg(format!("cd usr/bin && kafka-topics --topic {} --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1",new_topic));
+    output5.arg(format!("cd usr/bin && kafka-topics --topic {} --create --zookeeper zookeeper:2181 --partitions 3 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact",new_topic));
+    // output5.arg(format!("cd usr/bin && kafka-topics --topic {} --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1",new_topic));
     // output5.arg(format!("cd usr/bin && kafka-topics --topic {} --create --zookeeper zookeeper:2181 --partitions 2 --replication-factor 1 --config retention.ms=-1",new_topic));
     output5.arg("exit");
     output5.spawn().expect("process failed to execute");

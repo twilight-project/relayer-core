@@ -203,7 +203,7 @@ impl TraderOrder {
                     ordertx.liquidation_price.clone(),
                     ordertx.position_type.clone(),
                 )),
-                String::from("AddLiquidationPrice"),
+                format!("AddLiquidationPrice-{}", ordertx.uuid.clone()),
                 CORE_EVENT_LOG.clone().to_string(),
             );
 
@@ -240,7 +240,7 @@ impl TraderOrder {
                     ordertx.entryprice.clone(),
                     ordertx.position_type.clone(),
                 )),
-                String::from("AddOpenLimitPrice"),
+                format!("AddOpenLimitPrice-{}", ordertx.uuid.clone()),
                 CORE_EVENT_LOG.clone().to_string(),
             );
         }
@@ -302,7 +302,7 @@ impl TraderOrder {
                                 execution_price.clone(),
                                 self.position_type.clone(),
                             )),
-                            String::from("AddCloseLimitPrice"),
+                            format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return Ok(());
@@ -317,7 +317,7 @@ impl TraderOrder {
                                 execution_price.clone(),
                                 self.position_type.clone(),
                             )),
-                            String::from("UpdateCloseLimitPrice"),
+                            format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return result;
@@ -335,7 +335,7 @@ impl TraderOrder {
                                 execution_price.clone(),
                                 self.position_type.clone(),
                             )),
-                            String::from("AddCloseLimitPrice"),
+                            format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return Ok(());
@@ -350,7 +350,7 @@ impl TraderOrder {
                                 execution_price.clone(),
                                 self.position_type.clone(),
                             )),
-                            String::from("UpdateCloseLimitPrice"),
+                            format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return result;
@@ -395,7 +395,7 @@ impl TraderOrder {
                 ordertx.uuid.clone(),
                 ordertx.position_type.clone(),
             )),
-            String::from("RemoveLiquidationPrice"),
+            format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
             CORE_EVENT_LOG.clone().to_string(),
         );
 
@@ -430,7 +430,7 @@ impl TraderOrder {
                                     self.uuid.clone(),
                                     self.position_type.clone(),
                                 )),
-                                String::from("RemoveOpenLimitPrice"),
+                                format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return (true, OrderStatus::CANCELLED);
@@ -450,7 +450,7 @@ impl TraderOrder {
                                     self.uuid.clone(),
                                     self.position_type.clone(),
                                 )),
-                                String::from("RemoveOpenLimitPrice"),
+                                format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return (true, OrderStatus::CANCELLED);

@@ -81,7 +81,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             self.aggrigate_log_sequence += 1;
             Event::new(
                 Event::TraderOrderUpdate(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
-                String::from("update_order"),
+                format!("update_order-{}", order.uuid),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
             Ok(order.clone())
@@ -105,7 +105,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     // order.exit_nonce = get_nonce();
                     Event::new(
                         Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
-                        String::from("remove_order"),
+                        format!("remove_order-{}", order.uuid),
                         TRADERORDER_EVENT_LOG.clone().to_string(),
                     );
                     Ok(order)
@@ -141,7 +141,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                             cmd.clone(),
                             self.aggrigate_log_sequence,
                         ),
-                        String::from("remove_order"),
+                        format!("remove_order-{}", order.uuid),
                         TRADERORDER_EVENT_LOG.clone().to_string(),
                     );
                     Ok(order)
@@ -230,7 +230,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         self.aggrigate_log_sequence += 1;
         Event::new(
             Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
-            String::from("add_order"),
+            format!("add_order-{}", order.uuid),
             LENDORDER_EVENT_LOG.clone().to_string(),
         );
         order.clone()
@@ -295,7 +295,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 self.aggrigate_log_sequence += 1;
                 Event::new(
                     Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
-                    String::from("remove_order"),
+                    format!("remove_order-{}", order.uuid),
                     LENDORDER_EVENT_LOG.clone().to_string(),
                 );
                 Ok(order)

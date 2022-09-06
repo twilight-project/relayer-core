@@ -225,7 +225,14 @@ pub fn relayer_event_handler(command: RelayerCommand) {
         RelayerCommand::FundingCycle(pool_batch_order, metadata, fundingrate) => {
             Event::new(
                 Event::FundingRateUpdate(fundingrate, std::time::SystemTime::now()),
-                String::from("insert_fundingrate"),
+                format!(
+                    "insert_fundingrate-{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros()
+                        .to_string()
+                ),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
             let mut lendpool = LEND_POOL_DB.lock().unwrap();
@@ -402,7 +409,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
         RelayerCommand::FundingOrderEventUpdate(trader_order, metadata) => {
             Event::new(
                 Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),
-                String::from("update_order_funding"),
+                format!("update_order_funding-{}", trader_order.uuid.clone()),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
         }

@@ -28,18 +28,18 @@ pub fn heartbeat() {
 
     ordertest::initprice();
     init_psql();
-    thread::Builder::new()
-        .name(String::from("upload_rpc_command_to_psql"))
-        .spawn(move || {
-            crate::query::upload_rpc_command_to_psql();
-        })
-        .unwrap();
-    thread::Builder::new()
-        .name(String::from("upload_event_log_to_psql"))
-        .spawn(move || {
-            crate::query::upload_event_log_to_psql();
-        })
-        .unwrap();
+    // thread::Builder::new()
+    //     .name(String::from("upload_rpc_command_to_psql"))
+    //     .spawn(move || {
+    //         crate::query::upload_rpc_command_to_psql();
+    //     })
+    //     .unwrap();
+    // thread::Builder::new()
+    //     .name(String::from("upload_event_log_to_psql"))
+    //     .spawn(move || {
+    //         crate::query::upload_event_log_to_psql();
+    //     })
+    //     .unwrap();
 
     thread::sleep(time::Duration::from_millis(100));
     // start_cronjobs();
@@ -50,8 +50,8 @@ pub fn heartbeat() {
             let mut scheduler = Scheduler::with_tz(chrono::Utc);
 
             // funding update every 1 hour //comments for local test
-            // scheduler.every(30.seconds()).run(move || {
-            scheduler.every(1.hour()).run(move || {
+            scheduler.every(600.seconds()).run(move || {
+                // scheduler.every(1.hour()).run(move || {
                 updatefundingrate_localdb(1.0);
             });
             scheduler.every(1.seconds()).run(move || {
@@ -535,7 +535,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                         ordertx_clone.uuid.clone(),
                         ordertx_clone.position_type.clone(),
                     )),
-                    String::from("RemoveLiquidationPrice"),
+                    format!("RemoveLiquidationPrice-{}", ordertx_clone.uuid.clone()),
                     CORE_EVENT_LOG.clone().to_string(),
                 );
             });
@@ -575,7 +575,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                         ordertx_clone.liquidation_price.clone(),
                         ordertx_clone.position_type.clone(),
                     )),
-                    String::from("UpdateLiquidationPrice"),
+                    format!("UpdateLiquidationPrice-{}", ordertx_clone.uuid.clone()),
                     CORE_EVENT_LOG.clone().to_string(),
                 );
             });

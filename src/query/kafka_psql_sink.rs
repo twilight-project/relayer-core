@@ -1,6 +1,6 @@
 use crate::config::*;
 // use crate::db::*;
-use crate::relayer::*;
+// use crate::relayer::*;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use serde_derive::{Deserialize, Serialize};
