@@ -160,6 +160,25 @@ services:
     container_name: rpckafka
     # ipc: host
 
+  querykafkapsql:
+    build:
+      context: ./querykafkapsql
+      dockerfile: Dockerfile
+    hostname: querykafkapsql
+    stdin_open: true
+    restart: always
+    # ports:
+    #   - "3032:3032"
+    depends_on:
+      - kafka
+      - zookeeper
+      - postgresql-master
+    volumes:
+      - /querykafkapsql/target
+      - ./querykafkapsql:/querykafkapsql/
+    container_name: querykafkapsql
+    # ipc: host
+
   # swagger:~
   #   image: swaggerapi/swagger-ui
   #   hostname: swagger
