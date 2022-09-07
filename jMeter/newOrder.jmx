@@ -725,7 +725,7 @@
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{&quot;jsonrpc&quot;: &quot;2.0&quot;, &quot;method&quot;: &quot;CreateTraderOrder&quot;, &quot;id&quot;:123, &quot;params&quot;: {&quot;account_id&quot;:&quot;Trader account_id&quot;,&quot;position_type&quot;:&quot;SHORT&quot;,&quot;order_type&quot;:&quot;LIMIT&quot;,&quot;leverage&quot;:10.0,&quot;initial_margin&quot;:1.4,&quot;available_margin&quot;:1.4,&quot;order_status&quot;:&quot;PENDING&quot;,&quot;entryprice&quot;:24000.01,&quot;execution_price&quot;:44440.02} }</stringProp>
+                <stringProp name="Argument.value">{&quot;jsonrpc&quot;: &quot;2.0&quot;, &quot;method&quot;: &quot;CreateTraderOrder&quot;, &quot;id&quot;:123, &quot;params&quot;: {&quot;account_id&quot;:&quot;Trader account_id&quot;,&quot;position_type&quot;:&quot;SHORT&quot;,&quot;order_type&quot;:&quot;LIMIT&quot;,&quot;leverage&quot;:10.0,&quot;initial_margin&quot;:1.5,&quot;available_margin&quot;:1.5,&quot;order_status&quot;:&quot;PENDING&quot;,&quot;entryprice&quot;:24000.01,&quot;execution_price&quot;:44440.02} }</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>
