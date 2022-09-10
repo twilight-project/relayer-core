@@ -45,56 +45,52 @@ pub struct PositionSizeLog {
 }
 impl PositionSizeLog {
     pub fn add_order(positiontype: PositionType, positionsize: f64) {
+        let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
         match positiontype {
             PositionType::LONG => {
-                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
                 position_size_log.total_long_positionsize += positionsize;
                 position_size_log.totalpositionsize += positionsize;
-                drop(position_size_log);
                 // send log to kafka
             }
             PositionType::SHORT => {
-                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
                 position_size_log.total_short_positionsize += positionsize;
                 position_size_log.totalpositionsize += positionsize;
-                drop(position_size_log);
                 // send log to kafka
             }
         }
         Event::new(
-            Event::PositionSizeLogDBUpdate(PositionSizeLogCommand::AddPositionSize(
-                positiontype,
-                positionsize,
-            )),
+            Event::PositionSizeLogDBUpdate(
+                PositionSizeLogCommand::AddPositionSize(positiontype, positionsize),
+                position_size_log.clone(),
+            ),
             String::from("AddPositionSize"),
             CORE_EVENT_LOG.clone().to_string(),
         );
+        drop(position_size_log);
     }
     pub fn remove_order(positiontype: PositionType, positionsize: f64) {
+        let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
         match positiontype {
             PositionType::LONG => {
-                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
                 position_size_log.total_long_positionsize -= positionsize;
                 position_size_log.totalpositionsize -= positionsize;
-                drop(position_size_log);
                 // send log to kafka
             }
             PositionType::SHORT => {
-                let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
                 position_size_log.total_short_positionsize -= positionsize;
                 position_size_log.totalpositionsize -= positionsize;
-                drop(position_size_log);
                 // send log to kafka
             }
         }
         Event::new(
-            Event::PositionSizeLogDBUpdate(PositionSizeLogCommand::RemovePositionSize(
-                positiontype,
-                positionsize,
-            )),
+            Event::PositionSizeLogDBUpdate(
+                PositionSizeLogCommand::RemovePositionSize(positiontype, positionsize),
+                position_size_log.clone(),
+            ),
             String::from("RemovePositionSize"),
             CORE_EVENT_LOG.clone().to_string(),
         );
+        drop(position_size_log);
     }
     pub fn new() -> Self {
         // impl to read from redis or event logs

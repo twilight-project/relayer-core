@@ -58,7 +58,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         match data.value {
             Event::CurrentPriceUpdate(..) => {}
             _ => {
-                // println!("Envent log: {:#?}", data);
+                println!("Envent log: {:#?}", data);
             }
         }
         match data.value.clone() {
@@ -389,32 +389,12 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     }
                 },
             },
-            Event::PositionSizeLogDBUpdate(cmd) => match cmd {
-                PositionSizeLogCommand::AddPositionSize(positiontype, positionsize) => {
-                    match positiontype {
-                        PositionType::LONG => {
-                            position_size_log.total_long_positionsize += positionsize;
-                            position_size_log.totalpositionsize += positionsize;
-                        }
-                        PositionType::SHORT => {
-                            position_size_log.total_short_positionsize += positionsize;
-                            position_size_log.totalpositionsize += positionsize;
-                        }
-                    }
-                }
-                PositionSizeLogCommand::RemovePositionSize(positiontype, positionsize) => {
-                    match positiontype {
-                        PositionType::LONG => {
-                            position_size_log.total_long_positionsize -= positionsize;
-                            position_size_log.totalpositionsize -= positionsize;
-                        }
-                        PositionType::SHORT => {
-                            position_size_log.total_short_positionsize -= positionsize;
-                            position_size_log.totalpositionsize -= positionsize;
-                        }
-                    }
-                }
-            },
+            Event::PositionSizeLogDBUpdate(_cmd, event) => {
+                // position_size_log.total_long_positionsize = event.total_long_positionsize;
+                // position_size_log.totalpositionsize = event.totalpositionsize;
+                // position_size_log.total_short_positionsize = event.total_short_positionsize;
+                *position_size_log = event;
+            }
         }
     }
     drop(liquidation_long_sortedset_db);
