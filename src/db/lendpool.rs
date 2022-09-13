@@ -371,11 +371,11 @@ impl LendPool {
                     self.nonce += 1;
                     self.aggrigate_log_sequence += 1;
                     self.total_locked_value -= pool_batch_order.amount * 10000.0;
-                    self.event_log.push(Event::new(
-                        Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
-                        String::from("FundingCycleDataUpdate"),
-                        LENDPOOL_EVENT_LOG.clone().to_string(),
-                    ));
+                    // self.event_log.push(Event::new(
+                    //     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                    //     String::from("FundingCycleDataUpdate"),
+                    //     LENDPOOL_EVENT_LOG.clone().to_string(),
+                    // ));
                 }
                 RelayerCommand::RpcCommandPoolupdate() => {
                     let batch = self.pending_orders.clone();

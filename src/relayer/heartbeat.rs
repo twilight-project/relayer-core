@@ -414,7 +414,7 @@ pub fn updatefundingrate_localdb(psi: f64) {
     fundingcycle(current_price, fundingrate, fee, current_time, meta);
     println!("fundingrate:{}", fundingrate);
 }
-
+use stopwatch::Stopwatch;
 pub fn fundingcycle(
     current_price: f64,
     fundingrate: f64,
@@ -429,7 +429,7 @@ pub fn fundingcycle(
 
     let length = orderdetails_array.len();
     println!("length : {}", length);
-
+    let sw = Stopwatch::start_new();
     if length > 0 {
         let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
         let mut poolbatch = PoolBatchOrder::new();
@@ -465,6 +465,7 @@ pub fn fundingcycle(
             fundingrate,
         ));
     }
+    println!("funding cycle took {:#?}", sw.elapsed());
 }
 
 pub fn updatechangesineachordertxonfundingratechange_localdb(
