@@ -9,7 +9,7 @@ RUN USER=root cargo new --bin querykafkapsql
 RUN cd ./querykafkapsql
 WORKDIR /querykafkapsql
 
-COPY ./Cargo.lock ./Cargo.lock
+# COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 RUN rm src/*.rs
 COPY ./src ./src

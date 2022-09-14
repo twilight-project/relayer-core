@@ -1,6 +1,6 @@
 use crate::config::*;
 // use crate::db::*;
-// use crate::relayer::*;
+use crate::relayer::*;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use serde_derive::{Deserialize, Serialize};
@@ -33,11 +33,12 @@ pub fn upload_event_log_to_psql() {
         0,
     )
     .unwrap();
+    let threadpool = ThreadPool::new(20, String::from("PSQL pool"));
     let recever1 = recever.lock().unwrap();
     loop {
         let data = recever1.recv().unwrap();
         // let event = data.value.clone();
-        psql_event_logs(data.clone());
+        threadpool.execute(move || { psql_event_logs(data.clone());});
         // println!("{:#?}", data);
     }
 }

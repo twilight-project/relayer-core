@@ -9,7 +9,7 @@ RUN USER=root cargo new --bin rpckafka
 RUN cd ./rpckafka
 WORKDIR /rpckafka
 
-COPY ./Cargo.lock ./Cargo.lock
+# COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 RUN rm src/*.rs
 COPY ./src ./src
