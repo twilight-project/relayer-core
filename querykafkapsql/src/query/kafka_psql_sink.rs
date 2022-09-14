@@ -7,6 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
+use stopwatch::Stopwatch;
 
 extern crate postgres_types;
 
@@ -18,11 +19,27 @@ pub fn upload_rpc_command_to_psql() {
         0,
     )
     .unwrap();
+    let threadpool = ThreadPool::new(20, String::from("PSQL Client pool"));
     let recever1 = recever.lock().unwrap();
+    // let mut count = 0;
+    // let mut sw = Stopwatch::start_new();
     loop {
         let data = recever1.recv().unwrap();
-        // let event = data.value.clone();
-        psql_rpc_command(data.clone());
+        let event = data.clone();
+
+        threadpool.execute(move || {
+            psql_rpc_command(data.clone());
+        });
+        // count += 1;
+        // if count == 10 {
+        //     let times = sw.elapsed();
+        //     println!(
+        //         "count done at:{:#?} with offset : {:#?}",
+        //         times, event.offset
+        //     );
+        //     sw = Stopwatch::start_new();
+        //     count = 0;
+        // }
     }
 }
 pub fn upload_event_log_to_psql() {
@@ -38,7 +55,9 @@ pub fn upload_event_log_to_psql() {
     loop {
         let data = recever1.recv().unwrap();
         // let event = data.value.clone();
-        threadpool.execute(move || { psql_event_logs(data.clone());});
+        threadpool.execute(move || {
+            psql_event_logs(data.clone());
+        });
         // println!("{:#?}", data);
     }
 }
@@ -57,7 +76,7 @@ pub fn receive_event_from_kafka_queue(
         let mut con = Consumer::from_hosts(broker)
             // .with_topic(topic)
             .with_group(group)
-            .with_topic_partitions(topic, &[partition])
+            .with_topic_partitions(topic, &[0])
             .with_fallback_offset(FetchOffset::Earliest)
             .with_offset_storage(GroupOffsetStorage::Kafka)
             .create()
