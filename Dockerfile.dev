@@ -18,7 +18,7 @@ RUN cd ./twilight-relayer-rust
 WORKDIR /twilight-relayer-rust
 
 # copy over your manifests
-COPY ./Cargo.lock ./Cargo.lock
+# COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./aeron-rs ./aeron-rs
 

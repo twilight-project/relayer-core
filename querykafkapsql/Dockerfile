@@ -16,5 +16,5 @@ COPY ./src ./src
 RUN cargo build --release
 WORKDIR /querykafkapsql/target/release
 COPY ./.env ./.env
-EXPOSE 3032
+# EXPOSE 3032
 ENTRYPOINT ["/querykafkapsql/target/release/querykafkapsql"]

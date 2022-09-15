@@ -27,13 +27,13 @@ fn main() {
     // to create kafka topics
     dotenv::dotenv().expect("Failed loading dotenv");
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
-    kafkalib::kafka_topic::kafka_new_topic(&*RPC_CLIENT_REQUEST);
-    kafkalib::kafka_topic::kafka_new_topic(&*TRADERORDER_EVENT_LOG);
+    // kafkalib::kafka_topic::kafka_new_topic(&*RPC_CLIENT_REQUEST);
+    // kafkalib::kafka_topic::kafka_new_topic(&*TRADERORDER_EVENT_LOG);
     // kafkalib::kafka_topic::kafka_new_topic(&*LENDORDER_EVENT_LOG);
     // kafkalib::kafka_topic::kafka_new_topic(&*LENDPOOL_EVENT_LOG);
     // kafkalib::kafka_topic::kafka_new_topic(&*CORE_EVENT_LOG);
     // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
-    // heartbeat();
+    heartbeat();
 
     loop {
         thread::sleep(time::Duration::from_millis(100000000));

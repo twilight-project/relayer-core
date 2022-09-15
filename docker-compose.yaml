@@ -83,21 +83,21 @@ services:
   #   # network_mode: host
   #   ipc: host
 
-  # relayer-dev:
-  #   build:
-  #     context: ./
-  #     dockerfile: Dockerfile.dev
-  #   hostname: relayer-dev
-  #   stdin_open: true
-  #   ports:
-  #     - "3031:3030"
-  #   depends_on:
-  #     - postgresql-master
-  #     - redis-server
-  #     - questdb
-  #   container_name: relayer-dev
-  #   # network_mode: host
-  #   ipc: host
+  relayer-dev:
+    build:
+      context: ./
+      dockerfile: Dockerfile.dev
+    hostname: relayer-dev
+    stdin_open: true
+    ports:
+      - "3031:3030"
+    depends_on:
+      - postgresql-master
+      - redis-server
+      - questdb
+    container_name: relayer-dev
+    # network_mode: host
+    ipc: host
 
   nginx:
     restart: always
@@ -149,23 +149,22 @@ services:
     ports:
       - "2181:2181"
 
-  rpckafka:
-    build:
-      context: ./rpckafka
-      dockerfile: Dockerfile
-    hostname: rpckafka
-    stdin_open: true
-    restart: always
-    ports:
-      - "3032:3032"
-    depends_on:
-      - kafka
-      - zookeeper
-    volumes:
-      - /rpckafka/target
-      - ./rpckafka:/rpckafka/
-    container_name: rpckafka
-    # ipc: host
+  # rpckafka:
+  #   build:
+  #     context: ./rpckafka
+  #     dockerfile: Dockerfile
+  #   hostname: rpckafka
+  #   stdin_open: true
+  #   restart: always
+  #   ports:
+  #     - "3032:3032"
+  #   depends_on:
+  #     - kafka
+  #     - zookeeper
+  #   volumes:
+  #     - /rpckafka/target
+  #     - ./rpckafka:/rpckafka/
+  #   container_name: rpckafka
 
   rpckafka2:
     build:
@@ -184,26 +183,25 @@ services:
       - ./rpckafka:/rpckafka/
     scale: 3
     # container_name: rpckafka2
-    # ipc: host
 
-  # querykafkapsql:
-  #   build:
-  #     context: ./querykafkapsql
-  #     dockerfile: Dockerfile
-  #   hostname: querykafkapsql
-  #   stdin_open: true
-  #   restart: always
-  #   # ports:
-  #   #   - "3032:3032"
-  #   depends_on:
-  #     - kafka
-  #     - zookeeper
-  #     - postgresql-master
-  #   volumes:
-  #     - /querykafkapsql/target
-  #     - ./querykafkapsql:/querykafkapsql/
-  #   container_name: querykafkapsql
-  #   # ipc: host
+  querykafkapsql:
+    build:
+      context: ./querykafkapsql
+      dockerfile: Dockerfile
+    hostname: querykafkapsql
+    stdin_open: true
+    restart: always
+    # ports:
+    #   - "3032:3032"
+    # depends_on:
+    #   - kafka
+    #   - zookeeper
+    #   - postgresql-master
+    volumes:
+      - /querykafkapsql/target
+      - ./querykafkapsql:/querykafkapsql/
+    container_name: querykafkapsql
+    # ipc: host
 
   # swagger:~
   #   image: swaggerapi/swagger-ui
@@ -216,6 +214,7 @@ services:
   #   environment:
   #     API_URL: http://localhost:3000
 
+
 volumes:
   postgresql_master_data:
     driver: local
@@ -223,6 +222,8 @@ volumes:
     driver: local
   redis_master_data:
     driver: local
+
+
 
   # postgresql-slave:
   #   hostname: postgresql-slave
