@@ -58,9 +58,9 @@ fn test_create_trader_order_sencond() {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
-            .post("http://127.0.0.1:80/rpc1")
+            // .post("http://127.0.0.1:80/rpc1")
             // .post("http://172.104.186.106/rpc")
-            // .post("http://ec2-35-170-64-167.compute-1.amazonaws.com/rpc")
+            .post("http://ec2-44-211-23-55.compute-1.amazonaws.com/rpc1")
             .headers(construct_headers())
             .body("{\"jsonrpc\": \"2.0\", \"method\": \"CreateTraderOrder\", \"id\":123, \"params\": {\"account_id\":\"siddharth\",\"position_type\":\"LONG\",\"order_type\":\"MARKET\",\"leverage\":15.0,\"initial_margin\":2.0,\"available_margin\":2.0,\"order_status\":\"PENDING\",\"entryprice\":39000.01,\"execution_price\":44440.02} }")
             .send()
@@ -81,9 +81,9 @@ fn test_create_trader_order_third() {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
-            .post("http://127.0.0.1:80/rpc1")
+            // .post("http://127.0.0.1:80/rpc1")
             // .post("http://172.104.186.106/rpc")
-            // .post("http://ec2-35-170-64-167.compute-1.amazonaws.com/rpc")
+            .post("http://ec2-44-211-23-55.compute-1.amazonaws.com/rpc1")
             .headers(construct_headers())
             .body("{\"jsonrpc\": \"2.0\", \"method\": \"CreateTraderOrder\", \"id\":123, \"params\": {\"account_id\":\"siddharth\",\"position_type\":\"SHORT\",\"order_type\":\"MARKET\",\"leverage\":15.0,\"initial_margin\":2.0,\"available_margin\":2.0,\"order_status\":\"PENDING\",\"entryprice\":39000.01,\"execution_price\":44440.02} }")
             .send()
