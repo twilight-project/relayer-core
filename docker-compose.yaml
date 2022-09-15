@@ -37,19 +37,19 @@ services:
       - POSTGRESQL_DATABASE=my_database
       - ALLOW_EMPTY_PASSWORD=yes
 
-  PostgRestApi:
-    hostname: PostgRestAPI
-    container_name: PostgRestAPI
-    image: postgrest/postgrest
-    ports:
-      - "3000:3000"
-    environment:
-      PGRST_DB_URI: postgresql://postgres:my_password@postgresql:5432/my_database
-      PGRST_DB_SCHEMA: api
-      PGRST_DB_ANON_ROLE: postgres #In production this role should not be the same as the one used for the connection
-      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost/api
-    depends_on:
-      - postgresql-master
+  # PostgRestApi:
+  #   hostname: PostgRestAPI
+  #   container_name: PostgRestAPI
+  #   image: postgrest/postgrest
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     PGRST_DB_URI: postgresql://postgres:my_password@postgresql:5432/my_database
+  #     PGRST_DB_SCHEMA: api
+  #     PGRST_DB_ANON_ROLE: postgres #In production this role should not be the same as the one used for the connection
+  #     PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost/api
+  #   depends_on:
+  #     - postgresql-master
 
   questdb:
     image: questdb/questdb
@@ -67,37 +67,37 @@ services:
       - QDB_PG_USER=quest
       - QDB_PG_PASSWORD=my_password
 
-  relayer:
-    build:
-      context: ./
-      dockerfile: Dockerfile
-    hostname: relayer
-    stdin_open: true
-    ports:
-      - "3030:3030"
-    depends_on:
-      - postgresql-master
-      - redis-server
-      - questdb
-    container_name: relayer
-    # network_mode: host
-    ipc: host
+  # relayer:
+  #   build:
+  #     context: ./
+  #     dockerfile: Dockerfile
+  #   hostname: relayer
+  #   stdin_open: true
+  #   ports:
+  #     - "3030:3030"
+  #   depends_on:
+  #     - postgresql-master
+  #     - redis-server
+  #     - questdb
+  #   container_name: relayer
+  #   # network_mode: host
+  #   ipc: host
 
-  relayer-dev:
-    build:
-      context: ./
-      dockerfile: Dockerfile.dev
-    hostname: relayer-dev
-    stdin_open: true
-    ports:
-      - "3031:3030"
-    depends_on:
-      - postgresql-master
-      - redis-server
-      - questdb
-    container_name: relayer-dev
-    # network_mode: host
-    ipc: host
+  # relayer-dev:
+  #   build:
+  #     context: ./
+  #     dockerfile: Dockerfile.dev
+  #   hostname: relayer-dev
+  #   stdin_open: true
+  #   ports:
+  #     - "3031:3030"
+  #   depends_on:
+  #     - postgresql-master
+  #     - redis-server
+  #     - questdb
+  #   container_name: relayer-dev
+  #   # network_mode: host
+  #   ipc: host
 
   nginx:
     restart: always
@@ -108,6 +108,13 @@ services:
       context: ./nginx
     ports:
       - "80:80"
+
+  # envoy:
+  #   image: envoyproxy/envoy-dev:0061134ec5b9534afb63a33f3eb83fb3a809602c
+  #   ports:
+  #     - "10000:10000"
+  #   volumes:
+  #     - ./envoy.yaml:/etc/envoy/envoy.yaml
 
   kafka:
     image: confluentinc/cp-kafka:${CONFLUENT_VERSION:-5.3.1}
@@ -160,24 +167,43 @@ services:
     container_name: rpckafka
     # ipc: host
 
-  querykafkapsql:
+  rpckafka2:
     build:
-      context: ./querykafkapsql
+      context: ./rpckafka
       dockerfile: Dockerfile
-    hostname: querykafkapsql
+    hostname: rpckafka2
     stdin_open: true
     restart: always
-    # ports:
-    #   - "3032:3032"
+    ports:
+      - "3033-3040:3032"
     depends_on:
       - kafka
       - zookeeper
-      - postgresql-master
     volumes:
-      - /querykafkapsql/target
-      - ./querykafkapsql:/querykafkapsql/
-    container_name: querykafkapsql
+      - /rpckafka/target
+      - ./rpckafka:/rpckafka/
+    scale: 3
+    # container_name: rpckafka2
     # ipc: host
+
+  # querykafkapsql:
+  #   build:
+  #     context: ./querykafkapsql
+  #     dockerfile: Dockerfile
+  #   hostname: querykafkapsql
+  #   stdin_open: true
+  #   restart: always
+  #   # ports:
+  #   #   - "3032:3032"
+  #   depends_on:
+  #     - kafka
+  #     - zookeeper
+  #     - postgresql-master
+  #   volumes:
+  #     - /querykafkapsql/target
+  #     - ./querykafkapsql:/querykafkapsql/
+  #   container_name: querykafkapsql
+  #   # ipc: host
 
   # swagger:~
   #   image: swaggerapi/swagger-ui

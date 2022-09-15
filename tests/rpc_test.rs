@@ -58,7 +58,7 @@ fn test_create_trader_order_sencond() {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
-            .post("http://127.0.0.1:3032")
+            .post("http://127.0.0.1:80/rpc1")
             // .post("http://172.104.186.106/rpc")
             // .post("http://ec2-35-170-64-167.compute-1.amazonaws.com/rpc")
             .headers(construct_headers())
@@ -81,7 +81,7 @@ fn test_create_trader_order_third() {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
-            .post("http://127.0.0.1:3032")
+            .post("http://127.0.0.1:80/rpc1")
             // .post("http://172.104.186.106/rpc")
             // .post("http://ec2-35-170-64-167.compute-1.amazonaws.com/rpc")
             .headers(construct_headers())
