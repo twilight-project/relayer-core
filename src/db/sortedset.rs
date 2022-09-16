@@ -110,23 +110,13 @@ impl SortedSet {
         if self.min_price < price {
             let key_index = self.sorted_order.iter().rposition(|&(_x, y)| y <= price);
             if key_index.is_some() {
-                let sw = Stopwatch::start_new();
                 let result_vec: Vec<(Uuid, i64)> =
                     self.sorted_order.drain(0..key_index.unwrap() + 1).collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
                 // self.hash.retain(|&x| left.contains(&x) == false);
-                let time1 = sw.elapsed();
-                // for x in left.clone() {
-                //     self.hash.remove(&x);
-                // }
-                let left_hash: HashSet<Uuid> = left.clone().iter().cloned().collect();
-                self.hash = self.hash.difference(&left_hash).cloned().collect();
-                // self.len -= left.len();
-                let time2 = sw.elapsed();
-                println!(
-                    "cloning time in sorting file {:#?},removing new:{:#?}",
-                    time1, time2
-                );
+                for x in left.clone() {
+                    self.hash.remove(&x);
+                }
                 return left;
             }
         }
@@ -148,7 +138,6 @@ impl SortedSet {
                 for x in left.clone() {
                     self.hash.remove(&x);
                 }
-                // self.len -= left.len();
                 return left;
             }
         } else {

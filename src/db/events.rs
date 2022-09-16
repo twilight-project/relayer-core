@@ -5,22 +5,37 @@ use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
-use kafka::producer::Record;
+use kafka::producer::{Producer, Record, RequiredAcks};
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
+use std::time::Duration;
 use std::time::SystemTime;
 use uuid::Uuid;
 
 lazy_static! {
     pub static ref GLOBAL_NONCE: Arc<RwLock<usize>> = Arc::new(RwLock::new(0));
-    pub static ref KAFKA_EVENT_LOG_THREADPOOL: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
-        2,
-        String::from("KAFKA_EVENT_LOG_THREADPOOL")
+    pub static ref KAFKA_EVENT_LOG_THREADPOOL1: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
+        1,
+        String::from("KAFKA_EVENT_LOG_THREADPOOL2")
     ));
+    pub static ref KAFKA_EVENT_LOG_THREADPOOL2: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
+        1,
+        String::from("KAFKA_EVENT_LOG_THREADPOOL2")
+    ));
+    pub static ref KAFKA_PRODUCER_EVENT: Mutex<Producer> = {
+        dotenv::dotenv().expect("Failed loading dotenv");
+        let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
+        let producer = Producer::from_hosts(vec![broker.to_owned()])
+            .with_ack_timeout(Duration::from_secs(1))
+            .with_required_acks(RequiredAcks::None)
+            .create()
+            .unwrap();
+        Mutex::new(producer)
+    };
 }
 
 #[derive(Debug)]
@@ -44,11 +59,11 @@ pub enum Event {
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
     Stop(String),
 }
-
+use stopwatch::Stopwatch;
 impl Event {
     pub fn new(event: Event, key: String, topic: String) -> Self {
         let event_clone = event.clone();
-        let pool = KAFKA_EVENT_LOG_THREADPOOL.lock().unwrap();
+        let pool = KAFKA_EVENT_LOG_THREADPOOL1.lock().unwrap();
         pool.execute(move || {
             // match event_clone {
             //     Event::CurrentPriceUpdate(..) => {}
@@ -58,14 +73,23 @@ impl Event {
             // }
             Event::send_event_to_kafka_queue(event_clone, topic, key);
         });
+        drop(pool);
         event
     }
     pub fn send_event_to_kafka_queue(event: Event, topic: String, key: String) {
-        let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
+        // let sw = Stopwatch::start_new();
         let data = serde_json::to_vec(&event).unwrap();
-        kafka_producer
-            .send(&Record::from_key_value(&topic, key, data))
-            .unwrap();
+        let pool = KAFKA_EVENT_LOG_THREADPOOL2.lock().unwrap();
+        pool.execute(move || {
+            let mut kafka_producer = KAFKA_PRODUCER_EVENT.lock().unwrap();
+            kafka_producer
+                .send(&Record::from_key_value(&topic, key, data))
+                .unwrap();
+            drop(kafka_producer);
+        });
+        drop(pool);
+        // let time1 = sw.elapsed();
+        // println!("kafka msg send time: {:#?}", time1);
     }
 
     pub fn receive_event_from_kafka_queue(
