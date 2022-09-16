@@ -113,8 +113,11 @@ impl SortedSet {
                 let result_vec: Vec<(Uuid, i64)> =
                     self.sorted_order.drain(0..key_index.unwrap() + 1).collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
-                self.hash.retain(|&x| left.contains(&x) == false);
-                self.len -= left.len();
+                // self.hash.retain(|&x| left.contains(&x) == false);
+                for x in left.clone() {
+                    self.hash.remove(&x);
+                }
+                // self.len -= left.len();
                 return left;
             }
         }
@@ -132,8 +135,11 @@ impl SortedSet {
                     .drain(key_index.unwrap()..self.len)
                     .collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
-                self.hash.retain(|&x| left.contains(&x) == false);
-                self.len -= left.len();
+                // self.hash.retain(|&x| left.contains(&x) == false);
+                for x in left.clone() {
+                    self.hash.remove(&x);
+                }
+                // self.len -= left.len();
                 return left;
             }
         } else {

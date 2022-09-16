@@ -255,17 +255,21 @@ pub fn startserver() {
                                 .name(String::from("json-RPC startserver"))
                                 .spawn(move || {
                                     let current_price = value.price;
-                                    let mut get_open_order_short_list =
+                                    let mut get_open_order_short_list1 =
                                         TRADER_LP_SHORT.lock().unwrap();
-                                    let mut get_open_order_long_list =
+                                    let mut get_open_order_long_list1 =
                                         TRADER_LP_LONG.lock().unwrap();
+                                    let mut get_open_order_short_list =
+                                        get_open_order_short_list1.clone();
+                                    let mut get_open_order_long_list =
+                                        get_open_order_long_list1.clone();
                                     let sw = Stopwatch::start_new();
                                     let mut orderid_list_short = get_open_order_short_list
                                         .search_lt((current_price * 10000.0) as i64);
                                     let orderid_list_long = get_open_order_long_list
                                         .search_gt((current_price * 10000.0) as i64);
-                                    drop(get_open_order_short_list);
-                                    drop(get_open_order_long_list);
+                                    drop(get_open_order_short_list1);
+                                    drop(get_open_order_long_list1);
                                     println!(
                                         "searching for ordercount:{} is {:#?}",
                                         orderid_list_short.len() + orderid_list_long.len(),
