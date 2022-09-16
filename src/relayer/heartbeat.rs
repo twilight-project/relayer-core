@@ -65,15 +65,15 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    thread::Builder::new()
-        .name(String::from("price_check_and_update"))
-        .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(250));
-            thread::spawn(move || {
-                price_check_and_update();
-            });
-        })
-        .unwrap();
+    // thread::Builder::new()
+    //     .name(String::from("price_check_and_update"))
+    //     .spawn(move || loop {
+    //         thread::sleep(time::Duration::from_millis(250));
+    //         thread::spawn(move || {
+    //             price_check_and_update();
+    //         });
+    //     })
+    //     .unwrap();
 
     thread::Builder::new()
         .name(String::from("json-RPC startserver"))
