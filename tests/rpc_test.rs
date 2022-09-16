@@ -54,7 +54,7 @@ fn test_create_trader_order_sencond() {
     let sw = Stopwatch::start_new();
     let threadpool_live = ThreadPool::new(500, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
-    for _i in 0..5000 {
+    for _i in 0..45000 {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
@@ -77,7 +77,7 @@ fn test_create_trader_order_third() {
     let sw = Stopwatch::start_new();
     let threadpool_live = ThreadPool::new(500, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
-    for _i in 0..5000 {
+    for _i in 0..45000 {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
@@ -124,7 +124,7 @@ extern crate lazy_static;
 //     println!("I'm here");
 //     let threadpool_live = ThreadPool::new(25, String::from("newpool"));
 //     let sw = Stopwatch::start_new();
-//     for _i in 0..50000 {
+//     for _i in 0..450000 {
 //         let order_request_clone = orderrequest.clone();
 //         threadpool_live.execute(move || get_new_trader_order(order_request_clone.serialize()));
 //         // thread::spawn(move || relayer::get_new_trader_order(self.serialize()));
