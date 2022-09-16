@@ -254,7 +254,7 @@ pub fn startserver() {
                             std::thread::Builder::new()
                                 .name(String::from("json-RPC startserver"))
                                 .spawn(move || {
-                                    let current_price = 10000.0;
+                                    let current_price = value.price;
                                     let mut get_open_order_short_list =
                                         TRADER_LP_SHORT.lock().unwrap();
                                     let mut get_open_order_long_list =
