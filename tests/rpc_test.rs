@@ -52,15 +52,15 @@ fn construct_headers() -> HeaderMap {
 #[test]
 fn test_create_trader_order_sencond() {
     let sw = Stopwatch::start_new();
-    let threadpool_live = ThreadPool::new(500, String::from("newpool"));
+    let threadpool_live = ThreadPool::new(1000, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
-    for _i in 0..45000 {
+    for _i in 0..100000 {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
             // .post("http://127.0.0.1:80/rpc1")
             // .post("http://172.104.186.106/rpc")
-            .post("http://ec2-44-200-87-97.compute-1.amazonaws.com/rpc1")
+            .post("http://ec2-3-238-135-25.compute-1.amazonaws.com/rpc1")
             .headers(construct_headers())
             .body("{\"jsonrpc\": \"2.0\", \"method\": \"CreateTraderOrder\", \"id\":123, \"params\": {\"account_id\":\"siddharth\",\"position_type\":\"LONG\",\"order_type\":\"MARKET\",\"leverage\":15.0,\"initial_margin\":2.0,\"available_margin\":2.0,\"order_status\":\"PENDING\",\"entryprice\":39000.01,\"execution_price\":44440.02} }")
             .send()
@@ -75,15 +75,15 @@ fn test_create_trader_order_sencond() {
 #[test]
 fn test_create_trader_order_third() {
     let sw = Stopwatch::start_new();
-    let threadpool_live = ThreadPool::new(500, String::from("newpool"));
+    let threadpool_live = ThreadPool::new(1000, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
-    for _i in 0..45000 {
+    for _i in 0..100000 {
         let clint_clone = client.clone();
         threadpool_live.execute(move || {
         let _res = clint_clone
             // .post("http://127.0.0.1:80/rpc1")
             // .post("http://172.104.186.106/rpc")
-            .post("http://ec2-44-200-87-97.compute-1.amazonaws.com/rpc1")
+            .post("http://ec2-3-238-135-25.compute-1.amazonaws.com/rpc1")
             .headers(construct_headers())
             .body("{\"jsonrpc\": \"2.0\", \"method\": \"CreateTraderOrder\", \"id\":123, \"params\": {\"account_id\":\"siddharth\",\"position_type\":\"SHORT\",\"order_type\":\"MARKET\",\"leverage\":15.0,\"initial_margin\":2.0,\"available_margin\":2.0,\"order_status\":\"PENDING\",\"entryprice\":39000.01,\"execution_price\":44440.02} }")
             .send()
@@ -124,7 +124,7 @@ extern crate lazy_static;
 //     println!("I'm here");
 //     let threadpool_live = ThreadPool::new(25, String::from("newpool"));
 //     let sw = Stopwatch::start_new();
-//     for _i in 0..450000 {
+//     for _i in 0..1000000 {
 //         let order_request_clone = orderrequest.clone();
 //         threadpool_live.execute(move || get_new_trader_order(order_request_clone.serialize()));
 //         // thread::spawn(move || relayer::get_new_trader_order(self.serialize()));
