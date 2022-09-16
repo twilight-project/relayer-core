@@ -174,7 +174,7 @@ pub fn startserver() {
             match params.parse::<TestLocaldb>() {
                 Ok(value) => {
                     // let sw = Stopwatch::start_new();
-                    match value.price {
+                    match value.key {
                         1 => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_ORDER_DB : {:#?}", trader_lp_long);
@@ -251,21 +251,28 @@ pub fn startserver() {
                                 .unwrap();
                         }
                         14 => {
-                            let current_price = 10000.0;
-                            let mut get_open_order_short_list = TRADER_LP_SHORT.lock().unwrap();
-                            let mut get_open_order_long_list = TRADER_LP_LONG.lock().unwrap();
-                            let sw = Stopwatch::start_new();
-                            let mut orderid_list_short = get_open_order_short_list
-                                .search_lt((current_price * 10000.0) as i64);
-                            let orderid_list_long = get_open_order_long_list
-                                .search_gt((current_price * 10000.0) as i64);
-                            drop(get_open_order_short_list);
-                            drop(get_open_order_long_list);
-                            println!(
-                                "searching for ordercount:{} is {:#?}",
-                                orderid_list_short.len() + orderid_list_long.len(),
-                                sw.elapsed()
-                            );
+                            std::thread::Builder::new()
+                                .name(String::from("json-RPC startserver"))
+                                .spawn(move || {
+                                    let current_price = 10000.0;
+                                    let mut get_open_order_short_list =
+                                        TRADER_LP_SHORT.lock().unwrap();
+                                    let mut get_open_order_long_list =
+                                        TRADER_LP_LONG.lock().unwrap();
+                                    let sw = Stopwatch::start_new();
+                                    let mut orderid_list_short = get_open_order_short_list
+                                        .search_lt((current_price * 10000.0) as i64);
+                                    let orderid_list_long = get_open_order_long_list
+                                        .search_gt((current_price * 10000.0) as i64);
+                                    drop(get_open_order_short_list);
+                                    drop(get_open_order_long_list);
+                                    println!(
+                                        "searching for ordercount:{} is {:#?}",
+                                        orderid_list_short.len() + orderid_list_long.len(),
+                                        sw.elapsed()
+                                    );
+                                })
+                                .unwrap();
                         }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
