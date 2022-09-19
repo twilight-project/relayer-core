@@ -52,7 +52,7 @@ fn construct_headers() -> HeaderMap {
 #[test]
 fn test_create_trader_order_sencond() {
     let sw = Stopwatch::start_new();
-    let threadpool_live = ThreadPool::new(1000, String::from("newpool"));
+    let threadpool_live = ThreadPool::new(400, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
     for _i in 0..100000 {
         let clint_clone = client.clone();
@@ -75,7 +75,7 @@ fn test_create_trader_order_sencond() {
 #[test]
 fn test_create_trader_order_third() {
     let sw = Stopwatch::start_new();
-    let threadpool_live = ThreadPool::new(1000, String::from("newpool"));
+    let threadpool_live = ThreadPool::new(400, String::from("newpool"));
     let client = reqwest::blocking::Client::new();
     for _i in 0..100000 {
         let clint_clone = client.clone();

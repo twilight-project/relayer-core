@@ -78,6 +78,14 @@ impl SortedSet {
             self.max_price = self.sorted_order[self.len - 1].1;
         }
     }
+    pub fn sorthash(&mut self) {
+        self.sorted_order.sort_by_key(|p| p.0);
+        self.len = self.sorted_order.len();
+        if self.len > 0 {
+            self.min_price = self.sorted_order[0].1;
+            self.max_price = self.sorted_order[self.len - 1].1;
+        }
+    }
 
     pub fn read(&mut self) -> SortedSet {
         self.sort();
@@ -86,23 +94,49 @@ impl SortedSet {
     }
 
     pub fn update(&mut self, uuid: Uuid, price: i64) -> Result<(), std::io::Error> {
-        if self.hash.insert(uuid) {
-            self.hash.remove(&uuid);
-            Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                "Key does not exist",
-            ))
-        } else {
+        if self.hash.contains(&uuid) {
             let key_index = self
                 .sorted_order
                 .iter()
                 .position(|&(x, _y)| x == uuid)
                 .unwrap();
-
             self.sorted_order[key_index].1 = price;
             Ok(())
         }
+        // if self.hash.insert(uuid) {
+        //     self.hash.remove(&uuid);
+        else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "Key does not exist",
+            ))
+        }
+        // else {
+        //     let key_index = self
+        //         .sorted_order
+        //         .iter()
+        //         .position(|&(x, _y)| x == uuid)
+        //         .unwrap();
+
+        //     self.sorted_order[key_index].1 = price;
+        //     Ok(())
+        // }
     }
+
+    pub fn update_bulk(&mut self, mut value: Vec<(Uuid, i64)>) -> Result<(), std::io::Error> {
+        self.sorthash();
+        let db = self.sorted_order.clone();
+        let mut db_iter = db.iter();
+        for (uuid, price) in value {
+            if self.hash.contains(&uuid) {
+                let key_index = db_iter.position(|&(x, _y)| x == uuid).unwrap();
+                self.sorted_order[key_index].1 = price;
+            }
+            // self.update(uuid, price);
+        }
+        Ok(())
+    }
+
     // removes the return items
     pub fn search_lt(&mut self, price: i64) -> Vec<Uuid> {
         self.sort();

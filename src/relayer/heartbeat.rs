@@ -434,6 +434,8 @@ pub fn fundingcycle(
         let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
         let mut poolbatch = PoolBatchOrder::new();
         let (send, recv) = mpsc::channel();
+        let mut liquidity_update_short: Vec<(Uuid, i64)> = Vec::new();
+        let mut liquidity_update_long: Vec<(Uuid, i64)> = Vec::new();
         for ordertx in orderdetails_array {
             let meta_clone = metadata.clone();
             let sender_clone = send.clone();
@@ -450,11 +452,27 @@ pub fn fundingcycle(
         }
         println!("funding test 1");
         for _i in 0..length {
-            let (funding_payment, order) = recv.recv().unwrap();
+            let (funding_payment, order, (uuid, price, position_type)) = recv.recv().unwrap();
             if funding_payment != 0.0 {
                 poolbatch.add(funding_payment, order);
+
+                match position_type {
+                    PositionType::LONG => {
+                        liquidity_update_long.push((uuid, price));
+                    }
+                    PositionType::SHORT => {
+                        liquidity_update_short.push((uuid, price));
+                    }
+                }
             }
         }
+        let mut liquidation_list_long = TRADER_LP_LONG.lock().unwrap();
+        let _ = liquidation_list_long.update_bulk(liquidity_update_long);
+        drop(liquidation_list_long);
+        let mut liquidation_list_short = TRADER_LP_SHORT.lock().unwrap();
+        let _ = liquidation_list_short.update_bulk(liquidity_update_short);
+        drop(liquidation_list_short);
+
         println!(
             "funding complete, poolbatch amount: {:#?}",
             poolbatch.amount
@@ -474,7 +492,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
     current_price: f64,
     fee: f64,
     meta: Meta,
-    sender: mpsc::Sender<(f64, TraderOrder)>,
+    sender: mpsc::Sender<(f64, TraderOrder, (Uuid, i64, PositionType))>,
 ) {
     let mut ordertx = order.write().unwrap();
     if ordertx.order_status == OrderStatus::FILLED {
@@ -551,25 +569,35 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             );
             let db_pool = THREADPOOL_EVENT_AND_SORTED_SET_UPDATE.lock().unwrap();
             let ordertx_clone = ordertx.clone();
+
+            // match ordertx_clone.position_type {
+            //     PositionType::LONG => {
+            //         // let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+            //         // let _ = add_to_liquidation_list.update(
+            //         //     ordertx_clone.uuid,
+            //         //     (ordertx_clone.liquidation_price * 10000.0) as i64,
+            //         // );
+            //         // drop(add_to_liquidation_list);
+
+            //         liquidity_update_long.push((
+            //             ordertx_clone.uuid,
+            //             (ordertx_clone.liquidation_price * 10000.0) as i64,
+            //         ));
+            //     }
+            //     PositionType::SHORT => {
+            //         // let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+            //         // let _ = add_to_liquidation_list.update(
+            //         //     ordertx_clone.uuid,
+            //         //     (ordertx_clone.liquidation_price * 10000.0) as i64,
+            //         // );
+            //         // drop(add_to_liquidation_list);
+            //         liquidity_update_short.push((
+            //             ordertx_clone.uuid,
+            //             (ordertx_clone.liquidation_price * 10000.0) as i64,
+            //         ));
+            //     }
+            // }
             db_pool.execute(move || {
-                match ordertx_clone.position_type {
-                    PositionType::LONG => {
-                        let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
-                        let _ = add_to_liquidation_list.update(
-                            ordertx_clone.uuid,
-                            (ordertx_clone.liquidation_price * 10000.0) as i64,
-                        );
-                        drop(add_to_liquidation_list);
-                    }
-                    PositionType::SHORT => {
-                        let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
-                        let _ = add_to_liquidation_list.update(
-                            ordertx_clone.uuid,
-                            (ordertx_clone.liquidation_price * 10000.0) as i64,
-                        );
-                        drop(add_to_liquidation_list);
-                    }
-                }
                 Event::new(
                     Event::SortedSetDBUpdate(SortedSetCommand::UpdateLiquidationPrice(
                         ordertx_clone.uuid.clone(),
@@ -590,14 +618,42 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
         match ordertx.position_type {
             PositionType::LONG => {
                 sender
-                    .send(((funding_payment * -1.0), ordertx.clone()))
+                    .send((
+                        (funding_payment * -1.0),
+                        ordertx.clone(),
+                        (
+                            ordertx.clone().uuid,
+                            (ordertx.clone().liquidation_price * 10000.0) as i64,
+                            ordertx.clone().position_type,
+                        ),
+                    ))
                     .unwrap();
             }
             PositionType::SHORT => {
-                sender.send((funding_payment, ordertx.clone())).unwrap();
+                sender
+                    .send((
+                        funding_payment,
+                        ordertx.clone(),
+                        (
+                            ordertx.clone().uuid,
+                            (ordertx.clone().liquidation_price * 10000.0) as i64,
+                            ordertx.clone().position_type,
+                        ),
+                    ))
+                    .unwrap();
             }
         }
     } else {
-        sender.send((0.0, ordertx.clone())).unwrap();
+        sender
+            .send((
+                0.0,
+                ordertx.clone(),
+                (
+                    ordertx.clone().uuid,
+                    (ordertx.clone().liquidation_price * 10000.0) as i64,
+                    ordertx.clone().position_type,
+                ),
+            ))
+            .unwrap();
     }
 }
