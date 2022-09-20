@@ -125,6 +125,7 @@ impl SortedSet {
 
     pub fn update_bulk(&mut self, mut value: Vec<(Uuid, i64)>) -> Result<(), std::io::Error> {
         self.sorthash();
+        value.sort_by_key(|p| p.0);
         let db = self.sorted_order.clone();
         let mut db_iter = db.iter();
         for (uuid, price) in value {

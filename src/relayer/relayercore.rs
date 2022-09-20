@@ -6,9 +6,9 @@ use std::sync::{Arc, Mutex, RwLock};
 // use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_NORMAL_ORDER")));
+        Mutex::new(ThreadPool::new(15, String::from("THREADPOOL_NORMAL_ORDER")));
     pub static ref THREADPOOL_URGENT_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_URGENT_ORDER")));
+        Mutex::new(ThreadPool::new(15, String::from("THREADPOOL_URGENT_ORDER")));
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =

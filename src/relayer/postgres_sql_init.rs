@@ -47,7 +47,15 @@ pub fn init_psql() {
     }
     match create_trades_history_questdb() {
         Ok(_) => println!("trades_history table inserted successfully"),
-        Err(arg) => println!("Some Error 9 Found, {:#?}", arg),
+        Err(arg) => println!("Some Error 10 Found, {:#?}", arg),
+    }
+    match create_event_logs_table() {
+        Ok(_) => println!("event_logs table inserted successfully"),
+        Err(arg) => println!("Some Error 11 Found, {:#?}", arg),
+    }
+    match create_rpc_query_table() {
+        Ok(_) => println!("rpc_query table inserted successfully"),
+        Err(arg) => println!("Some Error 12 Found, {:#?}", arg),
     }
 }
 
@@ -327,6 +335,37 @@ pub fn delele_all_data_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
 
     match client.batch_execute(&query) {
+        Ok(_) => Ok(()),
+        Err(arg) => Err(arg),
+    }
+}
+
+fn create_event_logs_table() -> Result<(), r2d2_postgres::postgres::Error> {
+    let query = format!(
+        "CREATE TABLE IF NOT EXISTS public.event_logs (
+            \"offset\" bigint NOT NULL,
+            key VARCHAR(100) NOT NULL,
+            payload json NOT NULL
+          );"
+    );
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+    match client.execute(&query, &[]) {
+        Ok(_) => Ok(()),
+        Err(arg) => Err(arg),
+    }
+}
+fn create_rpc_query_table() -> Result<(), r2d2_postgres::postgres::Error> {
+    let query = format!(
+        "CREATE TABLE IF NOT EXISTS public.rpc_query (
+            \"offset\" bigint NOT NULL,
+            key VARCHAR(100) NOT NULL,
+            payload json NOT NULL
+          );"
+    );
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+    match client.execute(&query, &[]) {
         Ok(_) => Ok(()),
         Err(arg) => Err(arg),
     }

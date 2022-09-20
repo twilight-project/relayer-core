@@ -64,16 +64,40 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
-                    let order_clone = order.clone();
+                    // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
-                        .insert(order.uuid, Arc::new(RwLock::new(order)));
+                        .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
                     // orderdb_traderorder.event.push(data.value);
-                    if orderdb_traderorder.sequence < order_clone.entry_sequence {
-                        orderdb_traderorder.sequence = order_clone.entry_sequence;
+                    if orderdb_traderorder.sequence < order.entry_sequence.clone() {
+                        orderdb_traderorder.sequence = order.entry_sequence.clone();
                     }
                     if orderdb_traderorder.aggrigate_log_sequence < seq {
                         orderdb_traderorder.aggrigate_log_sequence = seq;
+                    }
+
+                    match order.order_status {
+                        OrderStatus::FILLED => match order.position_type {
+                            PositionType::LONG => {
+                                let _ = liquidation_long_sortedset_db
+                                    .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
+                            }
+                            PositionType::SHORT => {
+                                let _ = liquidation_short_sortedset_db
+                                    .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
+                            }
+                        },
+                        OrderStatus::PENDING => match order.position_type {
+                            PositionType::LONG => {
+                                let _ = open_long_sortedset_db
+                                    .add(order.uuid, (order.entryprice * 10000.0) as i64);
+                            }
+                            PositionType::SHORT => {
+                                let _ = open_short_sortedset_db
+                                    .add(order.uuid, (order.entryprice * 10000.0) as i64);
+                            }
+                        },
+                        _ => {}
                     }
                 }
                 RpcCommand::CancelTraderOrder(_rpc_request, _metadata) => {
@@ -90,16 +114,30 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     }
                 }
                 RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
-                    let order_clone = order.clone();
-                    if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
-                        orderdb_traderorder.ordertable.remove(&order.uuid);
+                    // let order_clone = order.clone();
+                    if orderdb_traderorder
+                        .ordertable
+                        .contains_key(&order.uuid.clone())
+                    {
+                        orderdb_traderorder.ordertable.remove(&order.uuid.clone());
                     }
                     // orderdb_traderorder.event.push(data.value);
-                    if orderdb_traderorder.sequence < order_clone.entry_sequence {
-                        orderdb_traderorder.sequence = order_clone.entry_sequence;
+                    if orderdb_traderorder.sequence < order.entry_sequence.clone() {
+                        orderdb_traderorder.sequence = order.entry_sequence.clone();
                     }
                     if orderdb_traderorder.aggrigate_log_sequence < seq {
                         orderdb_traderorder.aggrigate_log_sequence = seq;
+                    }
+                    match order.order_status {
+                        OrderStatus::SETTLED => match order.position_type {
+                            PositionType::LONG => {
+                                let _ = liquidation_long_sortedset_db.remove(order.uuid);
+                            }
+                            PositionType::SHORT => {
+                                let _ = liquidation_short_sortedset_db.remove(order.uuid);
+                            }
+                        },
+                        _ => {}
                     }
                 }
                 RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
@@ -122,31 +160,59 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 _ => {}
             },
             Event::TraderOrderUpdate(order, _cmd, seq) => {
-                let order_clone = order.clone();
+                // let order_clone = order.clone();
                 orderdb_traderorder
                     .ordertable
-                    .insert(order.uuid, Arc::new(RwLock::new(order)));
+                    .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
                 // orderdb_traderorder.event.push(data.value);
-                if orderdb_traderorder.sequence < order_clone.entry_sequence {
-                    orderdb_traderorder.sequence = order_clone.entry_sequence;
+                if orderdb_traderorder.sequence < order.entry_sequence.clone() {
+                    orderdb_traderorder.sequence = order.entry_sequence.clone();
                 }
                 if orderdb_traderorder.aggrigate_log_sequence < seq {
                     orderdb_traderorder.aggrigate_log_sequence = seq;
+                }
+
+                match order.order_status {
+                    OrderStatus::FILLED => match order.position_type {
+                        PositionType::LONG => {
+                            let _ = liquidation_long_sortedset_db
+                                .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ = liquidation_short_sortedset_db
+                                .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
+                        }
+                    },
+                    _ => {}
                 }
             }
             Event::TraderOrderFundingUpdate(order, _cmd) => {
                 orderdb_traderorder
                     .ordertable
-                    .insert(order.uuid, Arc::new(RwLock::new(order)));
+                    .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
+
+                match order.position_type {
+                    PositionType::LONG => {
+                        let _ = liquidation_long_sortedset_db
+                            .update(order.uuid, (order.liquidation_price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = liquidation_short_sortedset_db
+                            .update(order.uuid, (order.liquidation_price * 10000.0) as i64);
+                    }
+                }
             }
             Event::TraderOrderLiquidation(order, _cmd, seq) => {
-                let order_clone = order.clone();
-                if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
-                    orderdb_traderorder.ordertable.remove(&order.uuid);
+                // let order_clone = order.clone();
+                if orderdb_traderorder
+                    .ordertable
+                    .contains_key(&order.uuid.clone())
+                {
+                    orderdb_traderorder.ordertable.remove(&order.uuid.clone());
                 }
                 // orderdb_traderorder.event.push(data.value);
-                if orderdb_traderorder.sequence < order_clone.entry_sequence {
-                    orderdb_traderorder.sequence = order_clone.entry_sequence;
+                if orderdb_traderorder.sequence < order.entry_sequence.clone() {
+                    orderdb_traderorder.sequence = order.entry_sequence.clone();
                 }
                 if orderdb_traderorder.aggrigate_log_sequence < seq {
                     orderdb_traderorder.aggrigate_log_sequence = seq;
@@ -352,42 +418,38 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                             .update(order_id, (execution_price * 10000.0) as i64);
                     }
                 },
-                SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
-                    _order_id_array,
-                    price,
-                    position_type,
-                ) => match position_type {
-                    PositionType::LONG => {
-                        let _ = open_long_sortedset_db.search_gt((price * 10000.0) as i64);
+                SortedSetCommand::BulkSearchRemoveOpenLimitPrice(price, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = open_long_sortedset_db.search_gt((price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ = open_short_sortedset_db.search_lt((price * 10000.0) as i64);
+                        }
                     }
-                    PositionType::SHORT => {
-                        let _ = open_short_sortedset_db.search_lt((price * 10000.0) as i64);
+                }
+                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(price, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ = close_long_sortedset_db.search_lt((price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ = close_short_sortedset_db.search_gt((price * 10000.0) as i64);
+                        }
                     }
-                },
-                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                    _order_id_array,
-                    price,
-                    position_type,
-                ) => match position_type {
-                    PositionType::LONG => {
-                        let _ = close_long_sortedset_db.search_lt((price * 10000.0) as i64);
+                }
+                SortedSetCommand::BulkSearchRemoveLiquidationPrice(price, position_type) => {
+                    match position_type {
+                        PositionType::LONG => {
+                            let _ =
+                                liquidation_long_sortedset_db.search_gt((price * 10000.0) as i64);
+                        }
+                        PositionType::SHORT => {
+                            let _ =
+                                liquidation_short_sortedset_db.search_lt((price * 10000.0) as i64);
+                        }
                     }
-                    PositionType::SHORT => {
-                        let _ = close_short_sortedset_db.search_gt((price * 10000.0) as i64);
-                    }
-                },
-                SortedSetCommand::BulkSearchRemoveLiquidationPrice(
-                    _order_id_array,
-                    price,
-                    position_type,
-                ) => match position_type {
-                    PositionType::LONG => {
-                        let _ = liquidation_long_sortedset_db.search_gt((price * 10000.0) as i64);
-                    }
-                    PositionType::SHORT => {
-                        let _ = liquidation_short_sortedset_db.search_lt((price * 10000.0) as i64);
-                    }
-                },
+                }
             },
             Event::PositionSizeLogDBUpdate(_cmd, event) => {
                 // position_size_log.total_long_positionsize = event.total_long_positionsize;
@@ -407,18 +469,18 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     if orderdb_traderorder.sequence > 0 {
         println!("TraderOrder Database Loaded ....");
     } else {
-        println!("No old TraderOrder Database found ....\nCreating new lendpool_database");
+        println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
     }
     if orderdb_lendrorder.sequence > 0 {
         println!("LendOrder Database Loaded ....");
     } else {
-        println!("No old LendOrder Database found ....\nCreating new lendpool_database");
+        println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
     }
     if lendpool_database.aggrigate_log_sequence > 0 {
         println!("LendPool Database Loaded ....");
     } else {
         lendpool_database = LendPool::new();
-        println!("No old LendPool Database found ....\nCreating new database");
+        println!("No old LendPool Database found ....\nCreating new LendPool_database");
     }
     (
         orderdb_traderorder.clone(),

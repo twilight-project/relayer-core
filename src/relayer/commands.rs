@@ -35,9 +35,9 @@ pub enum SortedSetCommand {
     UpdateLiquidationPrice(Uuid, f64, PositionType),
     UpdateOpenLimitPrice(Uuid, f64, PositionType),
     UpdateCloseLimitPrice(Uuid, f64, PositionType),
-    BulkSearchRemoveLiquidationPrice(Vec<Uuid>, f64, PositionType),
-    BulkSearchRemoveOpenLimitPrice(Vec<Uuid>, f64, PositionType),
-    BulkSearchRemoveCloseLimitPrice(Vec<Uuid>, f64, PositionType),
+    BulkSearchRemoveLiquidationPrice(f64, PositionType),
+    BulkSearchRemoveOpenLimitPrice(f64, PositionType),
+    BulkSearchRemoveCloseLimitPrice(f64, PositionType),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

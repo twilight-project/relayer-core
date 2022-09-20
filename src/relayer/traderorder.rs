@@ -197,15 +197,15 @@ impl TraderOrder {
                     drop(add_to_liquidation_list);
                 }
             }
-            Event::new(
-                Event::SortedSetDBUpdate(SortedSetCommand::AddLiquidationPrice(
-                    ordertx.uuid.clone(),
-                    ordertx.liquidation_price.clone(),
-                    ordertx.position_type.clone(),
-                )),
-                format!("AddLiquidationPrice-{}", ordertx.uuid.clone()),
-                CORE_EVENT_LOG.clone().to_string(),
-            );
+            // Event::new(
+            //     Event::SortedSetDBUpdate(SortedSetCommand::AddLiquidationPrice(
+            //         ordertx.uuid.clone(),
+            //         ordertx.liquidation_price.clone(),
+            //         ordertx.position_type.clone(),
+            //     )),
+            //     format!("AddLiquidationPrice-{}", ordertx.uuid.clone()),
+            //     CORE_EVENT_LOG.clone().to_string(),
+            // );
 
             // adding candle data
             let side = match ordertx.position_type {
@@ -234,15 +234,15 @@ impl TraderOrder {
                     drop(add_to_open_order_list);
                 }
             }
-            Event::new(
-                Event::SortedSetDBUpdate(SortedSetCommand::AddOpenLimitPrice(
-                    ordertx.uuid.clone(),
-                    ordertx.entryprice.clone(),
-                    ordertx.position_type.clone(),
-                )),
-                format!("AddOpenLimitPrice-{}", ordertx.uuid.clone()),
-                CORE_EVENT_LOG.clone().to_string(),
-            );
+            // Event::new(
+            //     Event::SortedSetDBUpdate(SortedSetCommand::AddOpenLimitPrice(
+            //         ordertx.uuid.clone(),
+            //         ordertx.entryprice.clone(),
+            //         ordertx.position_type.clone(),
+            //     )),
+            //     format!("AddOpenLimitPrice-{}", ordertx.uuid.clone()),
+            //     CORE_EVENT_LOG.clone().to_string(),
+            // );
         }
         ordertx
     }
@@ -390,14 +390,14 @@ impl TraderOrder {
                 drop(add_to_liquidation_list);
             }
         }
-        Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
-                ordertx.uuid.clone(),
-                ordertx.position_type.clone(),
-            )),
-            format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
-            CORE_EVENT_LOG.clone().to_string(),
-        );
+        // Event::new(
+        //     Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
+        //         ordertx.uuid.clone(),
+        //         ordertx.position_type.clone(),
+        //     )),
+        //     format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
+        //     CORE_EVENT_LOG.clone().to_string(),
+        // );
 
         // adding candle data
         let side = match ordertx.position_type {

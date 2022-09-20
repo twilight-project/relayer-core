@@ -28,18 +28,6 @@ pub fn heartbeat() {
 
     ordertest::initprice();
     init_psql();
-    // thread::Builder::new()
-    //     .name(String::from("upload_rpc_command_to_psql"))
-    //     .spawn(move || {
-    //         crate::query::upload_rpc_command_to_psql();
-    //     })
-    //     .unwrap();
-    // thread::Builder::new()
-    //     .name(String::from("upload_event_log_to_psql"))
-    //     .spawn(move || {
-    //         crate::query::upload_event_log_to_psql();
-    //     })
-    //     .unwrap();
 
     thread::sleep(time::Duration::from_millis(100));
     // start_cronjobs();
@@ -50,8 +38,8 @@ pub fn heartbeat() {
             let mut scheduler = Scheduler::with_tz(chrono::Utc);
 
             // funding update every 1 hour //comments for local test
-            scheduler.every(600.seconds()).run(move || {
-                // scheduler.every(1.hour()).run(move || {
+            // scheduler.every(600.seconds()).run(move || {
+            scheduler.every(1.hour()).run(move || {
                 // updatefundingrate_localdb(1.0);
             });
             scheduler.every(1.seconds()).run(move || {
@@ -65,15 +53,15 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    // thread::Builder::new()
-    //     .name(String::from("price_check_and_update"))
-    //     .spawn(move || loop {
-    //         thread::sleep(time::Duration::from_millis(250));
-    //         thread::spawn(move || {
-    //             price_check_and_update();
-    //         });
-    //     })
-    //     .unwrap();
+    thread::Builder::new()
+        .name(String::from("price_check_and_update"))
+        .spawn(move || loop {
+            thread::sleep(time::Duration::from_millis(250));
+            thread::spawn(move || {
+                price_check_and_update();
+            });
+        })
+        .unwrap();
 
     thread::Builder::new()
         .name(String::from("json-RPC startserver"))
@@ -152,7 +140,6 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     if orderid_list_short_len > 0 {
         Event::new(
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
-                orderid_list_short.clone(),
                 current_price.clone(),
                 PositionType::SHORT,
             )),
@@ -163,7 +150,6 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     if orderid_list_long_len > 0 {
         Event::new(
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
-                orderid_list_long.clone(),
                 current_price.clone(),
                 PositionType::LONG,
             )),
@@ -226,7 +212,6 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
     if orderid_list_short_len > 0 {
         Event::new(
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveLiquidationPrice(
-                orderid_list_short.clone(),
                 current_price.clone(),
                 PositionType::SHORT,
             )),
@@ -237,7 +222,6 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
     if orderid_list_long_len > 0 {
         Event::new(
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveLiquidationPrice(
-                orderid_list_long.clone(),
                 current_price.clone(),
                 PositionType::LONG,
             )),
@@ -299,7 +283,6 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     if orderid_list_short_len > 0 {
         Event::new(
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                orderid_list_short.clone(),
                 current_price.clone(),
                 PositionType::SHORT,
             )),
@@ -310,7 +293,6 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     if orderid_list_long_len > 0 {
         Event::new(
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                orderid_list_long.clone(),
                 current_price.clone(),
                 PositionType::LONG,
             )),
@@ -567,48 +549,6 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 ordertx.maintenance_margin,
                 ordertx.initial_margin,
             );
-            let db_pool = THREADPOOL_EVENT_AND_SORTED_SET_UPDATE.lock().unwrap();
-            let ordertx_clone = ordertx.clone();
-
-            // match ordertx_clone.position_type {
-            //     PositionType::LONG => {
-            //         // let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
-            //         // let _ = add_to_liquidation_list.update(
-            //         //     ordertx_clone.uuid,
-            //         //     (ordertx_clone.liquidation_price * 10000.0) as i64,
-            //         // );
-            //         // drop(add_to_liquidation_list);
-
-            //         liquidity_update_long.push((
-            //             ordertx_clone.uuid,
-            //             (ordertx_clone.liquidation_price * 10000.0) as i64,
-            //         ));
-            //     }
-            //     PositionType::SHORT => {
-            //         // let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
-            //         // let _ = add_to_liquidation_list.update(
-            //         //     ordertx_clone.uuid,
-            //         //     (ordertx_clone.liquidation_price * 10000.0) as i64,
-            //         // );
-            //         // drop(add_to_liquidation_list);
-            //         liquidity_update_short.push((
-            //             ordertx_clone.uuid,
-            //             (ordertx_clone.liquidation_price * 10000.0) as i64,
-            //         ));
-            //     }
-            // }
-            db_pool.execute(move || {
-                Event::new(
-                    Event::SortedSetDBUpdate(SortedSetCommand::UpdateLiquidationPrice(
-                        ordertx_clone.uuid.clone(),
-                        ordertx_clone.liquidation_price.clone(),
-                        ordertx_clone.position_type.clone(),
-                    )),
-                    format!("UpdateLiquidationPrice-{}", ordertx_clone.uuid.clone()),
-                    CORE_EVENT_LOG.clone().to_string(),
-                );
-            });
-            drop(db_pool);
             relayer_event_handler(RelayerCommand::FundingOrderEventUpdate(
                 ordertx.clone(),
                 meta,
@@ -635,9 +575,9 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                         funding_payment,
                         ordertx.clone(),
                         (
-                            ordertx.clone().uuid,
-                            (ordertx.clone().liquidation_price * 10000.0) as i64,
-                            ordertx.clone().position_type,
+                            ordertx.uuid.clone(),
+                            (ordertx.liquidation_price.clone() * 10000.0) as i64,
+                            ordertx.position_type.clone(),
                         ),
                     ))
                     .unwrap();
@@ -649,9 +589,9 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 0.0,
                 ordertx.clone(),
                 (
-                    ordertx.clone().uuid,
-                    (ordertx.clone().liquidation_price * 10000.0) as i64,
-                    ordertx.clone().position_type,
+                    ordertx.uuid.clone(),
+                    (ordertx.liquidation_price.clone() * 10000.0) as i64,
+                    ordertx.position_type.clone(),
                 ),
             ))
             .unwrap();
