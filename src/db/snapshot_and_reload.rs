@@ -15,7 +15,33 @@ use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
-
+lazy_static! {
+    pub static ref SNAPSHOT_DATA: Arc<
+        Mutex<(
+            OrderDBSnapShotTO,
+            OrderDBSnapShotLO,
+            LendPool,
+            SortedSet,
+            SortedSet,
+            SortedSet,
+            SortedSet,
+            SortedSet,
+            SortedSet,
+            PositionSizeLog,
+        )>,
+    > = Arc::new(Mutex::new((
+        OrderDBSnapShotTO::new(),
+        OrderDBSnapShotLO::new(),
+        LendPool::default(),
+        SortedSet::new(),
+        SortedSet::new(),
+        SortedSet::new(),
+        SortedSet::new(),
+        SortedSet::new(),
+        SortedSet::new(),
+        PositionSizeLog::new()
+    )));
+}
 pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     // fn load_data() -> (bool, Self) {
     let mut orderdb_traderorder: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
@@ -497,6 +523,17 @@ pub struct OrderDBSnapShotTO {
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
 }
+impl OrderDBSnapShotTO {
+    fn new() -> Self {
+        OrderDBSnapShotTO {
+            ordertable: HashMap::new(),
+            sequence: 0,
+            nonce: 0,
+            aggrigate_log_sequence: 0,
+            last_snapshot_id: 0,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderDBSnapShotLO {
@@ -505,6 +542,17 @@ pub struct OrderDBSnapShotLO {
     pub nonce: usize,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
+}
+impl OrderDBSnapShotLO {
+    fn new() -> Self {
+        OrderDBSnapShotLO {
+            ordertable: HashMap::new(),
+            sequence: 0,
+            nonce: 0,
+            aggrigate_log_sequence: 0,
+            last_snapshot_id: 0,
+        }
+    }
 }
 
 pub fn snapshot() {
@@ -529,11 +577,34 @@ pub fn snapshot() {
     //     }
 
     // drop(trader_order_db);
+    let (
+        mut orderdb_traderorder,
+        mut orderdb_lendrorder,
+        mut lendpool_database,
+        mut liquidation_long_sortedset_db,
+        mut liquidation_short_sortedset_db,
+        mut open_long_sortedset_db,
+        mut open_short_sortedset_db,
+        mut close_long_sortedset_db,
+        mut close_short_sortedset_db,
+        mut position_size_log,
+    ): (
+        OrderDBSnapShotTO,
+        OrderDBSnapShotLO,
+        LendPool,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        PositionSizeLog,
+    ) = create_snapshot_data();
 }
 
 pub fn create_snapshot_data() -> (
-    OrderDB<TraderOrder>,
-    OrderDB<LendOrder>,
+    OrderDBSnapShotTO,
+    OrderDBSnapShotLO,
     LendPool,
     SortedSet,
     SortedSet,
@@ -544,16 +615,39 @@ pub fn create_snapshot_data() -> (
     PositionSizeLog,
 ) {
     // fn load_data() -> (bool, Self) {
-    let mut orderdb_traderorder: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
-    let mut orderdb_lendrorder: OrderDB<LendOrder> = LocalDB::<LendOrder>::new();
-    let mut lendpool_database: LendPool = LendPool::default();
-    let mut liquidation_long_sortedset_db = SortedSet::new();
-    let mut liquidation_short_sortedset_db = SortedSet::new();
-    let mut open_long_sortedset_db = SortedSet::new();
-    let mut open_short_sortedset_db = SortedSet::new();
-    let mut close_long_sortedset_db = SortedSet::new();
-    let mut close_short_sortedset_db = SortedSet::new();
-    let mut position_size_log = PositionSizeLog::new();
+    let (
+        mut orderdb_traderorder,
+        mut orderdb_lendrorder,
+        mut lendpool_database,
+        mut liquidation_long_sortedset_db,
+        mut liquidation_short_sortedset_db,
+        mut open_long_sortedset_db,
+        mut open_short_sortedset_db,
+        mut close_long_sortedset_db,
+        mut close_short_sortedset_db,
+        mut position_size_log,
+    ): (
+        OrderDBSnapShotTO,
+        OrderDBSnapShotLO,
+        LendPool,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        SortedSet,
+        PositionSizeLog,
+    ) = SNAPSHOT_DATA.lock().unwrap().clone();
+    // let mut orderdb_traderorder: OrderDBSnapShotTO = OrderDBSnapShotTO::new();
+    // let mut orderdb_lendrorder: OrderDBSnapShotLO = OrderDBSnapShotLO::new();
+    // let mut lendpool_database: LendPool = LendPool::default();
+    // let mut liquidation_long_sortedset_db = SortedSet::new();
+    // let mut liquidation_short_sortedset_db = SortedSet::new();
+    // let mut open_long_sortedset_db = SortedSet::new();
+    // let mut open_short_sortedset_db = SortedSet::new();
+    // let mut close_long_sortedset_db = SortedSet::new();
+    // let mut close_short_sortedset_db = SortedSet::new();
+    // let mut position_size_log = PositionSizeLog::new();
 
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -589,7 +683,7 @@ pub fn create_snapshot_data() -> (
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
-                        .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
+                        .insert(order.uuid, order.clone());
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
                         orderdb_traderorder.sequence = order.entry_sequence.clone();
@@ -685,7 +779,7 @@ pub fn create_snapshot_data() -> (
                 // let order_clone = order.clone();
                 orderdb_traderorder
                     .ordertable
-                    .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
+                    .insert(order.uuid, order.clone());
                 // orderdb_traderorder.event.push(data.value);
                 if orderdb_traderorder.sequence < order.entry_sequence.clone() {
                     orderdb_traderorder.sequence = order.entry_sequence.clone();
@@ -711,7 +805,7 @@ pub fn create_snapshot_data() -> (
             Event::TraderOrderFundingUpdate(order, _cmd) => {
                 orderdb_traderorder
                     .ordertable
-                    .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
+                    .insert(order.uuid, order.clone());
 
                 match order.position_type {
                     PositionType::LONG => {
@@ -748,9 +842,7 @@ pub fn create_snapshot_data() -> (
             Event::LendOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateLendOrder(..) => {
                     let order_clone = order.clone();
-                    orderdb_lendrorder
-                        .ordertable
-                        .insert(order.uuid, Arc::new(RwLock::new(order)));
+                    orderdb_lendrorder.ordertable.insert(order.uuid, order);
                     // orderdb_lendrorder.event.push(data.value);
                     if orderdb_lendrorder.sequence < order_clone.entry_sequence {
                         orderdb_lendrorder.sequence = order_clone.entry_sequence;
