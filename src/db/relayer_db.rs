@@ -16,6 +16,7 @@ use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
 
+// #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Debug, Clone)]
 pub struct OrderDB<T> {
     pub ordertable: HashMap<Uuid, Arc<RwLock<T>>>,

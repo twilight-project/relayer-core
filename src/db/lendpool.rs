@@ -17,13 +17,13 @@ type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LendPool {
     pub sequence: usize,
     pub nonce: usize,
     pub total_pool_share: f64,
     pub total_locked_value: f64,
-    pub event_log: Vec<Event>,
+    // pub event_log: Vec<Event>,
     pub pending_orders: PoolBatchOrder,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
@@ -73,7 +73,7 @@ impl LendPool {
             nonce: 0,
             total_pool_share: 0.0,
             total_locked_value: 0.0,
-            event_log: Vec::new(),
+            // event_log: Vec::new(),
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
@@ -125,7 +125,7 @@ impl LendPool {
         let relayer_command =
             LendPoolCommand::InitiateNewPool(relayer_initial_lend_order, Meta { metadata });
         let pool_event = Event::PoolUpdate(relayer_command.clone(), 1);
-        let pool_event_execute = Event::new(
+        let _pool_event_execute = Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
             LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -135,11 +135,11 @@ impl LendPool {
             nonce: 0,
             total_pool_share: total_pool_share,
             total_locked_value: total_locked_value,
-            event_log: {
-                let mut event_log = Vec::new();
-                event_log.push(pool_event_execute);
-                event_log
-            },
+            // event_log: {
+            //     let mut event_log = Vec::new();
+            //     event_log.push(pool_event_execute);
+            //     event_log
+            // },
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 1,
             last_snapshot_id: 0,
@@ -153,7 +153,7 @@ impl LendPool {
             nonce: 0,
             total_pool_share: 0.0,
             total_locked_value: 0.0,
-            event_log: Vec::new(),
+            // event_log: Vec::new(),
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
@@ -283,11 +283,11 @@ impl LendPool {
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
-                self.event_log.push(Event::new(
+                Event::new(
                     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     String::from("AddTraderOrderSettlement"),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
-                ));
+                );
                 // check pending order length
             }
             LendPoolCommand::AddTraderLimitOrderSettlement(
@@ -301,11 +301,11 @@ impl LendPool {
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
-                self.event_log.push(Event::new(
+                Event::new(
                     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     String::from("AddTraderLimitOrderSettlement"),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
-                ));
+                );
                 // check pending order length
             }
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
@@ -315,11 +315,11 @@ impl LendPool {
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
-                self.event_log.push(Event::new(
+                Event::new(
                     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     String::from(format!("AddTraderOrderLiquidation-{}", trader_order.uuid)),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
-                ));
+                );
                 // check pending order length
             }
             LendPoolCommand::LendOrderCreateOrder(rpc_request, mut lend_order, deposit) => {
@@ -331,11 +331,11 @@ impl LendPool {
                 lend_order.tlv1 = self.total_locked_value.clone();
                 lend_order.order_status = OrderStatus::FILLED;
                 lend_order.entry_nonce = self.nonce;
-                self.event_log.push(Event::new(
+                Event::new(
                     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     String::from("LendOrderCreateOrder"),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
-                ));
+                );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 lendorder_db.add(lend_order, rpc_request);
                 drop(lendorder_db);
@@ -350,7 +350,7 @@ impl LendPool {
                 lend_order.tlv3 = self.total_locked_value;
                 lend_order.order_status = OrderStatus::SETTLED;
                 lend_order.exit_nonce = self.nonce;
-                self.event_log.push(Event::new(
+                Event::new(
                     Event::PoolUpdate(
                         LendPoolCommand::LendOrderSettleOrder(
                             rpc_request.clone(),
@@ -361,7 +361,7 @@ impl LendPool {
                     ),
                     String::from("LendOrderSettleOrder"),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
-                ));
+                );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 let _ = lendorder_db.remove(lend_order, rpc_request);
                 drop(lendorder_db);
@@ -384,11 +384,11 @@ impl LendPool {
                         self.aggrigate_log_sequence += 1;
 
                         self.total_locked_value -= batch.amount * 10000.0;
-                        self.event_log.push(Event::new(
+                        Event::new(
                             Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                             String::from("FundingCycleDataUpdate"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
-                        ));
+                        );
                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                         for cmd in batch.trader_order_data {
                             // let cmd_clone = cmd.clone();

@@ -600,6 +600,20 @@ pub fn snapshot() {
         SortedSet,
         PositionSizeLog,
     ) = create_snapshot_data();
+
+    let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+    *snapshot_data = (
+        orderdb_traderorder,
+        orderdb_lendrorder,
+        lendpool_database,
+        liquidation_long_sortedset_db,
+        liquidation_short_sortedset_db,
+        open_long_sortedset_db,
+        open_short_sortedset_db,
+        close_long_sortedset_db,
+        close_short_sortedset_db,
+        position_size_log,
+    );
 }
 
 pub fn create_snapshot_data() -> (
