@@ -4,6 +4,7 @@ use crate::config::*;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
+// use bincode::{config, Decode, Encode};
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
@@ -16,31 +17,7 @@ use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
 lazy_static! {
-    pub static ref SNAPSHOT_DATA: Arc<
-        Mutex<(
-            OrderDBSnapShotTO,
-            OrderDBSnapShotLO,
-            LendPool,
-            SortedSet,
-            SortedSet,
-            SortedSet,
-            SortedSet,
-            SortedSet,
-            SortedSet,
-            PositionSizeLog,
-        )>,
-    > = Arc::new(Mutex::new((
-        OrderDBSnapShotTO::new(),
-        OrderDBSnapShotLO::new(),
-        LendPool::default(),
-        SortedSet::new(),
-        SortedSet::new(),
-        SortedSet::new(),
-        SortedSet::new(),
-        SortedSet::new(),
-        SortedSet::new(),
-        PositionSizeLog::new()
-    )));
+    pub static ref SNAPSHOT_DATA: Arc<Mutex<SnapshotDB>> = Arc::new(Mutex::new(SnapshotDB::new()));
 }
 pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     // fn load_data() -> (bool, Self) {
@@ -555,113 +532,65 @@ impl OrderDBSnapShotLO {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotDB {
+    pub orderdb_traderorder: OrderDBSnapShotTO,
+    pub orderdb_lendrorder: OrderDBSnapShotLO,
+    pub lendpool_database: LendPool,
+    pub liquidation_long_sortedset_db: SortedSet,
+    pub liquidation_short_sortedset_db: SortedSet,
+    pub open_long_sortedset_db: SortedSet,
+    pub open_short_sortedset_db: SortedSet,
+    pub close_long_sortedset_db: SortedSet,
+    pub close_short_sortedset_db: SortedSet,
+    pub position_size_log: PositionSizeLog,
+}
+impl SnapshotDB {
+    fn new() -> Self {
+        SnapshotDB {
+            orderdb_traderorder: OrderDBSnapShotTO::new(),
+            orderdb_lendrorder: OrderDBSnapShotLO::new(),
+            lendpool_database: LendPool::default(),
+            liquidation_long_sortedset_db: SortedSet::new(),
+            liquidation_short_sortedset_db: SortedSet::new(),
+            open_long_sortedset_db: SortedSet::new(),
+            open_short_sortedset_db: SortedSet::new(),
+            close_long_sortedset_db: SortedSet::new(),
+            close_short_sortedset_db: SortedSet::new(),
+            position_size_log: PositionSizeLog::new(),
+        }
+    }
+}
+use bincode;
+use std::fs;
 pub fn snapshot() {
-    // cloning of lend poll db and orderdb
-    // as Serialize and Deserialize
-    // test for cloning of write protected db
-    // bincode or other compression protocol to encode and decode
-    // finally data encryption of snapshot and kafka messages
-    // let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-    // let mut trader_snapshot_db: OrderDBSnapShotTO = OrderDBSnapShotTO {
-    //     ordertable: HashMap::new(),
-    //     sequence: trader_order_db.sequence,
-    //     nonce: trader_order_db.nonce,
-    //     aggrigate_log_sequence: trader_order_db.aggrigate_log_sequence,
-    //     last_snapshot_id: trader_order_db.last_snapshot_id,
-    // };
-
-    // let mut orderdetails_array: Vec<(&Uuid,Arc<RwLock<TraderOrder>>)> = Vec::new();
-
-    //     for (uuid, order) in trader_order_db.ordertable.iter_mut() {
-    //         orderdetails_array.push((uuid,Arc::clone(order)));
-    //     }
-
-    // drop(trader_order_db);
-    let (
-        mut orderdb_traderorder,
-        mut orderdb_lendrorder,
-        mut lendpool_database,
-        mut liquidation_long_sortedset_db,
-        mut liquidation_short_sortedset_db,
-        mut open_long_sortedset_db,
-        mut open_short_sortedset_db,
-        mut close_long_sortedset_db,
-        mut close_short_sortedset_db,
-        mut position_size_log,
-    ): (
-        OrderDBSnapShotTO,
-        OrderDBSnapShotLO,
-        LendPool,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        PositionSizeLog,
-    ) = create_snapshot_data();
+    let read_snapshot = fs::read("snapshot").expect("Could not read file");
+    let decoded_snapshot: SnapshotDB =
+        bincode::deserialize(&read_snapshot).expect("Could not decode vector");
+    let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+    *snapshot_data = decoded_snapshot.clone();
+    drop(snapshot_data);
+    let mut snapshot_db_updated = create_snapshot_data();
 
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
-    *snapshot_data = (
-        orderdb_traderorder,
-        orderdb_lendrorder,
-        lendpool_database,
-        liquidation_long_sortedset_db,
-        liquidation_short_sortedset_db,
-        open_long_sortedset_db,
-        open_short_sortedset_db,
-        close_long_sortedset_db,
-        close_short_sortedset_db,
-        position_size_log,
-    );
+    *snapshot_data = snapshot_db_updated.clone();
+
+    let encoded_v = bincode::serialize(&snapshot_db_updated).expect("Could not encode vector");
+    fs::write("snapshot", encoded_v).expect("Could not write file");
 }
 
-pub fn create_snapshot_data() -> (
-    OrderDBSnapShotTO,
-    OrderDBSnapShotLO,
-    LendPool,
-    SortedSet,
-    SortedSet,
-    SortedSet,
-    SortedSet,
-    SortedSet,
-    SortedSet,
-    PositionSizeLog,
-) {
-    // fn load_data() -> (bool, Self) {
-    let (
-        mut orderdb_traderorder,
-        mut orderdb_lendrorder,
-        mut lendpool_database,
-        mut liquidation_long_sortedset_db,
-        mut liquidation_short_sortedset_db,
-        mut open_long_sortedset_db,
-        mut open_short_sortedset_db,
-        mut close_long_sortedset_db,
-        mut close_short_sortedset_db,
-        mut position_size_log,
-    ): (
-        OrderDBSnapShotTO,
-        OrderDBSnapShotLO,
-        LendPool,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        SortedSet,
-        PositionSizeLog,
-    ) = SNAPSHOT_DATA.lock().unwrap().clone();
-    // let mut orderdb_traderorder: OrderDBSnapShotTO = OrderDBSnapShotTO::new();
-    // let mut orderdb_lendrorder: OrderDBSnapShotLO = OrderDBSnapShotLO::new();
-    // let mut lendpool_database: LendPool = LendPool::default();
-    // let mut liquidation_long_sortedset_db = SortedSet::new();
-    // let mut liquidation_short_sortedset_db = SortedSet::new();
-    // let mut open_long_sortedset_db = SortedSet::new();
-    // let mut open_short_sortedset_db = SortedSet::new();
-    // let mut close_long_sortedset_db = SortedSet::new();
-    // let mut close_short_sortedset_db = SortedSet::new();
-    // let mut position_size_log = PositionSizeLog::new();
+pub fn create_snapshot_data() -> SnapshotDB {
+    let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
+    let mut orderdb_traderorder: OrderDBSnapShotTO = snapshot_db.orderdb_traderorder;
+    let mut orderdb_lendrorder: OrderDBSnapShotLO = snapshot_db.orderdb_lendrorder;
+    let mut lendpool_database: LendPool = snapshot_db.lendpool_database;
+    let mut liquidation_long_sortedset_db = snapshot_db.liquidation_long_sortedset_db;
+    let mut liquidation_short_sortedset_db = snapshot_db.liquidation_short_sortedset_db;
+    let mut open_long_sortedset_db = snapshot_db.open_long_sortedset_db;
+    let mut open_short_sortedset_db = snapshot_db.open_short_sortedset_db;
+    let mut close_long_sortedset_db = snapshot_db.close_long_sortedset_db;
+    let mut close_short_sortedset_db = snapshot_db.close_short_sortedset_db;
+    let mut position_size_log = snapshot_db.position_size_log;
 
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -1103,16 +1032,29 @@ pub fn create_snapshot_data() -> (
         lendpool_database = LendPool::new();
         println!("No old LendPool Database found ....\nCreating new LendPool_database");
     }
-    (
-        orderdb_traderorder.clone(),
-        orderdb_lendrorder.clone(),
-        lendpool_database.clone(),
-        liquidation_long_sortedset_db.clone(),
-        liquidation_short_sortedset_db.clone(),
-        open_long_sortedset_db.clone(),
-        open_short_sortedset_db.clone(),
-        close_long_sortedset_db.clone(),
-        close_short_sortedset_db.clone(),
-        position_size_log.clone(),
-    )
+
+    SnapshotDB {
+        orderdb_traderorder: orderdb_traderorder.clone(),
+        orderdb_lendrorder: orderdb_lendrorder.clone(),
+        lendpool_database: lendpool_database.clone(),
+        liquidation_long_sortedset_db: liquidation_long_sortedset_db.clone(),
+        liquidation_short_sortedset_db: liquidation_short_sortedset_db.clone(),
+        open_long_sortedset_db: open_long_sortedset_db.clone(),
+        open_short_sortedset_db: open_short_sortedset_db.clone(),
+        close_long_sortedset_db: close_long_sortedset_db.clone(),
+        close_short_sortedset_db: close_short_sortedset_db.clone(),
+        position_size_log: position_size_log.clone(),
+    }
+    // (
+    //     orderdb_traderorder.clone(),
+    //     orderdb_lendrorder.clone(),
+    //     lendpool_database.clone(),
+    //     liquidation_long_sortedset_db.clone(),
+    //     liquidation_short_sortedset_db.clone(),
+    //     open_long_sortedset_db.clone(),
+    //     open_short_sortedset_db.clone(),
+    //     close_long_sortedset_db.clone(),
+    //     close_short_sortedset_db.clone(),
+    //     position_size_log.clone(),
+    // )
 }
