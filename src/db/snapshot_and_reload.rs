@@ -544,6 +544,8 @@ pub struct SnapshotDB {
     pub close_long_sortedset_db: SortedSet,
     pub close_short_sortedset_db: SortedSet,
     pub position_size_log: PositionSizeLog,
+    pub event_offset: i64,
+    pub event_timespam: String,
 }
 impl SnapshotDB {
     fn new() -> Self {
@@ -558,15 +560,42 @@ impl SnapshotDB {
             close_long_sortedset_db: SortedSet::new(),
             close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
+            event_offset: 0,
+            event_timespam: std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_micros()
+                .to_string(),
         }
     }
 }
 use bincode;
 use std::fs;
 pub fn snapshot() {
-    let read_snapshot = fs::read("snapshot").expect("Could not read file");
-    let decoded_snapshot: SnapshotDB =
-        bincode::deserialize(&read_snapshot).expect("Could not decode vector");
+    // let read_snapshot = fs::read("snapshot").expect("Could not read file");
+    // snapshot renaming on success
+    // encryption on snapshot data
+    // snapshot version
+    // delete old snapshot data deleted by cron job
+    let read_snapshot = fs::read(format!("snapshot-version-{}", *SNAPSHOT_VERSION));
+    let decoded_snapshot: SnapshotDB;
+    let mut is_file_exist = false;
+    let mut last_snapshot_time: String;
+    match read_snapshot {
+        Ok(snapshot_data) => {
+            decoded_snapshot =
+                bincode::deserialize(&snapshot_data).expect("Could not decode vector");
+            is_file_exist = true;
+            last_snapshot_time = decoded_snapshot.event_timespam.clone();
+        }
+        Err(arg) => {
+            println!("No previous Snapshot Found- Error:{:#?}", arg);
+            decoded_snapshot = SnapshotDB::new();
+            last_snapshot_time = decoded_snapshot.event_timespam.clone();
+        }
+    }
+    // let decoded_snapshot: SnapshotDB =
+    //     bincode::deserialize(&read_snapshot).expect("Could not decode vector");
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = decoded_snapshot.clone();
     drop(snapshot_data);
@@ -576,7 +605,32 @@ pub fn snapshot() {
     *snapshot_data = snapshot_db_updated.clone();
 
     let encoded_v = bincode::serialize(&snapshot_db_updated).expect("Could not encode vector");
-    fs::write("snapshot", encoded_v).expect("Could not write file");
+    match fs::write(
+        format!("snapshot-version-{}-new", *SNAPSHOT_VERSION),
+        encoded_v,
+    ) {
+        Ok(_) => {
+            if is_file_exist {
+                fs::rename(
+                    format!("snapshot-version-{}", *SNAPSHOT_VERSION),
+                    format!(
+                        "snapshot-version-{}-{}",
+                        *SNAPSHOT_VERSION, last_snapshot_time
+                    ),
+                )
+                .unwrap();
+            }
+            fs::rename(
+                format!("snapshot-version-{}-new", *SNAPSHOT_VERSION),
+                format!("snapshot-version-{}", *SNAPSHOT_VERSION),
+            )
+            .unwrap()
+        }
+        Err(arg) => {
+            println!("Could not write snapshot file - Error:{:#?}", arg);
+        }
+    }
+    println!("Snapshot:{:#?}", snapshot_db_updated);
 }
 
 pub fn create_snapshot_data() -> SnapshotDB {
@@ -591,12 +645,13 @@ pub fn create_snapshot_data() -> SnapshotDB {
     let mut close_long_sortedset_db = snapshot_db.close_long_sortedset_db;
     let mut close_short_sortedset_db = snapshot_db.close_short_sortedset_db;
     let mut position_size_log = snapshot_db.position_size_log;
-
+    let mut event_offset: i64 = 0;
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
         .as_micros()
         .to_string();
+    let event_timespam = time.clone();
     let event_stoper_string = format!("snapsot-start-{}", time);
     let eventstop: Event = Event::Stop(event_stoper_string.clone());
     Event::send_event_to_kafka_queue(
@@ -608,7 +663,7 @@ pub fn create_snapshot_data() -> SnapshotDB {
 
     let recever = Event::receive_event_from_kafka_queue(
         CORE_EVENT_LOG.clone().to_string(),
-        "snapshot-group".to_string(),
+        format!("snapshot-version-{}", *SNAPSHOT_VERSION),
     )
     .unwrap();
     let recever1 = recever.lock().unwrap();
@@ -780,6 +835,7 @@ pub fn create_snapshot_data() -> SnapshotDB {
             Event::Stop(timex) => {
                 if timex == event_stoper_string {
                     stop_signal = false;
+                    event_offset = data.offset;
                 }
             }
             Event::LendOrder(order, cmd, seq) => match cmd {
@@ -1044,6 +1100,8 @@ pub fn create_snapshot_data() -> SnapshotDB {
         close_long_sortedset_db: close_long_sortedset_db.clone(),
         close_short_sortedset_db: close_short_sortedset_db.clone(),
         position_size_log: position_size_log.clone(),
+        event_offset: event_offset,
+        event_timespam: event_timespam,
     }
     // (
     //     orderdb_traderorder.clone(),
