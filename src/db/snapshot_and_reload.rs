@@ -36,7 +36,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_micros()
+        .as_millis()
         .to_string();
     let eventstop: Event = Event::Stop(time.clone());
     Event::send_event_to_kafka_queue(
@@ -51,7 +51,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
-            .as_micros()
+            .as_millis()
             .to_string(),
     )
     .unwrap();
@@ -564,7 +564,7 @@ impl SnapshotDB {
             event_timespam: std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .unwrap()
-                .as_micros()
+                .as_millis()
                 .to_string(),
         }
     }
@@ -581,17 +581,24 @@ pub fn snapshot() {
     let decoded_snapshot: SnapshotDB;
     let mut is_file_exist = false;
     let mut last_snapshot_time: String;
+    let mut fetchoffset: FetchOffset;
     match read_snapshot {
         Ok(snapshot_data) => {
             decoded_snapshot =
                 bincode::deserialize(&snapshot_data).expect("Could not decode vector");
             is_file_exist = true;
             last_snapshot_time = decoded_snapshot.event_timespam.clone();
+            // fetchoffset =
+            //     FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap() / 1000000);
+            // fetchoffset = FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap());
+            fetchoffset = FetchOffset::ByTime(1665747903289);
+            fetchoffset = FetchOffset::Earliest;
         }
         Err(arg) => {
             println!("No previous Snapshot Found- Error:{:#?}", arg);
             decoded_snapshot = SnapshotDB::new();
             last_snapshot_time = decoded_snapshot.event_timespam.clone();
+            fetchoffset = FetchOffset::Earliest;
         }
     }
     // let decoded_snapshot: SnapshotDB =
@@ -599,7 +606,7 @@ pub fn snapshot() {
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = decoded_snapshot.clone();
     drop(snapshot_data);
-    let mut snapshot_db_updated = create_snapshot_data();
+    let mut snapshot_db_updated = create_snapshot_data(fetchoffset);
 
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = snapshot_db_updated.clone();
@@ -633,7 +640,7 @@ pub fn snapshot() {
     println!("Snapshot:{:#?}", snapshot_db_updated);
 }
 
-pub fn create_snapshot_data() -> SnapshotDB {
+pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
     let mut orderdb_traderorder: OrderDBSnapShotTO = snapshot_db.orderdb_traderorder;
     let mut orderdb_lendrorder: OrderDBSnapShotLO = snapshot_db.orderdb_lendrorder;
@@ -649,7 +656,7 @@ pub fn create_snapshot_data() -> SnapshotDB {
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_micros()
+        .as_millis()
         .to_string();
     let event_timespam = time.clone();
     let event_stoper_string = format!("snapsot-start-{}", time);
@@ -661,20 +668,21 @@ pub fn create_snapshot_data() -> SnapshotDB {
     );
     let mut stop_signal: bool = true;
 
-    let recever = Event::receive_event_from_kafka_queue(
+    let recever = Event::receive_event_for_snapshot_from_kafka_queue(
         CORE_EVENT_LOG.clone().to_string(),
-        format!("snapshot-version-{}", *SNAPSHOT_VERSION),
+        format!("snapshot-version12-{}", *SNAPSHOT_VERSION),
+        fetchoffset,
     )
     .unwrap();
     let recever1 = recever.lock().unwrap();
     while stop_signal {
         let data = recever1.recv().unwrap();
-        // match data.value {
-        //     Event::CurrentPriceUpdate(..) => {}
-        //     _ => {
-        //         println!("Envent log: {:#?}", data);
-        //     }
-        // }
+        match data.value {
+            Event::CurrentPriceUpdate(..) => {}
+            _ => {
+                println!("Envent log: {:#?}", data);
+            }
+        }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {

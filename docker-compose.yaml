@@ -203,17 +203,16 @@ services:
     container_name: querykafkapsql
     # ipc: host
 
-  # swagger:~
-  #   image: swaggerapi/swagger-ui
-  #   hostname: swagger
-  #   container_name: swagger
-  #   ports:
-  #     - "8080:8080"
-  #   expose:
-  #     - "8080"
-  #   environment:
-  #     API_URL: http://localhost:3000
-
+    # swagger:~
+    #   image: swaggerapi/swagger-ui
+    #   hostname: swagger
+    #   container_name: swagger
+    #   ports:
+    #     - "8080:8080"
+    #   expose:
+    #     - "8080"
+    #   environment:
+    #     API_URL: http://localhost:3000
 
 volumes:
   postgresql_master_data:
@@ -222,9 +221,6 @@ volumes:
     driver: local
   redis_master_data:
     driver: local
-
-
-
   # postgresql-slave:
   #   hostname: postgresql-slave
   #   container_name: postgresql-slave

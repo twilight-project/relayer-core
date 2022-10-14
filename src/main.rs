@@ -32,6 +32,7 @@ fn main() {
     // kafkalib::kafka_topic::kafka_new_topic(&*LENDORDER_EVENT_LOG);
     // kafkalib::kafka_topic::kafka_new_topic(&*LENDPOOL_EVENT_LOG);
     // kafkalib::kafka_topic::kafka_new_topic(&*CORE_EVENT_LOG);
+    // kafkalib::kafka_topic::kafka_new_topic(&*SNAPSHOT_LOG);
     // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
     // heartbeat();
     snapshot();

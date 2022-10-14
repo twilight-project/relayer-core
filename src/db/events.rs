@@ -149,4 +149,62 @@ impl Event {
         });
         Ok(Arc::new(Mutex::new(receiver)))
     }
+    pub fn receive_event_for_snapshot_from_kafka_queue(
+        topic: String,
+        group: String,
+        fetchoffset: FetchOffset,
+    ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
+        let (sender, receiver) = mpsc::channel();
+        let _topic_clone = topic.clone();
+        thread::spawn(move || {
+            let broker = vec![std::env::var("BROKER")
+                .expect("missing environment variable BROKER")
+                .to_owned()];
+            let mut con = Consumer::from_hosts(broker)
+                // .with_topic(topic)
+                .with_group(group)
+                .with_topic_partitions(topic, &[0])
+                .with_fallback_offset(fetchoffset)
+                .with_offset_storage(GroupOffsetStorage::Kafka)
+                .create()
+                .unwrap();
+            let mut connection_status = true;
+            let _partition: i32 = 0;
+            while connection_status {
+                let sender_clone = sender.clone();
+                let mss = con.poll().unwrap();
+                if mss.is_empty() {
+                    // println!("No messages available right now.");
+                    // return Ok(());
+                } else {
+                    for ms in mss.iter() {
+                        for m in ms.messages() {
+                            let message = EventLog {
+                                offset: m.offset,
+                                key: String::from_utf8_lossy(&m.key).to_string(),
+                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
+                                    .unwrap(),
+                            };
+                            match sender_clone.send(message) {
+                                Ok(_) => {
+                                    // let _ = con.consume_message(&topic_clone, partition, m.offset);
+                                    // println!("Im here");
+                                }
+                                Err(_arg) => {
+                                    // println!("Closing Kafka Consumer Connection : {:#?}", arg);
+                                    connection_status = false;
+                                    break;
+                                }
+                            }
+                        }
+                        let _ = con.consume_messageset(ms);
+                    }
+                    con.commit_consumed().unwrap();
+                }
+            }
+            con.commit_consumed().unwrap();
+            thread::park();
+        });
+        Ok(Arc::new(Mutex::new(receiver)))
+    }
 }

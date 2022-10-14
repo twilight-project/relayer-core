@@ -30,3 +30,6 @@ test_database_example
 rpckafka/target
 querykafkapsql/target
 snapshot-version*
+create-topics.sh
+kafka-topics
+bin/*
