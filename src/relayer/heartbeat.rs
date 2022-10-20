@@ -14,18 +14,18 @@ pub fn heartbeat() {
     dotenv::dotenv().expect("Failed loading dotenv");
     //load previous database
     println!("Looking for previous database...");
-    let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
-    let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
-    let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-    let (data1, data2, data3): (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) =
-        load_backup_data();
-    *load_trader_data = data1;
-    *load_lend_data = data2;
-    *load_pool_data = data3;
-    drop(load_trader_data);
-    drop(load_lend_data);
-    drop(load_pool_data);
-
+    // let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
+    // let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
+    // let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
+    // let (data1, data2, data3): (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) =
+    //     load_backup_data();
+    // *load_trader_data = data1;
+    // *load_lend_data = data2;
+    // *load_pool_data = data3;
+    // drop(load_trader_data);
+    // drop(load_lend_data);
+    // drop(load_pool_data);
+    load_from_snapshot();
     ordertest::initprice();
     init_psql();
 

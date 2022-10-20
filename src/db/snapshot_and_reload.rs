@@ -22,7 +22,7 @@ lazy_static! {
 pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     // fn load_data() -> (bool, Self) {
     let mut orderdb_traderorder: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
-    let mut orderdb_lendrorder: OrderDB<LendOrder> = LocalDB::<LendOrder>::new();
+    let mut orderdb_lendorder: OrderDB<LendOrder> = LocalDB::<LendOrder>::new();
     let mut lendpool_database: LendPool = LendPool::default();
 
     let mut liquidation_long_sortedset_db = TRADER_LP_LONG.lock().unwrap();
@@ -229,28 +229,28 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
             Event::LendOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateLendOrder(..) => {
                     let order_clone = order.clone();
-                    orderdb_lendrorder
+                    orderdb_lendorder
                         .ordertable
                         .insert(order.uuid, Arc::new(RwLock::new(order)));
-                    // orderdb_lendrorder.event.push(data.value);
-                    if orderdb_lendrorder.sequence < order_clone.entry_sequence {
-                        orderdb_lendrorder.sequence = order_clone.entry_sequence;
+                    // orderdb_lendorder.event.push(data.value);
+                    if orderdb_lendorder.sequence < order_clone.entry_sequence {
+                        orderdb_lendorder.sequence = order_clone.entry_sequence;
                     }
-                    if orderdb_lendrorder.aggrigate_log_sequence < seq {
-                        orderdb_lendrorder.aggrigate_log_sequence = seq;
+                    if orderdb_lendorder.aggrigate_log_sequence < seq {
+                        orderdb_lendorder.aggrigate_log_sequence = seq;
                     }
                 }
                 RpcCommand::ExecuteLendOrder(..) => {
-                    // orderdb_lendrorder.event.push(data.value);
+                    // orderdb_lendorder.event.push(data.value);
 
-                    if orderdb_lendrorder.ordertable.contains_key(&order.uuid) {
-                        orderdb_lendrorder.ordertable.remove(&order.uuid);
+                    if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
+                        orderdb_lendorder.ordertable.remove(&order.uuid);
                     }
-                    if orderdb_lendrorder.aggrigate_log_sequence < seq {
-                        orderdb_lendrorder.aggrigate_log_sequence = seq;
+                    if orderdb_lendorder.aggrigate_log_sequence < seq {
+                        orderdb_lendorder.aggrigate_log_sequence = seq;
                     }
-                    if orderdb_lendrorder.sequence < order.entry_sequence {
-                        orderdb_lendrorder.sequence = order.entry_sequence;
+                    if orderdb_lendorder.sequence < order.entry_sequence {
+                        orderdb_lendorder.sequence = order.entry_sequence;
                     }
                 }
                 _ => {}
@@ -474,7 +474,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     } else {
         println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
     }
-    if orderdb_lendrorder.sequence > 0 {
+    if orderdb_lendorder.sequence > 0 {
         println!("LendOrder Database Loaded ....");
     } else {
         println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
@@ -487,7 +487,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     }
     (
         orderdb_traderorder.clone(),
-        orderdb_lendrorder.clone(),
+        orderdb_lendorder.clone(),
         lendpool_database.clone(),
     )
 }
@@ -535,7 +535,7 @@ impl OrderDBSnapShotLO {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotDB {
     pub orderdb_traderorder: OrderDBSnapShotTO,
-    pub orderdb_lendrorder: OrderDBSnapShotLO,
+    pub orderdb_lendorder: OrderDBSnapShotLO,
     pub lendpool_database: LendPool,
     pub liquidation_long_sortedset_db: SortedSet,
     pub liquidation_short_sortedset_db: SortedSet,
@@ -545,13 +545,13 @@ pub struct SnapshotDB {
     pub close_short_sortedset_db: SortedSet,
     pub position_size_log: PositionSizeLog,
     pub event_offset: i64,
-    pub event_timespam: String,
+    pub event_timestamp: String,
 }
 impl SnapshotDB {
     fn new() -> Self {
         SnapshotDB {
             orderdb_traderorder: OrderDBSnapShotTO::new(),
-            orderdb_lendrorder: OrderDBSnapShotLO::new(),
+            orderdb_lendorder: OrderDBSnapShotLO::new(),
             lendpool_database: LendPool::default(),
             liquidation_long_sortedset_db: SortedSet::new(),
             liquidation_short_sortedset_db: SortedSet::new(),
@@ -561,7 +561,7 @@ impl SnapshotDB {
             close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
             event_offset: 0,
-            event_timespam: std::time::SystemTime::now()
+            event_timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
                 .unwrap()
                 .as_millis()
@@ -571,13 +571,13 @@ impl SnapshotDB {
 }
 use bincode;
 use std::fs;
-pub fn snapshot() {
+pub fn snapshot() -> Result<(), std::io::Error> {
     // let read_snapshot = fs::read("snapshot").expect("Could not read file");
     // snapshot renaming on success
     // encryption on snapshot data
     // snapshot version
     // delete old snapshot data deleted by cron job
-    let read_snapshot = fs::read(format!("snapshot-version-{}", *SNAPSHOT_VERSION));
+    let read_snapshot = fs::read(format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION));
     let decoded_snapshot: SnapshotDB;
     let mut is_file_exist = false;
     let mut last_snapshot_time: String;
@@ -587,7 +587,7 @@ pub fn snapshot() {
             decoded_snapshot =
                 bincode::deserialize(&snapshot_data).expect("Could not decode vector");
             is_file_exist = true;
-            last_snapshot_time = decoded_snapshot.event_timespam.clone();
+            last_snapshot_time = decoded_snapshot.event_timestamp.clone();
             // fetchoffset =
             //     FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap() / 1000000);
             // fetchoffset = FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap());
@@ -597,7 +597,7 @@ pub fn snapshot() {
         Err(arg) => {
             println!("No previous Snapshot Found- Error:{:#?}", arg);
             decoded_snapshot = SnapshotDB::new();
-            last_snapshot_time = decoded_snapshot.event_timespam.clone();
+            last_snapshot_time = decoded_snapshot.event_timestamp.clone();
             fetchoffset = FetchOffset::Earliest;
         }
     }
@@ -613,23 +613,23 @@ pub fn snapshot() {
 
     let encoded_v = bincode::serialize(&snapshot_db_updated).expect("Could not encode vector");
     match fs::write(
-        format!("snapshot-version-{}-new", *SNAPSHOT_VERSION),
+        format!("./snapshot/snapshot-version-{}-new", *SNAPSHOT_VERSION),
         encoded_v,
     ) {
         Ok(_) => {
             if is_file_exist {
                 fs::rename(
-                    format!("snapshot-version-{}", *SNAPSHOT_VERSION),
+                    format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
                     format!(
-                        "snapshot-version-{}-{}",
+                        "./snapshot/snapshot-version-{}-{}",
                         *SNAPSHOT_VERSION, last_snapshot_time
                     ),
                 )
                 .unwrap();
             }
             fs::rename(
-                format!("snapshot-version-{}-new", *SNAPSHOT_VERSION),
-                format!("snapshot-version-{}", *SNAPSHOT_VERSION),
+                format!("./snapshot/snapshot-version-{}-new", *SNAPSHOT_VERSION),
+                format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
             )
             .unwrap()
         }
@@ -638,12 +638,13 @@ pub fn snapshot() {
         }
     }
     println!("Snapshot:{:#?}", snapshot_db_updated);
+    Ok(())
 }
 
 pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
     let mut orderdb_traderorder: OrderDBSnapShotTO = snapshot_db.orderdb_traderorder;
-    let mut orderdb_lendrorder: OrderDBSnapShotLO = snapshot_db.orderdb_lendrorder;
+    let mut orderdb_lendorder: OrderDBSnapShotLO = snapshot_db.orderdb_lendorder;
     let mut lendpool_database: LendPool = snapshot_db.lendpool_database;
     let mut liquidation_long_sortedset_db = snapshot_db.liquidation_long_sortedset_db;
     let mut liquidation_short_sortedset_db = snapshot_db.liquidation_short_sortedset_db;
@@ -658,7 +659,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         .unwrap()
         .as_millis()
         .to_string();
-    let event_timespam = time.clone();
+    let event_timestamp = time.clone();
     let event_stoper_string = format!("snapsot-start-{}", time);
     let eventstop: Event = Event::Stop(event_stoper_string.clone());
     Event::send_event_to_kafka_queue(
@@ -670,7 +671,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
 
     let recever = Event::receive_event_for_snapshot_from_kafka_queue(
         CORE_EVENT_LOG.clone().to_string(),
-        format!("snapshot-version12-{}", *SNAPSHOT_VERSION),
+        format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
         fetchoffset,
     )
     .unwrap();
@@ -849,26 +850,26 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
             Event::LendOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateLendOrder(..) => {
                     let order_clone = order.clone();
-                    orderdb_lendrorder.ordertable.insert(order.uuid, order);
-                    // orderdb_lendrorder.event.push(data.value);
-                    if orderdb_lendrorder.sequence < order_clone.entry_sequence {
-                        orderdb_lendrorder.sequence = order_clone.entry_sequence;
+                    orderdb_lendorder.ordertable.insert(order.uuid, order);
+                    // orderdb_lendorder.event.push(data.value);
+                    if orderdb_lendorder.sequence < order_clone.entry_sequence {
+                        orderdb_lendorder.sequence = order_clone.entry_sequence;
                     }
-                    if orderdb_lendrorder.aggrigate_log_sequence < seq {
-                        orderdb_lendrorder.aggrigate_log_sequence = seq;
+                    if orderdb_lendorder.aggrigate_log_sequence < seq {
+                        orderdb_lendorder.aggrigate_log_sequence = seq;
                     }
                 }
                 RpcCommand::ExecuteLendOrder(..) => {
-                    // orderdb_lendrorder.event.push(data.value);
+                    // orderdb_lendorder.event.push(data.value);
 
-                    if orderdb_lendrorder.ordertable.contains_key(&order.uuid) {
-                        orderdb_lendrorder.ordertable.remove(&order.uuid);
+                    if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
+                        orderdb_lendorder.ordertable.remove(&order.uuid);
                     }
-                    if orderdb_lendrorder.aggrigate_log_sequence < seq {
-                        orderdb_lendrorder.aggrigate_log_sequence = seq;
+                    if orderdb_lendorder.aggrigate_log_sequence < seq {
+                        orderdb_lendorder.aggrigate_log_sequence = seq;
                     }
-                    if orderdb_lendrorder.sequence < order.entry_sequence {
-                        orderdb_lendrorder.sequence = order.entry_sequence;
+                    if orderdb_lendorder.sequence < order.entry_sequence {
+                        orderdb_lendorder.sequence = order.entry_sequence;
                     }
                 }
                 _ => {}
@@ -1085,7 +1086,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     } else {
         println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
     }
-    if orderdb_lendrorder.sequence > 0 {
+    if orderdb_lendorder.sequence > 0 {
         println!("LendOrder Database Loaded ....");
     } else {
         println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
@@ -1099,7 +1100,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
 
     SnapshotDB {
         orderdb_traderorder: orderdb_traderorder.clone(),
-        orderdb_lendrorder: orderdb_lendrorder.clone(),
+        orderdb_lendorder: orderdb_lendorder.clone(),
         lendpool_database: lendpool_database.clone(),
         liquidation_long_sortedset_db: liquidation_long_sortedset_db.clone(),
         liquidation_short_sortedset_db: liquidation_short_sortedset_db.clone(),
@@ -1109,11 +1110,11 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         close_short_sortedset_db: close_short_sortedset_db.clone(),
         position_size_log: position_size_log.clone(),
         event_offset: event_offset,
-        event_timespam: event_timespam,
+        event_timestamp: event_timestamp,
     }
     // (
     //     orderdb_traderorder.clone(),
-    //     orderdb_lendrorder.clone(),
+    //     orderdb_lendorder.clone(),
     //     lendpool_database.clone(),
     //     liquidation_long_sortedset_db.clone(),
     //     liquidation_short_sortedset_db.clone(),
@@ -1123,4 +1124,95 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     //     close_short_sortedset_db.clone(),
     //     position_size_log.clone(),
     // )
+}
+
+pub fn load_from_snapshot() {
+    match snapshot() {
+        Ok(_) => {
+            let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+            let mut liquidation_long_sortedset_db = TRADER_LP_LONG.lock().unwrap();
+            let mut liquidation_short_sortedset_db = TRADER_LP_SHORT.lock().unwrap();
+            let mut open_long_sortedset_db = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+            let mut open_short_sortedset_db = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+            let mut close_long_sortedset_db = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+            let mut close_short_sortedset_db = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+            let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
+            let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
+            let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
+            let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
+            *liquidation_long_sortedset_db = snapshot_data.liquidation_long_sortedset_db.clone();
+            *liquidation_short_sortedset_db = snapshot_data.liquidation_short_sortedset_db.clone();
+            *open_long_sortedset_db = snapshot_data.open_long_sortedset_db.clone();
+            *open_short_sortedset_db = snapshot_data.open_short_sortedset_db.clone();
+            *close_long_sortedset_db = snapshot_data.close_long_sortedset_db.clone();
+            *close_short_sortedset_db = snapshot_data.close_short_sortedset_db.clone();
+            *position_size_log = snapshot_data.position_size_log.clone();
+            *load_pool_data = snapshot_data.lendpool_database.clone();
+
+            // add field of Trader order db
+            load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();
+            load_trader_data.nonce = snapshot_data.orderdb_traderorder.nonce.clone();
+            load_trader_data.aggrigate_log_sequence = snapshot_data
+                .orderdb_traderorder
+                .aggrigate_log_sequence
+                .clone();
+            load_trader_data.last_snapshot_id =
+                snapshot_data.orderdb_traderorder.last_snapshot_id.clone();
+
+            // add field of Lend order db
+            load_lend_data.sequence = snapshot_data.orderdb_lendorder.sequence.clone();
+            load_lend_data.nonce = snapshot_data.orderdb_lendorder.nonce.clone();
+            load_lend_data.aggrigate_log_sequence = snapshot_data
+                .orderdb_lendorder
+                .aggrigate_log_sequence
+                .clone();
+            load_lend_data.last_snapshot_id =
+                snapshot_data.orderdb_lendorder.last_snapshot_id.clone();
+
+            drop(load_trader_data);
+            drop(load_lend_data);
+            let traderorder_hashmap = snapshot_data.orderdb_traderorder.ordertable.clone();
+            let lendorder_hashmap = snapshot_data.orderdb_lendorder.ordertable.clone();
+            let trader_order_handle = thread::Builder::new()
+                .name(String::from("trader_order_handle"))
+                .spawn(move || {
+                    let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
+                    for (key, val) in traderorder_hashmap.iter() {
+                        load_trader_data
+                            .ordertable
+                            .insert(key.clone(), Arc::new(RwLock::new(val.clone())));
+                    }
+                })
+                .unwrap();
+            let lend_order_handle = thread::Builder::new()
+                .name(String::from("lend_order_handle"))
+                .spawn(move || {
+                    let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
+                    for (key, val) in lendorder_hashmap.iter() {
+                        load_lend_data
+                            .ordertable
+                            .insert(key.clone(), Arc::new(RwLock::new(val.clone())));
+                    }
+                })
+                .unwrap();
+
+            trader_order_handle.join().unwrap();
+            lend_order_handle.join().unwrap();
+        }
+
+        Err(arg) => {
+            println!("unable to load data from snapshot");
+            let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
+            let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
+            let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
+            let (data1, data2, data3): (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) =
+                load_backup_data();
+            *load_trader_data = data1;
+            *load_lend_data = data2;
+            *load_pool_data = data3;
+            drop(load_trader_data);
+            drop(load_lend_data);
+            drop(load_pool_data);
+        }
+    }
 }
