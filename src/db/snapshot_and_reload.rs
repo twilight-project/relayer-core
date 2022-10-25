@@ -544,6 +544,7 @@ pub struct SnapshotDB {
     pub close_long_sortedset_db: SortedSet,
     pub close_short_sortedset_db: SortedSet,
     pub position_size_log: PositionSizeLog,
+    pub localdb_hashmap: HashMap<String, f64>,
     pub event_offset: i64,
     pub event_timestamp: String,
 }
@@ -560,6 +561,7 @@ impl SnapshotDB {
             close_long_sortedset_db: SortedSet::new(),
             close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
+            localdb_hashmap: HashMap::new(),
             event_offset: 0,
             event_timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
@@ -653,6 +655,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let mut close_long_sortedset_db = snapshot_db.close_long_sortedset_db;
     let mut close_short_sortedset_db = snapshot_db.close_short_sortedset_db;
     let mut position_size_log = snapshot_db.position_size_log;
+    let mut localdb_hashmap = snapshot_db.localdb_hashmap;
     let mut event_offset: i64 = 0;
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -678,12 +681,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let recever1 = recever.lock().unwrap();
     while stop_signal {
         let data = recever1.recv().unwrap();
-        match data.value {
-            Event::CurrentPriceUpdate(..) => {}
-            _ => {
-                println!("Envent log: {:#?}", data);
-            }
-        }
+        // match data.value {
+        //     Event::CurrentPriceUpdate(..) => {}
+        //     _ => {
+        //         println!("Envent log: {:#?}", data);
+        //     }
+        // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
@@ -926,10 +929,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 LendPoolCommand::AddTraderOrderLiquidation(..) => {}
             },
             Event::FundingRateUpdate(funding_rate, _time) => {
-                set_localdb("FundingRate", funding_rate);
+                // set_localdb("FundingRate", funding_rate);
+                localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
             }
             Event::CurrentPriceUpdate(current_price, _time) => {
-                set_localdb("CurrentPrice", current_price);
+                // set_localdb("CurrentPrice", current_price);
+                localdb_hashmap.insert("CurrentPrice".to_string(), current_price);
             }
             Event::SortedSetDBUpdate(cmd) => match cmd {
                 SortedSetCommand::AddOpenLimitPrice(order_id, entry_price, position_type) => {
@@ -1109,21 +1114,10 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         close_long_sortedset_db: close_long_sortedset_db.clone(),
         close_short_sortedset_db: close_short_sortedset_db.clone(),
         position_size_log: position_size_log.clone(),
+        localdb_hashmap: localdb_hashmap,
         event_offset: event_offset,
         event_timestamp: event_timestamp,
     }
-    // (
-    //     orderdb_traderorder.clone(),
-    //     orderdb_lendorder.clone(),
-    //     lendpool_database.clone(),
-    //     liquidation_long_sortedset_db.clone(),
-    //     liquidation_short_sortedset_db.clone(),
-    //     open_long_sortedset_db.clone(),
-    //     open_short_sortedset_db.clone(),
-    //     close_long_sortedset_db.clone(),
-    //     close_short_sortedset_db.clone(),
-    //     position_size_log.clone(),
-    // )
 }
 
 pub fn load_from_snapshot() {
@@ -1140,14 +1134,6 @@ pub fn load_from_snapshot() {
             let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
             let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
             let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-            *liquidation_long_sortedset_db = snapshot_data.liquidation_long_sortedset_db.clone();
-            *liquidation_short_sortedset_db = snapshot_data.liquidation_short_sortedset_db.clone();
-            *open_long_sortedset_db = snapshot_data.open_long_sortedset_db.clone();
-            *open_short_sortedset_db = snapshot_data.open_short_sortedset_db.clone();
-            *close_long_sortedset_db = snapshot_data.close_long_sortedset_db.clone();
-            *close_short_sortedset_db = snapshot_data.close_short_sortedset_db.clone();
-            *position_size_log = snapshot_data.position_size_log.clone();
-            *load_pool_data = snapshot_data.lendpool_database.clone();
 
             // add field of Trader order db
             load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();
@@ -1196,6 +1182,31 @@ pub fn load_from_snapshot() {
                 })
                 .unwrap();
 
+            *liquidation_long_sortedset_db = snapshot_data.liquidation_long_sortedset_db.clone();
+            *liquidation_short_sortedset_db = snapshot_data.liquidation_short_sortedset_db.clone();
+            *open_long_sortedset_db = snapshot_data.open_long_sortedset_db.clone();
+            *open_short_sortedset_db = snapshot_data.open_short_sortedset_db.clone();
+            *close_long_sortedset_db = snapshot_data.close_long_sortedset_db.clone();
+            *close_short_sortedset_db = snapshot_data.close_short_sortedset_db.clone();
+            *position_size_log = snapshot_data.position_size_log.clone();
+            *load_pool_data = snapshot_data.lendpool_database.clone();
+
+            set_localdb(
+                "CurrentPrice",
+                snapshot_data
+                    .localdb_hashmap
+                    .get("CurrentPrice")
+                    .unwrap()
+                    .clone(),
+            );
+            set_localdb(
+                "FundingRate",
+                snapshot_data
+                    .localdb_hashmap
+                    .get("FundingRate")
+                    .unwrap()
+                    .clone(),
+            );
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
         }
