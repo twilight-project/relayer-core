@@ -582,8 +582,8 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     let read_snapshot = fs::read(format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION));
     let decoded_snapshot: SnapshotDB;
     let mut is_file_exist = false;
-    let mut last_snapshot_time: String;
-    let mut fetchoffset: FetchOffset;
+    let last_snapshot_time: String;
+    let fetchoffset: FetchOffset;
     match read_snapshot {
         Ok(snapshot_data) => {
             decoded_snapshot =
@@ -608,7 +608,7 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = decoded_snapshot.clone();
     drop(snapshot_data);
-    let mut snapshot_db_updated = create_snapshot_data(fetchoffset);
+    let snapshot_db_updated = create_snapshot_data(fetchoffset);
 
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = snapshot_db_updated.clone();
@@ -1123,7 +1123,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
 pub fn load_from_snapshot() {
     match snapshot() {
         Ok(_) => {
-            let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+            let snapshot_data = SNAPSHOT_DATA.lock().unwrap();
             let mut liquidation_long_sortedset_db = TRADER_LP_LONG.lock().unwrap();
             let mut liquidation_short_sortedset_db = TRADER_LP_SHORT.lock().unwrap();
             let mut open_long_sortedset_db = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
