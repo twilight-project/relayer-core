@@ -593,7 +593,7 @@ pub fn snapshot() -> Result<(), std::io::Error> {
             // fetchoffset =
             //     FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap() / 1000000);
             // fetchoffset = FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap());
-            fetchoffset = FetchOffset::ByTime(1665747903289);
+            // fetchoffset = FetchOffset::ByTime(1665747903289);
             fetchoffset = FetchOffset::Earliest;
         }
         Err(arg) => {
@@ -1190,23 +1190,31 @@ pub fn load_from_snapshot() {
             *close_short_sortedset_db = snapshot_data.close_short_sortedset_db.clone();
             *position_size_log = snapshot_data.position_size_log.clone();
             *load_pool_data = snapshot_data.lendpool_database.clone();
-
+            let current_price = snapshot_data.localdb_hashmap.get("CurrentPrice").clone();
             set_localdb(
                 "CurrentPrice",
-                snapshot_data
-                    .localdb_hashmap
-                    .get("CurrentPrice")
-                    .unwrap()
-                    .clone(),
+                match current_price {
+                    Some(value) => value.clone(),
+                    None => 18000.0,
+                },
             );
+            let funding_rate = snapshot_data.localdb_hashmap.get("FundingRate").clone();
             set_localdb(
                 "FundingRate",
-                snapshot_data
-                    .localdb_hashmap
-                    .get("FundingRate")
-                    .unwrap()
-                    .clone(),
+                match funding_rate {
+                    Some(value) => value.clone(),
+                    None => 0.0,
+                },
             );
+            let fee = snapshot_data.localdb_hashmap.get("Fee").clone();
+            set_localdb(
+                "Fee",
+                match fee {
+                    Some(value) => value.clone(),
+                    None => 0.0,
+                },
+            );
+
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
         }
