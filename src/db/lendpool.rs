@@ -23,7 +23,6 @@ pub struct LendPool {
     pub nonce: usize,
     pub total_pool_share: f64,
     pub total_locked_value: f64,
-    // pub event_log: Vec<Event>,
     pub pending_orders: PoolBatchOrder,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
