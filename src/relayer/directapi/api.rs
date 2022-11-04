@@ -280,6 +280,11 @@ pub fn startserver() {
                                 })
                                 .unwrap();
                         }
+                        15 => {
+                            std::thread::Builder::new()
+                            .name(String::from("json-RPC startserver"))
+                            .spawn(move || { snapshot();}).unwrap();
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);

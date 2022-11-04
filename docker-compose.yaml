@@ -67,6 +67,10 @@ services:
     restart: always
     container_name: nginx
     hostname: nginx
+    depends_on:
+      - kafka
+      - zookeeper
+      - relayer-dev
     build:
       dockerfile: Dockerfile
       context: ./nginx
