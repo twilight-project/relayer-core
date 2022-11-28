@@ -42,13 +42,12 @@ pub fn heartbeat() {
             scheduler.every(1.hour()).run(move || {
                 // updatefundingrate_localdb(1.0);
             });
-            
             scheduler.every(1.seconds()).run(move || {
                 relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
             });
-            // scheduler.every(15.minute()).run(move || {
-            //     snapshot();
-            // });
+            scheduler.every(75.minute()).run(move || {
+                // let _ = snapshot();
+            });
 
             let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
             loop {

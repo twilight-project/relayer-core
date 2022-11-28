@@ -33,3 +33,5 @@ snapshot-version*
 create-topics.sh
 kafka-topics
 bin/*
+sqlscript/api_schema.sql
+src/schema.rs

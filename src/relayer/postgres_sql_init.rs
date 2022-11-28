@@ -6,49 +6,49 @@ pub fn init_psql() {
         Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
     }
 
-    match create_binance_ticker_table() {
-        Ok(_) => println!("binancebtctickernew table inserted successfully"),
-        Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
-    }
-    match create_newtraderorder_table() {
-        Ok(_) => println!("newtraderorder table inserted successfully"),
-        Err(arg) => println!("Some Error 2 Found, {:#?}", arg),
-    }
-    match create_newlendorder_table() {
-        Ok(_) => println!("newlendorder table inserted successfully"),
-        Err(arg) => println!("Some Error 3 Found, {:#?}", arg),
-    }
+    // match create_binance_ticker_table() {
+    //     Ok(_) => println!("binancebtctickernew table inserted successfully"),
+    //     Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
+    // }
+    // match create_newtraderorder_table() {
+    //     Ok(_) => println!("newtraderorder table inserted successfully"),
+    //     Err(arg) => println!("Some Error 2 Found, {:#?}", arg),
+    // }
+    // match create_newlendorder_table() {
+    //     Ok(_) => println!("newlendorder table inserted successfully"),
+    //     Err(arg) => println!("Some Error 3 Found, {:#?}", arg),
+    // }
 
-    match create_pendinglimittraderorder_table() {
-        Ok(_) => println!("pendinglimittraderorder table inserted successfully"),
-        Err(arg) => println!("Some Error 4 Found, {:#?}", arg),
-    }
-    match create_settlementpriceforlimitorder_table() {
-        Ok(_) => println!("settlementpriceforlimitorder table inserted successfully"),
-        Err(arg) => println!("Some Error 5 Found, {:#?}", arg),
-    }
+    // match create_pendinglimittraderorder_table() {
+    //     Ok(_) => println!("pendinglimittraderorder table inserted successfully"),
+    //     Err(arg) => println!("Some Error 4 Found, {:#?}", arg),
+    // }
+    // match create_settlementpriceforlimitorder_table() {
+    //     Ok(_) => println!("settlementpriceforlimitorder table inserted successfully"),
+    //     Err(arg) => println!("Some Error 5 Found, {:#?}", arg),
+    // }
 
-    match create_btcpricehistory_table() {
-        Ok(_) => println!("btcpricehistory table inserted successfully"),
-        Err(arg) => println!("Some Error 6 Found, {:#?}", arg),
-    }
-    match create_fundingratehistory_table() {
-        Ok(_) => println!("fundingratehistory 7 table inserted successfully"),
-        Err(arg) => println!("Some Error Found, {:#?}", arg),
-    }
+    // match create_btcpricehistory_table() {
+    //     Ok(_) => println!("btcpricehistory table inserted successfully"),
+    //     Err(arg) => println!("Some Error 6 Found, {:#?}", arg),
+    // }
+    // match create_fundingratehistory_table() {
+    //     Ok(_) => println!("fundingratehistory 7 table inserted successfully"),
+    //     Err(arg) => println!("Some Error Found, {:#?}", arg),
+    // }
 
-    match create_insert_btcprice_procedure() {
-        Ok(_) => println!("insert_btcprice procedure inserted successfully"),
-        Err(arg) => println!("Some Error 8 Found, {:#?}", arg),
-    }
-    match create_insert_fundingrate_procedure() {
-        Ok(_) => println!("insert_fundingrate procedure inserted successfully"),
-        Err(arg) => println!("Some Error 9 Found, {:#?}", arg),
-    }
-    match create_trades_history_questdb() {
-        Ok(_) => println!("trades_history table inserted successfully"),
-        Err(arg) => println!("Some Error 10 Found, {:#?}", arg),
-    }
+    // match create_insert_btcprice_procedure() {
+    //     Ok(_) => println!("insert_btcprice procedure inserted successfully"),
+    //     Err(arg) => println!("Some Error 8 Found, {:#?}", arg),
+    // }
+    // match create_insert_fundingrate_procedure() {
+    //     Ok(_) => println!("insert_fundingrate procedure inserted successfully"),
+    //     Err(arg) => println!("Some Error 9 Found, {:#?}", arg),
+    // }
+    // match create_trades_history_questdb() {
+    //     Ok(_) => println!("trades_history table inserted successfully"),
+    //     Err(arg) => println!("Some Error 10 Found, {:#?}", arg),
+    // }
     match create_event_logs_table() {
         Ok(_) => println!("event_logs table inserted successfully"),
         Err(arg) => println!("Some Error 11 Found, {:#?}", arg),
