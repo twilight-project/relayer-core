@@ -82,7 +82,13 @@ pub fn receive_btc_price() {
                     // Using Ping/Pong mechanism to make connection alive before standard websocket connection timeout time
                     // Binance Note: # The websocket server will send a ping frame every 3 minutes. If the websocket server does not receive a pong frame back from the connection within a 10 minute period, the connection will be disconnected. Unsolicited pong frames are allowed.
                     match message {
-                        OwnedMessage::Close(e) => Some(OwnedMessage::Close(e)),
+                        OwnedMessage::Close(e) => {
+                            thread::spawn(|| {
+                                thread::sleep(std::time::Duration::from_millis(10));
+                                receive_btc_price();
+                            });
+                            Some(OwnedMessage::Close(e))
+                        }
                         OwnedMessage::Ping(d) => Some(OwnedMessage::Pong(d)),
                         _ => None,
                     }
@@ -90,5 +96,5 @@ pub fn receive_btc_price() {
                 .select(stdin_ch.map_err(|_| WebSocketError::NoDataAvailable))
                 .forward(sink)
         });
-    let _ = runtime.block_on(runner).unwrap();
+    let _ = runtime.block_on(runner).expect("No internet Connection");
 }

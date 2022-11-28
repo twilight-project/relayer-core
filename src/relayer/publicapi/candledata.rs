@@ -1,4 +1,4 @@
-use crate::config::{QUESTDB_POOL_CONNECTION, THREADPOOL};
+use crate::config::{PUBLIC_THREADPOOL, QUESTDB_POOL_CONNECTION, THREADPOOL};
 use serde_derive::{Deserialize, Serialize};
 // use std::sync::{mpsc, Arc, Mutex, RwLock};
 use super::checkservertime::ServerTime;
@@ -114,9 +114,9 @@ pub fn get_candle_advance(
     limit: i32,
     pagination: i32,
 ) -> Result<CandlesAdvance, std::io::Error> {
-    let threadpool = THREADPOOL.lock().unwrap();
+    let public_threadpool = PUBLIC_THREADPOOL.lock().unwrap();
     let (sender, receiver) = mpsc::channel();
-    threadpool.execute(move || {
+    public_threadpool.execute(move || {
         let start_row=limit*pagination;
         let last_row=limit*pagination+limit;
         let query = format!(" Select t3.TradesCount,t3.startedAt,t3.updatedAt,t3.open,t3.close,t3.min,t3.max,coalesce(t3.sell_volume , 0) as Sell_Volume, coalesce(t4.buy_volume , 0) as Buy_Volume from ( 
@@ -161,7 +161,7 @@ pub fn get_candle_advance(
                 .unwrap(),
         }
     });
-
+    drop(public_threadpool);
     // println!("{:#?}", receiver.recv().unwrap());
     match receiver.recv().unwrap() {
         Ok(value) => {

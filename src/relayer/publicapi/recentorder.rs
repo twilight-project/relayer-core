@@ -1,14 +1,20 @@
 use super::orderbook::Side;
+use crate::config::THREADPOOL;
+use crate::questdb::questdb;
+use crate::questdb::questdb::{
+    send_candledata_in_questdb, send_candledata_in_questdb_pending, QUESTDB_INFLUX,
+};
 use crate::redislib::redis_db;
-// use crate::relayer::TraderOrder;
+use crate::relayer::{QueueResolver, ThreadPool};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::{thread, time};
-// use uuid::Uuid;
 lazy_static! {
  // recent orders
  pub static ref RECENTORDER: Mutex<VecDeque<CloseTrade>> = Mutex::new(VecDeque::with_capacity(50));
+ pub static ref CURRENTPENDINGCHART: Mutex<VecDeque<CloseTrade>> = Mutex::new(VecDeque::with_capacity(2));
+ pub static ref THREADPOOL_QUESTDB:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_QUESTDB"))));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -16,46 +22,9 @@ pub struct CloseTrade {
     pub side: Side,
     pub positionsize: f64,
     pub price: f64,
-    // #[serde(with = "my_date_format")]
     pub timestamp: std::time::SystemTime,
 }
-// mod my_date_format {
-//     use chrono::{DateTime, TimeZone, Utc};
-//     use serde::{self, Deserialize, Deserializer, Serializer};
 
-//     const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
-
-//     // The signature of a serialize_with function must follow the pattern:
-//     //
-//     //    fn serialize<S>(&T, S) -> Result<S::Ok, S::Error>
-//     //    where
-//     //        S: Serializer
-//     //
-//     // although it may also be generic over the input types T.
-//     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let s = format!("{}", date.format(FORMAT));
-//         serializer.serialize_str(&s)
-//     }
-
-//     // The signature of a deserialize_with function must follow the pattern:
-//     //
-//     //    fn deserialize<'de, D>(D) -> Result<T, D::Error>
-//     //    where
-//     //        D: Deserializer<'de>
-//     //
-//     // although it may also be generic over the output types T.
-//     pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         let s = String::deserialize(deserializer)?;
-//         Utc.datetime_from_str(&s, FORMAT)
-//             .map_err(serde::de::Error::custom)
-//     }
-// }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RecentOrders {
     pub orders: Vec<CloseTrade>,
@@ -68,11 +37,8 @@ pub fn get_recent_orders() -> RecentOrders {
     return RecentOrders {
         orders: Vec::from(data),
     };
-    // serde_json::to_string(&data).unwrap()
 }
 
-use super::checkservertime::iso8601;
-use crate::config::{QUESTDB_POOL_CONNECTION, THREADPOOL};
 pub fn update_recent_orders(value: CloseTrade) {
     let threadpool = THREADPOOL.lock().unwrap();
     let value_clone = value.clone();
@@ -84,20 +50,57 @@ pub fn update_recent_orders(value: CloseTrade) {
         local_storage.push_front(value);
         drop(local_storage);
     });
-    threadpool.execute(move || {
-        let query = format!(
-            "INSERT INTO recentorders VALUES ({}, {},{},$1)",
-            (value_clone.side as u32),
-            value_clone.price,
-            value_clone.positionsize
-        );
-        let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
-        client.execute(&query, &[&value_clone.timestamp]).unwrap();
-        drop(client);
-        // let mut local_storage = CANDLEDATA.lock().unwrap();
-        // local_storage.push_front(value_clone);
-        // drop(local_storage);
+    drop(threadpool);
+    let threadpool_questdb = THREADPOOL_QUESTDB.lock().unwrap();
+    threadpool_questdb.execute(move || {
+        let mut currect_pending_chart = CURRENTPENDINGCHART.lock().unwrap();
+        let value_safe_cloned = value_clone.clone();
+        match send_candledata_in_questdb(value_safe_cloned.clone()) {
+            Ok(_) => {
+                currect_pending_chart.push_front(value_safe_cloned.clone());
+                if currect_pending_chart.len() > 2 {
+                    currect_pending_chart.pop_back();
+                }
+            }
+            Err(arg) => {
+                println!("QuestDB not reachable!!, {:#?}", arg);
+                println!("trying to establish new connection...");
+                match questdb::connect() {
+                    Ok(value) => {
+                        let mut stream = QUESTDB_INFLUX.lock().unwrap();
+                        *stream = value;
+                        drop(stream);
+                        println!("new connection established");
+                        thread::sleep(time::Duration::from_millis(1000));
+                        for i in 0..currect_pending_chart.len() {
+                            send_candledata_in_questdb_pending(
+                                currect_pending_chart.pop_back().unwrap(),
+                            )
+                            .expect("error in loop");
+                        }
+                        QueueResolver::executor(String::from("questdb_queue"));
+                        send_candledata_in_questdb_pending(value_safe_cloned)
+                            .expect("error after queue resolver");
+                    }
+                    Err(arg) => {
+                        println!("QuestDB not reachable!!, {:#?}", arg);
+                        QueueResolver::pending(
+                            move || {
+                                send_candledata_in_questdb_pending(value_safe_cloned)
+                                    .expect("error inside queue resolver");
+                            },
+                            String::from("questdb_queue"),
+                        );
+                    }
+                }
+                // *stream = questdb::connect().expect("No connection found for QuestDB");
+            }
+        }
+        drop(currect_pending_chart);
     });
+    drop(threadpool_questdb);
+    // threadpool.execute(move || {
+    // });
 }
 
 pub fn updatebulk_recent_orders(value: Vec<CloseTrade>) {

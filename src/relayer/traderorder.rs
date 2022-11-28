@@ -1,20 +1,16 @@
-use crate::relayer::types::*;
-use crate::relayer::{update_recent_orders,CloseTrade,Side};
+use crate::config::*;
+use crate::db::*;
+use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
-extern crate uuid;
-use crate::relayer::utils::*;
-use std::thread;
 use std::time::SystemTime;
-use crate::config::POSTGRESQL_POOL_CONNECTION;
-use crate::redislib::redis_db;
 use uuid::Uuid;
-
+//inc last_update_at :timestamp
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TraderOrder {
     pub uuid: Uuid,
     pub account_id: String,
     pub position_type: PositionType,
-    pub order_status: OrderStatus, //SETTLED or LIQUIDATE or PENDING or FILLED
+    pub order_status: OrderStatus,
     pub order_type: OrderType,
     pub entryprice: f64,
     pub execution_price: f64,
@@ -22,39 +18,75 @@ pub struct TraderOrder {
     pub leverage: f64,
     pub initial_margin: f64,
     pub available_margin: f64,
-    pub timestamp: u128,
+    pub timestamp: SystemTime,
     pub bankruptcy_price: f64,
     pub bankruptcy_value: f64,
     pub maintenance_margin: f64,
     pub liquidation_price: f64,
     pub unrealized_pnl: f64,
     pub settlement_price: f64,
-    pub entry_nonce: u128,
-    pub exit_nonce: u128,
-    pub entry_sequence: u128,
+    pub entry_nonce: usize,
+    pub exit_nonce: usize,
+    pub entry_sequence: usize,
 }
-
 impl TraderOrder {
-    pub fn new(
-        account_id: &str,
-        position_type: PositionType,
-        order_type: OrderType,
-        leverage: f64,
-        initial_margin: f64,
-        available_margin: f64,
-        order_status: OrderStatus,
-        mut entryprice: f64,
-        execution_price: f64,
-    ) -> Self {
-        if order_type == OrderType::MARKET {
-            entryprice = get_localdb("CurrentPrice");
+    pub fn new_order(mut rpc_request: CreateTraderOrder) -> (Self, bool) {
+        let current_price = get_localdb("CurrentPrice");
+        // let current_price = 20000.0;
+        let mut order_entry_status: bool = false;
+        if rpc_request.order_type == OrderType::LIMIT {
+            match rpc_request.position_type {
+                PositionType::LONG => {
+                    if rpc_request.entryprice >= current_price {
+                        // may cancel the order
+                        rpc_request.order_type = OrderType::MARKET;
+                        order_entry_status = true;
+                    } else {
+                    }
+                }
+                PositionType::SHORT => {
+                    if rpc_request.entryprice <= current_price {
+                        // may cancel the order
+                        rpc_request.order_type = OrderType::MARKET;
+                        order_entry_status = true;
+                    } else {
+                    }
+                }
+            }
+        } else if rpc_request.order_type == OrderType::MARKET {
+            order_entry_status = true;
         }
+
+        let account_id = rpc_request.account_id;
+        let position_type = rpc_request.position_type;
+        let order_type = rpc_request.order_type;
+        let leverage = rpc_request.leverage;
+        let initial_margin = rpc_request.initial_margin;
+        let available_margin = rpc_request.available_margin;
+        let mut order_status = rpc_request.order_status;
+        let mut entryprice = rpc_request.entryprice;
+        let execution_price = rpc_request.execution_price;
+        let mut fee: f64 = 0.0;
+
+        match order_type {
+            OrderType::MARKET => {
+                // entryprice = get_localdb("CurrentPrice");
+                entryprice = current_price;
+                order_status = OrderStatus::FILLED;
+                fee = get_localdb("Fee"); //different fee for market order
+            }
+            OrderType::LIMIT => {
+                order_status = OrderStatus::PENDING;
+                fee = get_localdb("Fee"); //different fee for limit order
+            }
+            _ => {}
+        }
+
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let fee = get_localdb("Fee");
         let fundingrate = get_localdb("FundingRate");
         let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
         let liquidation_price = liquidationprice(
@@ -64,10 +96,17 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(n) => TraderOrder {
-                uuid: Uuid::new_v4(),
-                account_id: String::from(account_id),
+        let uuid_key = Uuid::new_v4();
+        let new_account_id;
+        if String::from(account_id.clone()) == String::from("account_id") {
+            new_account_id = uuid_key.to_string();
+        } else {
+            new_account_id = String::from(account_id);
+        }
+        (
+            TraderOrder {
+                uuid: uuid_key,
+                account_id: new_account_id,
                 position_type,
                 order_status,
                 order_type,
@@ -77,7 +116,7 @@ impl TraderOrder {
                 leverage,
                 initial_margin,
                 available_margin,
-                timestamp: n.as_millis(),
+                timestamp: SystemTime::now(),
                 bankruptcy_price,
                 bankruptcy_value,
                 maintenance_margin,
@@ -88,279 +127,438 @@ impl TraderOrder {
                 exit_nonce: 0,
                 entry_sequence: 0,
             },
-            Err(e) => panic!("Could not generate new order: {}", e),
-        }
+            order_entry_status,
+        )
     }
 
-    pub fn newtraderorderinsert(self) -> Self {
-        let mut ordertx = self.clone();
-        let mut order_entry_status: bool = false;
-        let current_price = get_localdb("CurrentPrice");
-
-        match ordertx.order_type {
-            OrderType::LIMIT => match ordertx.position_type {
+    pub fn pending_order(&mut self, current_price: f64) -> (Self, bool) {
+        let order_entry_status: bool = true;
+        let position_type = self.position_type.clone();
+        let leverage = self.leverage;
+        let initial_margin = self.initial_margin.clone();
+        let entryprice = current_price;
+        let fee: f64 = get_localdb("Fee"); //different fee for market order
+        let fundingrate = get_localdb("FundingRate");
+        let position_side = positionside(&position_type);
+        let entry_value = entryvalue(initial_margin, leverage);
+        let positionsize = positionsize(entry_value, entryprice);
+        let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
+        let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
+        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
+        let liquidation_price = liquidationprice(
+            entryprice,
+            positionsize,
+            position_side,
+            maintenance_margin,
+            initial_margin,
+        );
+        (
+            TraderOrder {
+                uuid: self.uuid,
+                account_id: self.account_id.clone(),
+                position_type,
+                order_status: OrderStatus::FILLED,
+                order_type: self.order_type.clone(),
+                entryprice,
+                execution_price: self.execution_price,
+                positionsize,
+                leverage,
+                initial_margin,
+                available_margin: self.available_margin,
+                timestamp: SystemTime::now(),
+                bankruptcy_price,
+                bankruptcy_value,
+                maintenance_margin,
+                liquidation_price,
+                unrealized_pnl: 0.0,
+                settlement_price: 0.0,
+                entry_nonce: self.entry_nonce.clone(),
+                exit_nonce: 0,
+                entry_sequence: self.entry_sequence.clone(),
+            },
+            order_entry_status,
+        )
+    }
+    pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
+        let ordertx = self.clone();
+        if order_entry_status {
+            // Adding in side wise and total position size
+            PositionSizeLog::add_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+            // Adding in liquidation search table
+            match ordertx.position_type {
                 PositionType::LONG => {
-                    if ordertx.entryprice >= current_price {
-                        order_entry_status = true;
-                        ordertx.order_status = OrderStatus::FILLED;
-                        ordertx.entry_nonce = redis_db::get_nonce_u128();
-                        ordertx.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-                        ordertx.entryprice = current_price;
+                    let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                    let _ = add_to_liquidation_list
+                        .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                    drop(add_to_liquidation_list);
+                }
+                PositionType::SHORT => {
+                    let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                    let _ = add_to_liquidation_list
+                        .add(ordertx.uuid, (ordertx.liquidation_price * 10000.0) as i64);
+                    drop(add_to_liquidation_list);
+                }
+            }
+            // Event::new(
+            //     Event::SortedSetDBUpdate(SortedSetCommand::AddLiquidationPrice(
+            //         ordertx.uuid.clone(),
+            //         ordertx.liquidation_price.clone(),
+            //         ordertx.position_type.clone(),
+            //     )),
+            //     format!("AddLiquidationPrice-{}", ordertx.uuid.clone()),
+            //     CORE_EVENT_LOG.clone().to_string(),
+            // );
+
+            // adding candle data
+            let side = match ordertx.position_type {
+                PositionType::SHORT => Side::SELL,
+                PositionType::LONG => Side::BUY,
+            };
+            update_recent_orders(CloseTrade {
+                side: side,
+                positionsize: ordertx.positionsize,
+                price: ordertx.entryprice,
+                timestamp: std::time::SystemTime::now(),
+            });
+            //
+        } else {
+            match ordertx.position_type {
+                PositionType::LONG => {
+                    let mut add_to_open_order_list = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                    let _ = add_to_open_order_list
+                        .add(ordertx.uuid, (ordertx.entryprice * 10000.0) as i64);
+                    drop(add_to_open_order_list);
+                }
+                PositionType::SHORT => {
+                    let mut add_to_open_order_list = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                    let _ = add_to_open_order_list
+                        .add(ordertx.uuid, (ordertx.entryprice * 10000.0) as i64);
+                    drop(add_to_open_order_list);
+                }
+            }
+            // Event::new(
+            //     Event::SortedSetDBUpdate(SortedSetCommand::AddOpenLimitPrice(
+            //         ordertx.uuid.clone(),
+            //         ordertx.entryprice.clone(),
+            //         ordertx.position_type.clone(),
+            //     )),
+            //     format!("AddOpenLimitPrice-{}", ordertx.uuid.clone()),
+            //     CORE_EVENT_LOG.clone().to_string(),
+            // );
+        }
+        ordertx
+    }
+
+    pub fn check_for_settlement(
+        &mut self,
+        execution_price: f64,
+        current_price: f64,
+        cmd_order_type: OrderType,
+    ) -> (f64, OrderStatus) {
+        let mut payment: f64 = 0.0;
+        let mut orderstatus: OrderStatus = OrderStatus::FILLED;
+        match cmd_order_type {
+            OrderType::MARKET => {
+                payment = self.calculatepayment_localdb(current_price);
+                orderstatus = OrderStatus::SETTLED;
+            }
+            OrderType::LIMIT => match self.position_type {
+                PositionType::LONG => {
+                    if execution_price <= current_price {
+                        payment = self.calculatepayment_localdb(current_price);
+                        orderstatus = OrderStatus::SETTLED;
                     } else {
-                        ordertx.order_status = OrderStatus::PENDING;
+                        let order_caluculated =
+                            self.set_execution_price_for_limit_order_localdb(execution_price);
                     }
                 }
                 PositionType::SHORT => {
-                    if ordertx.entryprice <= current_price {
-                        order_entry_status = true;
-                        ordertx.order_status = OrderStatus::FILLED;
-                        ordertx.entry_nonce = redis_db::get_nonce_u128();
-                        ordertx.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-                        ordertx.entryprice = current_price;
+                    if execution_price >= current_price {
+                        payment = self.calculatepayment_localdb(current_price);
+                        orderstatus = OrderStatus::SETTLED;
                     } else {
-                        ordertx.order_status = OrderStatus::PENDING;
+                        let order_caluculated =
+                            self.set_execution_price_for_limit_order_localdb(execution_price);
                     }
                 }
             },
-            OrderType::MARKET => {
-                ordertx.order_status = OrderStatus::FILLED;
-                ordertx.entry_nonce = redis_db::get_nonce_u128();
-                ordertx.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-                ordertx.entryprice = current_price;
-                order_entry_status = true;
-            }
             _ => {}
         }
 
-       
-        let ordertx_clone = ordertx.clone();
-        // thread to store trader order data in redisDB
-        //inside operations can also be called in different thread
-        thread::spawn(move || {
-            // ordertx.entry_nonce = redis_db::get_nonce_u128();
-
-            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
-                &ordertx.uuid,
-                &ordertx.account_id ,
-                &ordertx.position_type ,
-                &ordertx.order_status ,
-                &ordertx.order_type ,
-                &ordertx.entryprice ,
-                &ordertx.execution_price ,
-                &ordertx.positionsize ,
-                &ordertx.leverage ,
-                &ordertx.initial_margin ,
-                &ordertx.available_margin ,
-                &ordertx.timestamp ,
-                &ordertx.bankruptcy_price ,
-                &ordertx.bankruptcy_value ,
-                &ordertx.maintenance_margin ,
-                &ordertx.liquidation_price ,
-                &ordertx.unrealized_pnl,
-                &ordertx.settlement_price,
-                &ordertx.entry_nonce,
-                &ordertx.exit_nonce,
-                &ordertx.entry_sequence,
-
-            );
-            
-            
-            // trader order saved in redis, orderid as key
-            redis_db::set(&ordertx.uuid.to_string(), &ordertx.serialize());
-
-            if order_entry_status {
-                // trader order set by timestamp
-                redis_db::zadd(
-                    &"TraderOrder",
-                    &ordertx.uuid.to_string(),      //value
-                    &ordertx.entry_sequence.to_string(), //score
-                );
-
-                // update pool size when new order get inserted
-
-                match ordertx.position_type {
-                    PositionType::LONG => {
-                        redis_db::incrbyfloat(
-                            &"TotalLongPositionSize",
-                            &ordertx.positionsize.to_string(),
-                        );
-                        // trader order set by liquidation_price for long
-                        redis_db::zadd(
-                            &"TraderOrderbyLiquidationPriceFORLong",
-                            &ordertx.uuid.to_string(),
-                            &ordertx.liquidation_price.to_string(),
-                        );
-                    }
-                    PositionType::SHORT => {
-                        redis_db::incrbyfloat(
-                            &"TotalShortPositionSize",
-                            &ordertx.positionsize.to_string(),
-                        );
-                        // trader order set by liquidation_price for short
-                        redis_db::zadd(
-                            &"TraderOrderbyLiquidationPriceFORShort",
-                            &ordertx.uuid.to_string(),
-                            &ordertx.liquidation_price.to_string(),
-                        );
-                    }
-                }
-
-                redis_db::incrbyfloat(&"TotalPoolPositionSize", &ordertx.positionsize.to_string());
-
-                match ordertx.order_type {
-                    OrderType::LIMIT => match ordertx.position_type {
-                        PositionType::LONG => {
-                            redis_db::zadd(
-                                &"TraderOrderbyLONGLimit",
-                                &ordertx.uuid.to_string(),
-                                &ordertx.execution_price.to_string(),
-                            );
-                        }
-                        PositionType::SHORT => {
-                            redis_db::zadd(
-                                &"TraderOrderbySHORTLimit",
-                                &ordertx.uuid.to_string(),
-                                &ordertx.execution_price.to_string(),
-                            );
-                        }
-                    },
-                    _ => {}
-                }
-                  // thread to store trader order data in postgreSQL
-                let handle = thread::spawn(move || {
-                        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-                        client.execute(&query, &[]).unwrap();
-                    });
-
-                    let side = match ordertx.position_type {
-                        PositionType::SHORT => Side::SELL,
-                        PositionType::LONG => Side::BUY,
-                    };
-                    update_recent_orders(CloseTrade {
-                        side: side,
-                        positionsize: ordertx.positionsize,
-                        price: ordertx.entryprice,
-                        timestamp: std::time::SystemTime::now(),
-                    });
-            } 
-            else {
-                // trader order set by timestamp
-                match ordertx.position_type {
-                    PositionType::LONG => {
-                        redis_db::zadd(
-                            &"TraderOrder_LimitOrder_Pending_FOR_Long",
-                            &ordertx.uuid.to_string(),       //value
-                            &ordertx.entryprice.to_string(), //score
-                        );
-                    }
-                    PositionType::SHORT => {
-                        redis_db::zadd(
-                            &"TraderOrder_LimitOrder_Pending_FOR_Short",
-                            &ordertx.uuid.to_string(),       //value
-                            &ordertx.entryprice.to_string(), //score
-                        );
-                    }
-                }
-                // insert pending order in newpending table
-                let query = format!("INSERT INTO public.pendinglimittraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
-                    &ordertx.uuid,
-                    &ordertx.account_id ,
-                    &ordertx.position_type ,
-                    &ordertx.order_status ,
-                    &ordertx.order_type ,
-                    &ordertx.entryprice ,
-                    &ordertx.execution_price ,
-                    &ordertx.positionsize ,
-                    &ordertx.leverage ,
-                    &ordertx.initial_margin ,
-                    &ordertx.available_margin ,
-                    &ordertx.timestamp ,
-                    &ordertx.bankruptcy_price ,
-                    &ordertx.bankruptcy_value ,
-                    &ordertx.maintenance_margin ,
-                    &ordertx.liquidation_price ,
-                    &ordertx.unrealized_pnl,
-                    &ordertx.settlement_price,
-                    &ordertx.entry_nonce,
-                    &ordertx.exit_nonce,
-                    &ordertx.entry_sequence,    
-                );
-                       // thread to store trader order data in postgreSQL
-                       let handle = thread::spawn(move || {
-                        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-                        client.execute(&query, &[]).unwrap();
-                    });
-            }
-          
-        });
-        // handle.join().unwrap();
-        return ordertx_clone;
+        (payment, orderstatus)
     }
 
-    pub fn removeorderfromredis(self) -> Self {
+    pub fn set_execution_price_for_limit_order_localdb(
+        &mut self,
+        execution_price: f64,
+    ) -> Result<(), std::io::Error> {
+        match self.position_type {
+            PositionType::LONG => {
+                let mut add_to_limit_order_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                match add_to_limit_order_list.add(self.uuid, (execution_price * 10000.0) as i64) {
+                    Ok(()) => {
+                        drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return Ok(());
+                    }
+                    Err(_) => {
+                        let result = add_to_limit_order_list
+                            .update(self.uuid, (execution_price * 10000.0) as i64);
+                        drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return result;
+                    }
+                }
+            }
+            PositionType::SHORT => {
+                let mut add_to_limit_order_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                match add_to_limit_order_list.add(self.uuid, (execution_price * 10000.0) as i64) {
+                    Ok(()) => {
+                        drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return Ok(());
+                    }
+                    Err(_) => {
+                        let result = add_to_limit_order_list
+                            .update(self.uuid, (execution_price * 10000.0) as i64);
+                        drop(add_to_limit_order_list);
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
+                                self.uuid.clone(),
+                                execution_price.clone(),
+                                self.position_type.clone(),
+                            )),
+                            format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return result;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn calculatepayment_localdb(&mut self, current_price: f64) -> f64 // returns payment
+    {
         let ordertx = self.clone();
-        let ordertx_clone = self.clone();
+        let margindifference = self.available_margin - self.initial_margin;
+        let u_pnl = unrealizedpnl(
+            &self.position_type,
+            self.positionsize,
+            self.entryprice,
+            current_price,
+        );
+        let payment = u_pnl + margindifference;
+        self.order_status = OrderStatus::SETTLED;
+        self.available_margin += payment;
+        self.settlement_price = current_price;
+        self.unrealized_pnl = u_pnl;
 
-        thread::spawn(move || {
-            // trader order saved in redis, orderid as key
-            redis_db::del(&ordertx.uuid.to_string());
-            // trader order set by timestamp
-            redis_db::zdel(
-                &"TraderOrder",
-                &ordertx.uuid.to_string(), //value
-            );
-           
-            match ordertx.order_type {
-                OrderType::LIMIT => match ordertx.position_type {
-                    PositionType::LONG => {
-                        redis_db::zdel(&"TraderOrderbyLONGLimit", &ordertx.uuid.to_string());
-                    }
-                    PositionType::SHORT => {
-                        redis_db::zdel(&"TraderOrderbySHORTLimit", &ordertx.uuid.to_string());
-                    }
-                },
-                _ => {}
+        // remove from liquidation sorted set and candle update (test required)
+        PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+        match ordertx.position_type {
+            PositionType::LONG => {
+                let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                drop(add_to_liquidation_list);
             }
-            match ordertx.position_type {
-                    PositionType::LONG => {
-                        redis_db::zdel(&"TraderOrder_Settelment_by_LONG_Limit", &ordertx.uuid.to_string());
-                    }
-                    PositionType::SHORT => {
-                        redis_db::zdel(&"TraderOrder_Settelment_by_SHORT_Limit", &ordertx.uuid.to_string());
-                    }
-                 }
-                
+            PositionType::SHORT => {
+                let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                drop(add_to_liquidation_list);
+            }
+        }
+        // Event::new(
+        //     Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
+        //         ordertx.uuid.clone(),
+        //         ordertx.position_type.clone(),
+        //     )),
+        //     format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
+        //     CORE_EVENT_LOG.clone().to_string(),
+        // );
 
-            // update pool size when  order get settled
-            match ordertx.position_type {
-                PositionType::LONG => {
-                    redis_db::decrbyfloat(&"TotalLongPositionSize", ordertx.positionsize);
-                    redis_db::zdel(
-                        &"TraderOrderbyLiquidationPriceFORLong",
-                        &ordertx.uuid.to_string(),
-                    );
-                }
-                PositionType::SHORT => {
-                    redis_db::decrbyfloat(&"TotalShortPositionSize", ordertx.positionsize);
-                    redis_db::zdel(
-                        &"TraderOrderbyLiquidationPriceFORShort",
-                        &ordertx.uuid.to_string(),
-                    );
-                }
-            }
-            redis_db::decrbyfloat(&"TotalPoolPositionSize", ordertx.positionsize);
-        });
-        let side  = match ordertx_clone.position_type {
+        // adding candle data
+        let side = match ordertx.position_type {
+            PositionType::SHORT => Side::BUY,
             PositionType::LONG => Side::SELL,
-            PositionType::SHORT => Side::BUY
         };
         update_recent_orders(CloseTrade {
-             side:side ,
-             positionsize: ordertx_clone.positionsize,
-             price: ordertx_clone.settlement_price,
-             timestamp: std::time::SystemTime::now(),
+            side: side,
+            positionsize: ordertx.positionsize,
+            price: ordertx.entryprice,
+            timestamp: std::time::SystemTime::now(),
         });
-              return self;
+
+        payment
+    }
+
+    pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
+        let result: Result<(Uuid, i64), std::io::Error>;
+        match self.order_type {
+            OrderType::LIMIT => match self.position_type {
+                PositionType::LONG => {
+                    let mut remove_from_open_order_list = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                    result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                )),
+                                format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return (true, OrderStatus::CANCELLED);
+                        }
+                        Err(_) => return (false, self.order_status.clone()),
+                    }
+                }
+                PositionType::SHORT => {
+                    let mut remove_from_open_order_list = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                    result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                )),
+                                format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return (true, OrderStatus::CANCELLED);
+                        }
+                        Err(_) => return (false, self.order_status.clone()),
+                    }
+                }
+            },
+            _ => return (false, self.order_status.clone()),
+        }
+    }
+
+    pub fn liquidate(&mut self, current_price: f64) -> f64 {
+        let ordertx = self.clone();
+        self.settlement_price = current_price;
+        self.liquidation_price = current_price;
+        self.available_margin = 0.0;
+        // adding candle data
+        PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+
+        let side = match ordertx.position_type {
+            PositionType::SHORT => Side::BUY,
+            PositionType::LONG => Side::SELL,
+        };
+        update_recent_orders(CloseTrade {
+            side: side,
+            positionsize: ordertx.positionsize,
+            price: ordertx.entryprice,
+            timestamp: std::time::SystemTime::now(),
+        });
+        self.initial_margin.clone()
+    }
+
+    //order code for batching
+    pub fn to_hmset_arg_array(self) -> Vec<String> {
+        let mut result_vec: Vec<String> = Vec::new();
+        result_vec.push("uuid".to_string());
+        result_vec.push(self.uuid.to_string());
+        result_vec.push("account_id".to_string());
+        result_vec.push(self.account_id.to_string());
+        result_vec.push("position_type".to_string());
+        result_vec.push(serde_json::to_string(&self.position_type).unwrap());
+        result_vec.push("order_status".to_string());
+        result_vec.push(serde_json::to_string(&self.order_status).unwrap());
+        result_vec.push("order_type".to_string());
+        result_vec.push(serde_json::to_string(&self.order_type).unwrap());
+        result_vec.push("entryprice".to_string());
+        result_vec.push(self.entryprice.to_string());
+        result_vec.push("execution_price".to_string());
+        result_vec.push(self.execution_price.to_string());
+        result_vec.push("positionsize".to_string());
+        result_vec.push(self.positionsize.to_string());
+        result_vec.push("leverage".to_string());
+        result_vec.push(self.leverage.to_string());
+        result_vec.push("initial_margin".to_string());
+        result_vec.push(self.initial_margin.to_string());
+        result_vec.push("available_margin".to_string());
+        result_vec.push(self.available_margin.to_string());
+        result_vec.push("timestamp".to_string());
+        result_vec.push(serde_json::to_string(&self.timestamp).unwrap());
+        result_vec.push("bankruptcy_price".to_string());
+        result_vec.push(self.bankruptcy_price.to_string());
+        result_vec.push("bankruptcy_value".to_string());
+        result_vec.push(self.bankruptcy_value.to_string());
+        result_vec.push("maintenance_margin".to_string());
+        result_vec.push(self.maintenance_margin.to_string());
+        result_vec.push("liquidation_price".to_string());
+        result_vec.push(self.liquidation_price.to_string());
+        result_vec.push("unrealized_pnl".to_string());
+        result_vec.push(self.unrealized_pnl.to_string());
+        result_vec.push("settlement_price".to_string());
+        result_vec.push(self.settlement_price.to_string());
+        result_vec.push("entry_nonce".to_string());
+        result_vec.push(self.entry_nonce.to_string());
+        result_vec.push("exit_nonce".to_string());
+        result_vec.push(self.exit_nonce.to_string());
+        result_vec.push("entry_sequence".to_string());
+        result_vec.push(self.entry_sequence.to_string());
+
+        return result_vec;
+    }
+
+    pub fn from_hgetll_trader_order(json_str: Vec<String>) -> Result<Self, std::io::Error> {
+        Ok(TraderOrder {
+            uuid: serde_json::from_str(&json_str[1]).unwrap(),
+            account_id: serde_json::from_str(&json_str[3]).unwrap(),
+            position_type: serde_json::from_str(&json_str[5]).unwrap(),
+            order_status: serde_json::from_str(&json_str[7]).unwrap(),
+            order_type: serde_json::from_str(&json_str[9]).unwrap(),
+            entryprice: serde_json::from_str(&json_str[11]).unwrap(),
+            execution_price: serde_json::from_str(&json_str[13]).unwrap(),
+            positionsize: serde_json::from_str(&json_str[15]).unwrap(),
+            leverage: serde_json::from_str(&json_str[17]).unwrap(),
+            initial_margin: serde_json::from_str(&json_str[19]).unwrap(),
+            available_margin: serde_json::from_str(&json_str[21]).unwrap(),
+            timestamp: serde_json::from_str(&json_str[23]).unwrap(),
+            bankruptcy_price: serde_json::from_str(&json_str[25]).unwrap(),
+            bankruptcy_value: serde_json::from_str(&json_str[27]).unwrap(),
+            maintenance_margin: serde_json::from_str(&json_str[29]).unwrap(),
+            liquidation_price: serde_json::from_str(&json_str[31]).unwrap(),
+            unrealized_pnl: serde_json::from_str(&json_str[33]).unwrap(),
+            settlement_price: serde_json::from_str(&json_str[35]).unwrap(),
+            entry_nonce: serde_json::from_str(&json_str[37]).unwrap(),
+            exit_nonce: serde_json::from_str(&json_str[39]).unwrap(),
+            entry_sequence: serde_json::from_str(&json_str[41]).unwrap(),
+        })
     }
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();
@@ -370,411 +568,4 @@ impl TraderOrder {
         let deserialized: TraderOrder = serde_json::from_str(json).unwrap();
         deserialized
     }
-
-    pub fn update_trader_order_table_into_db_on_funding_cycle(
-        self,
-        orderid: String,
-        isliquidated: bool,
-    ) {
-        let ordertx = self.clone();
-
-        if isliquidated {
-            ordertx.removeorderfromredis().updatepsqlonliquidation();
-        } else {
-            redis_db::set(&orderid, &ordertx.serialize());
-            ordertx.updatepsqlonfundingcycle();
-        }
-    }
-
-    pub fn updatepsqlonfundingcycle(self) -> Self {
-        // ordertx.available_margin
-        // ordertx.maintenance_margin
-        // ordertx.liquidation_price
-
-        let query = format!(
-            "UPDATE public.newtraderorder
-        SET available_margin={},  maintenance_margin={}, liquidation_price={}
-        WHERE uuid='{}';",
-            &self.available_margin, &self.maintenance_margin, &self.liquidation_price, &self.uuid
-        );
-        thread::spawn(move || {
-            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
-            client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
-        });
-        return self;
-    }
-
-    pub fn updatepsqlonliquidation(self) -> Self {
-        // ordertx.order_status
-        // ordertx.available_margin
-        // ordertx.settlement_price
-        // ordertx.liquidation_price
-        // ordertx.maintenance_margin
-
-        let query = format!("UPDATE public.newtraderorder
-            SET order_status='{:#?}',   available_margin={},  maintenance_margin={}, liquidation_price={},exit_nonce={} ,settlement_price={}
-            WHERE uuid='{}';",
-            &self.order_status ,
-            &self.available_margin ,
-            &self.maintenance_margin ,
-            &self.liquidation_price ,
-            &self.exit_nonce,
-            &self.settlement_price,
-            &self.uuid
-            );
-        thread::spawn(move || {
-            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
-            client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
-        });
-        return self;
-    }
-    pub fn updatepsqlonsettlement(self) -> Self {
-        // ordertx.order_status
-        // ordertx.available_margin
-        // ordertx.settlement_price
-        // ordertx.liquidation_price
-        // ordertx.maintenance_margin
-
-        let query = format!(
-            "UPDATE public.newtraderorder
-            SET order_status='{:#?}',   available_margin={},settlement_price={}, exit_nonce={}, unrealized_pnl={}
-            WHERE uuid='{}';",
-            &self.order_status,
-            &self.available_margin,
-            &self.settlement_price,
-            &self.exit_nonce,
-            &self.unrealized_pnl,
-            &self.uuid
-        );
-        thread::spawn(move || {
-            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-
-            client.execute(&query, &[]).unwrap();
-            // let rt = self.clone();
-        });
-        return self;
-    }
-
-    pub fn calculatepayment(self) ->Option<Self> {
-        let mut ordertx = self.clone();
-        let margindifference = ordertx.available_margin - ordertx.initial_margin;
-        let current_price = get_localdb("CurrentPrice");
-        // let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
-        let u_pnl = unrealizedpnl(
-            &ordertx.position_type,
-            ordertx.positionsize,
-            ordertx.entryprice,
-            current_price,
-        );
-        let payment = u_pnl + margindifference;
-        ordertx.order_status = OrderStatus::SETTLED;
-        ordertx.available_margin = ordertx.available_margin + payment;
-        ordertx.settlement_price = current_price;
-        ordertx.unrealized_pnl = u_pnl;
-        let exit_nonce = updatelendaccountontraderordersettlement(payment*10000.0);
-        ordertx.exit_nonce = exit_nonce;
-        ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
-        
-        return Some(ordertx);
-    }
-
-    pub fn calculatepayment_with_current_price(self,current_price:f64 ) -> Self {
-        let mut ordertx = self.clone();
-        let margindifference = ordertx.available_margin - ordertx.initial_margin;
-        // let current_price = get_localdb("CurrentPrice");
-        // let current_price = redis_db::get(&"CurrentPrice").parse::<f64>().unwrap();
-        let u_pnl = unrealizedpnl(
-            &ordertx.position_type,
-            ordertx.positionsize,
-            ordertx.entryprice,
-            current_price,
-        );
-        let payment = u_pnl + margindifference;
-        ordertx.order_status = OrderStatus::SETTLED;
-        ordertx.available_margin = ordertx.available_margin + payment;
-        ordertx.settlement_price = current_price;
-        ordertx.unrealized_pnl = u_pnl;
-        let exit_nonce = updatelendaccountontraderordersettlement(payment*10000.0);
-        ordertx.exit_nonce = exit_nonce;
-        ordertx = ordertx.removeorderfromredis().updatepsqlonsettlement();
-        return ordertx;
-    }
-
-    pub fn set_execution_price_for_limit_order(self,execution_price: f64)->Self{
-
-        let ordertx = self.clone();
-       
-         match ordertx.position_type {
-                PositionType::LONG => {
-                    redis_db::zadd(
-                        &"TraderOrder_Settelment_by_LONG_Limit",
-                        &ordertx.uuid.to_string(),
-                        &execution_price.to_string(),
-                    );
-                }
-                PositionType::SHORT => {
-                    redis_db::zadd(
-                        &"TraderOrder_Settelment_by_SHORT_Limit",
-                        &ordertx.uuid.to_string(),
-                        &execution_price.to_string(),
-                    );
-                }
-            
-            }
-
-        // need to update by procedure to check where the row exist or not, and if exist then change status of old row or create new triger to save old price
-            let query = format!("INSERT INTO public.settlementpriceforlimitorder(
-                uuid, account_id, position_type, order_status, order_type, execution_price, timestamp, settlement_price) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{});",
-            &ordertx.uuid,
-            &ordertx.account_id ,
-            &ordertx.position_type ,
-            &ordertx.order_status ,
-            &ordertx.order_type ,
-            &execution_price ,
-            SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis(),
-            &ordertx.settlement_price,
-        );
-        let handle = thread::spawn(move || {
-            let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-            client.execute(&query, &[]).unwrap();
-    });
-        return self;
-    }
-
-    pub fn get_order_by_order_id(
-        account_id: String,
-        uuid: Uuid,
-    ) ->  Result<TraderOrder, std::io::Error> {
-    let ordertx_string=redis_db::get_no_error(&uuid.to_string());
-        match ordertx_string {
-             Ok(order)=>Ok(TraderOrder::deserialize(&order)),
-             Err(e)=>Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
-        }
-    }
-
-    pub fn pending(
-        account_id: &str,
-        position_type: PositionType,
-        order_type: OrderType,
-        leverage: f64,
-        initial_margin: f64,
-        available_margin: f64,
-        order_status: OrderStatus,
-        entryprice: f64,
-        execution_price: f64,
-        uuid: Uuid,
-        entry_nonce: u128,
-        entry_sequence: u128,
-    ) -> Self {
-            // entryprice = get_localdb("CurrentPrice");
-        let position_side = positionside(&position_type);
-        let entry_value = entryvalue(initial_margin, leverage);
-        let positionsize = positionsize(entry_value, entryprice);
-        let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
-        let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let fee = get_localdb("Fee");
-        let fundingrate = get_localdb("FundingRate");
-        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
-        let liquidation_price = liquidationprice(
-            entryprice,
-            positionsize,
-            position_side,
-            maintenance_margin,
-            initial_margin,
-        );
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(n) => TraderOrder {
-                uuid,
-                account_id: String::from(account_id),
-                position_type,
-                order_status,
-                order_type,
-                entryprice,
-                execution_price,
-                positionsize,
-                leverage,
-                initial_margin,
-                available_margin,
-                timestamp: n.as_millis(),
-                bankruptcy_price,
-                bankruptcy_value,
-                maintenance_margin,
-                liquidation_price,
-                unrealized_pnl: 0.0,
-                settlement_price: 0.0,
-                entry_nonce: entry_nonce,
-                exit_nonce: 0,
-                entry_sequence: entry_sequence,
-            },
-            Err(e) => panic!("Could not generate new order: {}", e),
-        }
-    }
-
-    pub fn pending_limit_traderorderinsert(self) -> Self {
-        let mut rt = self.clone();
-        let current_price = rt.entryprice;
-
-        match rt.order_type {
-            OrderType::LIMIT => {
-                        rt.order_status = OrderStatus::FILLED;
-                        // rt.entry_nonce = redis_db::get_nonce_u128();
-                        // rt.entry_sequence = redis_db::incr_entry_sequence_by_one_trader_order();
-            },
-            _ => {}
-        }
-     
-        let rself = rt.clone();
-        // thread to store trader order data in redisDB
-        //inside operations can also be called in different thread
-        thread::spawn(move || {
-            rt.entry_nonce = redis_db::get_nonce_u128();
-
-            let query = format!("INSERT INTO public.newtraderorder(uuid, account_id, position_type,  order_status, order_type, entryprice, execution_price,positionsize, leverage, initial_margin, available_margin, timestamp, bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence) VALUES ('{}','{}','{:#?}','{:#?}','{:#?}',{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{});",
-                &rt.uuid,
-                &rt.account_id ,
-                &rt.position_type ,
-                &rt.order_status ,
-                &rt.order_type ,
-                &rt.entryprice ,
-                &rt.execution_price ,
-                &rt.positionsize ,
-                &rt.leverage ,
-                &rt.initial_margin ,
-                &rt.available_margin ,
-                &rt.timestamp ,
-                &rt.bankruptcy_price ,
-                &rt.bankruptcy_value ,
-                &rt.maintenance_margin ,
-                &rt.liquidation_price ,
-                &rt.unrealized_pnl,
-                &rt.settlement_price,
-                &rt.entry_nonce,
-                &rt.exit_nonce,
-                &rt.entry_sequence,
-            );
-            
-            
-            // trader order saved in redis, orderid as key
-            redis_db::set(&rt.uuid.to_string(), &rt.serialize());
-
-                // trader order set by timestamp
-                redis_db::zadd(
-                    &"TraderOrder",
-                    &rt.uuid.to_string(),      //value
-                    &rt.entry_sequence.to_string(), //score
-                );
-
-                // update pool size when new order get inserted
-
-                match rt.position_type {
-                    PositionType::LONG => {
-                        redis_db::incrbyfloat(
-                            &"TotalLongPositionSize",
-                            &rt.positionsize.to_string(),
-                        );
-                        // trader order set by liquidation_price for long
-                        redis_db::zadd(
-                            &"TraderOrderbyLiquidationPriceFORLong",
-                            &rt.uuid.to_string(),
-                            &rt.liquidation_price.to_string(),
-                        );
-                    }
-                    PositionType::SHORT => {
-                        redis_db::incrbyfloat(
-                            &"TotalShortPositionSize",
-                            &rt.positionsize.to_string(),
-                        );
-                        // trader order set by liquidation_price for short
-                        redis_db::zadd(
-                            &"TraderOrderbyLiquidationPriceFORShort",
-                            &rt.uuid.to_string(),
-                            &rt.liquidation_price.to_string(),
-                        );
-                    }
-                }
-
-                redis_db::incrbyfloat(&"TotalPoolPositionSize", &rt.positionsize.to_string());
-
-                match rt.order_type {
-                    OrderType::LIMIT => match rt.position_type {
-                        PositionType::LONG => {
-                            redis_db::zadd(
-                                &"TraderOrderbyLONGLimit",
-                                &rt.uuid.to_string(),
-                                &rt.execution_price.to_string(),
-                            );
-                        }
-                        PositionType::SHORT => {
-                            redis_db::zadd(
-                                &"TraderOrderbySHORTLimit",
-                                &rt.uuid.to_string(),
-                                &rt.execution_price.to_string(),
-                            );
-                        }
-                    },
-                    _ => {}
-                }
-                  // thread to store trader order data in postgreSQL
-                let handle = thread::spawn(move || {
-                        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-                        client.execute(&query, &[]).unwrap();
-                    });
-           
-           
-          
-        });
-        // handle.join().unwrap();
-        return rself;
-    }
-
-    pub fn cancelorder(self) -> (Self,bool) {
-        let success:bool;
-        let mut ordertx=self.clone();
-        if ordertx.order_status == OrderStatus::PENDING {
-
-            redis_db::del(&ordertx.uuid.to_string());
-                
-            match ordertx.order_type {
-                OrderType::LIMIT => match ordertx.position_type {
-                    PositionType::LONG => {
-                        redis_db::zdel(
-                            &"TraderOrder_LimitOrder_Pending_FOR_Long",
-                            &ordertx.uuid.to_string(), //value
-                        );
-                    }
-                    PositionType::SHORT => {
-                        redis_db::zdel(
-                            &"TraderOrder_LimitOrder_Pending_FOR_Short",
-                            &ordertx.uuid.to_string(), //value
-                        );
-                    }
-                },
-                _ => {}
-            }
-                    
-            let query = format!(
-                "UPDATE public.pendinglimittraderorder SET order_status='{:#?}'
-                WHERE uuid='{}';",
-                OrderStatus::CANCELLED,
-                &ordertx.uuid
-            );
-
-            let handle = thread::spawn(move || {
-                let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
-                client.execute(&query, &[]).unwrap();
-            });
-        
-            success=true;
-            ordertx.order_status= OrderStatus::CANCELLED;
-        } 
-        else {
-            success=false;
-        }
-        return (ordertx,success);
-    }
-
 }

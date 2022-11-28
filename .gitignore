@@ -18,9 +18,20 @@ old code
 
 backup/redisdb
 src/redislib/backup/dump.rdb
-code doc.txt
+code doc.txt.rs
+redis/data
 # aeron-rs
 
 # need to add id_ed25519 and id_ed25519.pub key file in docker-aeron folder to run aeron container
 docker-aeron/id*
 aeron
+my_db
+test_database_example
+rpckafka/target
+querykafkapsql/target
+snapshot-version*
+create-topics.sh
+kafka-topics
+bin/*
+sqlscript/api_schema.sql
+src/schema.rs

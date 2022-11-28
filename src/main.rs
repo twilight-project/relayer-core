@@ -1,53 +1,43 @@
-// extern crate stopwatch;
 #![allow(dead_code)]
 #![allow(unused_imports)]
-// mod aeronlib;
-// mod aeronlibmpsc;
 mod config;
+mod db;
 mod kafkalib;
 mod ordertest;
 mod postgresqllib;
 mod pricefeederlib;
+mod query;
+mod questdb;
 mod redislib;
 mod relayer;
 
-use crate::config::{LOCALDB, ORDERTEST, REDIS_POOL_CONNECTION, THREADPOOL};
-use config::local_serial_core;
-use kafkalib::consumer_kafka::consume_kafka;
-use r2d2_redis::redis;
-use redislib::{redis_db, redis_db_orderbook};
+use config::*;
+use db::*;
+use query::*;
+use redislib::*;
 use relayer::*;
 use std::{thread, time};
 use stopwatch::Stopwatch;
+use uuid::Uuid;
 #[macro_use]
 extern crate lazy_static;
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{mpsc, Arc, Mutex};
 
 fn main() {
+    // to create kafka topics
+    dotenv::dotenv().expect("Failed loading dotenv");
     // kafkalib::kafka_topic::kafka_new_topic("BinanceMiniTickerPayload");
-    // println!("time:{}", relayer::check_server_time());
-    // relayer::get_fudning_data_from_psql(10);
-
-    init_psql();
-    ordertest::initprice();
-    ordertest::generatelendorder();
-    thread::sleep(time::Duration::from_millis(100));
-    start_cronjobs();
-    // thread::sleep(time::Duration::from_millis(3000));
-    // let sw = Stopwatch::start_new();
-    // println!("{}", relayer::get_localdb_string("OrderBook"));
-    // let time_ec = sw.elapsed();
-    // println!("time: {:#?} ", time_ec);
+    // kafkalib::kafka_topic::kafka_new_topic(&*RPC_CLIENT_REQUEST);
+    // kafkalib::kafka_topic::kafka_new_topic(&*TRADERORDER_EVENT_LOG);
+    // kafkalib::kafka_topic::kafka_new_topic(&*LENDORDER_EVENT_LOG);
+    // kafkalib::kafka_topic::kafka_new_topic(&*LENDPOOL_EVENT_LOG);
+    // kafkalib::kafka_topic::kafka_new_topic(&*CORE_EVENT_LOG);
+    // kafkalib::kafka_topic::kafka_new_topic(&*SNAPSHOT_LOG);
+    // println!("{:#?}", kafkalib::kafkacmd::check_kafka_topics());
+    heartbeat();
+    // snapshot();
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }
-
-    // let sw = Stopwatch::start_new();
-    // relayer::get_latest_orderbook();
-    // let time_ec = sw.elapsed();
-    // println!("time: {:#?} ", time_ec);
 }
-use chrono::Utc;
-use serde_json::json;
+// pub use alloc::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};

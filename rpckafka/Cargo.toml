@@ -1,0 +1,18 @@
+[package]
+name = "rpckafka"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+serde = "1.0.131"
+serde_derive = "1.0.131"
+serde_json = "1.0.68"
+uuid = { version = "0.8.2", features = ["v4", "serde"] } #https://github.com/serde-rs/serde/issues/324
+dotenv = "0.15.0"
+serde_with = { version = "1.4.0", features = ["json"]}
+kafka = "0.8"
+lazy_static = "1.4.0"
+jsonrpc = "0.12.1"
+jsonrpc-http-server = "18.0"
+jsonrpc-core = "18.0.0"
