@@ -52,3 +52,7 @@ After successfully creating topics on kafka. Run the following command to run re
 ```yaml
 docker-compose up --build
 ```
+
+### Create/Settle Order
+
+refer POSTMAN requests : [Click Here](./Postman%20Requests/Postman%20Requests.postman_collection.json)
