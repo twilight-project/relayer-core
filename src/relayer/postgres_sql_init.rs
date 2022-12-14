@@ -6,10 +6,10 @@ pub fn init_psql() {
         Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
     }
 
-    // match create_binance_ticker_table() {
-    //     Ok(_) => println!("binancebtctickernew table inserted successfully"),
-    //     Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
-    // }
+    match create_binance_ticker_table() {
+        Ok(_) => println!("binancebtctickernew table inserted successfully"),
+        Err(arg) => println!("Some Error 1 Found, {:#?}", arg),
+    }
     // match create_newtraderorder_table() {
     //     Ok(_) => println!("newtraderorder table inserted successfully"),
     //     Err(arg) => println!("Some Error 2 Found, {:#?}", arg),

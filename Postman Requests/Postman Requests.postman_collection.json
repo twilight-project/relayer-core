@@ -637,14 +637,14 @@
 					"raw": "{\"jsonrpc\": \"2.0\", \"method\": \"CancelTraderOrder\", \"id\":123, \"params\": {\"account_id\":\"Trader account_id\",\"uuid\":\"2d1e2e32-710c-483a-a411-81f7b40dc636\",\"order_type\":\"LIMIT\",\"order_status\":\"PENDING\"} }"
 				},
 				"url": {
-					"raw": "127.0.0.1:3030",
+					"raw": "127.0.0.1:3032",
 					"host": [
 						"127",
 						"0",
 						"0",
 						"1"
 					],
-					"port": "3030",
+					"port": "3032",
 					"query": [
 						{
 							"key": "jsonrpc",
