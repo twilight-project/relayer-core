@@ -151,6 +151,9 @@ services:
     hostname: querykafkapsql
     stdin_open: true
     restart: always
+    depends_on:
+      - postgresql-master
+      - relayer-dev
     volumes:
       - /querykafkapsql/target
       - ./querykafkapsql:/querykafkapsql/

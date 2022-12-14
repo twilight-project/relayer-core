@@ -36,12 +36,14 @@ pub fn update_btc_price(payload: String) {
             // println!("rate :{}", &binance_payload.c);
         });
         //btc price payload added to kafka topic : BinanceMiniTickerPayload
-        psql_pool.execute(move || {
-            // println!("Producer payload :{:#?}", &payload_clone);
-            // producer::produce_main(message_data, topic);
-            // producer_kafka::produce_main(&payload_clone, "BinanceMiniTickerPayload");
-            psql_sink("BinanceMiniTickerPayload", &0, &0, binance_payload_clone);
-        });
+
+        //removed from relayer core, no need to save in psql by relayer core
+        // psql_pool.execute(move || {
+        //     // println!("Producer payload :{:#?}", &payload_clone);
+        //     // producer::produce_main(message_data, topic);
+        //     // producer_kafka::produce_main(&payload_clone, "BinanceMiniTickerPayload");
+        //     psql_sink("BinanceMiniTickerPayload", &0, &0, binance_payload_clone);
+        // });
     }
 }
 
