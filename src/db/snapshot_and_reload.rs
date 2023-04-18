@@ -255,7 +255,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 }
                 _ => {}
             },
-            Event::PoolUpdate(cmd, seq) => match cmd.clone() {
+            Event::PoolUpdate(cmd, lend_ppol, seq) => match cmd.clone() {
                 LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
                     let total_pool_share = lend_order.deposit;
                     let total_locked_value = lend_order.deposit * 10000.0;
@@ -877,7 +877,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 }
                 _ => {}
             },
-            Event::PoolUpdate(cmd, seq) => match cmd.clone() {
+            Event::PoolUpdate(cmd, lend_pool, seq) => match cmd.clone() {
                 LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
                     let total_pool_share = lend_order.deposit;
                     let total_locked_value = lend_order.deposit * 10000.0;

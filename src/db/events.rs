@@ -52,7 +52,7 @@ pub enum Event {
     TraderOrderFundingUpdate(TraderOrder, RelayerCommand),
     TraderOrderLiquidation(TraderOrder, RelayerCommand, usize),
     LendOrder(LendOrder, RpcCommand, usize),
-    PoolUpdate(LendPoolCommand, usize),
+    PoolUpdate(LendPoolCommand, LendPool, usize),
     FundingRateUpdate(f64, SystemTime),
     CurrentPriceUpdate(f64, SystemTime),
     SortedSetDBUpdate(SortedSetCommand),
