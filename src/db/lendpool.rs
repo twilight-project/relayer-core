@@ -364,8 +364,16 @@ impl LendPool {
                 lend_order.tlv1 = self.total_locked_value.clone();
                 lend_order.order_status = OrderStatus::FILLED;
                 lend_order.entry_nonce = self.nonce;
+                let mut lendpool_clone_with_empty_trade_order = self.clone();
+                lendpool_clone_with_empty_trade_order
+                    .pending_orders
+                    .trader_order_data = Vec::new();
                 Event::new(
-                    Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
+                    Event::PoolUpdate(
+                        command_clone,
+                        lendpool_clone_with_empty_trade_order.clone(),
+                        self.aggrigate_log_sequence,
+                    ),
                     String::from("LendOrderCreateOrder"),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
