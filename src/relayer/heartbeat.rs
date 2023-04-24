@@ -40,7 +40,7 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                // updatefundingrate_localdb(1.0);
+                updatefundingrate_localdb(1.0);
             });
             scheduler.every(1.seconds()).run(move || {
                 relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());

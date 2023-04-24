@@ -41,3 +41,5 @@ fn main() {
     }
 }
 // pub use alloc::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList, VecDeque};
+// let time = ServerTime::new(SystemTime::now());
+//     println!("Time: {:#?}", time)

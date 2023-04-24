@@ -89,7 +89,7 @@ impl LendPool {
             exit_nonce: 0,
             deposit: 10.0,
             new_lend_state_amount: 10.0 * 10000.0,
-            timestamp: SystemTime::now(),
+            timestamp: systemtime_to_utc(),
             npoolshare: 10.0,
             nwithdraw: 0.0,
             payment: 0.0,

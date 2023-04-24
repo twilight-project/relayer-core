@@ -54,3 +54,8 @@ impl ServerTime {
         };
     }
 }
+
+pub fn systemtime_to_utc() -> String {
+    let st = SystemTime::now();
+    iso8601(&st)
+}

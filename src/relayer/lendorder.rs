@@ -23,7 +23,7 @@ pub struct LendOrder {
     pub exit_nonce: usize,         // change it to u256
     pub deposit: f64,
     pub new_lend_state_amount: f64,
-    pub timestamp: SystemTime,
+    pub timestamp: String,
     pub npoolshare: f64,
     pub nwithdraw: f64,
     pub payment: f64,
@@ -69,7 +69,7 @@ impl LendOrder {
             exit_nonce: 0,
             deposit,
             new_lend_state_amount: ndeposit,
-            timestamp: SystemTime::now(),
+            timestamp: systemtime_to_utc(),
             npoolshare,
             nwithdraw: 0.0,
             payment: 0.0,
