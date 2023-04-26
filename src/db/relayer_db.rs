@@ -73,13 +73,14 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
 
     fn update(
         &mut self,
-        order: TraderOrder,
+        mut order: TraderOrder,
         cmd: RelayerCommand,
     ) -> Result<TraderOrder, std::io::Error> {
         if self.ordertable.contains_key(&order.uuid) {
             self.ordertable
                 .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
             self.aggrigate_log_sequence += 1;
+            order.timestamp = systemtime_to_utc();
             Event::new(
                 Event::TraderOrderUpdate(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                 format!("update_order-{}", order.uuid),
@@ -96,7 +97,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
 
     fn remove(
         &mut self,
-        order: TraderOrder,
+        mut order: TraderOrder,
         cmd: RpcCommand,
     ) -> Result<TraderOrder, std::io::Error> {
         if self.ordertable.contains_key(&order.uuid) {
@@ -104,6 +105,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 Some(_) => {
                     self.aggrigate_log_sequence += 1;
                     // order.exit_nonce = get_nonce();
+                    order.timestamp = systemtime_to_utc();
                     Event::new(
                         Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                         format!("remove_order-{}", order.uuid),
@@ -128,7 +130,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
 
     fn liquidate(
         &mut self,
-        order: TraderOrder,
+        mut order: TraderOrder,
         cmd: RelayerCommand,
     ) -> Result<TraderOrder, std::io::Error> {
         if self.ordertable.contains_key(&order.uuid) {
@@ -136,6 +138,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 Some(_) => {
                     self.aggrigate_log_sequence += 1;
                     // order.exit_nonce = get_nonce();
+                    order.timestamp = systemtime_to_utc();
                     Event::new(
                         Event::TraderOrderLiquidation(
                             order.clone(),
@@ -290,10 +293,15 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         Ok(order.clone())
     }
 
-    fn remove(&mut self, order: LendOrder, cmd: RpcCommand) -> Result<LendOrder, std::io::Error> {
+    fn remove(
+        &mut self,
+        mut order: LendOrder,
+        cmd: RpcCommand,
+    ) -> Result<LendOrder, std::io::Error> {
         match self.ordertable.remove(&order.uuid) {
             Some(_) => {
                 self.aggrigate_log_sequence += 1;
+                order.timestamp = systemtime_to_utc();
                 Event::new(
                     Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                     format!("remove_order-{}", order.uuid),

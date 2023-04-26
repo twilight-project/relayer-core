@@ -16,7 +16,7 @@ pub struct TraderOrder {
     pub leverage: f64,
     pub initial_margin: f64,
     pub available_margin: f64,
-    pub timestamp: SystemTime,
+    pub timestamp: String,
     pub bankruptcy_price: f64,
     pub bankruptcy_value: f64,
     pub maintenance_margin: f64,
