@@ -312,7 +312,7 @@ impl LendPool {
             LendPoolCommand::AddTraderOrderSettlement(_rpc_request, _trader_order, payment) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
-                self.pending_orders.amount += payment;
+                self.pending_orders.amount += payment * 10000.0;
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
@@ -330,7 +330,7 @@ impl LendPool {
             ) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
-                self.pending_orders.amount += payment;
+                self.pending_orders.amount += payment * 10000.0;
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
@@ -343,7 +343,7 @@ impl LendPool {
             }
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
-                self.pending_orders.amount -= payment;
+                self.pending_orders.amount -= payment * 10000.0;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders
                     .trader_order_data
@@ -425,7 +425,7 @@ impl LendPool {
                         self.nonce += 1;
                         self.aggrigate_log_sequence += 1;
 
-                        self.total_locked_value -= batch.amount * 10000.0;
+                        self.total_locked_value -= batch.amount;
 
                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                         for cmd in batch.trader_order_data {

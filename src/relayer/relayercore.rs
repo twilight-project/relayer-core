@@ -224,7 +224,18 @@ pub fn relayer_event_handler(command: RelayerCommand) {
     match command {
         RelayerCommand::FundingCycle(pool_batch_order, metadata, fundingrate) => {
             Event::new(
-                Event::FundingRateUpdate(fundingrate, iso8601(&std::time::SystemTime::now())),
+                Event::FundingRateUpdate(
+                    fundingrate,
+                    metadata
+                        .metadata
+                        .get(&String::from("CurrentPrice"))
+                        .unwrap()
+                        .clone()
+                        .unwrap()
+                        .parse::<f64>()
+                        .unwrap(),
+                    iso8601(&std::time::SystemTime::now()),
+                ),
                 format!(
                     "insert_fundingrate-{}",
                     std::time::SystemTime::now()

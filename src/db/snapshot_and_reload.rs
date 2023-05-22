@@ -306,7 +306,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
                 LendPoolCommand::AddTraderOrderLiquidation(..) => {}
             },
-            Event::FundingRateUpdate(funding_rate, _time) => {
+            Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 set_localdb("FundingRate", funding_rate);
             }
             Event::CurrentPriceUpdate(current_price, _time) => {
@@ -928,7 +928,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
                 LendPoolCommand::AddTraderOrderLiquidation(..) => {}
             },
-            Event::FundingRateUpdate(funding_rate, _time) => {
+            Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 // set_localdb("FundingRate", funding_rate);
                 localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
             }

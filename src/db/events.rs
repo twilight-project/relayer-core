@@ -53,7 +53,7 @@ pub enum Event {
     TraderOrderLiquidation(TraderOrder, RelayerCommand, usize),
     LendOrder(LendOrder, RpcCommand, usize),
     PoolUpdate(LendPoolCommand, LendPool, usize),
-    FundingRateUpdate(f64, String),
+    FundingRateUpdate(f64, f64, String), //funding rate, btc price, time
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
