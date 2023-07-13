@@ -284,7 +284,7 @@ pub fn startserver() {
                             std::thread::Builder::new()
                                 .name(String::from("snapshot"))
                                 .spawn(move || {
-                                    snapshot();
+                                 let _=   snapshot();
                                 })
                                 .unwrap();
                         }
