@@ -44,6 +44,10 @@ Note: we are using topic "CLIENT-REQUEST" for client order request and "CoreEven
 After successfully creating topics on kafka. Run the following command to run relayer app
 
 ```yaml
+docker compose build --no-cache archiver api
+```
+
+```yaml
 docker-compose up --build
 ```
 
