@@ -31,7 +31,7 @@ WORKDIR /twilight-relayerAPI
 
 RUN cargo install diesel_cli --no-default-features --features postgres
 RUN cargo --config "net.git-fetch-with-cli = true" b --release --bins
-COPY ./twilight-relayerAPI/.env ./.env
+# COPY ./twilight-relayerAPI/.env ./.env
 EXPOSE 8989
 EXPOSE 8990
 ENTRYPOINT [ "/twilight-relayerAPI/target/release/api" ]

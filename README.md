@@ -34,14 +34,8 @@ docker-compose up --build kafka zookeeper
 when the zookeeper and the kafka start running properly then create topic using below command on terminal:
 
 ```yaml
-docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CLIENT-REQUEST --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
-```
-
-```yaml
-docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic SnapShotLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
-```
-
-```yaml
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CLIENT-REQUEST --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic SnapShotLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
 docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CoreEventLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
 ```
 
