@@ -1,0 +1,38 @@
+
+# FROM rust:1.61.0 
+FROM rust:latest
+# FROM rust:1.67-alpine
+
+RUN USER=root apt-get update && \
+    apt-get -y upgrade && \
+    apt-get -y install git curl g++ build-essential libssl-dev pkg-config libpq-dev && \
+    apt-get -y install software-properties-common && \
+    apt-get update 
+RUN  apt-get -y  install openssh-server
+RUN  apt-get -y  install openssh-client
+
+COPY ./id_ed25519 root/.ssh/
+COPY ./id_ed25519.pub root/.ssh/
+RUN chmod 600 /root/.ssh/id_ed25519 && \
+    chmod 600 /root/.ssh/id_ed25519.pub
+RUN    touch /root/.ssh/known_hosts && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
+    chmod 0600 /root/.ssh/id_ed25519   
+
+# RUN USER=root cargo new --bin twilight-relayerAPI
+RUN git clone --branch test-2 git@github.com:twilight-project/twilight-relayerAPI.git
+RUN cd ./twilight-relayerAPI
+WORKDIR /twilight-relayerAPI
+
+# COPY ./twilight-relayerAPI/Cargo.toml ./Cargo.toml
+# RUN rm src/*.rs
+# COPY ./twilight-relayerAPI/src ./src
+# COPY ./twilight-relayerAPI/migrations ./migrations
+
+RUN cargo install diesel_cli --no-default-features --features postgres
+RUN cargo --config "net.git-fetch-with-cli = true" b --release --bins
+COPY ./twilight-relayerAPI/.env ./.env
+EXPOSE 8989
+EXPOSE 8990
+ENTRYPOINT [ "/twilight-relayerAPI/target/release/api" ]
+

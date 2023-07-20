@@ -159,6 +159,36 @@ services:
       - ./querykafkapsql:/querykafkapsql/
     container_name: querykafkapsql
 
+  archiver:
+    build:
+      context: ./relayerapi-docker
+      dockerfile: Dockerfile.archiver
+    hostname: archiver
+    stdin_open: true
+    restart: always
+    depends_on:
+      - postgresql-master
+    volumes:
+      - /archiver/target
+      - ./archiver:/archiver/
+    container_name: archiver
+
+  api:
+    build:
+      context: ./relayerapi-docker
+      dockerfile: Dockerfile.api
+    hostname: api
+    stdin_open: true
+    restart: always
+    ports:
+      - "8990:8990"
+    depends_on:
+      - postgresql-master
+    volumes:
+      - /api/target
+      - ./api:/api/
+    container_name: api
+
 volumes:
   postgresql_master_data:
     driver: local
