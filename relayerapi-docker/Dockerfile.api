@@ -20,7 +20,7 @@ RUN    touch /root/.ssh/known_hosts && \
     chmod 0600 /root/.ssh/id_ed25519   
 
 # RUN USER=root cargo new --bin twilight-relayerAPI
-RUN git clone --branch test-2 git@github.com:twilight-project/twilight-relayerAPI.git
+RUN git clone --branch test-3 git@github.com:twilight-project/twilight-relayerAPI.git
 RUN cd ./twilight-relayerAPI
 WORKDIR /twilight-relayerAPI
 
