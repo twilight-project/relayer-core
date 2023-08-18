@@ -9,22 +9,27 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCreateOrder {
-    pub input: Input,
-    pub output: Output,
-    pub signature: Signature,
+    pub input: Input,         //coin type input
+    pub output: Output,       // memo type output
+    pub signature: Signature, //quisquis signature
     pub proof: SigmaProof,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosSettleMsg {
-    pub input: Input,
-    pub signature: Signature,
+    pub input: Input,         //memo type input
+    pub signature: Signature, //quisquis signature
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCancelMsg {
     pub public_key: RistrettoPublicKey,
-    pub signature: Signature,
+    pub signature: Signature, //quisquis signature  //canceltradeorder sign
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZkosQueryMsg {
+    pub public_key: RistrettoPublicKey,
+    pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -55,4 +60,14 @@ pub struct ExecuteLendOrderZkos {
 pub struct CancelTraderOrderZkos {
     pub cancel_trader_order: CancelTraderOrder,
     pub msg: ZkosCancelMsg,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct QueryTraderOrder {
+    pub cancel_trader_order: CancelTraderOrder,
+    pub msg: ZkosQueryMsg,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct QueryLendOrder {
+    pub cancel_trader_order: CancelTraderOrder,
+    pub msg: ZkosQueryMsg,
 }

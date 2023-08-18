@@ -153,6 +153,64 @@ pub fn kafka_queue_rpc_server_with_zkos() {
         },
     );
     io.add_method_with_meta(
+        "QueryTraderOrder",
+        move |params: Params, meta: Meta| async move {
+            match params.parse::<ExecuteLendOrderZkos>() {
+                Ok(ordertx) => {
+                    //to get public key from data
+                    let mut settle_request = ordertx.execute_lend_order.clone();
+                    let (account_id, _) = ordertx.msg.input.input.account().unwrap().get_account();
+                    settle_request.account_id = hex::encode(account_id.as_bytes());
+                    //
+
+                    let data = RpcCommand::ExecuteLendOrder(settle_request, meta);
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        "ExecuteLendOrder",
+                    );
+                    Ok(Value::String(
+                        "Execution request submitted successfully.".into(),
+                    ))
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    io.add_method_with_meta(
+        "QueryLendOrder",
+        move |params: Params, meta: Meta| async move {
+            match params.parse::<ExecuteLendOrderZkos>() {
+                Ok(ordertx) => {
+                    //to get public key from data
+                    let mut settle_request = ordertx.execute_lend_order.clone();
+                    let (account_id, _) = ordertx.msg.input.input.account().unwrap().get_account();
+                    settle_request.account_id = hex::encode(account_id.as_bytes());
+                    //
+
+                    let data = RpcCommand::ExecuteLendOrder(settle_request, meta);
+                    kafkacmd::send_to_kafka_queue(
+                        data,
+                        String::from("CLIENT-REQUEST"),
+                        "ExecuteLendOrder",
+                    );
+                    Ok(Value::String(
+                        "Execution request submitted successfully.".into(),
+                    ))
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    io.add_method_with_meta(
         "CancelTraderOrder",
         move |params: Params, meta: Meta| async move {
             match params.parse::<CancelTraderOrderZkos>() {
