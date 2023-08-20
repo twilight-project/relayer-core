@@ -32,8 +32,17 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     let (account_id, _) =
                         ordertx.input.input.input.account().unwrap().get_account();
                     order_request.account_id = hex::encode(account_id.as_bytes());
+                    let response_clone = order_request.account_id.clone();
                     //
-                    let data = RpcCommand::CreateTraderOrder(order_request, meta);
+                    let mut meta_clone = meta.clone();
+                    meta_clone.metadata.insert(
+                        String::from("zkos_data"),
+                        Some(
+                            serde_json::to_string(&bincode::serialize(&ordertx.input).unwrap())
+                                .unwrap(),
+                        ),
+                    );
+                    let data = RpcCommand::CreateTraderOrder(order_request, meta_clone);
                     //call verifier to check balance, etc...
                     //if verified the call kafkacmd::send_to_kafka_queue
                     //also convert public key into hash fn and put it in account_id field
@@ -43,7 +52,11 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                         "CreateTraderOrder",
                     );
                     Ok(Value::String(
-                        "Order request submitted successfully.".into(),
+                        format!(
+                            "Order request submitted successfully. your id is: {:#?}",
+                            response_clone
+                        )
+                        .into(),
                     ))
                     // Ok(Value::Null)
                 }

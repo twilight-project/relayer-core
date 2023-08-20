@@ -17,6 +17,8 @@ jsonrpc = "0.12.1"
 jsonrpc-http-server = "18.0"
 jsonrpc-core = "18.0.0"
 hex = "*"
+bincode = "1"
+
 [dependencies.transaction]
 git = "ssh://github.com/twilight-project/ZkOS.git"
 branch = "rpc-wasm"
