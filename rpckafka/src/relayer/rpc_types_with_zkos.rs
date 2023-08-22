@@ -62,12 +62,12 @@ pub struct CancelTraderOrderZkos {
     pub msg: ZkosCancelMsg,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct QueryTraderOrder {
-    pub cancel_trader_order: CancelTraderOrder,
+pub struct QueryTraderOrderZkos {
+    pub query_trader_order: QueryTraderOrder,
     pub msg: ZkosQueryMsg,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct QueryLendOrder {
-    pub cancel_trader_order: CancelTraderOrder,
+pub struct QueryLendOrderZkos {
+    pub query_lend_order: QueryLendOrder,
     pub msg: ZkosQueryMsg,
 }

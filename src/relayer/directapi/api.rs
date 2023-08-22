@@ -1,7 +1,5 @@
 use crate::config::*;
 use crate::relayer::*;
-// use crate::config::THREADPOOL_ORDERKAFKAQUEUE;
-// use crate::kafkalib::producer_kafka;
 use crate::db::*;
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_core::*;
@@ -28,6 +26,14 @@ pub fn startserver() {
         },
     );
     io.add_method_with_meta(
+        "GetOrderDetails",
+        move |params: Params, _meta: Meta| async move {
+            let orderbook: OrderBook =
+                serde_json::from_str(&get_localdb_string("OrderBook")).unwrap();
+            Ok(serde_json::to_value(orderbook).unwrap())
+        },
+    );
+    io.add_method_with_meta(
         "GetServerTime",
         move |params: Params, _meta: Meta| async move {
             Ok(serde_json::to_value(&check_server_time()).unwrap())
@@ -36,7 +42,20 @@ pub fn startserver() {
     io.add_method_with_meta(
         "GetRecentOrder",
         move |params: Params, _meta: Meta| async move {
-            Ok(serde_json::to_value(get_recent_orders()).unwrap())
+            match params.parse::<QueryTraderOrderZkos>() {
+                Ok(query) => {
+                    let query_para=query.query_trader_order.account_id;
+                 println!("trader order :{:#?}",get_order_details_by_account_id(query_para));
+                    Ok(Value::String(
+                        "Order request submitted successfully.".into(),
+                    ))
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
         },
     );
     io.add_method_with_meta(
