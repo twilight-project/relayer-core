@@ -24,7 +24,33 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "CreateTraderOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<CreateTraderOrderZkos>() {
+            let request: Result<CreateTraderOrderZkos, jsonrpc_core::Error>;
+            request = match params.parse::<String>() {
+                Ok(hex_data) => match hex::decode(hex_data) {
+                    Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                        Ok(ordertx) => Ok(ordertx),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    },
+                    Err(args) => {
+                        let err =
+                            JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                        Err(err)
+                    }
+                },
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut order_request = ordertx.create_trader_order.clone();
