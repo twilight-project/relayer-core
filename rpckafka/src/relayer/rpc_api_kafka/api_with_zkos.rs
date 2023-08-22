@@ -24,13 +24,40 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "CreateTraderOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<CreateTraderOrderZkos>() {
+            let request: Result<CreateTraderOrderZkos, jsonrpc_core::Error>;
+            request = match params.parse::<String>() {
+                Ok(hex_data) => match hex::decode(hex_data) {
+                    Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                        Ok(ordertx) => Ok(ordertx),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    },
+                    Err(args) => {
+                        let err =
+                            JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                        Err(err)
+                    }
+                },
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut order_request = ordertx.create_trader_order.clone();
 
-                    let (account_id, _) =
-                        ordertx.input.input.input.account().unwrap().get_account();
+                    let account_id =
+                        //ordertx.input.input.input.as_owner_address().unwrap();
+                        ordertx.input.input.as_owner_address().unwrap();
                     order_request.account_id = hex::encode(account_id.as_bytes());
                     let response_clone = order_request.account_id.clone();
                     //
@@ -76,8 +103,9 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut order_request = ordertx.create_lend_order.clone();
-                    let (account_id, _) =
-                        ordertx.input.input.input.account().unwrap().get_account();
+                    let account_id =
+                    //ordertx.input.input.input.as_owner_address().unwrap();
+                    ordertx.input.input.as_owner_address().unwrap();
                     order_request.account_id = hex::encode(account_id.as_bytes());
                     //
 
@@ -114,7 +142,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_trader_order.clone();
-                    let (account_id, _) = ordertx.msg.input.input.account().unwrap().get_account();
+                    let account_id = ordertx.msg.input.as_owner_address().unwrap();
                     settle_request.account_id = hex::encode(account_id.as_bytes());
                     //
 
@@ -143,7 +171,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
-                    let (account_id, _) = ordertx.msg.input.input.account().unwrap().get_account();
+                    let account_id = ordertx.msg.input.as_owner_address().unwrap();
                     settle_request.account_id = hex::encode(account_id.as_bytes());
                     //
 
@@ -172,7 +200,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
-                    let (account_id, _) = ordertx.msg.input.input.account().unwrap().get_account();
+                    let account_id = ordertx.msg.input.as_owner_address().unwrap();
                     settle_request.account_id = hex::encode(account_id.as_bytes());
                     //
 
@@ -201,7 +229,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
-                    let (account_id, _) = ordertx.msg.input.input.account().unwrap().get_account();
+                    let account_id = ordertx.msg.input.as_owner_address().unwrap();
                     settle_request.account_id = hex::encode(account_id.as_bytes());
                     //
 
@@ -231,7 +259,8 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     //to get public key from data
                     let mut cancel_request = ordertx.cancel_trader_order.clone();
                     let account_id = ordertx.msg.public_key;
-                    cancel_request.account_id = hex::encode(account_id.as_bytes());
+                    // cancel_request.account_id = hex::encode(account_id.as_bytes());
+                    cancel_request.account_id = account_id;
                     //
 
                     let data = RpcCommand::CancelTraderOrder(cancel_request, meta);

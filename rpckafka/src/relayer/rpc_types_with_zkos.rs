@@ -1,11 +1,11 @@
 use super::rpc_types::*;
 use crate::relayer::types::*;
-use elgamalsign::Signature;
 use quisquislib::accounts::SigmaProof;
 use quisquislib::ristretto::RistrettoPublicKey;
 use serde_derive::{Deserialize, Serialize};
-use transaction::{Input, Output};
 use uuid::Uuid;
+use zkschnorr::Signature;
+use zkvm::zkos_types::{Input, Output};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCreateOrder {
@@ -23,12 +23,12 @@ pub struct ZkosSettleMsg {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCancelMsg {
-    pub public_key: RistrettoPublicKey,
+    pub public_key: String,
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosQueryMsg {
-    pub public_key: RistrettoPublicKey,
+    pub public_key: String,
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
 
