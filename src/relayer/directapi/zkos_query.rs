@@ -1,11 +1,14 @@
-use crate::config::POSTGRESQL_POOL_CONNECTION;
+use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
+use crate::db::*;
 use crate::relayer::*;
 use elgamalsign::Signature;
 use quisquislib::accounts::SigmaProof;
 use quisquislib::ristretto::RistrettoPublicKey;
 use serde_derive::{Deserialize, Serialize};
+use std::sync::mpsc;
 use transaction::{Input, Output};
-use uuid::{uuid, Uuid};
+// use uuid::{uuid, Uuid};
+use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosQueryMsg {
     pub public_key: RistrettoPublicKey,
@@ -15,7 +18,7 @@ pub struct ZkosQueryMsg {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryTraderOrderZkos {
     pub query_trader_order: QueryTraderOrder,
-    pub msg: ZkosQueryMsg,
+    // pub msg: ZkosQueryMsg,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryLendOrderZkos {
@@ -35,37 +38,78 @@ pub struct QueryLendOrder {
 }
 
 pub fn get_order_details_by_account_id(account: String) -> Result<TraderOrder, std::io::Error> {
+    let threadpool = THREADPOOL.lock().unwrap();
+
+    let (sender, receiver): (
+        mpsc::Sender<Result<TraderOrder, std::io::Error>>,
+        mpsc::Receiver<Result<TraderOrder, std::io::Error>>,
+    ) = mpsc::channel();
+    threadpool.execute(move || {
     let query = format!(" SELECT id, uuid, account_id, position_type, order_status, order_type, entryprice, execution_price, positionsize, leverage, initial_margin, available_margin, \"timestamp\", bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence
 	FROM public.trader_order where account_id='{}' Order By  timestamp desc Limit 1 ;",account);
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+    let mut is_raw = true;
     for row in client.query(&query, &[]).unwrap() {
-        let response = TraderOrder {
-            uuid: serde_json::from_str(row.get("uuid")).unwrap(),
-            account_id: row.get("account_id"),
-            position_type: serde_json::from_str(row.get("position_type")).unwrap(),
-            order_status: serde_json::from_str(row.get("order_status")).unwrap(),
-            order_type: serde_json::from_str(row.get("order_type")).unwrap(),
-            entryprice: row.get("entryprice"),
-            execution_price: row.get("execution_price:"),
-            positionsize: row.get("positionsize"),
-            leverage: row.get("leverage"),
-            initial_margin: row.get("initial_margin"),
-            available_margin: row.get("available_margin"),
-            timestamp: row.get("timestamp"),
-            bankruptcy_price: row.get("bankruptcy_price"),
-            bankruptcy_value: row.get("bankruptcy_value"),
-            maintenance_margin: row.get("maintenance_margin"),
-            liquidation_price: row.get("liquidation_price"),
-            unrealized_pnl: row.get("unrealized_pnl"),
-            settlement_price: row.get("settlement_price"),
-            entry_nonce: serde_json::from_str(row.get("entry_nonce")).unwrap(),
-            exit_nonce: serde_json::from_str(row.get("exit_nonce")).unwrap(),
-            entry_sequence: serde_json::from_str(row.get("entry_sequence")).unwrap(),
-        };
-        return Ok(response);
+        println!("is it coming here");
+        let uuid_string:String=row.get("uuid");
+      let uuid=Uuid::parse_str(&uuid_string).unwrap();
+        println!("raw data:{:#?}",uuid);
+        // let response = TraderOrder {
+        //     // uuid: serde_json::from_str(&uuid).unwrap(),
+        //     uuid: Uuid::parse_str(&uuid).unwrap(),
+        //     account_id: row.get("account_id"),
+        //     position_type: serde_json::from_str(&postiontype).unwrap(),
+        //     order_status: serde_json::from_str(row.get("order_status")).unwrap(),
+        //     order_type: serde_json::from_str(row.get("order_type")).unwrap(),
+        //     entryprice: row.get("entryprice"),
+        //     execution_price: row.get("execution_price:"),
+        //     positionsize: row.get("positionsize"),
+        //     leverage: row.get("leverage"),
+        //     initial_margin: row.get("initial_margin"),
+        //     available_margin: row.get("available_margin"),
+        //     timestamp: row.get("timestamp"),
+        //     bankruptcy_price: row.get("bankruptcy_price"),
+        //     bankruptcy_value: row.get("bankruptcy_value"),
+        //     maintenance_margin: row.get("maintenance_margin"),
+        //     liquidation_price: row.get("liquidation_price"),
+        //     unrealized_pnl: row.get("unrealized_pnl"),
+        //     settlement_price: row.get("settlement_price"),
+        //     entry_nonce: serde_json::from_str(row.get("entry_nonce")).unwrap(),
+        //     exit_nonce: serde_json::from_str(row.get("exit_nonce")).unwrap(),
+        //     entry_sequence: serde_json::from_str(row.get("entry_sequence")).unwrap(),
+        // };
+        // return Ok(response);
+        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+        let trader_order=trader_order_db.get(uuid);
+        drop(trader_order_db);
+        sender.send(trader_order).unwrap();
+        is_raw=false;
+    } 
+    if is_raw{
+        sender.send(Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "order not found",
+        )));
     }
-    return Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "data not found",
-    ));
+   
+});
+
+    match receiver.recv().unwrap() {
+        Ok(value) => {
+            println!("is it coming here3");
+            return Ok(value);
+        }
+        Err(arg) => {
+            println!("is it coming here4");
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "order not found",
+            ));
+        }
+    };
+
+    // return Err(std::io::Error::new(
+    //     std::io::ErrorKind::Other,
+    //     "data not found",
+    // ));
 }

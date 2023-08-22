@@ -1,6 +1,6 @@
 use crate::config::*;
-use crate::relayer::*;
 use crate::db::*;
+use crate::relayer::*;
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_core::*;
 use jsonrpc_http_server::jsonrpc_core::{MetaIoHandler, Metadata, Params};
@@ -44,11 +44,18 @@ pub fn startserver() {
         move |params: Params, _meta: Meta| async move {
             match params.parse::<QueryTraderOrderZkos>() {
                 Ok(query) => {
-                    let query_para=query.query_trader_order.account_id;
-                 println!("trader order :{:#?}",get_order_details_by_account_id(query_para));
-                    Ok(Value::String(
-                        "Order request submitted successfully.".into(),
-                    ))
+                    let query_para = query.query_trader_order.account_id;
+                    let order = get_order_details_by_account_id(query_para);
+                    match order {
+                        Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
                 }
                 Err(args) => {
                     let err =
