@@ -26,10 +26,8 @@ pub fn kafka_queue_rpc_server_with_zkos() {
         move |params: Params, meta: Meta| async move {
             let request: Result<CreateTraderOrderZkos, jsonrpc_core::Error>;
             // match params.parse::<String>()
-            println!("i am at line 29");
             request = match params.parse::<ByteRec>() {
                 Ok(hex_data) => {
-                    println!("i am at line 31");
                     match hex::decode(hex_data.data) {
                         Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
                             Ok(ordertx) => Ok(ordertx),
@@ -107,7 +105,39 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "CreateLendOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<CreateLendOrderZkos>() {
+            let request: Result<CreateLendOrderZkos, jsonrpc_core::Error>;
+            // match params.parse::<String>()
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut order_request = ordertx.create_lend_order.clone();
@@ -146,7 +176,39 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "ExecuteTraderOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<ExecuteTraderOrderZkos>() {
+            let request: Result<ExecuteTraderOrderZkos, jsonrpc_core::Error>;
+            // match params.parse::<String>()
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_trader_order.clone();
@@ -175,7 +237,39 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "ExecuteLendOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<ExecuteLendOrderZkos>() {
+            let request: Result<ExecuteLendOrderZkos, jsonrpc_core::Error>;
+            // match params.parse::<String>()
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
@@ -204,7 +298,39 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "QueryTraderOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<ExecuteLendOrderZkos>() {
+            let request: Result<ExecuteLendOrderZkos, jsonrpc_core::Error>;
+            // match params.parse::<String>()
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
@@ -262,7 +388,39 @@ pub fn kafka_queue_rpc_server_with_zkos() {
     io.add_method_with_meta(
         "CancelTraderOrder",
         move |params: Params, meta: Meta| async move {
-            match params.parse::<CancelTraderOrderZkos>() {
+            let request: Result<CancelTraderOrderZkos, jsonrpc_core::Error>;
+            // match params.parse::<String>()
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
                 Ok(ordertx) => {
                     //to get public key from data
                     let mut cancel_request = ordertx.cancel_trader_order.clone();
