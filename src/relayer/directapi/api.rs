@@ -3,9 +3,11 @@ use crate::db::*;
 use crate::relayer::*;
 use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_core::*;
-use jsonrpc_http_server::jsonrpc_core::{MetaIoHandler, Metadata, Params};
-// use jsonrpc_http_server::jsonrpc_core::{MetaIoHandler, Metadata, Params, Value};
-use jsonrpc_http_server::{hyper, ServerBuilder};
+use jsonrpc_http_server::{
+    hyper,
+    jsonrpc_core::{MetaIoHandler, Metadata, Params, Value},
+    ServerBuilder,
+};
 use std::collections::HashMap;
 use stopwatch::Stopwatch;
 #[derive(Default, Clone, Debug)]
@@ -39,32 +41,7 @@ pub fn startserver() {
             Ok(serde_json::to_value(&check_server_time()).unwrap())
         },
     );
-    io.add_method_with_meta(
-        "GetRecentOrder",
-        move |params: Params, _meta: Meta| async move {
-            match params.parse::<QueryTraderOrderZkos>() {
-                Ok(query) => {
-                    let query_para = query.query_trader_order.account_id;
-                    let order = get_order_details_by_account_id(query_para);
-                    match order {
-                        Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
-                        Err(args) => {
-                            let err = JsonRpcError::invalid_params(format!(
-                                "Invalid parameters, {:?}",
-                                args
-                            ));
-                            Err(err)
-                        }
-                    }
-                }
-                Err(args) => {
-                    let err =
-                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
-                    Err(err)
-                }
-            }
-        },
-    );
+
     io.add_method_with_meta(
         "GetCandleData",
         move |params: Params, _meta: Meta| async move {
@@ -344,6 +321,117 @@ pub fn startserver() {
             }
         }
     });
+
+    /*************************** order details lend and trade by zkos */
+    io.add_method_with_meta(
+        "QueryTraderOrderZkos",
+        move |params: Params, _meta: Meta| async move {
+            let request: Result<QueryTraderOrderZkos>;
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => match hex::decode(hex_data.data) {
+                    Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                        Ok(ordertx) => Ok(ordertx),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    },
+                    Err(args) => {
+                        let err =
+                            JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                        Err(err)
+                    }
+                },
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+            match request {
+                Ok(query) => {
+                    let query_para = query.query_trader_order.account_id;
+                    let order = get_traderorder_details_by_account_id(query_para);
+                    match order {
+                        Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    io.add_method_with_meta(
+        "QueryLendOrderZkos",
+        move |params: Params, _meta: Meta| async move {
+            let request: Result<QueryLendOrderZkos>;
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
+                Ok(query) => {
+                    let query_para = query.query_lend_order.account_id;
+                    let order = get_lendorder_details_by_account_id(query_para);
+                    match order {
+                        Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    /*******************************end  */
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
