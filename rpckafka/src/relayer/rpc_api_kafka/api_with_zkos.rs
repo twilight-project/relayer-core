@@ -25,10 +25,23 @@ pub fn kafka_queue_rpc_server_with_zkos() {
         "CreateTraderOrder",
         move |params: Params, meta: Meta| async move {
             let request: Result<CreateTraderOrderZkos, jsonrpc_core::Error>;
-            request = match params.parse::<String>() {
-                Ok(hex_data) => match hex::decode(hex_data) {
-                    Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
-                        Ok(ordertx) => Ok(ordertx),
+            // match params.parse::<String>()
+            println!("i am at line 29");
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    println!("i am at line 31");
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
                         Err(args) => {
                             let err = JsonRpcError::invalid_params(format!(
                                 "Invalid parameters, {:?}",
@@ -36,13 +49,8 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                             ));
                             Err(err)
                         }
-                    },
-                    Err(args) => {
-                        let err =
-                            JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
-                        Err(err)
                     }
-                },
+                }
                 Err(args) => {
                     let err =
                         JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));

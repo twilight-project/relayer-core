@@ -71,3 +71,33 @@ pub struct QueryLendOrderZkos {
     pub query_lend_order: QueryLendOrder,
     pub msg: ZkosQueryMsg,
 }
+
+impl CreateTraderOrderZkos {
+    pub fn new(
+        create_trader_order: CreateTraderOrder,
+        input: ZkosCreateOrder,
+    ) -> CreateTraderOrderZkos {
+        CreateTraderOrderZkos {
+            create_trader_order,
+            input,
+        }
+    }
+    pub fn encode_as_hex_string(&self) -> String {
+        let byt = bincode::serialize(&self).unwrap();
+        hex::encode(&byt)
+    }
+
+    // pub fn decode_from_hex_sting(data: String) -> Result<Self, std::io::error> {
+    //     bincode::deserialize(&hex::decode(&data))
+
+    //     // Err(std::io::Error::new(
+    //     //     std::io::ErrorKind::Other,
+    //     //     "order not found",
+    //     // ))
+    // }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ByteRec {
+    pub data: String,
+}
