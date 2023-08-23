@@ -1,17 +1,17 @@
 use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
 use crate::db::*;
 use crate::relayer::*;
-use elgamalsign::Signature;
-use quisquislib::accounts::SigmaProof;
-use quisquislib::ristretto::RistrettoPublicKey;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc;
-use transaction::{Input, Output};
+use quisquislib::accounts::SigmaProof;
+use quisquislib::ristretto::RistrettoPublicKey;
+use zkschnorr::Signature;
+use zkvm::zkos_types::{Input, Output};
 // use uuid::{uuid, Uuid};
 use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosQueryMsg {
-    pub public_key: RistrettoPublicKey,
+    pub public_key: String,   //This is Account hex address identified as public_key. Do not mistake it for public key of input
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
 
@@ -25,7 +25,18 @@ pub struct QueryLendOrderZkos {
     pub query_lend_order: QueryLendOrder,
     pub msg: ZkosQueryMsg,
 }
-
+impl QueryTraderOrderZkos{
+    pub fn new(query_trader_order:QueryTraderOrder, msg:ZkosQueryMsg) -> QueryTraderOrderZkos {
+        QueryTraderOrderZkos {
+            query_trader_order,
+            msg,
+        }
+    }
+    pub fn encode_as_hex_string(&self)-> String{
+        let byt = bincode::serialize(&self).unwrap();
+        hex::encode(&byt)
+    }
+}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct QueryTraderOrder {
     pub account_id: String,

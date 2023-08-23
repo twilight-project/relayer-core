@@ -326,9 +326,10 @@ pub fn startserver() {
     io.add_method_with_meta(
         "QueryTraderOrderZkos",
         move |params: Params, _meta: Meta| async move {
-            let request: Result<QueryTraderOrderZkos>;
+            let request: std::result::Result<QueryTraderOrderZkos, jsonrpc_core::Error>;
+
             request = match params.parse::<ByteRec>() {
-                Ok(hex_data) => match hex::decode(hex_data.data) {
+                Ok(hex_data) => match hex::decode(&hex_data.data) {
                     Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
                         Ok(ordertx) => Ok(ordertx),
                         Err(args) => {
@@ -351,9 +352,12 @@ pub fn startserver() {
                     Err(err)
                 }
             };
+            // println!("data: {:#?}", request.clone().unwrap().query_trader_order);
             match request {
                 Ok(query) => {
-                    let query_para = query.query_trader_order.account_id;
+                    let query_para = query.msg.public_key;
+                    // let query_para = hex::encode(query_para1.as_bytes());
+                    println!("i am at 364:{:#?}", query_para);
                     let order = get_traderorder_details_by_account_id(query_para);
                     match order {
                         Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
@@ -377,7 +381,7 @@ pub fn startserver() {
     io.add_method_with_meta(
         "QueryLendOrderZkos",
         move |params: Params, _meta: Meta| async move {
-            let request: Result<QueryLendOrderZkos>;
+            let request: std::result::Result<QueryLendOrderZkos, jsonrpc_core::Error>;
             request = match params.parse::<ByteRec>() {
                 Ok(hex_data) => {
                     match hex::decode(hex_data.data) {
@@ -410,7 +414,8 @@ pub fn startserver() {
 
             match request {
                 Ok(query) => {
-                    let query_para = query.query_lend_order.account_id;
+                    // let query_para = query.query_lend_order.account_id;
+                    let query_para = query.msg.public_key;
                     let order = get_lendorder_details_by_account_id(query_para);
                     match order {
                         Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),

@@ -64,7 +64,8 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     let account_id =
                         //ordertx.input.input.input.as_owner_address().unwrap();
                         ordertx.input.input.as_owner_address().unwrap();
-                    order_request.account_id = hex::encode(account_id.as_bytes());
+                    // order_request.account_id = account_id.clone();
+                    order_request.account_id = account_id.clone();
                     let response_clone = order_request.account_id.clone();
                     //
                     let mut meta_clone = meta.clone();
@@ -144,7 +145,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     let account_id =
                     //ordertx.input.input.input.as_owner_address().unwrap();
                     ordertx.input.input.as_owner_address().unwrap();
-                    order_request.account_id = hex::encode(account_id.as_bytes());
+                    order_request.account_id = account_id.clone();
                     //
 
                     let data = RpcCommand::CreateLendOrder(order_request, meta);
@@ -213,7 +214,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_trader_order.clone();
                     let account_id = ordertx.msg.input.as_owner_address().unwrap();
-                    settle_request.account_id = hex::encode(account_id.as_bytes());
+                    settle_request.account_id = account_id.clone();
                     //
 
                     let data = RpcCommand::ExecuteTraderOrder(settle_request, meta);
@@ -274,7 +275,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
                     let account_id = ordertx.msg.input.as_owner_address().unwrap();
-                    settle_request.account_id = hex::encode(account_id.as_bytes());
+                    settle_request.account_id = account_id.clone();
                     //
 
                     let data = RpcCommand::ExecuteLendOrder(settle_request, meta);
@@ -335,7 +336,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
                     let account_id = ordertx.msg.input.as_owner_address().unwrap();
-                    settle_request.account_id = hex::encode(account_id.as_bytes());
+                    settle_request.account_id = account_id.clone();
                     //
 
                     let data = RpcCommand::ExecuteLendOrder(settle_request, meta);
@@ -364,7 +365,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     //to get public key from data
                     let mut settle_request = ordertx.execute_lend_order.clone();
                     let account_id = ordertx.msg.input.as_owner_address().unwrap();
-                    settle_request.account_id = hex::encode(account_id.as_bytes());
+                    settle_request.account_id = account_id.clone();
                     //
 
                     let data = RpcCommand::ExecuteLendOrder(settle_request, meta);
@@ -426,7 +427,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     let mut cancel_request = ordertx.cancel_trader_order.clone();
                     let account_id = ordertx.msg.public_key;
                     // cancel_request.account_id = hex::encode(account_id.as_bytes());
-                    cancel_request.account_id = account_id;
+                    cancel_request.account_id = account_id.clone();
                     //
 
                     let data = RpcCommand::CancelTraderOrder(cancel_request, meta);
