@@ -1,14 +1,14 @@
 use super::rpc_types::*;
-use crate::relayer::types::*;
 use quisquislib::accounts::SigmaProof;
-use quisquislib::ristretto::RistrettoPublicKey;
 use serde_derive::{Deserialize, Serialize};
 use transaction::verify_relayer::{
     verify_query_order, verify_settle_requests, verify_trade_lend_order,
 };
-use uuid::Uuid;
 use zkschnorr::Signature;
 use zkvm::zkos_types::{Input, Output};
+
+/********* zkos wasm msg Start */
+// To create zkos Wasm request for new Trade and Lend Order
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCreateOrder {
     pub input: Input,         //coin type input
@@ -17,27 +17,45 @@ pub struct ZkosCreateOrder {
     pub proof: SigmaProof,
 }
 
+// To create zkos Wasm request to Settle Trade and Lend Order
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosSettleMsg {
     pub input: Input,         //memo type input
     pub signature: Signature, //quisquis signature
 }
 
+// To create zkos Wasm request for cancel any Limit Trade Order
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCancelMsg {
     pub public_key: String,
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
+
+// To create zkos Wasm request for query Trade and Lend Order
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosQueryMsg {
     pub public_key: String,
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
 
+/********* zkos wasm msg End */
+
+/***** Relayer RPC with Zkos Integration Start */
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateTraderOrderZkos {
     pub create_trader_order: CreateTraderOrder,
     pub input: ZkosCreateOrder,
+}
+impl CreateTraderOrderZkos {
+    pub fn verify_order(&mut self) -> Result<bool, &'static str> {
+        verify_trade_lend_order(
+            self.input.input.clone(),
+            self.input.output.clone(),
+            self.input.signature.clone(),
+            self.input.proof.clone(),
+        )
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,11 +63,25 @@ pub struct CreateLendOrderZkos {
     pub create_lend_order: CreateLendOrder,
     pub input: ZkosCreateOrder,
 }
-
+impl CreateLendOrderZkos {
+    pub fn verify_order(&mut self) -> Result<bool, &'static str> {
+        verify_trade_lend_order(
+            self.input.input.clone(),
+            self.input.output.clone(),
+            self.input.signature.clone(),
+            self.input.proof.clone(),
+        )
+    }
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExecuteTraderOrderZkos {
     pub execute_trader_order: ExecuteTraderOrder,
     pub msg: ZkosSettleMsg,
+}
+impl ExecuteTraderOrderZkos {
+    pub fn verify_order(&mut self) -> Result<(), &'static str> {
+        verify_settle_requests(self.msg.input.clone(), self.msg.signature.clone())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -57,49 +89,63 @@ pub struct ExecuteLendOrderZkos {
     pub execute_lend_order: ExecuteLendOrder,
     pub msg: ZkosSettleMsg,
 }
+impl ExecuteLendOrderZkos {
+    pub fn verify_order(&mut self) -> Result<(), &'static str> {
+        verify_settle_requests(self.msg.input.clone(), self.msg.signature.clone())
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CancelTraderOrderZkos {
     pub cancel_trader_order: CancelTraderOrder,
     pub msg: ZkosCancelMsg,
 }
+
+impl CancelTraderOrderZkos {
+    pub fn verify_query(&mut self) -> Result<(), &'static str> {
+        verify_query_order(
+            serde_json::from_str(&self.msg.public_key.clone()).unwrap(),
+            self.msg.signature.clone(),
+            &bincode::serialize(&self.cancel_trader_order).unwrap(),
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryTraderOrderZkos {
     pub query_trader_order: QueryTraderOrder,
     pub msg: ZkosQueryMsg,
 }
+
+impl QueryTraderOrderZkos {
+    pub fn verify_query(&mut self) -> Result<(), &'static str> {
+        verify_query_order(
+            serde_json::from_str(&self.msg.public_key.clone()).unwrap(),
+            self.msg.signature.clone(),
+            &bincode::serialize(&self.query_trader_order).unwrap(),
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryLendOrderZkos {
     pub query_lend_order: QueryLendOrder,
     pub msg: ZkosQueryMsg,
 }
 
-impl CreateTraderOrderZkos {
-    pub fn new(
-        create_trader_order: CreateTraderOrder,
-        input: ZkosCreateOrder,
-    ) -> CreateTraderOrderZkos {
-        CreateTraderOrderZkos {
-            create_trader_order,
-            input,
-        }
+impl QueryLendOrderZkos {
+    pub fn verify_query(&mut self) -> Result<(), &'static str> {
+        verify_query_order(
+            serde_json::from_str(&self.msg.public_key.clone()).unwrap(),
+            self.msg.signature.clone(),
+            &bincode::serialize(&self.query_lend_order).unwrap(),
+        )
     }
-    pub fn encode_as_hex_string(&self) -> String {
-        let byt = bincode::serialize(&self).unwrap();
-        hex::encode(&byt)
-    }
-
-    // pub fn decode_from_hex_sting(data: String) -> Result<Self, std::io::error> {
-    //     bincode::deserialize(&hex::decode(&data))
-
-    //     // Err(std::io::Error::new(
-    //     //     std::io::ErrorKind::Other,
-    //     //     "order not found",
-    //     // ))
-    // }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ByteRec {
     pub data: String,
 }
+
+/***** Relayer RPC with Zkos Integration End */
