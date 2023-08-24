@@ -89,13 +89,19 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                                 String::from("CLIENT-REQUEST"),
                                 "CreateTraderOrder",
                             );
-                            Ok(Value::String(
-                                format!(
-                                    "Order request submitted successfully. your id is: {:#?}",
-                                    response_clone
-                                )
-                                .into(),
+
+                            Ok(serde_json::to_value(&RequestResponse::new(
+                                "Order request submitted successfully".to_string(),
+                                response_clone,
                             ))
+                            .unwrap())
+                            // Ok(Value::String(
+                            //     format!(
+                            //         "Order request submitted successfully. your id is: {:#?}",
+                            //         response_clone
+                            //     )
+                            //     .into(),
+                            // ))
                         }
                         Err(arg) => {
                             let err = JsonRpcError::invalid_params(format!(
@@ -157,11 +163,9 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                         Ok(_) => {
                             //to get public key from data
                             let mut order_request = ordertx.create_lend_order.clone();
-                            let account_id =
-                    //ordertx.input.input.input.as_owner_address().unwrap();
-                    ordertx.input.input.as_owner_address().unwrap();
+                            let account_id = ordertx.input.input.as_owner_address().unwrap();
                             order_request.account_id = account_id.clone();
-                            //
+                            let response_clone = order_request.account_id.clone();
 
                             let data = RpcCommand::CreateLendOrder(order_request, meta);
                             kafkacmd::send_to_kafka_queue(
@@ -176,9 +180,11 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                                         .to_string()
                                 ),
                             );
-                            Ok(Value::String(
-                                "Order request submitted successfully.".into(),
+                            Ok(serde_json::to_value(&RequestResponse::new(
+                                "Order request submitted successfully".to_string(),
+                                response_clone,
                             ))
+                            .unwrap())
                         }
                         Err(arg) => {
                             let err = JsonRpcError::invalid_params(format!(
@@ -236,22 +242,34 @@ pub fn kafka_queue_rpc_server_with_zkos() {
 
             match request {
                 Ok(mut ordertx) => {
-                    //to get public key from data
+                    match ordertx.verify_order() {
+                        Ok(_) => {
+                            let mut settle_request = ordertx.execute_trader_order.clone();
+                            let account_id = ordertx.msg.input.as_owner_address().unwrap();
+                            settle_request.account_id = account_id.clone();
+                            //
 
-                    let mut settle_request = ordertx.execute_trader_order.clone();
-                    let account_id = ordertx.msg.input.as_owner_address().unwrap();
-                    settle_request.account_id = account_id.clone();
-                    //
+                            let data = RpcCommand::ExecuteTraderOrder(settle_request, meta);
+                            kafkacmd::send_to_kafka_queue(
+                                data,
+                                String::from("CLIENT-REQUEST"),
+                                "ExecuteTraderOrder",
+                            );
 
-                    let data = RpcCommand::ExecuteTraderOrder(settle_request, meta);
-                    kafkacmd::send_to_kafka_queue(
-                        data,
-                        String::from("CLIENT-REQUEST"),
-                        "ExecuteTraderOrder",
-                    );
-                    Ok(Value::String(
-                        "Execution request submitted successfully".into(),
-                    ))
+                            Ok(serde_json::to_value(&RequestResponse::new(
+                                "Execution request submitted successfully".to_string(),
+                                account_id.clone(),
+                            ))
+                            .unwrap())
+                        }
+                        Err(arg) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                arg
+                            ));
+                            Err(err)
+                        }
+                    }
                 }
                 Err(args) => {
                     let err =
@@ -315,9 +333,11 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                                 String::from("CLIENT-REQUEST"),
                                 "ExecuteLendOrder",
                             );
-                            Ok(Value::String(
-                                "Execution request submitted successfully.".into(),
+                            Ok(serde_json::to_value(&RequestResponse::new(
+                                "Execution request submitted successfully".to_string(),
+                                account_id.clone(),
                             ))
+                            .unwrap())
                         }
                         Err(arg) => {
                             let err = JsonRpcError::invalid_params(format!(
@@ -391,9 +411,12 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                                 String::from("CLIENT-REQUEST"),
                                 "CancelTraderOrder",
                             );
-                            Ok(Value::String(
-                                "Cancellation request submitted successfully.".into(),
+
+                            Ok(serde_json::to_value(&RequestResponse::new(
+                                "Cancellation request submitted successfully.".to_string(),
+                                account_id.clone(),
                             ))
+                            .unwrap())
                         }
                         Err(arg) => {
                             let err = JsonRpcError::invalid_params(format!(

@@ -149,3 +149,15 @@ pub struct ByteRec {
 }
 
 /***** Relayer RPC with Zkos Integration End */
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RequestResponse {
+    pub msg: String,
+    pub id_key: String,
+}
+
+impl RequestResponse {
+    pub fn new(msg: String, id_key: String) -> Self {
+        RequestResponse { msg, id_key }
+    }
+}
