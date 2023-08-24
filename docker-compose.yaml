@@ -67,15 +67,37 @@ services:
     restart: always
     container_name: nginx
     hostname: nginx
+    image: nginx:latest
     depends_on:
       - kafka
       - zookeeper
       - relayer-dev
-    build:
-      dockerfile: Dockerfile
-      context: ./nginx
+      - archiver
+      - api
+      - postgresql-master
+    # build:
+    #   dockerfile: Dockerfile
+    #   context: ./nginx
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf/:/etc/nginx/conf.d/:ro
+      - ./certbot/www:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+    depends_on:
+      - kafka
+      - zookeeper
+      - relayer-dev
+      - archiver
+      - api
+      - postgresql-master
 
   kafka:
     image: confluentinc/cp-kafka:${CONFLUENT_VERSION:-5.3.1}
