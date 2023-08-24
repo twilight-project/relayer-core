@@ -97,7 +97,7 @@ pub fn get_traderorder_details_by_account_id(
         if is_raw {
             sender.send(Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("order not found id:{}", account),
+                format!("order not found for key:{}", account),
             )));
         }
     });
@@ -111,14 +111,14 @@ pub fn get_traderorder_details_by_account_id(
             println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("order not found id:{}", account_id),
+                format!("order not found for key:{}", account_id),
             ));
         }
     };
 }
 pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder, std::io::Error> {
     let threadpool = THREADPOOL.lock().unwrap();
-
+    let account_id = account.clone();
     let (sender, receiver): (
         mpsc::Sender<Result<LendOrder, std::io::Error>>,
         mpsc::Receiver<Result<LendOrder, std::io::Error>>,
@@ -144,7 +144,7 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
         if is_raw {
             sender.send(Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "order not found",
+                format!("order not found for key:{}", account),
             )));
         }
     });
@@ -158,7 +158,7 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
             println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "order not found",
+                format!("order not found for key:{}", account_id),
             ));
         }
     };

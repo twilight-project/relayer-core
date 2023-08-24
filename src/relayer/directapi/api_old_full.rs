@@ -1,0 +1,493 @@
+use crate::config::*;
+use crate::db::*;
+use crate::relayer::*;
+use jsonrpc_core::types::error::Error as JsonRpcError;
+use jsonrpc_core::*;
+use jsonrpc_http_server::{
+    hyper,
+    jsonrpc_core::{MetaIoHandler, Metadata, Params, Value},
+    ServerBuilder,
+};
+use std::collections::HashMap;
+use stopwatch::Stopwatch;
+#[derive(Default, Clone, Debug)]
+struct Meta {
+    metadata: HashMap<String, Option<String>>,
+}
+impl Metadata for Meta {}
+pub fn startserver() {
+    // let mut io = IoHandler::default();
+    let mut io = MetaIoHandler::default();
+
+    io.add_method_with_meta(
+        "GetOrderBook",
+        move |params: Params, _meta: Meta| async move {
+            let orderbook: OrderBook =
+                serde_json::from_str(&get_localdb_string("OrderBook")).unwrap();
+            Ok(serde_json::to_value(orderbook).unwrap())
+        },
+    );
+    io.add_method_with_meta(
+        "GetOrderDetails",
+        move |params: Params, _meta: Meta| async move {
+            let orderbook: OrderBook =
+                serde_json::from_str(&get_localdb_string("OrderBook")).unwrap();
+            Ok(serde_json::to_value(orderbook).unwrap())
+        },
+    );
+    io.add_method_with_meta(
+        "GetServerTime",
+        move |params: Params, _meta: Meta| async move {
+            Ok(serde_json::to_value(&check_server_time()).unwrap())
+        },
+    );
+
+    io.add_method_with_meta(
+        "GetCandleData",
+        move |params: Params, _meta: Meta| async move {
+            match params.parse::<CandleRequest>() {
+                Ok(candle_request) => {
+                    if (candle_request.sample_by == "1m")
+                        || (candle_request.sample_by == "5m")
+                        || (candle_request.sample_by == "15m")
+                        || (candle_request.sample_by == "30m")
+                        || (candle_request.sample_by == "1h")
+                        || (candle_request.sample_by == "4h")
+                        || (candle_request.sample_by == "8h")
+                        || (candle_request.sample_by == "12h")
+                        || (candle_request.sample_by == "24h")
+                    {
+                        if candle_request.limit < 101 {
+                            match get_candle(
+                                candle_request.sample_by.to_string(),
+                                candle_request.limit,
+                                candle_request.pagination,
+                            ) {
+                                Ok(value) => Ok(serde_json::to_value(&value).unwrap()),
+                                Err(args) => {
+                                    let err = JsonRpcError::invalid_params(format!(
+                                        "Error: , {:?}",
+                                        args
+                                    ));
+                                    Err(err)
+                                }
+                            }
+                        } else {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, max limit : 100"
+                            ));
+                            Err(err)
+                        }
+                    } else {
+                        let err =
+                            JsonRpcError::invalid_params(format!("Invalid parameters, sample_by"));
+                        Err(err)
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    io.add_method_with_meta(
+        "GetCandleDataAdvance",
+        move |params: Params, _meta: Meta| async move {
+            match params.parse::<CandleRequest>() {
+                Ok(candle_request) => {
+                    if (candle_request.sample_by == "1m")
+                        || (candle_request.sample_by == "5m")
+                        || (candle_request.sample_by == "15m")
+                        || (candle_request.sample_by == "30m")
+                        || (candle_request.sample_by == "1h")
+                        || (candle_request.sample_by == "4h")
+                        || (candle_request.sample_by == "8h")
+                        || (candle_request.sample_by == "12h")
+                        || (candle_request.sample_by == "24h")
+                    {
+                        if candle_request.limit < 101 {
+                            match get_candle_advance(
+                                candle_request.sample_by.to_string(),
+                                candle_request.limit,
+                                candle_request.pagination,
+                            ) {
+                                Ok(value) => Ok(serde_json::to_value(&value).unwrap()),
+                                Err(args) => {
+                                    let err = JsonRpcError::invalid_params(format!(
+                                        "Error: , {:?}",
+                                        args
+                                    ));
+                                    Err(err)
+                                }
+                            }
+                        } else {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters max, limit : 100"
+                            ));
+                            Err(err)
+                        }
+                    } else {
+                        let err = JsonRpcError::invalid_params(format!(
+                            "Invalid parameters, invalid parameter 'sample_by'"
+                        ));
+                        Err(err)
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+
+    // io.add_method_with_meta("threadpoolkiller", move |params: Params, _meta: Meta| async move {
+    //     let mut threadpoolkiller = THREADPOOL_MAX_ORDER_INSERT.lock().unwrap();
+    //     threadpoolkiller.shutdown();
+    //     drop(threadpoolkiller);
+    //     Ok(serde_json::to_value(&check_server_time()).unwrap())
+    // });
+
+    // io.add_method_with_meta(
+    //     "checklocaldb",
+    //     move |params: Params, _meta: Meta| async move {
+    //         match params.parse::<TestLocaldb>() {
+    //             Ok(value) => {
+    //                 // println!("{:#?}", OrderLog::get_order_readonly(&value.orderid));
+    //                 let db = DB_IN_MEMORY.lock().unwrap();
+    //                 println!("{:#?}", db);
+    //                 drop(db);
+    //                 Ok(serde_json::to_value(&check_server_time()).unwrap())
+    //             }
+    //             Err(args) => {
+    //                 let err =
+    //                     JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+    //                 Err(err)
+    //             }
+    //         }
+    //     },
+    // );
+
+    io.add_method_with_meta(
+        "CheckVector",
+        move |params: Params, _meta: Meta| async move {
+            match params.parse::<TestLocaldb>() {
+                Ok(value) => {
+                    // let sw = Stopwatch::start_new();
+                    match value.key {
+                        1 => {
+                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                            println!("\n LEND_ORDER_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        2 => {
+                            let trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        3 => {
+                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                            println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        4 => {
+                            let trader_lp_long = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        5 => {
+                            let trader_lp_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        6 => {
+                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                            println!(
+                                "\n Trader_ORDER_DB : {:#?}",
+                                trader_lp_long.sequence.clone()
+                            );
+                            drop(trader_lp_long);
+                        }
+                        7 => {
+                            let trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+                            println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.len);
+                            drop(trader_lp_long);
+                        }
+                        8 => {
+                            let trader_lp_long = TRADER_LP_SHORT.lock().unwrap();
+                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_long.len);
+                            drop(trader_lp_long);
+                        }
+                        9 => {
+                            let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        10 => {
+                            let trader_lp_long = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        11 => {
+                            let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            println!("\n POSITION_SIZE_LOG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        12 => {
+                            // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
+                            // drop(trader_lp_long);
+                        }
+                        13 => {
+                            // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            // println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
+
+                            // drop(trader_lp_long);
+                            std::thread::Builder::new()
+                                .name(String::from("updatefundingrate_localdb(1.0)"))
+                                .spawn(move || {
+                                    updatefundingrate_localdb(1.0);
+                                })
+                                .unwrap();
+                        }
+                        14 => {
+                            std::thread::Builder::new()
+                                .name(String::from("json-RPC startserver"))
+                                .spawn(move || {
+                                    let current_price = value.price;
+                                    let get_open_order_short_list1 =
+                                        TRADER_LP_SHORT.lock().unwrap();
+                                    let get_open_order_long_list1 = TRADER_LP_LONG.lock().unwrap();
+                                    let sw = Stopwatch::start_new();
+                                    let mut get_open_order_short_list =
+                                        get_open_order_short_list1.clone();
+                                    let mut get_open_order_long_list =
+                                        get_open_order_long_list1.clone();
+                                    let time1 = sw.elapsed();
+                                    let orderid_list_short = get_open_order_short_list
+                                        .search_lt((current_price * 10000.0) as i64);
+                                    let orderid_list_long = get_open_order_long_list
+                                        .search_gt((current_price * 10000.0) as i64);
+                                    drop(get_open_order_short_list1);
+                                    drop(get_open_order_long_list1);
+                                    let time2 = sw.elapsed();
+                                    println!("cloning time is {:#?}", time1);
+                                    println!(
+                                        "searching for ordercount:{} is {:#?}",
+                                        orderid_list_short.len() + orderid_list_long.len(),
+                                        time2
+                                    );
+                                })
+                                .unwrap();
+                        }
+                        15 => {
+                            std::thread::Builder::new()
+                                .name(String::from("snapshot"))
+                                .spawn(move || {
+                                    snapshot();
+                                })
+                                .unwrap();
+                        }
+                        _ => {
+                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                    }
+                    Ok(serde_json::to_value(&check_server_time()).unwrap())
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+
+    io.add_method_with_meta("SetPrice", move |params: Params, _meta: Meta| async move {
+        match params.parse::<TestLocaldb>() {
+            Ok(value) => {
+                // let sw = Stopwatch::start_new();
+                set_localdb("Latest_Price", value.price as f64);
+                Ok(serde_json::to_value(&check_server_time()).unwrap())
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                Err(err)
+            }
+        }
+    });
+
+    /*************************** order details lend and trade by zkos */
+    io.add_method_with_meta(
+        "QueryTraderOrderZkos",
+        move |params: Params, _meta: Meta| async move {
+            let request: std::result::Result<QueryTraderOrderZkos, jsonrpc_core::Error>;
+
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => match hex::decode(&hex_data.data) {
+                    Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                        Ok(ordertx) => Ok(ordertx),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    },
+                    Err(args) => {
+                        let err =
+                            JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                        Err(err)
+                    }
+                },
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+            // println!("data: {:#?}", request.clone().unwrap().query_trader_order);
+            match request {
+                Ok(mut query) => {
+                    //verify signature
+                    match query.verify_query() {
+                        Ok(_) => {
+                            let query_para = query.msg.public_key;
+                            // let query_para = hex::encode(query_para1.as_bytes());
+                            println!("i am at 364:{:#?}", query_para);
+                            let order = get_traderorder_details_by_account_id(
+                                serde_json::from_str(&query_para).unwrap(),
+                            );
+                            match order {
+                                Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                                Err(args) => {
+                                    let err = JsonRpcError::invalid_params(format!(
+                                        "Invalid parameters, {:?}",
+                                        args
+                                    ));
+                                    Err(err)
+                                }
+                            }
+                        }
+                        Err(arg) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                arg
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    io.add_method_with_meta(
+        "QueryLendOrderZkos",
+        move |params: Params, _meta: Meta| async move {
+            let request: std::result::Result<QueryLendOrderZkos, jsonrpc_core::Error>;
+            request = match params.parse::<ByteRec>() {
+                Ok(hex_data) => {
+                    match hex::decode(hex_data.data) {
+                        Ok(order_bytes) => match bincode::deserialize(&order_bytes) {
+                            Ok(ordertx) => Ok(ordertx),
+                            Err(args) => {
+                                let err = JsonRpcError::invalid_params(format!(
+                                    "Invalid parameters, {:?}",
+                                    args
+                                ));
+                                Err(err)
+                            }
+                        },
+                        // Ok(hex_data) => Ok(hex_data),
+                        Err(args) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                args
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            };
+
+            match request {
+                Ok(mut query) => {
+                    match query.verify_query() {
+                        Ok(_) => {
+                            // let query_para = query.query_lend_order.account_id;
+                            let query_para = query.msg.public_key;
+                            let order = get_lendorder_details_by_account_id(query_para);
+                            match order {
+                                Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                                Err(args) => {
+                                    let err = JsonRpcError::invalid_params(format!(
+                                        "Invalid parameters, {:?}",
+                                        args
+                                    ));
+                                    Err(err)
+                                }
+                            }
+                        }
+                        Err(arg) => {
+                            let err = JsonRpcError::invalid_params(format!(
+                                "Invalid parameters, {:?}",
+                                arg
+                            ));
+                            Err(err)
+                        }
+                    }
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
+    /*******************************end  */
+
+    println!("Starting jsonRPC server @ 127.0.0.1:3030");
+    let server = ServerBuilder::new(io)
+        .threads(*RPC_SERVER_THREAD)
+        .meta_extractor(|req: &hyper::Request<hyper::Body>| {
+            let auth = req
+                .headers()
+                .get(hyper::header::CONTENT_TYPE)
+                .map(|h| h.to_str().unwrap_or("").to_owned());
+            let relayer = req
+                .headers()
+                .get("Relayer")
+                .map(|h| h.to_str().unwrap_or("").to_owned());
+
+            println!("I'm Here");
+            Meta {
+                metadata: {
+                    let mut hashmap = HashMap::new();
+                    hashmap.insert(String::from("CONTENT_TYPE"), auth);
+                    hashmap.insert(String::from("Relayer"), relayer);
+                    hashmap
+                },
+            }
+        })
+        .start_http(&"0.0.0.0:3030".parse().unwrap())
+        .unwrap();
+    server.wait();
+}
+// use stopwatch::Stopwatch;
