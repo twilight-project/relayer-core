@@ -54,3 +54,17 @@ docker-compose up --build
 ### Create/Settle Order
 
 refer POSTMAN requests : [Click Here](./Postman%20Requests/Postman%20Requests.postman_collection.json)
+
+To allow https request run
+
+```yaml
+docker compose run --rm  certbot certonly --webroot --webroot-path /var/www/certbot/ -d example.org
+```
+
+Note: first try dry run for certificate
+
+```yaml
+docker compose run --rm  certbot certonly --webroot --webroot-path /var/www/certbot/ --dry-run -d example.org
+```
+
+Reference url : [https://mindsers.blog/post/https-using-nginx-certbot-docker/](https://mindsers.blog/post/https-using-nginx-certbot-docker/)
