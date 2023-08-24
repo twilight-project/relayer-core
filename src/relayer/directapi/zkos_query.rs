@@ -56,7 +56,7 @@ pub struct ByteRec {
 
 pub fn get_traderorder_details_by_account_id(account: String) -> Result<TraderOrder, std::io::Error> {
     let threadpool = THREADPOOL.lock().unwrap();
-
+let account_id=account.clone();
     let (sender, receiver): (
         mpsc::Sender<Result<TraderOrder, std::io::Error>>,
         mpsc::Receiver<Result<TraderOrder, std::io::Error>>,
@@ -64,6 +64,7 @@ pub fn get_traderorder_details_by_account_id(account: String) -> Result<TraderOr
     threadpool.execute(move || {
     let query = format!(" SELECT id, uuid, account_id, position_type, order_status, order_type, entryprice, execution_price, positionsize, leverage, initial_margin, available_margin, \"timestamp\", bankruptcy_price, bankruptcy_value, maintenance_margin, liquidation_price, unrealized_pnl, settlement_price, entry_nonce, exit_nonce, entry_sequence
 	FROM public.trader_order where account_id='{}' Order By  timestamp desc Limit 1 ;",account);
+    println!("query:{}",query);
     let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
     let mut is_raw = true;
     for row in client.query(&query, &[]).unwrap() {
@@ -80,7 +81,7 @@ pub fn get_traderorder_details_by_account_id(account: String) -> Result<TraderOr
     if is_raw{
         sender.send(Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            "order not found",
+           format!( "order not found id:{}",account),
         )));
     }
    
@@ -95,7 +96,7 @@ pub fn get_traderorder_details_by_account_id(account: String) -> Result<TraderOr
             println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "order not found",
+                format!( "order not found id:{}",account_id),
             ));
         }
     };

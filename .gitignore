@@ -37,3 +37,4 @@ sqlscript/api_schema.sql
 src/schema.rs
 relayerapi-docker/id_ed*
 rpckafka/id_ed*
+id_ed*
