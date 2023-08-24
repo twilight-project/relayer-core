@@ -354,19 +354,31 @@ pub fn startserver() {
             };
             // println!("data: {:#?}", request.clone().unwrap().query_trader_order);
             match request {
-                Ok(query) => {
-                    let query_para = query.msg.public_key;
-                    // let query_para = hex::encode(query_para1.as_bytes());
-                    println!("i am at 364:{:#?}", query_para);
-                    let order = get_traderorder_details_by_account_id(
-                        serde_json::from_str(&query_para).unwrap(),
-                    );
-                    match order {
-                        Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
-                        Err(args) => {
+                Ok(mut query) => {
+                    //verify signature
+                    match query.verify_query() {
+                        Ok(_) => {
+                            let query_para = query.msg.public_key;
+                            // let query_para = hex::encode(query_para1.as_bytes());
+                            println!("i am at 364:{:#?}", query_para);
+                            let order = get_traderorder_details_by_account_id(
+                                serde_json::from_str(&query_para).unwrap(),
+                            );
+                            match order {
+                                Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                                Err(args) => {
+                                    let err = JsonRpcError::invalid_params(format!(
+                                        "Invalid parameters, {:?}",
+                                        args
+                                    ));
+                                    Err(err)
+                                }
+                            }
+                        }
+                        Err(arg) => {
                             let err = JsonRpcError::invalid_params(format!(
                                 "Invalid parameters, {:?}",
-                                args
+                                arg
                             ));
                             Err(err)
                         }
@@ -415,16 +427,27 @@ pub fn startserver() {
             };
 
             match request {
-                Ok(query) => {
-                    // let query_para = query.query_lend_order.account_id;
-                    let query_para = query.msg.public_key;
-                    let order = get_lendorder_details_by_account_id(query_para);
-                    match order {
-                        Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
-                        Err(args) => {
+                Ok(mut query) => {
+                    match query.verify_query() {
+                        Ok(_) => {
+                            // let query_para = query.query_lend_order.account_id;
+                            let query_para = query.msg.public_key;
+                            let order = get_lendorder_details_by_account_id(query_para);
+                            match order {
+                                Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
+                                Err(args) => {
+                                    let err = JsonRpcError::invalid_params(format!(
+                                        "Invalid parameters, {:?}",
+                                        args
+                                    ));
+                                    Err(err)
+                                }
+                            }
+                        }
+                        Err(arg) => {
                             let err = JsonRpcError::invalid_params(format!(
                                 "Invalid parameters, {:?}",
-                                args
+                                arg
                             ));
                             Err(err)
                         }

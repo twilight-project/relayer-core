@@ -64,7 +64,6 @@ git = "ssh://github.com/twilight-project/ZkOS.git"
 branch = "testnet0823"
 [dependencies.zkschnorr]
 git = "ssh://github.com/twilight-project/ZkSchnorr.git"
-branch = "main"
 [dependencies.address]
 git = "ssh://github.com/twilight-project/ZkOS.git"
 branch = "testnet0823"

@@ -3,10 +3,12 @@ use crate::relayer::types::*;
 use quisquislib::accounts::SigmaProof;
 use quisquislib::ristretto::RistrettoPublicKey;
 use serde_derive::{Deserialize, Serialize};
+use transaction::verify_relayer::{
+    verify_query_order, verify_settle_requests, verify_trade_lend_order,
+};
 use uuid::Uuid;
 use zkschnorr::Signature;
 use zkvm::zkos_types::{Input, Output};
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZkosCreateOrder {
     pub input: Input,         //coin type input

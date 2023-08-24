@@ -3,8 +3,8 @@ use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc;
-use quisquislib::accounts::SigmaProof;
-use quisquislib::ristretto::RistrettoPublicKey;
+use transaction::verify_relayer::{verify_query_order, verify_settle_requests, verify_trade_lend_order};
+
 use zkschnorr::Signature;
 use zkvm::zkos_types::{Input, Output};
 // use uuid::{uuid, Uuid};
@@ -15,28 +15,35 @@ pub struct ZkosQueryMsg {
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
 
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryTraderOrderZkos {
     pub query_trader_order: QueryTraderOrder,
     pub msg: ZkosQueryMsg,
 }
+
+impl QueryTraderOrderZkos{
+  
+    pub fn verify_query(&mut self)->Result<(), &'static str>{
+         verify_query_order(serde_json::from_str(&self.msg.public_key.clone()).unwrap(), self.msg.signature.clone(),  &bincode::serialize(&self.query_trader_order).unwrap()) 
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryLendOrderZkos {
     pub query_lend_order: QueryLendOrder,
     pub msg: ZkosQueryMsg,
 }
-impl QueryTraderOrderZkos{
-    pub fn new(query_trader_order:QueryTraderOrder, msg:ZkosQueryMsg) -> QueryTraderOrderZkos {
-        QueryTraderOrderZkos {
-            query_trader_order,
-            msg,
-        }
-    }
-    pub fn encode_as_hex_string(&self)-> String{
-        let byt = bincode::serialize(&self).unwrap();
-        hex::encode(&byt)
+
+impl QueryLendOrderZkos{
+   
+    pub fn verify_query(&mut self)->Result<(), &'static str>{
+         verify_query_order(serde_json::from_str(&self.msg.public_key.clone()).unwrap(), self.msg.signature.clone(),  &bincode::serialize(&self.query_lend_order).unwrap()) 
+       
     }
 }
+
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct QueryTraderOrder {
     pub account_id: String,
