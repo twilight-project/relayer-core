@@ -165,7 +165,7 @@ services:
   #     - /rpckafka/target
   #     - ./rpckafka:/rpckafka/
   #   scale: 3
-
+  # docker-compose up --build redis-server postgresql-master questdb relayer-dev rpckafka querykafkapsql
   querykafkapsql:
     build:
       context: ./querykafkapsql

@@ -81,9 +81,9 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                                 ),
                             );
 
-                            let margin = order_request.initial_margin/10000.0;
-                            order_request.initial_margin=margin;
-                            order_request.available_margin=margin;
+                            let margin = order_request.initial_margin / 10000.0;
+                            order_request.initial_margin = margin;
+                            order_request.available_margin = margin;
                             let data = RpcCommand::CreateTraderOrder(order_request, meta_clone);
                             //call verifier to check balance, etc...
                             //if verified the call kafkacmd::send_to_kafka_queue
@@ -180,10 +180,10 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                                     .unwrap(),
                                 ),
                             );
-                            let deposit = order_request.deposit/10000.0;
-                            let balance = order_request.balance/10000.0;
-                            order_request.deposit=deposit;
-                            order_request.balance=balance;
+                            let deposit = order_request.deposit / 10000.0;
+                            let balance = order_request.balance / 10000.0;
+                            order_request.deposit = deposit;
+                            order_request.balance = balance;
                             let data = RpcCommand::CreateLendOrder(order_request, meta_clone);
                             kafkacmd::send_to_kafka_queue(
                                 data,
@@ -435,7 +435,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                     match ordertx.verify_query() {
                         Ok(_) => {
                             let mut cancel_request = ordertx.cancel_trader_order.clone();
-                            let account_id = ordertx.msg.public_key;
+                            let account_id = ordertx.msg.public_key.clone();
                             // cancel_request.account_id = hex::encode(account_id.as_bytes());
                             cancel_request.account_id = account_id.clone();
                             //
