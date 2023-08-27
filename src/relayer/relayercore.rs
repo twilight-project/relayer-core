@@ -495,27 +495,34 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     let res =
                                         tx_send.send(ZKOS_TRANSACTION_RPC_ENDPOINT.to_string());
                                     match res {
-                                        Ok(x) => {
-                                            println!("res1:{:#?}", x);
-                                            let mut file1 =
+                                        Ok(intermediate_response) => {
+                                            println!("res1:{:#?}", intermediate_response);
+                                            println!("res2:{:#?}",intermediate_response.clone().result.unwrap());
+                                            let tx_hash=ZkosTxResponse::get_txhash(intermediate_response.clone());
+                                            let mut file =
                                                 File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
                                                     .unwrap();
                                             file.write_all(
-                                                &serde_json::to_vec(&x.clone()).unwrap(),
+                                                &serde_json::to_vec(&intermediate_response.clone()).unwrap(),
                                             )
                                             .unwrap();
+                                        //  let tx_hash:String = match intermediate_response.result{
+                                        // Ok(response)=>{match serde_json::from_str(reponse)}
+                                        // Err(arg)=>{}
+                                        //     }
+
 
                                             let mut tx_hash_storage =
                                                 TXHASH_STORAGE.lock().unwrap();
                                             let _ = tx_hash_storage.add(
                                                 bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&x).unwrap(),
+                                                serde_json::to_string(&intermediate_response).unwrap(),
                                                 0,
                                             );
                                             drop(tx_hash_storage);
                                         }
                                         Err(arg) => {
-                                            println!("errr1:{:#?}", arg);
+                                            println!("Request Error:{:#?}", arg);
                                         }
                                     }
                                 }
@@ -552,3 +559,25 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
 
 use std::fs::File;
 use std::io::prelude::*;
+use serde_derive::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize)]
+pub struct ZkosTxResponse{
+    txHash: String,
+}
+impl ZkosTxResponse{
+    pub fn get_txhash(resp:transactionapi::rpcclient::txrequest::RpcResponse<serde_json::Value>)->String{
+        let tx_hash:String = match resp.result{
+            Ok(response)=>{match response {
+                serde_json::Value::String(txHash)=>match serde_json::from_str::<ZkosTxResponse>(&txHash){
+                    Ok(value)=>value.txHash,
+                    Err(_)=>txHash
+                },
+                _=>"errror".to_string()
+
+            }}
+            Err(arg)=>{
+                arg.to_string()}
+                };
+                tx_hash
+    }
+}

@@ -55,23 +55,23 @@ path = "./aeron-rs"
 
 [dependencies.transaction]
 git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+branch = "testnet0823-deploy-test"
 
 [dependencies.transactionapi]
 git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+branch = "testnet0823-deploy-test"
 
 [dependencies.quisquis-rust]
 git = "ssh://github.com/twilight-project/quisquis-rust.git"
 branch = "qqtxapi-merged"
 [dependencies.zkvm]
 git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+branch = "testnet0823-deploy-test"
 [dependencies.utxo-in-memory]
 git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+branch = "testnet0823-deploy-test"
 [dependencies.zkschnorr]
 git = "ssh://github.com/twilight-project/ZkSchnorr.git"
 [dependencies.address]
 git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+branch = "testnet0823-deploy-test"
