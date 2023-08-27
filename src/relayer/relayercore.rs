@@ -497,6 +497,22 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     match res {
                                         Ok(x) => {
                                             println!("res1:{:#?}", x);
+                                            let mut file1 =
+                                                File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                                    .unwrap();
+                                            file.write_all(
+                                                &serde_json::to_vec(&x.clone()).unwrap(),
+                                            )
+                                            .unwrap();
+
+                                            let mut tx_hash_storage =
+                                                TXHASH_STORAGE.lock().unwrap();
+                                            let _ = tx_hash_storage.add(
+                                                bincode::serialize(&trader_order.uuid).unwrap(),
+                                                serde_json::to_string(&x).unwrap(),
+                                                0,
+                                            );
+                                            drop(tx_hash_storage);
                                         }
                                         Err(arg) => {
                                             println!("errr1:{:#?}", arg);
