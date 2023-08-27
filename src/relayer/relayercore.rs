@@ -467,6 +467,12 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                             // create transaction
                             match zkos_create_order_result {
                                 Ok(zkos_create_order) => {
+                                    let mut file = File::create("zkos_create_order.txt").unwrap();
+                                    file.write_all(
+                                        &serde_json::to_vec(&zkos_create_order.clone()).unwrap(),
+                                    )
+                                    .unwrap();
+
                                     let transaction = create_trade_order(
                                         zkos_create_order.input,
                                         zkos_create_order.output,
@@ -474,6 +480,12 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                         zkos_create_order.proof,
                                         bincode::serialize(&trader_order).unwrap(),
                                     );
+
+                                    let mut file = File::create("transaction.txt").unwrap();
+                                    file.write_all(
+                                        &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                    )
+                                    .unwrap();
 
                                     let tx_send: RpcBody<transaction::Transaction> =
                                         RpcRequest::new(
@@ -485,14 +497,6 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     match res {
                                         Ok(x) => {
                                             println!("res1:{:#?}", x);
-                                            let mut tx_hash_storage =
-                                                TXHASH_STORAGE.lock().unwrap();
-                                            let _ = tx_hash_storage.add(
-                                                bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&x).unwrap(),
-                                                0,
-                                            );
-                                            drop(tx_hash_storage);
                                         }
                                         Err(arg) => {
                                             println!("errr1:{:#?}", arg);
@@ -529,3 +533,6 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
         ZkosTxCommand::CancelTraderOrderTX(trader_order, meta) => {}
     }
 }
+
+use std::fs::File;
+use std::io::prelude::*;
