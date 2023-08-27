@@ -1,6 +1,7 @@
 use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
 use crate::db::*;
 use crate::relayer::*;
+use quisquislib::accounts::SigmaProof;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::mpsc;
 use transaction::verify_relayer::{
@@ -11,11 +12,38 @@ use zkschnorr::Signature;
 use zkvm::zkos_types::{Input, Output};
 // use uuid::{uuid, Uuid};
 use uuid::Uuid;
+/********* zkos wasm msg Start */
+// To create zkos Wasm request for new Trade and Lend Order
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZkosQueryMsg {
-    pub public_key: String, //This is Account hex address identified as public_key. Do not mistake it for public key of input
+pub struct ZkosCreateOrder {
+    pub input: Input,         //coin type input
+    pub output: Output,       // memo type output
+    pub signature: Signature, //quisquis signature
+    pub proof: SigmaProof,
+}
+
+// To create zkos Wasm request to Settle Trade and Lend Order
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZkosSettleMsg {
+    pub input: Input,         //memo type input
+    pub signature: Signature, //quisquis signature
+}
+
+// To create zkos Wasm request for cancel any Limit Trade Order
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZkosCancelMsg {
+    pub public_key: String,
     pub signature: Signature, //quisquis signature  //canceltradeorder sign
 }
+
+// To create zkos Wasm request for query Trade and Lend Order
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZkosQueryMsg {
+    pub public_key: String,
+    pub signature: Signature, //quisquis signature  //canceltradeorder sign
+}
+
+/********* zkos wasm msg End */
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct QueryTraderOrderZkos {
@@ -80,14 +108,14 @@ pub fn get_traderorder_details_by_account_id(
 	FROM public.trader_order where account_id='{}' Order By  timestamp desc Limit 1 ;",
             account
         );
-        println!("query:{}", query);
+        // println!("query:{}", query);
         let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
         let mut is_raw = true;
         for row in client.query(&query, &[]).unwrap() {
-            println!("is it coming here");
+            // println!("is it coming here");
             let uuid_string: String = row.get("uuid");
             let uuid = Uuid::parse_str(&uuid_string).unwrap();
-            println!("raw data:{:#?}", uuid);
+            // println!("raw data:{:#?}", uuid);
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             let trader_order = trader_order_db.get(uuid);
             drop(trader_order_db);
@@ -104,11 +132,11 @@ pub fn get_traderorder_details_by_account_id(
 
     match receiver.recv().unwrap() {
         Ok(value) => {
-            println!("is it coming here3");
+            // println!("is it coming here3");
             return Ok(value);
         }
         Err(arg) => {
-            println!("is it coming here4");
+            // println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("order not found for key:{}", account_id),
@@ -134,7 +162,7 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
         for row in client.query(&query, &[]).unwrap() {
             let uuid_string: String = row.get("uuid");
             let uuid = Uuid::parse_str(&uuid_string).unwrap();
-            println!("raw data:{:#?}", uuid);
+            // println!("raw data:{:#?}", uuid);
             let mut lend_order_db = LEND_ORDER_DB.lock().unwrap();
             let lend_order = lend_order_db.get(uuid);
             drop(lend_order_db);
@@ -151,11 +179,11 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
 
     match receiver.recv().unwrap() {
         Ok(value) => {
-            println!("is it coming here3");
+            // println!("is it coming here3");
             return Ok(value);
         }
         Err(arg) => {
-            println!("is it coming here4");
+            // println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("order not found for key:{}", account_id),

@@ -64,7 +64,7 @@ pub fn startserver() {
                         Ok(_) => {
                             let query_para = query.msg.public_key;
                             // let query_para = hex::encode(query_para1.as_bytes());
-                            println!("i am at 364:{:#?}", query_para);
+                            // println!("i am at 364:{:#?}", query_para);
                             let order = get_traderorder_details_by_account_id(
                                 serde_json::from_str(&query_para).unwrap(),
                             );
@@ -180,7 +180,7 @@ pub fn startserver() {
                 .get("Relayer")
                 .map(|h| h.to_str().unwrap_or("").to_owned());
 
-            println!("I'm Here");
+            // println!("I'm Here");
             Meta {
                 metadata: {
                     let mut hashmap = HashMap::new();

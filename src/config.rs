@@ -142,6 +142,9 @@ lazy_static! {
     .expect("missing environment variable LENDPOOL_EVENT_LOG");
     pub static ref SNAPSHOT_LOG: String = std::env::var("SNAPSHOT_LOG")
     .expect("missing environment variable SNAPSHOT_LOG");
+    pub static ref ZKOS_TRANSACTION_RPC_ENDPOINT: String = std::env::var("ZKOS_TRANSACTION_RPC_ENDPOINT")
+    .expect("missing environment variable ZKOS_TRANSACTION_RPC_ENDPOINT");
+
 
 }
 
