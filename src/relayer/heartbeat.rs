@@ -28,6 +28,7 @@ pub fn heartbeat() {
     load_from_snapshot();
     ordertest::initprice();
     init_psql();
+    init_output_txhash_storage();
 
     thread::sleep(time::Duration::from_millis(100));
     // start_cronjobs();

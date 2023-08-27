@@ -67,6 +67,9 @@ branch = "qqtxapi-merged"
 [dependencies.zkvm]
 git = "ssh://github.com/twilight-project/ZkOS.git"
 branch = "testnet0823-deploy"
+[dependencies.utxo-in-memory]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy"
 [dependencies.zkschnorr]
 git = "ssh://github.com/twilight-project/ZkSchnorr.git"
 [dependencies.address]

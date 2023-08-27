@@ -5,6 +5,7 @@ use crate::relayer::*;
 use std::sync::{Arc, Mutex, RwLock};
 use transaction::verify_relayer::create_trade_order;
 use transactionapi::rpcclient::txrequest::{Resp, RpcBody, RpcRequest};
+use utxo_in_memory::db::LocalDBtrait;
 // use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
@@ -484,6 +485,14 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     match res {
                                         Ok(x) => {
                                             println!("res1:{:#?}", x);
+                                            let mut tx_hash_storage =
+                                                TXHASH_STORAGE.lock().unwrap();
+                                            let _ = tx_hash_storage.add(
+                                                bincode::serialize(&trader_order.uuid).unwrap(),
+                                                serde_json::to_string(&x).unwrap(),
+                                                0,
+                                            );
+                                            drop(tx_hash_storage);
                                         }
                                         Err(arg) => {
                                             println!("errr1:{:#?}", arg);
