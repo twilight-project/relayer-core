@@ -472,6 +472,11 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                         &serde_json::to_vec(&zkos_create_order.clone()).unwrap(),
                                     )
                                     .unwrap();
+                                    let mut file_bin = File::create("zkos_create_order_file_bin.txt").unwrap();
+                                    file_bin.write_all(
+                                        &serde_json::to_vec(&bincode::serialize(&zkos_create_order.clone()).unwrap() ).unwrap(),
+                                    )
+                                    .unwrap();
 
                                     let transaction = create_trade_order(
                                         zkos_create_order.input,
@@ -490,7 +495,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     let tx_send: RpcBody<transaction::Transaction> =
                                         RpcRequest::new(
                                             transaction,
-                                            transactionapi::rpcclient::method::Method::TxCommit,
+                                            transactionapi::rpcclient::method::Method::txCommit,
                                         );
                                     let res =
                                         tx_send.send(ZKOS_TRANSACTION_RPC_ENDPOINT.to_string());
@@ -516,7 +521,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                                 TXHASH_STORAGE.lock().unwrap();
                                             let _ = tx_hash_storage.add(
                                                 bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&intermediate_response).unwrap(),
+                                                serde_json::to_string(&tx_hash).unwrap(),
                                                 0,
                                             );
                                             drop(tx_hash_storage);
