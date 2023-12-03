@@ -322,6 +322,10 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
+                //skip batch process code
+                self.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(
+                    RelayerCommand::RpcCommandPoolupdate(),
+                ));
             }
             LendPoolCommand::AddTraderLimitOrderSettlement(
                 _relayer_request,
@@ -340,6 +344,10 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
+                //skip batch process code
+                self.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(
+                    RelayerCommand::RpcCommandPoolupdate(),
+                ));
             }
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
@@ -354,6 +362,10 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
+                //skip batch process code
+                self.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(
+                    RelayerCommand::RpcCommandPoolupdate(),
+                ));
             }
             LendPoolCommand::LendOrderCreateOrder(rpc_request, mut lend_order, deposit) => {
                 self.nonce += 1;
