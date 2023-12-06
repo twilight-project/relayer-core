@@ -3,6 +3,9 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use std::sync::{Arc, Mutex, RwLock};
+use transaction::verify_relayer::create_trade_order;
+use transactionapi::rpcclient::txrequest::{Resp, RpcBody, RpcRequest};
+use utxo_in_memory::db::LocalDBtrait;
 // use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
@@ -13,6 +16,8 @@ lazy_static! {
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
+    pub static ref THREADPOOL_ZKOS: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_ZKOS")));
 }
 pub fn client_cmd_receiver() {
     if *KAFKA_STATUS == "Enabled" {
@@ -425,5 +430,159 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
         }
+    }
+}
+
+pub fn zkos_order_handler(command: ZkosTxCommand) {
+    let command_clone = command.clone();
+    match command {
+        ZkosTxCommand::CreateTraderOrderTX(trader_order, rpc_command) => {
+            let buffer = THREADPOOL_ZKOS.lock().unwrap();
+            buffer.execute(move || match trader_order.order_status {
+                OrderStatus::FILLED => {
+                    match rpc_command {
+                        RpcCommand::CreateTraderOrder(order_request, meta) => {
+                            let zkos_data = meta.metadata.get("zkos_data").unwrap().clone();
+
+                            let der_zkos_data: Result<Vec<u8>, std::io::Error> =
+                                match serde_json::from_str(&zkos_data.unwrap()) {
+                                    Ok(data) => Ok(data),
+                                    Err(arg) => {
+                                        Err(std::io::Error::new(std::io::ErrorKind::Other, arg))
+                                    }
+                                };
+
+                            let zkos_create_order_result: Result<ZkosCreateOrder, std::io::Error> =
+                                match der_zkos_data {
+                                    Ok(zkos_data1) => match bincode::deserialize(&zkos_data1) {
+                                        Ok(data) => Ok(data),
+                                        Err(arg) => {
+                                            Err(std::io::Error::new(std::io::ErrorKind::Other, arg))
+                                        }
+                                    },
+                                    Err(arg) => {
+                                        Err(std::io::Error::new(std::io::ErrorKind::Other, arg))
+                                    }
+                                };
+                            // create transaction
+                            match zkos_create_order_result {
+                                Ok(zkos_create_order) => {
+                                    let mut file = File::create("zkos_create_order.txt").unwrap();
+                                    file.write_all(
+                                        &serde_json::to_vec(&zkos_create_order.clone()).unwrap(),
+                                    )
+                                    .unwrap();
+                                    let mut file_bin = File::create("zkos_create_order_file_bin.txt").unwrap();
+                                    file_bin.write_all(
+                                        &serde_json::to_vec(&bincode::serialize(&zkos_create_order.clone()).unwrap() ).unwrap(),
+                                    )
+                                    .unwrap();
+
+                                    let transaction = create_trade_order(
+                                        zkos_create_order.input,
+                                        zkos_create_order.output,
+                                        zkos_create_order.signature,
+                                        zkos_create_order.proof,
+                                        bincode::serialize(&trader_order).unwrap(),
+                                    );
+
+                                    let mut file = File::create("transaction.txt").unwrap();
+                                    file.write_all(
+                                        &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                    )
+                                    .unwrap();
+
+                                    let tx_send: RpcBody<transaction::Transaction> =
+                                        RpcRequest::new(
+                                            transaction,
+                                            transactionapi::rpcclient::method::Method::txCommit,
+                                        );
+                                    let res =
+                                        tx_send.send(ZKOS_TRANSACTION_RPC_ENDPOINT.to_string());
+                                    match res {
+                                        Ok(intermediate_response) => {
+                                            println!("res1:{:#?}", intermediate_response);
+                                            println!("res2:{:#?}",intermediate_response.clone().result.unwrap());
+                                            let tx_hash=ZkosTxResponse::get_txhash(intermediate_response.clone());
+                                            let mut file =
+                                                File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                                    .unwrap();
+                                            file.write_all(
+                                                &serde_json::to_vec(&intermediate_response.clone()).unwrap(),
+                                            )
+                                            .unwrap();
+                                        //  let tx_hash:String = match intermediate_response.result{
+                                        // Ok(response)=>{match serde_json::from_str(reponse)}
+                                        // Err(arg)=>{}
+                                        //     }
+
+
+                                            let mut tx_hash_storage =
+                                                TXHASH_STORAGE.lock().unwrap();
+                                            let _ = tx_hash_storage.add(
+                                                bincode::serialize(&trader_order.uuid).unwrap(),
+                                                serde_json::to_string(&tx_hash).unwrap(),
+                                                0,
+                                            );
+                                            drop(tx_hash_storage);
+                                        }
+                                        Err(arg) => {
+                                            println!("Request Error:{:#?}", arg);
+                                        }
+                                    }
+                                }
+                                Err(arg) => {
+                                    println!(
+                                        "Error:ZkosTxCommand::CreateTraderOrderTX : arg:{:#?}",
+                                        arg
+                                    );
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+
+                    // create_trade_order(
+                    //     input_coin: Input,
+                    //     output_memo: Output,
+                    //     signature: Signature,
+                    //     proof: SigmaProof,
+                    //     order_msg: Vec<u8>, //order message serialized
+                    // ) -> Transaction
+                }
+                _ => {}
+            });
+            drop(buffer);
+        }
+        ZkosTxCommand::CreateLendOrderTX(lend_order, meta) => {}
+        ZkosTxCommand::ExecuteTraderOrderTX(trader_order, meta) => {}
+        ZkosTxCommand::ExecuteLendOrderTX(lend_order, meta) => {}
+        ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(trader_order, meta) => {}
+        ZkosTxCommand::CancelTraderOrderTX(trader_order, meta) => {}
+    }
+}
+
+use std::fs::File;
+use std::io::prelude::*;
+use serde_derive::{Deserialize, Serialize};
+#[derive(Serialize, Deserialize)]
+pub struct ZkosTxResponse{
+    txHash: String,
+}
+impl ZkosTxResponse{
+    pub fn get_txhash(resp:transactionapi::rpcclient::txrequest::RpcResponse<serde_json::Value>)->String{
+        let tx_hash:String = match resp.result{
+            Ok(response)=>{match response {
+                serde_json::Value::String(txHash)=>match serde_json::from_str::<ZkosTxResponse>(&txHash){
+                    Ok(value)=>value.txHash,
+                    Err(_)=>txHash
+                },
+                _=>"errror".to_string()
+
+            }}
+            Err(arg)=>{
+                arg.to_string()}
+                };
+                tx_hash
     }
 }

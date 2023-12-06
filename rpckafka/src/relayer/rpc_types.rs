@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub struct TestLocaldb {
     pub orderid: String,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct CreateTraderOrder {
     pub account_id: String,
@@ -53,5 +54,15 @@ pub struct CancelTraderOrder {
     pub account_id: String,
     pub uuid: Uuid,
     pub order_type: OrderType,
+    pub order_status: OrderStatus,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct QueryTraderOrder {
+    pub account_id: String,
+    pub order_status: OrderStatus,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct QueryLendOrder {
+    pub account_id: String,
     pub order_status: OrderStatus,
 }

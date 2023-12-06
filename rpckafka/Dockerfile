@@ -5,6 +5,17 @@ RUN USER=root apt-get update && \
     apt-get -y install git curl g++ build-essential libssl-dev pkg-config && \
     apt-get -y install software-properties-common && \
     apt-get update 
+
+RUN  apt-get -y  install openssh-server
+RUN  apt-get -y  install openssh-client    
+COPY ./id_ed25519 root/.ssh/
+COPY ./id_ed25519.pub root/.ssh/
+RUN chmod 600 /root/.ssh/id_ed25519 && \
+    chmod 600 /root/.ssh/id_ed25519.pub
+RUN    touch /root/.ssh/known_hosts && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
+    chmod 0600 /root/.ssh/id_ed25519 
+
 RUN USER=root cargo new --bin rpckafka
 RUN cd ./rpckafka
 WORKDIR /rpckafka

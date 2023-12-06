@@ -13,6 +13,7 @@ use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
+use utxo_in_memory::db::LocalDBtrait;
 
 lazy_static! {
     /// Static Globle PostgreSQL Pool connection
@@ -142,6 +143,18 @@ lazy_static! {
     .expect("missing environment variable LENDPOOL_EVENT_LOG");
     pub static ref SNAPSHOT_LOG: String = std::env::var("SNAPSHOT_LOG")
     .expect("missing environment variable SNAPSHOT_LOG");
+    pub static ref ZKOS_TRANSACTION_RPC_ENDPOINT: String = std::env::var("ZKOS_TRANSACTION_RPC_ENDPOINT")
+    .expect("missing environment variable ZKOS_TRANSACTION_RPC_ENDPOINT");
+
+
+    pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<zkvm::zkos_types::Output>>> =
+    Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
+        zkvm::zkos_types::Output,
+    >::new(1)));
+pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
+    Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
+        String
+    >::new(1)));
 
 }
 
@@ -200,4 +213,13 @@ pub struct BinanceMiniTickerPayload {
     pub l: String, // Low price
     pub v: String, // Total traded base asset volume
     pub q: String, // Total traded quote asset volume
+}
+
+pub fn init_output_txhash_storage() {
+    let mut output_storage = OUTPUT_STORAGE.lock().unwrap();
+    let _ = output_storage.load_from_snapshot();
+    drop(output_storage);
+    let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
+    let _ = txhash_storage.load_from_snapshot();
+    drop(txhash_storage);
 }

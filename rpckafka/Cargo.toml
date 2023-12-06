@@ -16,3 +16,20 @@ lazy_static = "1.4.0"
 jsonrpc = "0.12.1"
 jsonrpc-http-server = "18.0"
 jsonrpc-core = "18.0.0"
+hex = "*"
+bincode = "1"
+
+[dependencies.transaction]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy"
+[dependencies.quisquis-rust]
+git = "ssh://github.com/twilight-project/quisquis-rust.git"
+branch = "qqtxapi-merged"
+[dependencies.zkvm]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy"
+[dependencies.zkschnorr]
+git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+[dependencies.address]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy"

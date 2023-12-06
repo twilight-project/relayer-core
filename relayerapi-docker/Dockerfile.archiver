@@ -1,7 +1,8 @@
 
-# FROM rust:1.61.0 
-FROM rust:latest
+FROM rust:1.71.1 
+# FROM rust:latest
 # FROM rust:1.67-alpine
+# 1.71.1
 
 RUN USER=root apt-get update && \
     apt-get -y upgrade && \
@@ -20,7 +21,7 @@ RUN    touch /root/.ssh/known_hosts && \
     chmod 0600 /root/.ssh/id_ed25519   
 
 # RUN USER=root cargo new --bin twilight-relayerAPI
-RUN git clone --branch test-3 git@github.com:twilight-project/twilight-relayerAPI.git
+RUN git clone --branch test-4 git@github.com:twilight-project/twilight-relayerAPI.git
 RUN cd ./twilight-relayerAPI
 WORKDIR /twilight-relayerAPI
 
@@ -30,7 +31,9 @@ WORKDIR /twilight-relayerAPI
 # COPY ./twilight-relayerAPI/migrations ./migrations
 
 RUN cargo install diesel_cli --no-default-features --features postgres
-RUN cargo --config "net.git-fetch-with-cli = true" b --release --bins
+RUN eval "$(ssh-agent -s)"  && \
+    ssh-add ~/.ssh/id_ed25519  && \
+    cargo  b --release --bins
 # COPY ./twilight-relayerAPI/.env ./.env
 EXPOSE 8989
 ENTRYPOINT [ "/twilight-relayerAPI/target/release/archiver" ]

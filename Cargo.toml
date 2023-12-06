@@ -1,7 +1,7 @@
 [package]
 name = "twilight-relayer-rust"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
@@ -44,7 +44,7 @@ strum = "0.24"
 strum_macros = "0.24"
 rust_decimal =  { version = "1.23", features = ["db-postgres"]}
 rust_decimal_macros = "1.23"
-
+hex = "*"
 # cqrs-es = "0.4.4"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 datasize = "0.2.10"
@@ -53,3 +53,25 @@ path = "./aeron-rs"
 # [dependencies.mashup]
 # version = "0.1.9"
 
+[dependencies.transaction]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy-test"
+
+[dependencies.transactionapi]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy-test"
+
+[dependencies.quisquis-rust]
+git = "ssh://github.com/twilight-project/quisquis-rust.git"
+branch = "qqtxapi-merged"
+[dependencies.zkvm]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy-test"
+[dependencies.utxo-in-memory]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy-test"
+[dependencies.zkschnorr]
+git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+[dependencies.address]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "testnet0823-deploy-test"

@@ -68,6 +68,8 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             String::from(format!("add_order-{}", order.uuid)),
             TRADERORDER_EVENT_LOG.clone().to_string(),
         );
+        zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(order.clone(), cmd));
+
         order.clone()
     }
 
