@@ -53,25 +53,42 @@ path = "./aeron-rs"
 # [dependencies.mashup]
 # version = "0.1.9"
 
+# [dependencies.transaction]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy-test"
+
+# [dependencies.transactionapi]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy-test"
+
+# [dependencies.quisquis-rust]
+# git = "ssh://github.com/twilight-project/quisquis-rust.git"
+# branch = "qqtxapi-merged"
+# [dependencies.zkvm]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy-test"
+# [dependencies.utxo-in-memory]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy-test"
+# [dependencies.zkschnorr]
+# git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+# [dependencies.address]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy-test"
+
+
+
 [dependencies.transaction]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy-test"
-
+path = "../ZkOS/transaction"
 [dependencies.transactionapi]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy-test"
-
+path = "../ZkOS/transactionapi"
 [dependencies.quisquis-rust]
-git = "ssh://github.com/twilight-project/quisquis-rust.git"
-branch = "qqtxapi-merged"
+path = "../quisquis-rust"
 [dependencies.zkvm]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy-test"
+path = "../ZkOS/zkvm"
 [dependencies.utxo-in-memory]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy-test"
+path = "../ZkOS/utxo-in-memory"
 [dependencies.zkschnorr]
-git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+path = "../ZkSchnorr"
 [dependencies.address]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy-test"
+path = "../ZkOS/address"
