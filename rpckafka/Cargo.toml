@@ -3,6 +3,9 @@ name = "rpckafka"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "main"
+path = "src/main.rs"
 
 [dependencies]
 serde = "1.0.131"
@@ -19,17 +22,29 @@ jsonrpc-core = "18.0.0"
 hex = "*"
 bincode = "1"
 
+# [dependencies.transaction]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy"
+# [dependencies.quisquis-rust]
+# git = "ssh://github.com/twilight-project/quisquis-rust.git"
+# branch = "qqtxapi-merged"
+# [dependencies.zkvm]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy"
+# [dependencies.zkschnorr]
+# git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+# [dependencies.address]
+# git = "ssh://github.com/twilight-project/ZkOS.git"
+# branch = "testnet0823-deploy"
+
+
 [dependencies.transaction]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+path = "../../ZkOS/transaction"
 [dependencies.quisquis-rust]
-git = "ssh://github.com/twilight-project/quisquis-rust.git"
-branch = "qqtxapi-merged"
+path = "../../quisquis-rust"
 [dependencies.zkvm]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+path = "../../ZkOS/zkvm"
 [dependencies.zkschnorr]
-git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+path = "../../ZkSchnorr"
 [dependencies.address]
-git = "ssh://github.com/twilight-project/ZkOS.git"
-branch = "testnet0823-deploy"
+path = "../../ZkOS/address"

@@ -1,4 +1,4 @@
-FROM rust:1.61.0 
+FROM rust:1.65.0 
 # FROM rust
 RUN USER=root apt-get update && \
     apt-get -y upgrade && \
