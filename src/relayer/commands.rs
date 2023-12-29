@@ -49,9 +49,10 @@ pub enum PositionSizeLogCommand {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum ZkosTxCommand {
     CreateTraderOrderTX(TraderOrder, RpcCommand),
-    CreateLendOrderTX(LendOrder, Meta),
+    CreateTraderOrderLIMITTX(TraderOrder, RelayerCommand),
+    CreateLendOrderTX(LendOrder, RpcCommand),
     ExecuteTraderOrderTX(TraderOrder, Meta),
-    ExecuteLendOrderTX(LendOrder, Meta),
+    ExecuteLendOrderTX(LendOrder, RpcCommand),
     CancelTraderOrderTX(TraderOrder, Meta),
     RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, Meta),
 }

@@ -81,17 +81,55 @@ datasize = "0.2.10"
 
 
 
-[dependencies.transaction]
-path = "../ZkOS/transaction"
-[dependencies.transactionapi]
-path = "../ZkOS/transactionapi"
-[dependencies.quisquis-rust]
-path = "../quisquis-rust"
+# [dependencies.transaction]
+# path = "../ZkOS/transaction"
+# [dependencies.transactionapi]
+# path = "../ZkOS/transactionapi"
+# [dependencies.quisquis-rust]
+# path = "../quisquis-rust"
+# [dependencies.zkvm]
+# path = "../ZkOS/zkvm"
+# [dependencies.utxo-in-memory]
+# path = "../ZkOS/utxo-in-memory"
+# [dependencies.zkschnorr]
+# path = "../ZkSchnorr"
+# [dependencies.address]
+# path = "../ZkOS/address"
+[dependencies.zkos-relayer-wallet]
+# git = "ssh://github.com/twilight-project/zkos-relayer-wallet.git"
+# branch = "develop"
+path = "../zkos-relayer-wallet"
+
+
 [dependencies.zkvm]
-path = "../ZkOS/zkvm"
-[dependencies.utxo-in-memory]
-path = "../ZkOS/utxo-in-memory"
-[dependencies.zkschnorr]
-path = "../ZkSchnorr"
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+#path = "/Users/quasar/Github/ZkOS/zkvm"
+
+[dependencies.transaction]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+#path = "/Users/quasar/Github/ZkOS/transaction"
+
+[dependencies.transactionapi]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+#path = "/Users/quasar/Github/ZkOS/transactionapi"
+
 [dependencies.address]
-path = "../ZkOS/address"
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+#path = "/Users/quasar/Github/ZkOS/address"
+
+[dependencies.utxo-in-memory]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+
+[dependencies.zkschnorr]
+#path = "../ZkSchnorr"
+git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+
+[dependencies.quisquis-rust]
+#path = "../../quisquis-rust"
+git = "ssh://github.com/twilight-project/quisquis-rust.git"
+branch = "develop"

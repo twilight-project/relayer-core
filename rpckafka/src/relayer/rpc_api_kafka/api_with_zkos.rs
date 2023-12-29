@@ -10,6 +10,7 @@ use jsonrpc_http_server::{
     ServerBuilder,
 };
 // use serde_derive::{Deserialize, Serialize};
+use relayerwalletlib::verify_client_message::*;
 use std::collections::HashMap;
 use std::time::SystemTime;
 // #[derive(Default, Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -59,7 +60,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
 
             match request {
                 Ok(mut ordertx) => {
-                    match ordertx.verify_order() {
+                    match verify_trade_lend_order(&ordertx.input) {
                         Ok(_) => {
                             let mut order_request = ordertx.create_trader_order.clone();
 
@@ -88,11 +89,12 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                             //call verifier to check balance, etc...
                             //if verified the call kafkacmd::send_to_kafka_queue
                             //also convert public key into hash fn and put it in account_id field
-                            kafkacmd::send_to_kafka_queue(
-                                data,
-                                String::from("CLIENT-REQUEST"),
-                                "CreateTraderOrder",
-                            );
+                            // kafkacmd::send_to_kafka_queue(
+                            //     data,
+                            //     String::from("CLIENT-REQUEST"),
+                            //     "CreateTraderOrder",
+                            // );
+                            println!("orderdata : {:?}", data);
 
                             Ok(serde_json::to_value(&RequestResponse::new(
                                 "Order request submitted successfully".to_string(),
@@ -163,7 +165,7 @@ pub fn kafka_queue_rpc_server_with_zkos() {
 
             match request {
                 Ok(mut ordertx) => {
-                    match ordertx.verify_order() {
+                    match verify_trade_lend_order(&ordertx.input) {
                         Ok(_) => {
                             //to get public key from data
                             let mut order_request = ordertx.create_lend_order.clone();
@@ -259,10 +261,15 @@ pub fn kafka_queue_rpc_server_with_zkos() {
 
             match request {
                 Ok(mut ordertx) => {
-                    match ordertx.verify_order() {
+                    match verify_settle_requests(&ordertx.msg) {
                         Ok(_) => {
                             let mut settle_request = ordertx.execute_trader_order.clone();
-                            let account_id = ordertx.msg.input.as_owner_address().unwrap();
+                            let account_id =
+                                match ordertx.msg.output.as_output_data().get_owner_address() {
+                                    Some(address) => address.clone(),
+                                    None => "".to_string(),
+                                };
+
                             settle_request.account_id = account_id.clone();
                             //
                             let mut meta_clone = meta.clone();
@@ -346,10 +353,14 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(mut ordertx) => {
                     //to get public key from data
 
-                    match ordertx.verify_order() {
+                    match verify_settle_requests(&ordertx.msg) {
                         Ok(_) => {
                             let mut settle_request = ordertx.execute_lend_order.clone();
-                            let account_id = ordertx.msg.input.as_owner_address().unwrap();
+                            let account_id =
+                                match ordertx.msg.output.as_output_data().get_owner_address() {
+                                    Some(address) => address.clone(),
+                                    None => "".to_string(),
+                                };
                             settle_request.account_id = account_id.clone();
                             //
                             let mut meta_clone = meta.clone();
@@ -432,7 +443,10 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                 Ok(mut ordertx) => {
                     //to get public key from data
 
-                    match ordertx.verify_query() {
+                    match verify_query_order(
+                        ordertx.msg.convert_cancel_to_query(),
+                        &bincode::serialize(&ordertx.cancel_trader_order).unwrap(),
+                    ) {
                         Ok(_) => {
                             let mut cancel_request = ordertx.cancel_trader_order.clone();
                             let account_id = ordertx.msg.public_key.clone();

@@ -22,29 +22,39 @@ jsonrpc-core = "18.0.0"
 hex = "*"
 bincode = "1"
 
-# [dependencies.transaction]
-# git = "ssh://github.com/twilight-project/ZkOS.git"
-# branch = "testnet0823-deploy"
-# [dependencies.quisquis-rust]
-# git = "ssh://github.com/twilight-project/quisquis-rust.git"
-# branch = "qqtxapi-merged"
-# [dependencies.zkvm]
-# git = "ssh://github.com/twilight-project/ZkOS.git"
-# branch = "testnet0823-deploy"
-# [dependencies.zkschnorr]
-# git = "ssh://github.com/twilight-project/ZkSchnorr.git"
-# [dependencies.address]
-# git = "ssh://github.com/twilight-project/ZkOS.git"
-# branch = "testnet0823-deploy"
-
-
 [dependencies.transaction]
-path = "../../ZkOS/transaction"
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
 [dependencies.quisquis-rust]
-path = "../../quisquis-rust"
+git = "ssh://github.com/twilight-project/quisquis-rust.git"
+branch = "develop"
 [dependencies.zkvm]
-path = "../../ZkOS/zkvm"
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
 [dependencies.zkschnorr]
-path = "../../ZkSchnorr"
+git = "ssh://github.com/twilight-project/ZkSchnorr.git"
 [dependencies.address]
-path = "../../ZkOS/address"
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+[dependencies.zkos-relayer-wallet]
+# git = "ssh://github.com/twilight-project/zkos-relayer-wallet.git"
+# branch = "relayer-connect"
+path = "../zkos-relayer-wallet"
+[dependencies.zkos-client-wallet]
+# git = "ssh://github.com/twilight-project/zkos-client-wallet.git"
+# branch = "develop"
+path = "../zkos-client-wallet"
+
+
+# [dependencies.transaction]
+# path = "../../ZkOS/transaction"
+# [dependencies.quisquis-rust]
+# path = "../../quisquis-rust"
+# [dependencies.zkvm]
+# path = "../../ZkOS/zkvm"
+# [dependencies.zkschnorr]
+# path = "../../ZkSchnorr"
+# [dependencies.address]
+# path = "../../ZkOS/address"
+# [dependencies.zkos-relayer-wallet]
+# path = "../../zkos-relayer-wallet"

@@ -8,6 +8,7 @@ use jsonrpc_http_server::{
     jsonrpc_core::{MetaIoHandler, Metadata, Params, Value},
     ServerBuilder,
 };
+use relayerwalletlib::verify_client_message::*;
 use std::collections::HashMap;
 use stopwatch::Stopwatch;
 #[derive(Default, Clone, Debug)]
@@ -60,9 +61,12 @@ pub fn startserver() {
             match request {
                 Ok(mut query) => {
                     //verify signature
-                    match query.verify_query() {
+                    match verify_query_order(
+                        query.msg.clone(),
+                        &bincode::serialize(&query.query_trader_order).unwrap(),
+                    ) {
                         Ok(_) => {
-                            let query_para = query.msg.public_key;
+                            let query_para = query.msg.public_key.clone();
                             // let query_para = hex::encode(query_para1.as_bytes());
                             // println!("i am at 364:{:#?}", query_para);
                             let order = get_traderorder_details_by_account_id(
@@ -132,10 +136,13 @@ pub fn startserver() {
 
             match request {
                 Ok(mut query) => {
-                    match query.verify_query() {
+                    match verify_query_order(
+                        query.msg.clone(),
+                        &bincode::serialize(&query.query_lend_order).unwrap(),
+                    ) {
                         Ok(_) => {
                             // let query_para = query.query_lend_order.account_id;
-                            let query_para = query.msg.public_key;
+                            let query_para = query.msg.public_key.clone();
                             let order = get_lendorder_details_by_account_id(query_para);
                             match order {
                                 Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),

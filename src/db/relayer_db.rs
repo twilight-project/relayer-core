@@ -68,7 +68,9 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             String::from(format!("add_order-{}", order.uuid)),
             TRADERORDER_EVENT_LOG.clone().to_string(),
         );
-        zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(order.clone(), cmd));
+        if order.order_status == OrderStatus::FILLED {
+            zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(order.clone(), cmd));
+        }
 
         order.clone()
     }
@@ -88,6 +90,10 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 format!("update_order-{}", order.uuid),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
+            if order.order_status == OrderStatus::FILLED {
+                zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(order.clone(), cmd));
+            }
+
             Ok(order.clone())
         } else {
             return Err(std::io::Error::new(

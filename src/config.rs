@@ -8,13 +8,13 @@ use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
 use r2d2_redis::RedisConnectionManager;
+use relayerwalletlib::zkoswalletlib::programcontroller::ContractManager;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use utxo_in_memory::db::LocalDBtrait;
-
 lazy_static! {
     /// Static Globle PostgreSQL Pool connection
     ///
@@ -151,10 +151,16 @@ lazy_static! {
     Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
         zkvm::zkos_types::Output,
     >::new(1)));
-pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
+
+    pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
     Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
         String
     >::new(1)));
+
+    pub static ref WALLET_PROGRAM_PATH: String =
+    std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
+
+
 
 }
 

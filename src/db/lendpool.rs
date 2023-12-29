@@ -390,7 +390,11 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
-                lendorder_db.add(lend_order, rpc_request);
+                lendorder_db.add(lend_order.clone(), rpc_request.clone());
+                zkos_order_handler(ZkosTxCommand::CreateLendOrderTX(
+                    lend_order.clone(),
+                    rpc_request,
+                ));
                 drop(lendorder_db);
             }
             LendPoolCommand::LendOrderSettleOrder(rpc_request, mut lend_order, withdraw) => {
@@ -417,8 +421,12 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
-                let _ = lendorder_db.remove(lend_order, rpc_request);
+                let _ = lendorder_db.remove(lend_order.clone(), rpc_request.clone());
                 drop(lendorder_db);
+                zkos_order_handler(ZkosTxCommand::ExecuteLendOrderTX(
+                    lend_order.clone(),
+                    rpc_request,
+                ));
             }
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {
                 RelayerCommand::FundingCycle(pool_batch_order, _metadata, _fundingrate) => {
