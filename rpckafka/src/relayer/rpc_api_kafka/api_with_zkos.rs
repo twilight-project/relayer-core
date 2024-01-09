@@ -89,11 +89,11 @@ pub fn kafka_queue_rpc_server_with_zkos() {
                             //call verifier to check balance, etc...
                             //if verified the call kafkacmd::send_to_kafka_queue
                             //also convert public key into hash fn and put it in account_id field
-                            // kafkacmd::send_to_kafka_queue(
-                            //     data,
-                            //     String::from("CLIENT-REQUEST"),
-                            //     "CreateTraderOrder",
-                            // );
+                            kafkacmd::send_to_kafka_queue(
+                                data,
+                                String::from("CLIENT-REQUEST"),
+                                "CreateTraderOrder",
+                            );
                             println!("orderdata : {:?}", data);
 
                             Ok(serde_json::to_value(&RequestResponse::new(
