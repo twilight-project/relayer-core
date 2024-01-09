@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use stopwatch::Stopwatch;
+// use stopwatch::Stopwatch;
 
 extern crate postgres_types;
 
@@ -25,7 +25,7 @@ pub fn upload_rpc_command_to_psql() {
     // let mut sw = Stopwatch::start_new();
     loop {
         let data = recever1.recv().unwrap();
-        let event = data.clone();
+        let _event = data.clone();
 
         threadpool.execute(move || {
             psql_rpc_command(data.clone());
@@ -65,7 +65,7 @@ pub fn upload_event_log_to_psql() {
 pub fn receive_event_from_kafka_queue(
     topic: String,
     group: String,
-    partition: i32,
+    _partition: i32,
 ) -> Result<Arc<Mutex<mpsc::Receiver<EventLogRPCQuery>>>, KafkaError> {
     let (sender, receiver) = mpsc::channel();
     let _topic_clone = topic.clone();

@@ -25,7 +25,7 @@ fn main() {
             crate::query::upload_event_log_to_psql();
         })
         .unwrap();
-
+    println!("querykafkapsql running successfully...");
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }
