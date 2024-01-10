@@ -25,7 +25,11 @@ pub fn kafka_queue_rpc_server() {
         move |params: Params, meta: Meta| async move {
             match params.parse::<CreateTraderOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::CreateTraderOrder(ordertx.clone(), meta);
+                    let data = RpcCommand::CreateTraderOrder(
+                        ordertx.clone(),
+                        meta,
+                        "zkos_hex_string".to_string(),
+                    );
                     kafkacmd::send_to_kafka_queue(
                         data,
                         String::from("CLIENT-REQUEST"),
@@ -50,7 +54,11 @@ pub fn kafka_queue_rpc_server() {
         move |params: Params, meta: Meta| async move {
             match params.parse::<CreateLendOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::CreateLendOrder(ordertx.clone(), meta);
+                    let data = RpcCommand::CreateLendOrder(
+                        ordertx.clone(),
+                        meta,
+                        "zkos_hex_string".to_string(),
+                    );
                     kafkacmd::send_to_kafka_queue(
                         data,
                         String::from("CLIENT-REQUEST"),
@@ -74,7 +82,11 @@ pub fn kafka_queue_rpc_server() {
         move |params: Params, meta: Meta| async move {
             match params.parse::<ExecuteTraderOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::ExecuteTraderOrder(ordertx.clone(), meta);
+                    let data = RpcCommand::ExecuteTraderOrder(
+                        ordertx.clone(),
+                        meta,
+                        "zkos_hex_string".to_string(),
+                    );
                     kafkacmd::send_to_kafka_queue(
                         data,
                         String::from("CLIENT-REQUEST"),
@@ -97,7 +109,11 @@ pub fn kafka_queue_rpc_server() {
         move |params: Params, meta: Meta| async move {
             match params.parse::<ExecuteLendOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::ExecuteLendOrder(ordertx.clone(), meta);
+                    let data = RpcCommand::ExecuteLendOrder(
+                        ordertx.clone(),
+                        meta,
+                        "zkos_hex_string".to_string(),
+                    );
                     kafkacmd::send_to_kafka_queue(
                         data,
                         String::from("CLIENT-REQUEST"),
@@ -120,7 +136,11 @@ pub fn kafka_queue_rpc_server() {
         move |params: Params, meta: Meta| async move {
             match params.parse::<CancelTraderOrder>() {
                 Ok(ordertx) => {
-                    let data = RpcCommand::CancelTraderOrder(ordertx.clone(), meta);
+                    let data = RpcCommand::CancelTraderOrder(
+                        ordertx.clone(),
+                        meta,
+                        "zkos_hex_string".to_string(),
+                    );
                     kafkacmd::send_to_kafka_queue(
                         data,
                         String::from("CLIENT-REQUEST"),

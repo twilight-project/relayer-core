@@ -132,6 +132,7 @@ impl LendPool {
                     hashmap
                 },
             },
+            "zkos_hex_string".to_string(),
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);

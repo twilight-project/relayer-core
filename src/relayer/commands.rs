@@ -2,7 +2,7 @@ use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
-
+pub type ZkosHexString = String;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
     FundingCycle(PoolBatchOrder, Meta, f64),
@@ -16,11 +16,11 @@ pub enum RelayerCommand {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RpcCommand {
-    CreateTraderOrder(CreateTraderOrder, Meta),
-    CreateLendOrder(CreateLendOrder, Meta),
-    ExecuteTraderOrder(ExecuteTraderOrder, Meta),
-    ExecuteLendOrder(ExecuteLendOrder, Meta),
-    CancelTraderOrder(CancelTraderOrder, Meta),
+    CreateTraderOrder(CreateTraderOrder, Meta, ZkosHexString),
+    CreateLendOrder(CreateLendOrder, Meta, ZkosHexString),
+    ExecuteTraderOrder(ExecuteTraderOrder, Meta, ZkosHexString),
+    ExecuteLendOrder(ExecuteLendOrder, Meta, ZkosHexString),
+    CancelTraderOrder(CancelTraderOrder, Meta, ZkosHexString),
     RelayerCommandTraderOrderSettleOnLimit(TraderOrder, Meta, f64),
 }
 

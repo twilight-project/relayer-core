@@ -66,7 +66,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -103,7 +103,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         _ => {}
                     }
                 }
-                RpcCommand::CancelTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -116,7 +116,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     if orderdb_traderorder
                         .ordertable
@@ -689,7 +689,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -726,7 +726,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         _ => {}
                     }
                 }
-                RpcCommand::CancelTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -739,7 +739,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     if orderdb_traderorder
                         .ordertable

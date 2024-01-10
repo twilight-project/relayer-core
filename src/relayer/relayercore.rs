@@ -52,7 +52,7 @@ pub fn client_cmd_receiver() {
 pub fn rpc_event_handler(command: RpcCommand) {
     let command_clone = command.clone();
     match command {
-        RpcCommand::CreateTraderOrder(rpc_request, metadata) => {
+        RpcCommand::CreateTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
@@ -62,9 +62,8 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 drop(trader_order_db);
             });
             drop(buffer);
-            println!("hello 1")
         }
-        RpcCommand::ExecuteTraderOrder(rpc_request, metadata) => {
+        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let execution_price = rpc_request.execution_price.clone();
@@ -117,7 +116,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::CreateLendOrder(rpc_request, metadata) => {
+        RpcCommand::CreateLendOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
@@ -134,7 +133,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::ExecuteLendOrder(rpc_request, metadata) => {
+        RpcCommand::ExecuteLendOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
@@ -185,7 +184,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::CancelTraderOrder(rpc_request, metadata) => {
+        RpcCommand::CancelTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
@@ -450,29 +449,9 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                 buffer.execute(move || match trader_order.order_status {
                     OrderStatus::FILLED => {
                         match rpc_command {
-                            RpcCommand::CreateTraderOrder(order_request, meta) => {
-                                let zkos_data = meta.metadata.get("zkos_data").unwrap().clone();
-    println!("hello 2");
-                                let der_zkos_data: Result<Vec<u8>, std::io::Error> =
-                                    match serde_json::from_str(&zkos_data.unwrap()) {
-                                        Ok(data) => Ok(data),
-                                        Err(arg) => {
-                                            Err(std::io::Error::new(std::io::ErrorKind::Other, arg))
-                                        }
-                                    };
-    
-                                let zkos_create_order_result: Result<ZkosCreateOrder, std::io::Error> =
-                                    match der_zkos_data {
-                                        Ok(zkos_data1) => match bincode::deserialize(&zkos_data1) {
-                                            Ok(data) => Ok(data),
-                                            Err(arg) => {
-                                                Err(std::io::Error::new(std::io::ErrorKind::Other, arg))
-                                            }
-                                        },
-                                        Err(arg) => {
-                                            Err(std::io::Error::new(std::io::ErrorKind::Other, arg))
-                                        }
-                                    };
+                            RpcCommand::CreateTraderOrder(order_request, meta,_zkos_hex_string,) => {
+                               
+                                let zkos_create_order_result=ZkosCreateOrder::decode_from_hex_string(_zkos_hex_string);
                                 // create transaction
                                 match zkos_create_order_result {
                                     Ok(zkos_create_order) => {
