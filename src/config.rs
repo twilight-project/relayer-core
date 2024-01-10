@@ -161,8 +161,8 @@ lazy_static! {
     std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
 
     // for enabling chain transaction
-    pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION: bool = std::env::var("RPC_SERVER_THREAD")
-    .expect("missing environment variable RPC_SERVER_THREAD")
+    pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION")
+    .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION")
     .parse::<bool>()
     .unwrap();
 

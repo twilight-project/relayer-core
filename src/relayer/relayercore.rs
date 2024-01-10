@@ -443,7 +443,6 @@ pub fn relayer_event_handler(command: RelayerCommand) {
 
 pub fn zkos_order_handler(command: ZkosTxCommand) {
     let command_clone = command.clone();
-
     if ENABLE_ZKOS_CHAIN_TRANSACTION.clone(){
         match command {
             ZkosTxCommand::CreateTraderOrderTX(trader_order, rpc_command) => {
