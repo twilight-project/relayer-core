@@ -618,23 +618,29 @@ pub fn snapshot() -> Result<(), std::io::Error> {
 
     let encoded_v = bincode::serialize(&snapshot_db_updated).expect("Could not encode vector");
     match fs::write(
-        format!("./snapshot/snapshot-version-{}-new", *SNAPSHOT_VERSION),
+        format!(
+            "{}-{}-new",
+            *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+        ),
         encoded_v,
     ) {
         Ok(_) => {
             if is_file_exist {
                 fs::rename(
-                    format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
+                    format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, * SNAPSHOT_VERSION),
                     format!(
-                        "./snapshot/snapshot-version-{}-{}",
-                        *SNAPSHOT_VERSION, last_snapshot_time
+                        "{}-{}-{}",
+                        *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION, last_snapshot_time
                     ),
                 )
                 .unwrap();
             }
             fs::rename(
-                format!("./snapshot/snapshot-version-{}-new", *SNAPSHOT_VERSION),
-                format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
+                format!(
+                    "{}-{}-new",
+                    *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+                ),
+                format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
             )
             .unwrap()
         }
@@ -677,7 +683,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
 
     let recever = Event::receive_event_for_snapshot_from_kafka_queue(
         CORE_EVENT_LOG.clone().to_string(),
-        format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
+        format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
         fetchoffset,
     )
     .unwrap();

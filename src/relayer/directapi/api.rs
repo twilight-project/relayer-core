@@ -172,6 +172,143 @@ pub fn startserver() {
             }
         },
     );
+
+    io.add_method_with_meta(
+        "CheckVector",
+        move |params: Params, _meta: Meta| async move {
+            match params.parse::<TestLocaldb>() {
+                Ok(value) => {
+                    // let sw = Stopwatch::start_new();
+                    match value.key {
+                        1 => {
+                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                            println!("\n LEND_ORDER_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        2 => {
+                            let trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        3 => {
+                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                            println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        4 => {
+                            let trader_lp_long = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        5 => {
+                            let trader_lp_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        6 => {
+                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                            println!(
+                                "\n Trader_ORDER_DB : {:#?}",
+                                trader_lp_long.sequence.clone()
+                            );
+                            drop(trader_lp_long);
+                        }
+                        7 => {
+                            let trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+                            println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.len);
+                            drop(trader_lp_long);
+                        }
+                        8 => {
+                            let trader_lp_long = TRADER_LP_SHORT.lock().unwrap();
+                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_long.len);
+                            drop(trader_lp_long);
+                        }
+                        9 => {
+                            let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        10 => {
+                            let trader_lp_long = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        11 => {
+                            let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            println!("\n POSITION_SIZE_LOG : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                        12 => {
+                            // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
+                            // drop(trader_lp_long);
+                        }
+                        13 => {
+                            // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                            // println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
+
+                            // drop(trader_lp_long);
+                            std::thread::Builder::new()
+                                .name(String::from("updatefundingrate_localdb(1.0)"))
+                                .spawn(move || {
+                                    updatefundingrate_localdb(1.0);
+                                })
+                                .unwrap();
+                        }
+                        14 => {
+                            std::thread::Builder::new()
+                                .name(String::from("json-RPC startserver"))
+                                .spawn(move || {
+                                    let current_price = value.price;
+                                    let get_open_order_short_list1 =
+                                        TRADER_LP_SHORT.lock().unwrap();
+                                    let get_open_order_long_list1 = TRADER_LP_LONG.lock().unwrap();
+                                    let sw = Stopwatch::start_new();
+                                    let mut get_open_order_short_list =
+                                        get_open_order_short_list1.clone();
+                                    let mut get_open_order_long_list =
+                                        get_open_order_long_list1.clone();
+                                    let time1 = sw.elapsed();
+                                    let orderid_list_short = get_open_order_short_list
+                                        .search_lt((current_price * 10000.0) as i64);
+                                    let orderid_list_long = get_open_order_long_list
+                                        .search_gt((current_price * 10000.0) as i64);
+                                    drop(get_open_order_short_list1);
+                                    drop(get_open_order_long_list1);
+                                    let time2 = sw.elapsed();
+                                    println!("cloning time is {:#?}", time1);
+                                    println!(
+                                        "searching for ordercount:{} is {:#?}",
+                                        orderid_list_short.len() + orderid_list_long.len(),
+                                        time2
+                                    );
+                                })
+                                .unwrap();
+                        }
+                        15 => {
+                            std::thread::Builder::new()
+                                .name(String::from("snapshot"))
+                                .spawn(move || {
+                                    snapshot();
+                                })
+                                .unwrap();
+                        }
+                        _ => {
+                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            drop(trader_lp_long);
+                        }
+                    }
+                    Ok(serde_json::to_value(&check_server_time()).unwrap())
+                }
+                Err(args) => {
+                    let err =
+                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                    Err(err)
+                }
+            }
+        },
+    );
     /*******************************end  */
 
     println!("Starting jsonRPC server @ 127.0.0.1:3030");
