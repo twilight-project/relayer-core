@@ -49,10 +49,33 @@ pub enum PositionSizeLogCommand {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum ZkosTxCommand {
     CreateTraderOrderTX(TraderOrder, RpcCommand),
-    CreateTraderOrderLIMITTX(TraderOrder, RelayerCommand),
+    CreateTraderOrderLIMITTX(TraderOrder, Option<ZkosHexString>),
     CreateLendOrderTX(LendOrder, RpcCommand),
     ExecuteTraderOrderTX(TraderOrder, RpcCommand),
     ExecuteLendOrderTX(LendOrder, RpcCommand),
     CancelTraderOrderTX(TraderOrder, RpcCommand),
-    RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, RelayerCommand),
+    RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, Option<ZkosHexString>),
+}
+
+impl RpcCommand {
+    pub fn zkos_msg(&self) -> String {
+        match self.clone() {
+            RpcCommand::CreateTraderOrder(create_trader_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::CreateLendOrder(create_lend_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::ExecuteTraderOrder(execute_trader_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::ExecuteLendOrder(execute_lend_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::CancelTraderOrder(cancel_trader_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            _ => "".to_string(),
+        }
+    }
 }

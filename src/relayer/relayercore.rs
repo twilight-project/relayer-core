@@ -4,11 +4,10 @@ use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use address::Network;
 use std::sync::{Arc, Mutex, RwLock};
-// use transaction::verify_relayer::create_trade_order;
+use std::fs::File;
+use std::io::prelude::*;
 use relayerwalletlib::order::*;
 use relayerwalletlib::zkoswalletlib::programcontroller::ContractManager;
-use relayerwalletlib::zkoswalletlib::relayer::*;
-use transactionapi::rpcclient::txrequest::{Resp, RpcBody, RpcRequest};
 use utxo_in_memory::db::LocalDBtrait;
 // use stopwatch::Stopwatch;
 lazy_static! {
@@ -24,7 +23,7 @@ lazy_static! {
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_ZKOS")));
     pub static ref CONTRACTMANAGER: Arc<Mutex<ContractManager>> = {
         dotenv::dotenv().expect("Failed loading dotenv");
-        let mut contract_manager = ContractManager::import_program(&WALLET_PROGRAM_PATH.clone());
+        let contract_manager = ContractManager::import_program(&WALLET_PROGRAM_PATH.clone());
         Arc::new(Mutex::new(contract_manager))
     };
 }
@@ -722,6 +721,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
             });
             drop(buffer);
             }
+            
             ZkosTxCommand::ExecuteTraderOrderTX(trader_order, rpc_command) => { let buffer = THREADPOOL_ZKOS.lock().unwrap();
                 buffer.execute(move || match rpc_command {
                     RpcCommand::ExecuteTraderOrder(order_request, meta,_zkos_hex_string,) =>{
@@ -810,7 +810,8 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
             });
             drop(buffer);}
            
-            ZkosTxCommand::CancelTraderOrderTX(trader_order, rpc_command) => {let buffer = THREADPOOL_ZKOS.lock().unwrap();
+            ZkosTxCommand::CancelTraderOrderTX(trader_order, rpc_command) => {
+                let buffer = THREADPOOL_ZKOS.lock().unwrap();
                 buffer.execute(move || match rpc_command {
                     RpcCommand::CancelTraderOrder(order_request, meta,_zkos_hex_string,) =>{
 
@@ -897,7 +898,9 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                     _ => {}
             });
             drop(buffer);}
+            
             ZkosTxCommand::CreateTraderOrderLIMITTX(trader_order, relayer_command) => {}
+            
             ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(trader_order, rpc_command) => {}
         }
     
@@ -906,9 +909,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
 
 }
 
-use serde_derive::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::prelude::*;
+
 
 
 

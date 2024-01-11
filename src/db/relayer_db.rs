@@ -25,6 +25,7 @@ pub struct OrderDB<T> {
     // pub event: Vec<Event>,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
+    pub zkos_msg: HashMap<Uuid, ZkosHexString>,
 }
 
 pub trait LocalDB<T> {
@@ -52,6 +53,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             // event: Vec::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
+            zkos_msg: HashMap::new(),
         }
     }
 
@@ -63,6 +65,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         self.ordertable
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.aggrigate_log_sequence += 1;
+        self.zkos_msg.insert(order.uuid, cmd.zkos_msg());
         Event::new(
             Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             String::from(format!("add_order-{}", order.uuid)),
@@ -91,7 +94,15 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
             if order.order_status == OrderStatus::FILLED {
-                zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(order.clone(), cmd));
+                let zkos_msg_hex = match self.zkos_msg.get(&order.uuid) {
+                    Some(hex_string) => Some(hex_string.clone()),
+                    None => None,
+                };
+
+                zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
+                    order.clone(),
+                    zkos_msg_hex,
+                ));
             }
 
             Ok(order.clone())
@@ -108,31 +119,25 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         mut order: TraderOrder,
         cmd: RpcCommand,
     ) -> Result<TraderOrder, std::io::Error> {
-        if self.ordertable.contains_key(&order.uuid) {
-            match self.ordertable.remove(&order.uuid) {
-                Some(_) => {
-                    self.aggrigate_log_sequence += 1;
-                    // order.exit_nonce = get_nonce();
-                    order.timestamp = systemtime_to_utc();
-                    Event::new(
-                        Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
-                        format!("remove_order-{}", order.uuid),
-                        TRADERORDER_EVENT_LOG.clone().to_string(),
-                    );
-                    Ok(order)
-                }
-                None => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::NotFound,
-                        "Order not found",
-                    ))
-                }
+        match self.ordertable.remove(&order.uuid) {
+            Some(_) => {
+                self.aggrigate_log_sequence += 1;
+                // order.exit_nonce = get_nonce();
+                order.timestamp = systemtime_to_utc();
+                let _removed_zkos_msg = self.zkos_msg.remove(&order.uuid);
+                Event::new(
+                    Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
+                    format!("remove_order-{}", order.uuid),
+                    TRADERORDER_EVENT_LOG.clone().to_string(),
+                );
+                Ok(order)
             }
-        } else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Order not found",
-            ));
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Order not found",
+                ))
+            }
         }
     }
 
@@ -229,6 +234,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
             nonce: 0,
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
+            zkos_msg: HashMap::new(),
         }
     }
 
@@ -240,11 +246,13 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         self.ordertable
             .insert(order.uuid, Arc::new(RwLock::new(order.clone())));
         self.aggrigate_log_sequence += 1;
+        self.zkos_msg.insert(order.uuid, cmd.zkos_msg());
         Event::new(
             Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             format!("add_order-{}", order.uuid),
             LENDORDER_EVENT_LOG.clone().to_string(),
         );
+
         order.clone()
     }
 
@@ -310,6 +318,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
             Some(_) => {
                 self.aggrigate_log_sequence += 1;
                 order.timestamp = systemtime_to_utc();
+                let _removed_zkos_msg = self.zkos_msg.remove(&order.uuid);
                 Event::new(
                     Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                     format!("remove_order-{}", order.uuid),
