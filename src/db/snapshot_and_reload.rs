@@ -579,7 +579,10 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     // encryption on snapshot data
     // snapshot version
     // delete old snapshot data deleted by cron job
-    let read_snapshot = fs::read(format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION));
+    let read_snapshot = fs::read(format!(
+        "{}-{}",
+        *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+    ));
     let decoded_snapshot: SnapshotDB;
     let mut is_file_exist = false;
     let last_snapshot_time: String;

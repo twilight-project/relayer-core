@@ -159,6 +159,8 @@ lazy_static! {
 
     pub static ref WALLET_PROGRAM_PATH: String =
     std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
+    pub static ref RELAYER_SNAPSHOT_FILE_LOCATION: String =
+    std::env::var("RELAYER_SNAPSHOT_FILE_LOCATION").expect("missing environment variable RELAYER_SNAPSHOT_FILE_LOCATION");
 
     // for enabling chain transaction
     pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION")
