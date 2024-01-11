@@ -43,9 +43,9 @@ pub fn heartbeat() {
             scheduler.every(1.hour()).run(move || {
                 updatefundingrate_localdb(1.0);
             });
-            scheduler.every(1.seconds()).run(move || {
-                relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
-            });
+            // scheduler.every(1.seconds()).run(move || {
+            //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
+            // });
             scheduler.every(75.minute()).run(move || {
                 // let _ = snapshot();
             });

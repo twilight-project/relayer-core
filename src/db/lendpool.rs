@@ -317,6 +317,7 @@ impl LendPool {
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
+
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from("AddTraderOrderSettlement"),
@@ -328,6 +329,7 @@ impl LendPool {
                     RelayerCommand::RpcCommandPoolupdate(),
                 ));
             }
+
             LendPoolCommand::AddTraderLimitOrderSettlement(
                 _relayer_request,
                 _trader_order,
@@ -350,6 +352,7 @@ impl LendPool {
                     RelayerCommand::RpcCommandPoolupdate(),
                 ));
             }
+
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
                 self.pending_orders.amount -= payment * 10000.0;
@@ -368,6 +371,7 @@ impl LendPool {
                     RelayerCommand::RpcCommandPoolupdate(),
                 ));
             }
+
             LendPoolCommand::LendOrderCreateOrder(rpc_request, mut lend_order, deposit) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
@@ -398,6 +402,7 @@ impl LendPool {
                 ));
                 drop(lendorder_db);
             }
+
             LendPoolCommand::LendOrderSettleOrder(rpc_request, mut lend_order, withdraw) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
@@ -429,6 +434,7 @@ impl LendPool {
                     rpc_request,
                 ));
             }
+
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {
                 RelayerCommand::FundingCycle(pool_batch_order, _metadata, _fundingrate) => {
                     self.nonce += 1;
