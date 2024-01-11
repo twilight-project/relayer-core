@@ -167,6 +167,11 @@ lazy_static! {
     .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION")
     .parse::<bool>()
     .unwrap();
+    // for enabling chain transaction file save
+    pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE")
+    .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE")
+    .parse::<bool>()
+    .unwrap();
 
 
 }

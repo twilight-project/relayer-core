@@ -51,8 +51,8 @@ pub enum ZkosTxCommand {
     CreateTraderOrderTX(TraderOrder, RpcCommand),
     CreateTraderOrderLIMITTX(TraderOrder, RelayerCommand),
     CreateLendOrderTX(LendOrder, RpcCommand),
-    ExecuteTraderOrderTX(TraderOrder, Meta),
+    ExecuteTraderOrderTX(TraderOrder, RpcCommand),
     ExecuteLendOrderTX(LendOrder, RpcCommand),
-    CancelTraderOrderTX(TraderOrder, Meta),
-    RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, Meta),
+    CancelTraderOrderTX(TraderOrder, RpcCommand),
+    RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, RelayerCommand),
 }
