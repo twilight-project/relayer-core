@@ -15,7 +15,7 @@ mod rpc_api_kafka;
 mod rpc_types;
 mod threadpool;
 mod traderorder;
-mod types;
+// mod types;
 mod utils;
 pub use self::commands::*;
 pub use self::customeraccount::*;
