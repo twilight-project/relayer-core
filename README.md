@@ -34,14 +34,8 @@ docker-compose up --build kafka zookeeper
 when the zookeeper and the kafka start running properly then create topic using below command on terminal:
 
 ```yaml
-docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CLIENT-REQUEST --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
-```
-
-```yaml
-docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic SnapShotLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
-```
-
-```yaml
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CLIENT-REQUEST --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic SnapShotLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
 docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CoreEventLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
 ```
 
@@ -50,9 +44,27 @@ Note: we are using topic "CLIENT-REQUEST" for client order request and "CoreEven
 After successfully creating topics on kafka. Run the following command to run relayer app
 
 ```yaml
+docker compose build --no-cache archiver api
+```
+
+```yaml
 docker-compose up --build
 ```
 
 ### Create/Settle Order
 
 refer POSTMAN requests : [Click Here](./Postman%20Requests/Postman%20Requests.postman_collection.json)
+
+To allow https request run
+
+```yaml
+docker compose run --rm  certbot certonly --webroot --webroot-path /var/www/certbot/ -d example.org
+```
+
+Note: first try dry run for certificate
+
+```yaml
+docker compose run --rm  certbot certonly --webroot --webroot-path /var/www/certbot/ --dry-run -d example.org
+```
+
+Reference url : [https://mindsers.blog/post/https-using-nginx-certbot-docker/](https://mindsers.blog/post/https-using-nginx-certbot-docker/)

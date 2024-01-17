@@ -1,0 +1,53 @@
+FROM rust:latest 
+
+ARG SSH_KEY
+# RUN cat "${SSH_KEY}"
+RUN echo "${SSH_KEY}"
+RUN mkdir /root/.ssh
+# COPY ./id_ed25519 root/.ssh/
+RUN USER=root echo "${SSH_KEY}" | tr _ \\n > /root/.ssh/id_ed25519
+
+RUN cat ~/.ssh/id_ed25519
+# RUN mkdir -p ~/.ssh && echo -e "${SSH_KEY//_/\\n}" > ~/.ssh/id_ed25519 && chmod og-rwx ~/.ssh/id_ed25519
+RUN chmod 0600 /root/.ssh/id_ed25519 && \
+    chmod 0700 /root/.ssh && \
+    touch /root/.ssh/known_hosts && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
+
+RUN USER=root apt-get update && \
+    apt-get -y upgrade && \
+    apt-get -y install git curl g++ 
+
+RUN USER=root apt-get -y install openssh-server
+RUN USER=root apt-get -y install openssh-client
+RUN USER=root apt-get -y install build-essential
+RUN USER=root apt-get -y install libpq-dev
+RUN USER=root apt-get -y install pkg-config libssl-dev
+RUN USER=root apt-get update 
+
+RUN eval "$(ssh-agent -s)" && \
+    ssh-add ~/.ssh/id_ed25519
+RUN USER=root cargo new --bin twilight-relayer-rust
+RUN cd ./twilight-relayer-rust
+WORKDIR /twilight-relayer-rust
+
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./aeron-rs ./aeron-rs
+
+RUN USER=root apt-get update
+RUN eval "$(ssh-agent -s)" && \
+    ssh-add ~/.ssh/id_ed25519 && \
+    cargo run
+
+RUN rm src/*.rs
+
+# copy your source tree
+COPY ./src ./src
+COPY ./.env ./.env
+
+
+# RUN cargo build --release
+# WORKDIR /twilight-relayer-rust
+EXPOSE 3030
+CMD ["cargo", "run"]
+# CMD ["cargo --config 'net.git-fetch-with-cli = true'", "run"]

@@ -1,27 +1,34 @@
 [package]
 name = "twilight-relayer-rust"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
+[[bin]]
+name = "main"
+path = "src/main.rs"
 
 [dependencies]
 serde = "1.0.131"
 serde_derive = "1.0.131"
 serde_json = "1.0.68"
-uuid = { version = "0.8.2", features = ["v4", "serde"] } #https://github.com/serde-rs/serde/issues/324
+# uuid = { version = "0.8.2", features = ["v4", "serde"] } #https://github.com/serde-rs/serde/issues/324
+uuid = { version = "1.6.1", features = ["v4", "serde"] }
 stopwatch = "0.0.7"
 dotenv = "0.15.0"
 redis = { version = "0.19.0", features = ["tls"] }
 tokionew = { package = "tokio", version = "0.1.21" }
 tokio = { package = "tokio", version = "0.2.4", features = ["full"] }
 websocket = "0.24.0"
-serde_with = { version = "1.4.0", features = ["json"]}
-futures  = "0.1.31"
+serde_with = { version = "1.4.0", features = ["json"] }
+futures = "0.1.31"
 kafka = "0.8"
 amiquip = "0.4.0"
 # postgres = "0.19.2"
-postgres = {version = "0.19.2", features = ["with-serde_json-1"] }
-postgres-types = {version = "0.1.0", features = ["derive", "with-serde_json-1"]}
+postgres = { version = "0.19.2", features = ["with-serde_json-1"] }
+postgres-types = { version = "0.1.0", features = [
+    "derive",
+    "with-serde_json-1",
+] }
 lazy_static = "1.4.0"
 r2d2 = "0.8.9"
 r2d2_postgres = "0.18.1"
@@ -42,14 +49,58 @@ bincode = "1.3.3"
 pretty_env_logger = "0.4"
 strum = "0.24"
 strum_macros = "0.24"
-rust_decimal =  { version = "1.23", features = ["db-postgres"]}
+rust_decimal = { version = "1.23", features = ["db-postgres"] }
 rust_decimal_macros = "1.23"
-
+hex = "*"
 # cqrs-es = "0.4.4"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 datasize = "0.2.10"
-[dependencies.aeron-rs]
-path = "./aeron-rs"
-# [dependencies.mashup]
-# version = "0.1.9"
 
+# [dependencies.transaction]
+# path = "../ZkOS/transaction"
+# [dependencies.transactionapi]
+# path = "../ZkOS/transactionapi"
+# [dependencies.quisquis-rust]
+# path = "../quisquis-rust"
+# [dependencies.zkvm]
+# path = "../ZkOS/zkvm"
+# [dependencies.utxo-in-memory]
+# path = "../ZkOS/utxo-in-memory"
+# [dependencies.zkschnorr]
+# path = "../ZkSchnorr"
+# [dependencies.address]
+# path = "../ZkOS/address"
+# [dependencies.zkos-relayer-wallet]
+# path = "../zkos-relayer-wallet"
+
+
+[dependencies.zkos-relayer-wallet]
+git = "ssh://github.com/twilight-project/zkos-relayer-wallet.git"
+branch = "develop"
+
+[dependencies.zkvm]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+
+[dependencies.transaction]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+
+[dependencies.transactionapi]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+
+[dependencies.address]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+
+[dependencies.utxo-in-memory]
+git = "ssh://github.com/twilight-project/ZkOS.git"
+branch = "develop"
+
+[dependencies.zkschnorr]
+git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+
+[dependencies.quisquis-rust]
+git = "ssh://github.com/twilight-project/quisquis-rust.git"
+branch = "develop"

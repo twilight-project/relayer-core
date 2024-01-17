@@ -5,6 +5,7 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 // use bincode::{config, Decode, Encode};
+use bincode;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
@@ -12,6 +13,7 @@ use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
@@ -66,7 +68,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -103,7 +105,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         _ => {}
                     }
                 }
-                RpcCommand::CancelTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -116,7 +118,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     if orderdb_traderorder
                         .ordertable
@@ -306,7 +308,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
                 LendPoolCommand::AddTraderOrderLiquidation(..) => {}
             },
-            Event::FundingRateUpdate(funding_rate, _time) => {
+            Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 set_localdb("FundingRate", funding_rate);
             }
             Event::CurrentPriceUpdate(current_price, _time) => {
@@ -571,15 +573,17 @@ impl SnapshotDB {
         }
     }
 }
-use bincode;
-use std::fs;
+
 pub fn snapshot() -> Result<(), std::io::Error> {
     // let read_snapshot = fs::read("snapshot").expect("Could not read file");
     // snapshot renaming on success
     // encryption on snapshot data
     // snapshot version
     // delete old snapshot data deleted by cron job
-    let read_snapshot = fs::read(format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION));
+    let read_snapshot = fs::read(format!(
+        "{}-{}",
+        *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+    ));
     let decoded_snapshot: SnapshotDB;
     let mut is_file_exist = false;
     let last_snapshot_time: String;
@@ -615,23 +619,29 @@ pub fn snapshot() -> Result<(), std::io::Error> {
 
     let encoded_v = bincode::serialize(&snapshot_db_updated).expect("Could not encode vector");
     match fs::write(
-        format!("./snapshot/snapshot-version-{}-new", *SNAPSHOT_VERSION),
+        format!(
+            "{}-{}-new",
+            *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+        ),
         encoded_v,
     ) {
         Ok(_) => {
             if is_file_exist {
                 fs::rename(
-                    format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
+                    format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
                     format!(
-                        "./snapshot/snapshot-version-{}-{}",
-                        *SNAPSHOT_VERSION, last_snapshot_time
+                        "{}-{}-{}",
+                        *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION, last_snapshot_time
                     ),
                 )
                 .unwrap();
             }
             fs::rename(
-                format!("./snapshot/snapshot-version-{}-new", *SNAPSHOT_VERSION),
-                format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
+                format!(
+                    "{}-{}-new",
+                    *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+                ),
+                format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
             )
             .unwrap()
         }
@@ -674,7 +684,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
 
     let recever = Event::receive_event_for_snapshot_from_kafka_queue(
         CORE_EVENT_LOG.clone().to_string(),
-        format!("./snapshot/snapshot-version-{}", *SNAPSHOT_VERSION),
+        format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
         fetchoffset,
     )
     .unwrap();
@@ -689,7 +699,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -726,7 +736,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         _ => {}
                     }
                 }
-                RpcCommand::CancelTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -739,7 +749,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata) => {
+                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // let order_clone = order.clone();
                     if orderdb_traderorder
                         .ordertable
@@ -928,7 +938,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
                 LendPoolCommand::AddTraderOrderLiquidation(..) => {}
             },
-            Event::FundingRateUpdate(funding_rate, _time) => {
+            Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 // set_localdb("FundingRate", funding_rate);
                 localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
             }

@@ -15,7 +15,7 @@ mod rpc_api_kafka;
 mod rpc_types;
 mod threadpool;
 mod traderorder;
-mod types;
+// mod types;
 mod utils;
 pub use self::commands::*;
 pub use self::customeraccount::*;
@@ -31,5 +31,7 @@ pub use self::rpc_api_kafka::*;
 pub use self::rpc_types::*;
 pub use self::threadpool::ThreadPool;
 pub use self::traderorder::TraderOrder;
-pub use self::types::*;
+// pub use self::types::*;
+pub use  relayerwalletlib::zkoswalletlib::relayer_types::*;
+
 pub use self::utils::*;

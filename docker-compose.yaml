@@ -67,15 +67,37 @@ services:
     restart: always
     container_name: nginx
     hostname: nginx
+    image: nginx:latest
     depends_on:
       - kafka
       - zookeeper
       - relayer-dev
-    build:
-      dockerfile: Dockerfile
-      context: ./nginx
+      - archiver
+      - api
+      - postgresql-master
+    # build:
+    #   dockerfile: Dockerfile
+    #   context: ./nginx
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf/:/etc/nginx/conf.d/:ro
+      - ./certbot/www:/var/www/certbot/:ro
+      - ./certbot/conf/:/etc/nginx/ssl/:ro
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www/:/var/www/certbot/:rw
+      - ./certbot/conf/:/etc/letsencrypt/:rw
+    depends_on:
+      - kafka
+      - zookeeper
+      - relayer-dev
+      - archiver
+      - api
+      - postgresql-master
 
   kafka:
     image: confluentinc/cp-kafka:${CONFLUENT_VERSION:-5.3.1}
@@ -143,7 +165,7 @@ services:
   #     - /rpckafka/target
   #     - ./rpckafka:/rpckafka/
   #   scale: 3
-
+  # docker-compose up --build redis-server postgresql-master questdb relayer-dev rpckafka querykafkapsql
   querykafkapsql:
     build:
       context: ./querykafkapsql
@@ -158,6 +180,36 @@ services:
       - /querykafkapsql/target
       - ./querykafkapsql:/querykafkapsql/
     container_name: querykafkapsql
+
+  archiver:
+    build:
+      context: ./relayerapi-docker
+      dockerfile: Dockerfile.archiver
+    hostname: archiver
+    stdin_open: true
+    restart: always
+    depends_on:
+      - postgresql-master
+    volumes:
+      - /archiver/target
+      - ./archiver:/archiver/
+    container_name: archiver
+
+  api:
+    build:
+      context: ./relayerapi-docker
+      dockerfile: Dockerfile.api
+    hostname: api
+    stdin_open: true
+    restart: always
+    ports:
+      - "8990:8990"
+    depends_on:
+      - postgresql-master
+    volumes:
+      - /api/target
+      - ./api:/api/
+    container_name: api
 
 volumes:
   postgresql_master_data:

@@ -11,6 +11,7 @@ use std::{thread, time};
 #[macro_use]
 extern crate lazy_static;
 fn main() {
+    thread::sleep(time::Duration::from_millis(10000));
     dotenv::dotenv().expect("Failed loading dotenv");
     thread::Builder::new()
         .name(String::from("upload_rpc_command_to_psql"))
@@ -24,7 +25,7 @@ fn main() {
             crate::query::upload_event_log_to_psql();
         })
         .unwrap();
-
+    println!("querykafkapsql running successfully...");
     loop {
         thread::sleep(time::Duration::from_millis(100000000));
     }

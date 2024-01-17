@@ -29,8 +29,9 @@ lazy_static! {
     pub static ref KAFKA_PRODUCER_EVENT: Mutex<Producer> = {
         dotenv::dotenv().expect("Failed loading dotenv");
         let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
+        println!("linkkk:{:#?}", broker);
         let producer = Producer::from_hosts(vec![broker.to_owned()])
-            .with_ack_timeout(Duration::from_secs(1))
+            .with_ack_timeout(Duration::from_secs(3))
             .with_required_acks(RequiredAcks::None)
             .create()
             .unwrap();
@@ -53,7 +54,7 @@ pub enum Event {
     TraderOrderLiquidation(TraderOrder, RelayerCommand, usize),
     LendOrder(LendOrder, RpcCommand, usize),
     PoolUpdate(LendPoolCommand, LendPool, usize),
-    FundingRateUpdate(f64, String),
+    FundingRateUpdate(f64, f64, String), //funding rate, btc price, time
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),

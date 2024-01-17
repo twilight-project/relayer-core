@@ -2,7 +2,6 @@ use crate::config::*;
 use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
-use std::time::SystemTime;
 use uuid::Uuid;
 //inc last_update_at :timestamp
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -179,6 +178,7 @@ impl TraderOrder {
             order_entry_status,
         )
     }
+
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
         if order_entry_status {
@@ -560,10 +560,12 @@ impl TraderOrder {
             entry_sequence: serde_json::from_str(&json_str[41]).unwrap(),
         })
     }
+
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();
         serialized
     }
+
     pub fn deserialize(json: &String) -> Self {
         let deserialized: TraderOrder = serde_json::from_str(json).unwrap();
         deserialized

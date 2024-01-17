@@ -137,11 +137,18 @@ pub struct Message {
 impl Message {
     pub fn new(value: Message) -> RpcCommand {
         match value.value {
-            RpcCommand::CreateTraderOrder(createtraderorder, Meta { mut metadata }) => {
+            RpcCommand::CreateTraderOrder(
+                createtraderorder,
+                Meta { mut metadata },
+                _zkos_hex_string,
+            ) => {
                 metadata.insert(String::from("offset"), Some(value.offset.to_string()));
                 metadata.insert(String::from("kafka_key"), Some(value.key));
-                let rcmd =
-                    RpcCommand::CreateTraderOrder(createtraderorder, Meta { metadata: metadata });
+                let rcmd = RpcCommand::CreateTraderOrder(
+                    createtraderorder,
+                    Meta { metadata: metadata },
+                    _zkos_hex_string,
+                );
                 return rcmd;
             }
             _ => return value.value,

@@ -2,7 +2,7 @@ use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
-
+pub type ZkosHexString = String;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
     FundingCycle(PoolBatchOrder, Meta, f64),
@@ -16,11 +16,11 @@ pub enum RelayerCommand {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RpcCommand {
-    CreateTraderOrder(CreateTraderOrder, Meta),
-    CreateLendOrder(CreateLendOrder, Meta),
-    ExecuteTraderOrder(ExecuteTraderOrder, Meta),
-    ExecuteLendOrder(ExecuteLendOrder, Meta),
-    CancelTraderOrder(CancelTraderOrder, Meta),
+    CreateTraderOrder(CreateTraderOrder, Meta, ZkosHexString),
+    CreateLendOrder(CreateLendOrder, Meta, ZkosHexString),
+    ExecuteTraderOrder(ExecuteTraderOrder, Meta, ZkosHexString),
+    ExecuteLendOrder(ExecuteLendOrder, Meta, ZkosHexString),
+    CancelTraderOrder(CancelTraderOrder, Meta, ZkosHexString),
     RelayerCommandTraderOrderSettleOnLimit(TraderOrder, Meta, f64),
 }
 
@@ -44,4 +44,38 @@ pub enum SortedSetCommand {
 pub enum PositionSizeLogCommand {
     AddPositionSize(PositionType, f64),
     RemovePositionSize(PositionType, f64),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum ZkosTxCommand {
+    CreateTraderOrderTX(TraderOrder, RpcCommand),
+    CreateTraderOrderLIMITTX(TraderOrder, Option<ZkosHexString>),
+    CreateLendOrderTX(LendOrder, RpcCommand),
+    ExecuteTraderOrderTX(TraderOrder, RpcCommand),
+    ExecuteLendOrderTX(LendOrder, RpcCommand),
+    CancelTraderOrderTX(TraderOrder, RpcCommand),
+    RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, Option<ZkosHexString>),
+}
+
+impl RpcCommand {
+    pub fn zkos_msg(&self) -> String {
+        match self.clone() {
+            RpcCommand::CreateTraderOrder(create_trader_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::CreateLendOrder(create_lend_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::ExecuteTraderOrder(execute_trader_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::ExecuteLendOrder(execute_lend_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            RpcCommand::CancelTraderOrder(cancel_trader_order, meta, zkos_hex_string) => {
+                zkos_hex_string.clone()
+            }
+            _ => "".to_string(),
+        }
+    }
 }

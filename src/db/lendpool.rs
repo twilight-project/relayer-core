@@ -132,6 +132,7 @@ impl LendPool {
                     hashmap
                 },
             },
+            "zkos_hex_string".to_string(),
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);
@@ -312,17 +313,23 @@ impl LendPool {
             LendPoolCommand::AddTraderOrderSettlement(_rpc_request, _trader_order, payment) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
-                self.pending_orders.amount += payment;
+                self.pending_orders.amount += payment * 10000.0;
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
+
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from("AddTraderOrderSettlement"),
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
+                //skip batch process code
+                self.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(
+                    RelayerCommand::RpcCommandPoolupdate(),
+                ));
             }
+
             LendPoolCommand::AddTraderLimitOrderSettlement(
                 _relayer_request,
                 _trader_order,
@@ -330,7 +337,7 @@ impl LendPool {
             ) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
-                self.pending_orders.amount += payment;
+                self.pending_orders.amount += payment * 10000.0;
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
@@ -340,10 +347,15 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
+                //skip batch process code
+                self.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(
+                    RelayerCommand::RpcCommandPoolupdate(),
+                ));
             }
+
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
-                self.pending_orders.amount -= payment;
+                self.pending_orders.amount -= payment * 10000.0;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders
                     .trader_order_data
@@ -354,7 +366,12 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
+                //skip batch process code
+                self.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(
+                    RelayerCommand::RpcCommandPoolupdate(),
+                ));
             }
+
             LendPoolCommand::LendOrderCreateOrder(rpc_request, mut lend_order, deposit) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
@@ -378,9 +395,14 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
-                lendorder_db.add(lend_order, rpc_request);
+                lendorder_db.add(lend_order.clone(), rpc_request.clone());
+                zkos_order_handler(ZkosTxCommand::CreateLendOrderTX(
+                    lend_order.clone(),
+                    rpc_request,
+                ));
                 drop(lendorder_db);
             }
+
             LendPoolCommand::LendOrderSettleOrder(rpc_request, mut lend_order, withdraw) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
@@ -405,9 +427,14 @@ impl LendPool {
                     LENDPOOL_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
-                let _ = lendorder_db.remove(lend_order, rpc_request);
+                let _ = lendorder_db.remove(lend_order.clone(), rpc_request.clone());
                 drop(lendorder_db);
+                zkos_order_handler(ZkosTxCommand::ExecuteLendOrderTX(
+                    lend_order.clone(),
+                    rpc_request,
+                ));
             }
+
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {
                 RelayerCommand::FundingCycle(pool_batch_order, _metadata, _fundingrate) => {
                     self.nonce += 1;
@@ -425,7 +452,7 @@ impl LendPool {
                         self.nonce += 1;
                         self.aggrigate_log_sequence += 1;
 
-                        self.total_locked_value -= batch.amount * 10000.0;
+                        self.total_locked_value -= batch.amount;
 
                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                         for cmd in batch.trader_order_data {
