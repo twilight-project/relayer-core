@@ -26,14 +26,21 @@ use std::process::Command;
 pub fn set(key: &str, value: &str) -> bool {
     // let mut conn = connect();
     let mut conn = REDIS_POOL_CONNECTION.get().unwrap();
-    let _ = redis::cmd("SET")
+    match redis::cmd("SET")
         .arg(key)
         .arg(value)
         .query::<String>(&mut *conn)
-        .unwrap();
+    {
+        Ok(_) => true,
+        Err(arg) => {
+            println!("Error at redis_set line 29: {:?}", arg);
+            false
+        }
+    }
+
     // .query(&mut conn)
     // .expect("failed to execute SET for 'foo'");
-    return true;
+    // return true;
 }
 
 /// use to get value in redis

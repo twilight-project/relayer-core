@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::fs::File;
 use std::io::prelude::*;
 use relayerwalletlib::order::*;
+use relayerwalletlib::lend::*;
 use relayerwalletlib::zkoswalletlib::programcontroller::ContractManager;
 use utxo_in_memory::db::LocalDBtrait;
 // use stopwatch::Stopwatch;
