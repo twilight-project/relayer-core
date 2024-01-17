@@ -5,6 +5,7 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 // use bincode::{config, Decode, Encode};
+use bincode;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
@@ -12,6 +13,7 @@ use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
@@ -571,8 +573,7 @@ impl SnapshotDB {
         }
     }
 }
-use bincode;
-use std::fs;
+
 pub fn snapshot() -> Result<(), std::io::Error> {
     // let read_snapshot = fs::read("snapshot").expect("Could not read file");
     // snapshot renaming on success
@@ -627,7 +628,7 @@ pub fn snapshot() -> Result<(), std::io::Error> {
         Ok(_) => {
             if is_file_exist {
                 fs::rename(
-                    format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, * SNAPSHOT_VERSION),
+                    format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
                     format!(
                         "{}-{}-{}",
                         *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION, last_snapshot_time
