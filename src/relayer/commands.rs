@@ -50,9 +50,9 @@ pub enum PositionSizeLogCommand {
 pub enum ZkosTxCommand {
     CreateTraderOrderTX(TraderOrder, RpcCommand),
     CreateTraderOrderLIMITTX(TraderOrder, Option<ZkosHexString>),
-    CreateLendOrderTX(LendOrder, RpcCommand),
-    ExecuteTraderOrderTX(TraderOrder, RpcCommand),
-    ExecuteLendOrderTX(LendOrder, RpcCommand),
+    CreateLendOrderTX(LendOrder, RpcCommand, zkvm::Output, zkvm::Output),
+    ExecuteTraderOrderTX(TraderOrder, RpcCommand, zkvm::Output, zkvm::Output),
+    ExecuteLendOrderTX(LendOrder, RpcCommand, zkvm::Output, zkvm::Output),
     CancelTraderOrderTX(TraderOrder, RpcCommand),
     RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, Option<ZkosHexString>),
 }

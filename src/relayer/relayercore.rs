@@ -543,7 +543,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                 drop(buffer);
             }
             
-            ZkosTxCommand::CreateLendOrderTX(lend_order, rpc_command) => {
+            ZkosTxCommand::CreateLendOrderTX(lend_order, rpc_command,last_state_output,next_state_output) => {
                 let buffer = THREADPOOL_ZKOS.lock().unwrap();
                 buffer.execute(move || match rpc_command {
                     RpcCommand::CreateLendOrder(order_request, meta,_zkos_hex_string,) =>{
@@ -569,17 +569,17 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     )
                                     .unwrap();
 
-                                // let transaction = create_trade_order(
-                                //     zkos_create_order.input,
-                                //     zkos_create_order.output,
-                                //     zkos_create_order.signature,
-                                //     zkos_create_order.proof,
-                                //     &ContractManager::import_program(
-                                //         &WALLET_PROGRAM_PATH.clone(),
-                                //     ),
-                                //     Network::Mainnet,
-                                //     5u64,
-                                // );
+                                let transaction = create_trade_order(
+                                    zkos_create_order.input,
+                                    zkos_create_order.output,
+                                    zkos_create_order.signature,
+                                    zkos_create_order.proof,
+                                    &ContractManager::import_program(
+                                        &WALLET_PROGRAM_PATH.clone(),
+                                    ),
+                                    Network::Mainnet,
+                                    5u64,
+                                );
 
                                 // let transaction=create_lend_order_transaction(
                                 //     zkos_create_order.input, 
@@ -651,7 +651,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
             drop(buffer);
             }
                        
-            ZkosTxCommand::ExecuteLendOrderTX(lend_order, rpc_command) => {
+            ZkosTxCommand::ExecuteLendOrderTX(lend_order, rpc_command,last_state_output,next_state_output) => {
                 let buffer = THREADPOOL_ZKOS.lock().unwrap();
                 buffer.execute(move || match rpc_command {
                     RpcCommand::ExecuteLendOrder(order_request, meta,_zkos_hex_string,) =>{
@@ -741,7 +741,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
             drop(buffer);
             }
             
-            ZkosTxCommand::ExecuteTraderOrderTX(trader_order, rpc_command) => { let buffer = THREADPOOL_ZKOS.lock().unwrap();
+            ZkosTxCommand::ExecuteTraderOrderTX(trader_order, rpc_command,last_state_output,next_state_output) => { let buffer = THREADPOOL_ZKOS.lock().unwrap();
                 buffer.execute(move || match rpc_command {
                     RpcCommand::ExecuteTraderOrder(order_request, meta,_zkos_hex_string,) =>{
 
@@ -767,78 +767,79 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     .unwrap();
 
                                 
-                        //    let result:Result<Transaction, String>=    settle_trader_order(
-                        //             zkos_settle_msg.output,  //(C(Initial Margin), PositionSize, C(Leverage), EntryPrice, OrderSide)
-                        //             payment: 0,    // Available margin to be sent to the trader
-                        //             &ContractManager::import_program(
-                        //                 &WALLET_PROGRAM_PATH.clone(),
-                        //             ),
-                        //             chain_network: Network,
-                        //             fee: 1u64,                       // in satoshis
-                        //             contract_owner_address: input_state_output.as_owner_address, // Address of the Contract State Owner
-                        //             input_state_output: Output,    // Previous Output State Prover View to be used as Input State for this tx 
-                        //             create_output_state_for_trade_lend_order(
-                        //                 nonce: 0,
-                        //                 script_address: input_state_output.as_script_address,
-                        //                 owner_address: input_state_output.as_owner_address,
-                        //                 tlv: 0,//latest
-                        //                 tps: 0,//latest
-                        //                 timebounds: 0,
-                        //             ), // Output State for this tx
-                        //             error: i128,  // Error used for proof program execution
-                        //             margin_difference: u64, // Margin difference on the exchange
-                        //             settle_price: u64, // Settle price of the order
-                        //             contract_owner_sk: RistrettoSecretKey, // Secret key of the Contract State Owner // load wallet for sk
-                        //         );
+                       
+                    let wallet = relayerwalletlib::relayer::load_relayer_wallet("your_password_he".to_string(), "your_password_he".to_string(), "wallet.txt".to_string());
+
+                    let  contract_owner_sk=wallet.unwrap();
+
+                    let  contract_owner_pk=relayerwalletlib::relayer::load_public_key(wallet.unwrap(), "wallet.txt".to_string());
 
 
-                                // let transaction = create_trade_order(
-                                //     zkos_settle_msg.input,
-                                //     zkos_settle_msg.output,
-                                //     zkos_settle_msg.signature,
-                                //     zkos_settle_msg.proof,
-                                //     &ContractManager::import_program(
-                                //         &WALLET_PROGRAM_PATH.clone(),
-                                //     ),
-                                //     Network::Mainnet,
-                                //     5u64,
-                                // );
-                            
-                                // let mut file = File::create("./transaction.txt").unwrap();
-                                // file.write_all(
-                                //     &serde_json::to_vec(&transaction.clone()).unwrap(),
-                                // )
-                                // .unwrap();
+                    let lock_error= ((trader_order.available_margin.round() as i128 - trader_order.initial_margin.round()as i128 - ( trader_order.available_margin - trader_order.initial_margin).clone().round() as i128) * trader_order.entryprice.round() as i128 * trader_order.settlement_price.round() as i128)  - ( trader_order.positionsize.round() as i128 * (match trader_order.position_type {
+                       
+                        PositionType::LONG => {
+                            1
+                        }
+                      
+                        PositionType::SHORT => {
+                         -1
+                        }
+                    } )* (trader_order.entryprice.round() as i128  - trader_order.settlement_price.round() as i128));
 
-                            //     let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
-                            //         Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
-                            //         Err(arg)=>{Err(arg.to_string())}
-                            //     };
-                            //     let mut tx_hash_storage =
-                            //     TXHASH_STORAGE.lock().unwrap();
+                     let transaction=  settle_trader_order(
+                            zkos_settle_msg.output.clone(),  
+                            trader_order.available_margin.clone().round() as u64,                            
+                            &ContractManager::import_program(
+                                &WALLET_PROGRAM_PATH.clone()
+                            ),
+                            Network::Mainnet,
+                            1u64,                      
+                            last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
+                           last_state_output.clone(),   
+                           next_state_output.clone(), 
+                           lock_error,  
+                        ( trader_order.available_margin - trader_order.initial_margin).clone().round() as u64, 
+                            trader_order.settlement_price.round() as u64, 
+                            contract_owner_sk, 
+                            contract_owner_pk,
+                        );
 
-                            //     let mut file =
-                            //     File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
-                            //         .unwrap();
-                            // file.write_all(
-                            //     &serde_json::to_vec(&tx_hash_result.clone())
-                            //         .unwrap(),
-                            // )
-                            // .unwrap();
+                                                        
+                                let mut file = File::create("./transaction.txt").unwrap();
+                                file.write_all(
+                                    &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                )
+                                .unwrap();
 
-                            // match tx_hash_result{
-                            //     Ok(tx_hash)=>{let _ = tx_hash_storage.add(
-                            //         bincode::serialize(&trader_order.uuid).unwrap(),
-                            //         serde_json::to_string(&tx_hash).unwrap(),
-                            //         0,
-                            //     );}
-                            //     Err(arg)=>{let _ = tx_hash_storage.add(
-                            //         bincode::serialize(&trader_order.uuid).unwrap(),
-                            //         serde_json::to_string(&arg).unwrap(),
-                            //         0,
-                            //     );}
-                            // }
-                            // drop(tx_hash_storage);
+                                let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
+                                    Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
+                                    Err(arg)=>{Err(arg.to_string())}
+                                };
+                                let mut tx_hash_storage =
+                                TXHASH_STORAGE.lock().unwrap();
+
+                                let mut file =
+                                File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                    .unwrap();
+                            file.write_all(
+                                &serde_json::to_vec(&tx_hash_result.clone())
+                                    .unwrap(),
+                            )
+                            .unwrap();
+
+                            match tx_hash_result{
+                                Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                    bincode::serialize(&trader_order.uuid).unwrap(),
+                                    serde_json::to_string(&tx_hash).unwrap(),
+                                    0,
+                                );}
+                                Err(arg)=>{let _ = tx_hash_storage.add(
+                                    bincode::serialize(&trader_order.uuid).unwrap(),
+                                    serde_json::to_string(&arg).unwrap(),
+                                    0,
+                                );}
+                            }
+                            drop(tx_hash_storage);
                                 
                             }
                             Err(arg) => {

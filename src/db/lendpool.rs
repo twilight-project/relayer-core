@@ -13,10 +13,11 @@ use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
 use uuid::Uuid;
+use zkvm::Output;
 type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
-
+use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LendPool {
     pub sequence: usize,
@@ -26,7 +27,7 @@ pub struct LendPool {
     pub pending_orders: PoolBatchOrder,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
-    pub last_output_state:Output,
+    pub last_output_state: Output,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -68,6 +69,11 @@ impl PoolBatchOrder {
 
 impl LendPool {
     pub fn default() -> Self {
+        let script_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
+        let owner_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
+        let last_output_state =
+            create_output_state_for_trade_lend_order(0, script_address, owner_address, 0, 0, 0);
+
         LendPool {
             sequence: 0,
             nonce: 0,
@@ -77,6 +83,7 @@ impl LendPool {
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
+            last_output_state,
         }
     }
     pub fn new() -> Self {
@@ -158,19 +165,27 @@ impl LendPool {
         let relayer_command =
             LendPoolCommand::InitiateNewPool(relayer_initial_lend_order, Meta { metadata });
 
+        //need to pick from env variable later
+        let script_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
+        let owner_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
+        let last_output_state = create_output_state_for_trade_lend_order(
+            0,
+            script_address,
+            owner_address,
+            total_locked_value.round() as u64,
+            total_pool_share.round() as u64,
+            0,
+        );
+
         let lendpool = LendPool {
             sequence: 0,
             nonce: 0,
             total_pool_share: total_pool_share,
             total_locked_value: total_locked_value,
-            // event_log: {
-            //     let mut event_log = Vec::new();
-            //     event_log.push(pool_event_execute);
-            //     event_log
-            // },
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 1,
             last_snapshot_id: 0,
+            last_output_state,
         };
         let pool_event = Event::PoolUpdate(relayer_command.clone(), lendpool.clone(), 1);
         let _pool_event_execute = Event::new(
@@ -183,16 +198,8 @@ impl LendPool {
 
     pub fn load_data() -> (bool, LendPool) {
         // fn load_data() -> (bool, Self) {
-        let mut database: LendPool = LendPool {
-            sequence: 0,
-            nonce: 0,
-            total_pool_share: 0.0,
-            total_locked_value: 0.0,
-            // event_log: Vec::new(),
-            pending_orders: PoolBatchOrder::new(),
-            aggrigate_log_sequence: 0,
-            last_snapshot_id: 0,
-        };
+        let mut database: LendPool = LendPool::default();
+
         let time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -397,9 +404,31 @@ impl LendPool {
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 lendorder_db.add(lend_order.clone(), rpc_request.clone());
+
+                let next_output_state = create_output_state_for_trade_lend_order(
+                    self.nonce as u32,
+                    self.last_output_state
+                        .clone()
+                        .as_output_data()
+                        .get_script_address()
+                        .unwrap()
+                        .clone(),
+                    self.last_output_state
+                        .clone()
+                        .as_output_data()
+                        .get_owner_address()
+                        .clone()
+                        .unwrap()
+                        .clone(),
+                    self.total_locked_value.round() as u64,
+                    self.total_pool_share.round() as u64,
+                    0,
+                );
                 zkos_order_handler(ZkosTxCommand::CreateLendOrderTX(
                     lend_order.clone(),
                     rpc_request,
+                    self.last_output_state.clone(),
+                    next_output_state,
                 ));
                 drop(lendorder_db);
             }
@@ -430,9 +459,31 @@ impl LendPool {
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 let _ = lendorder_db.remove(lend_order.clone(), rpc_request.clone());
                 drop(lendorder_db);
+
+                let next_output_state = create_output_state_for_trade_lend_order(
+                    self.nonce as u32,
+                    self.last_output_state
+                        .clone()
+                        .as_output_data()
+                        .get_script_address()
+                        .unwrap()
+                        .clone(),
+                    self.last_output_state
+                        .clone()
+                        .as_output_data()
+                        .get_owner_address()
+                        .clone()
+                        .unwrap()
+                        .clone(),
+                    self.total_locked_value.round() as u64,
+                    self.total_pool_share.round() as u64,
+                    0,
+                );
                 zkos_order_handler(ZkosTxCommand::ExecuteLendOrderTX(
                     lend_order.clone(),
                     rpc_request,
+                    self.last_output_state.clone(),
+                    next_output_state,
                 ));
             }
 
