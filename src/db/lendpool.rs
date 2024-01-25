@@ -26,6 +26,7 @@ pub struct LendPool {
     pub pending_orders: PoolBatchOrder,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
+    pub last_output_state:Output,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

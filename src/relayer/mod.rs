@@ -5,6 +5,7 @@ mod commands;
 mod customeraccount;
 mod directapi; //without aeron
 mod heartbeat;
+mod init_lend_state_output;
 mod lendorder;
 mod perpetual;
 mod postgres_sql_init;
@@ -32,6 +33,6 @@ pub use self::rpc_types::*;
 pub use self::threadpool::ThreadPool;
 pub use self::traderorder::TraderOrder;
 // pub use self::types::*;
-pub use  relayerwalletlib::zkoswalletlib::relayer_types::*;
+pub use relayerwalletlib::zkoswalletlib::relayer_types::*;
 
 pub use self::utils::*;

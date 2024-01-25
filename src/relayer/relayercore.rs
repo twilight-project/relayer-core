@@ -569,17 +569,35 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     )
                                     .unwrap();
 
-                                let transaction = create_trade_order(
-                                    zkos_create_order.input,
-                                    zkos_create_order.output,
-                                    zkos_create_order.signature,
-                                    zkos_create_order.proof,
-                                    &ContractManager::import_program(
-                                        &WALLET_PROGRAM_PATH.clone(),
-                                    ),
-                                    Network::Mainnet,
-                                    5u64,
-                                );
+                                // let transaction = create_trade_order(
+                                //     zkos_create_order.input,
+                                //     zkos_create_order.output,
+                                //     zkos_create_order.signature,
+                                //     zkos_create_order.proof,
+                                //     &ContractManager::import_program(
+                                //         &WALLET_PROGRAM_PATH.clone(),
+                                //     ),
+                                //     Network::Mainnet,
+                                //     5u64,
+                                // );
+
+                                // let transaction=create_lend_order_transaction(
+                                //     zkos_create_order.input, 
+                                //     zkos_create_order.output, 
+                                //     input_state_output, 
+                                //     output_state,
+                                //     zkos_create_order.signature, 
+                                //     zkos_create_order.proof, 
+                                //     &ContractManager::import_program(
+                                //         &WALLET_PROGRAM_PATH.clone(),
+                                //     ),
+                                //     Network::Mainnet,
+                                //     fee: 1u64,                       // in satoshis
+                                //     contract_owner_address: String, // Address of the Contract State Owner
+                                //     error: i128, // Error required for program execution
+                                //     sk: RistrettoSecretKey, // Secret key of the Contract State Owner
+                                //     pk: RistrettoPublicKey, // Public key of the Contract State Owner
+                                // ) 
                             
                                 let mut file = File::create("./transaction.txt").unwrap();
                                 file.write_all(
@@ -747,6 +765,32 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                         .unwrap(),
                                     )
                                     .unwrap();
+
+                                
+                        //    let result:Result<Transaction, String>=    settle_trader_order(
+                        //             zkos_settle_msg.output,  //(C(Initial Margin), PositionSize, C(Leverage), EntryPrice, OrderSide)
+                        //             payment: 0,    // Available margin to be sent to the trader
+                        //             &ContractManager::import_program(
+                        //                 &WALLET_PROGRAM_PATH.clone(),
+                        //             ),
+                        //             chain_network: Network,
+                        //             fee: 1u64,                       // in satoshis
+                        //             contract_owner_address: input_state_output.as_owner_address, // Address of the Contract State Owner
+                        //             input_state_output: Output,    // Previous Output State Prover View to be used as Input State for this tx 
+                        //             create_output_state_for_trade_lend_order(
+                        //                 nonce: 0,
+                        //                 script_address: input_state_output.as_script_address,
+                        //                 owner_address: input_state_output.as_owner_address,
+                        //                 tlv: 0,//latest
+                        //                 tps: 0,//latest
+                        //                 timebounds: 0,
+                        //             ), // Output State for this tx
+                        //             error: i128,  // Error used for proof program execution
+                        //             margin_difference: u64, // Margin difference on the exchange
+                        //             settle_price: u64, // Settle price of the order
+                        //             contract_owner_sk: RistrettoSecretKey, // Secret key of the Contract State Owner // load wallet for sk
+                        //         );
+
 
                                 // let transaction = create_trade_order(
                                 //     zkos_settle_msg.input,
