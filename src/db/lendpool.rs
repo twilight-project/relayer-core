@@ -428,9 +428,10 @@ impl LendPool {
                     lend_order.clone(),
                     rpc_request,
                     self.last_output_state.clone(),
-                    next_output_state,
+                    next_output_state.clone(),
                 ));
                 drop(lendorder_db);
+                self.last_output_state = next_output_state;
             }
 
             LendPoolCommand::LendOrderSettleOrder(rpc_request, mut lend_order, withdraw) => {
@@ -483,8 +484,9 @@ impl LendPool {
                     lend_order.clone(),
                     rpc_request,
                     self.last_output_state.clone(),
-                    next_output_state,
+                    next_output_state.clone(),
                 ));
+                self.last_output_state = next_output_state;
             }
 
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {

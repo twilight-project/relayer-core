@@ -569,35 +569,32 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     )
                                     .unwrap();
 
-                                let transaction = create_trade_order(
-                                    zkos_create_order.input,
-                                    zkos_create_order.output,
-                                    zkos_create_order.signature,
-                                    zkos_create_order.proof,
+                                let wallet = relayerwalletlib::relayer::load_relayer_wallet("your_password_he".to_string(), "your_password_he".to_string(), "wallet.txt".to_string());
+
+                                let  contract_owner_sk=wallet.unwrap();
+            
+                                let  contract_owner_pk=relayerwalletlib::relayer::load_public_key(wallet.unwrap(), "wallet.txt".to_string());
+            
+let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((lend_order.deposit * lend_order.tps0).round() as i128);
+                                let transaction =  create_lend_order_transaction(
+                                    zkos_create_order.input.clone(), 
+                                    zkos_create_order.output.clone(),
+                                    last_state_output.clone(),   
+                                    next_state_output.clone(), 
+                                    zkos_create_order.signature, 
+                                    zkos_create_order.proof, 
                                     &ContractManager::import_program(
-                                        &WALLET_PROGRAM_PATH.clone(),
+                                        &WALLET_PROGRAM_PATH.clone()
                                     ),
                                     Network::Mainnet,
-                                    5u64,
+                                    1u64,                      
+                                    last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
+                                    lock_error, 
+                                    contract_owner_sk,
+                                    contract_owner_pk, 
                                 );
 
-                                // let transaction=create_lend_order_transaction(
-                                //     zkos_create_order.input, 
-                                //     zkos_create_order.output, 
-                                //     input_state_output, 
-                                //     output_state,
-                                //     zkos_create_order.signature, 
-                                //     zkos_create_order.proof, 
-                                //     &ContractManager::import_program(
-                                //         &WALLET_PROGRAM_PATH.clone(),
-                                //     ),
-                                //     Network::Mainnet,
-                                //     fee: 1u64,                       // in satoshis
-                                //     contract_owner_address: String, // Address of the Contract State Owner
-                                //     error: i128, // Error required for program execution
-                                //     sk: RistrettoSecretKey, // Secret key of the Contract State Owner
-                                //     pk: RistrettoPublicKey, // Public key of the Contract State Owner
-                                // ) 
+                                
                             
                                 let mut file = File::create("./transaction.txt").unwrap();
                                 file.write_all(
@@ -677,53 +674,68 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     )
                                     .unwrap();
 
-                            //     let transaction = create_trade_order(
-                            //         zkos_settle_msg.input,
-                            //         zkos_settle_msg.output,
-                            //         zkos_settle_msg.signature,
-                            //         zkos_settle_msg.proof,
-                            //         &ContractManager::import_program(
-                            //             &WALLET_PROGRAM_PATH.clone(),
-                            //         ),
-                            //         Network::Mainnet,
-                            //         5u64,
-                            //     );
+                           
+                            let wallet = relayerwalletlib::relayer::load_relayer_wallet("your_password_he".to_string(), "your_password_he".to_string(), "wallet.txt".to_string());
+
+                            let  contract_owner_sk=wallet.unwrap();
+        
+                            let  contract_owner_pk=relayerwalletlib::relayer::load_public_key(wallet.unwrap(), "wallet.txt".to_string());
+        
+let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((lend_order.deposit * lend_order.tps0).round() as i128);
+
+
+                                let transaction = create_lend_order_settlement_transaction(
+                                zkos_settle_msg.output, // Memo Output sent by the client (C(Deposit), Poolshare)
+                                lend_order.new_lend_state_amount.round() as u64, // amount to be paid to the client
+                                &ContractManager::import_program(
+                                    &WALLET_PROGRAM_PATH.clone()
+                                ),
+                                Network::Mainnet,
+                                1u64,                      
+                                last_state_output.as_output_data().get_owner_address().unwrap().clone(),  // Address of the CONTRACT State Owner
+                                last_state_output, // Output State to be used as Input State for this tx
+                                next_state_output, // Output State for this tx
+                                lock_error,
+                                contract_owner_sk, // Secret key of the CONTRACT State Owner
+                                contract_owner_pk, // Public key of the CONTRACT State Owner
+                            );
+
                             
-                            //     let mut file = File::create("./transaction.txt").unwrap();
-                            //     file.write_all(
-                            //         &serde_json::to_vec(&transaction.clone()).unwrap(),
-                            //     )
-                            //     .unwrap();
+                                let mut file = File::create("./transaction.txt").unwrap();
+                                file.write_all(
+                                    &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                )
+                                .unwrap();
 
-                            //     let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
-                            //         Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
-                            //         Err(arg)=>{Err(arg.to_string())}
-                            //     };
-                            //     let mut tx_hash_storage =
-                            //     TXHASH_STORAGE.lock().unwrap();
+                                let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
+                                    Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
+                                    Err(arg)=>{Err(arg.to_string())}
+                                };
+                                let mut tx_hash_storage =
+                                TXHASH_STORAGE.lock().unwrap();
 
-                            //     let mut file =
-                            //     File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
-                            //         .unwrap();
-                            // file.write_all(
-                            //     &serde_json::to_vec(&tx_hash_result.clone())
-                            //         .unwrap(),
-                            // )
-                            // .unwrap();
+                                let mut file =
+                                File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                    .unwrap();
+                            file.write_all(
+                                &serde_json::to_vec(&tx_hash_result.clone())
+                                    .unwrap(),
+                            )
+                            .unwrap();
 
-                            // match tx_hash_result{
-                            //     Ok(tx_hash)=>{let _ = tx_hash_storage.add(
-                            //         bincode::serialize(&lend_order.uuid).unwrap(),
-                            //         serde_json::to_string(&tx_hash).unwrap(),
-                            //         0,
-                            //     );}
-                            //     Err(arg)=>{let _ = tx_hash_storage.add(
-                            //         bincode::serialize(&lend_order.uuid).unwrap(),
-                            //         serde_json::to_string(&arg).unwrap(),
-                            //         0,
-                            //     );}
-                            // }
-                            // drop(tx_hash_storage);
+                            match tx_hash_result{
+                                Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                    bincode::serialize(&lend_order.uuid).unwrap(),
+                                    serde_json::to_string(&tx_hash).unwrap(),
+                                    0,
+                                );}
+                                Err(arg)=>{let _ = tx_hash_storage.add(
+                                    bincode::serialize(&lend_order.uuid).unwrap(),
+                                    serde_json::to_string(&arg).unwrap(),
+                                    0,
+                                );}
+                            }
+                            drop(tx_hash_storage);
                                 
                             }
                             Err(arg) => {
