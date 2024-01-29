@@ -32,6 +32,8 @@ pub use self::rpc_api_kafka::*;
 pub use self::rpc_types::*;
 pub use self::threadpool::ThreadPool;
 pub use self::traderorder::TraderOrder;
+
+pub use self::init_lend_state_output::last_state_output_fixed;
 // pub use self::types::*;
 pub use relayerwalletlib::zkoswalletlib::relayer_types::*;
 

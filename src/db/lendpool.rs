@@ -69,10 +69,22 @@ impl PoolBatchOrder {
 
 impl LendPool {
     pub fn default() -> Self {
-        let script_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
-        let owner_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
-        let last_output_state =
-            create_output_state_for_trade_lend_order(0, script_address, owner_address, 0, 0, 0);
+        let last_output_state = last_state_output_fixed();
+        let script_address = last_output_state
+            .clone()
+            .as_output_data()
+            .get_script_address()
+            .unwrap()
+            .clone();
+        let owner_address = last_output_state
+            .clone()
+            .as_output_data()
+            .get_owner_address()
+            .clone()
+            .unwrap()
+            .clone();
+        // let last_output_state =
+        //     create_output_state_for_trade_lend_order(0, script_address, owner_address, 0, 0, 0);
 
         LendPool {
             sequence: 0,
@@ -98,17 +110,17 @@ impl LendPool {
             deposit: 10.0,
             new_lend_state_amount: 10.0 * 10000.0,
             timestamp: systemtime_to_utc(),
-            npoolshare: 10.0,
+            npoolshare: 100000.0,
             nwithdraw: 0.0,
             payment: 0.0,
             tlv0: 0.0,
             tps0: 0.0,
             tlv1: 100000.0,
-            tps1: 10.0,
+            tps1: 100000.0,
             tlv2: 100000.0,
-            tps2: 10.0,
+            tps2: 100000.0,
             tlv3: 100000.0,
-            tps3: 10.0,
+            tps3: 100000.0,
             entry_sequence: 0,
         };
         let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
@@ -166,16 +178,29 @@ impl LendPool {
             LendPoolCommand::InitiateNewPool(relayer_initial_lend_order, Meta { metadata });
 
         //need to pick from env variable later
-        let script_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
-        let owner_address="0c3c8d3eb1eccbf8923e344b85de74faaa71cbbddcc0ce588ac1bc8fe83ad9be4c5cf205c86b01c43431060ba4d881d1eb29a511bea7bdf6cc3f02fc62246c434b0ac67f9e".to_string();
-        let last_output_state = create_output_state_for_trade_lend_order(
-            0,
-            script_address,
-            owner_address,
-            total_locked_value.round() as u64,
-            total_pool_share.round() as u64,
-            0,
-        );
+        let last_output_state = last_state_output_fixed();
+        let script_address = last_output_state
+            .clone()
+            .as_output_data()
+            .get_script_address()
+            .unwrap()
+            .clone();
+        let owner_address = last_output_state
+            .clone()
+            .as_output_data()
+            .get_owner_address()
+            .clone()
+            .unwrap()
+            .clone();
+
+        // let last_output_state = create_output_state_for_trade_lend_order(
+        //     0,
+        //     script_address,
+        //     owner_address,
+        //     total_locked_value.round() as u64,
+        //     total_pool_share.round() as u64,
+        //     0,
+        // );
 
         let lendpool = LendPool {
             sequence: 0,
@@ -519,7 +544,34 @@ impl LendPool {
                                 ) => {
                                     // println!("hey, im here");
                                     order.exit_nonce = self.nonce;
-                                    let _ = trader_order_db.remove(order, rpc_cmd);
+                                    let _ = trader_order_db.remove(order.clone(), rpc_cmd.clone());
+                                    let next_output_state =
+                                        create_output_state_for_trade_lend_order(
+                                            self.nonce as u32,
+                                            self.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                            self.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                            self.total_locked_value.round() as u64,
+                                            self.total_pool_share.round() as u64,
+                                            0,
+                                        );
+                                    println!("I am at lendpool line 534");
+                                    zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
+                                        order,
+                                        rpc_cmd,
+                                        self.last_output_state.clone(),
+                                        next_output_state,
+                                    ));
                                 }
                                 LendPoolCommand::AddTraderLimitOrderSettlement(
                                     relayer_cmd,
