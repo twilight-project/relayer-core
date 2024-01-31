@@ -68,7 +68,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, zkos_hex_string) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -104,11 +104,15 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         },
                         _ => {}
                     }
+                    orderdb_traderorder
+                        .zkos_msg
+                        .insert(order.uuid, zkos_hex_string);
                 }
                 RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
+                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -125,6 +129,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         .contains_key(&order.uuid.clone())
                     {
                         orderdb_traderorder.ordertable.remove(&order.uuid.clone());
+                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -153,6 +158,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
+                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -214,6 +220,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     .contains_key(&order.uuid.clone())
                 {
                     orderdb_traderorder.ordertable.remove(&order.uuid.clone());
+                    let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                 }
                 // orderdb_traderorder.event.push(data.value);
                 if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -229,7 +236,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 }
             }
             Event::LendOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateLendOrder(..) => {
+                RpcCommand::CreateLendOrder(_rpc_request, _metadata, zkos_hex_string) => {
                     let order_clone = order.clone();
                     orderdb_lendorder
                         .ordertable
@@ -241,12 +248,16 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     if orderdb_lendorder.aggrigate_log_sequence < seq {
                         orderdb_lendorder.aggrigate_log_sequence = seq;
                     }
+                    orderdb_lendorder
+                        .zkos_msg
+                        .insert(order_clone.uuid, zkos_hex_string);
                 }
                 RpcCommand::ExecuteLendOrder(..) => {
                     // orderdb_lendorder.event.push(data.value);
 
                     if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
                         orderdb_lendorder.ordertable.remove(&order.uuid);
+                        let _removed_zkos_msg = orderdb_lendorder.zkos_msg.remove(&order.uuid);
                     }
                     if orderdb_lendorder.aggrigate_log_sequence < seq {
                         orderdb_lendorder.aggrigate_log_sequence = seq;
@@ -257,7 +268,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 }
                 _ => {}
             },
-            Event::PoolUpdate(cmd, lend_ppol, seq) => match cmd.clone() {
+            Event::PoolUpdate(cmd, lend_pool, seq) => match cmd.clone() {
                 LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
                     let total_pool_share = lend_order.deposit;
                     let total_locked_value = lend_order.deposit * 10000.0;
@@ -273,12 +284,14 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     if lendpool_database.aggrigate_log_sequence < seq {
                         lendpool_database.aggrigate_log_sequence = seq;
                     }
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                 }
                 LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
                     lendpool_database.nonce += 1;
                     lendpool_database.aggrigate_log_sequence += 1;
                     lendpool_database.total_locked_value += deposit * 10000.0;
                     lendpool_database.total_pool_share += lend_order.npoolshare;
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                     // lendpool_database.event_log.push(data.value);
                 }
                 LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
@@ -286,6 +299,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     lendpool_database.aggrigate_log_sequence += 1;
                     lendpool_database.total_locked_value -= withdraw;
                     lendpool_database.total_pool_share -= lend_order.npoolshare;
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                     // lendpool_database.event_log.push(data.value);
                 }
                 LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
@@ -302,6 +316,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         }
                         _ => {}
                     }
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                 }
                 LendPoolCommand::AddFundingData(..) => {}
                 LendPoolCommand::AddTraderOrderSettlement(..) => {}
@@ -501,6 +516,7 @@ pub struct OrderDBSnapShotTO {
     pub nonce: usize,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
+    pub zkos_msg: HashMap<Uuid, ZkosHexString>,
 }
 impl OrderDBSnapShotTO {
     fn new() -> Self {
@@ -510,6 +526,7 @@ impl OrderDBSnapShotTO {
             nonce: 0,
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
+            zkos_msg: HashMap::new(),
         }
     }
 }
@@ -521,6 +538,7 @@ pub struct OrderDBSnapShotLO {
     pub nonce: usize,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
+    pub zkos_msg: HashMap<Uuid, ZkosHexString>,
 }
 impl OrderDBSnapShotLO {
     fn new() -> Self {
@@ -530,6 +548,7 @@ impl OrderDBSnapShotLO {
             nonce: 0,
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
+            zkos_msg: HashMap::new(),
         }
     }
 }
@@ -589,9 +608,9 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     let last_snapshot_time: String;
     let fetchoffset: FetchOffset;
     match read_snapshot {
-        Ok(snapshot_data) => {
+        Ok(snapshot_data_from_file) => {
             decoded_snapshot =
-                bincode::deserialize(&snapshot_data).expect("Could not decode vector");
+                bincode::deserialize(&snapshot_data_from_file).expect("Could not decode vector");
             is_file_exist = true;
             last_snapshot_time = decoded_snapshot.event_timestamp.clone();
             // fetchoffset =
@@ -601,7 +620,11 @@ pub fn snapshot() -> Result<(), std::io::Error> {
             fetchoffset = FetchOffset::Earliest;
         }
         Err(arg) => {
-            println!("No previous Snapshot Found- Error:{:#?}", arg);
+            println!(
+                "No previous Snapshot Found- Error:{:#?} \n path: {:?}",
+                arg,
+                format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
+            );
             decoded_snapshot = SnapshotDB::new();
             last_snapshot_time = decoded_snapshot.event_timestamp.clone();
             fetchoffset = FetchOffset::Earliest;
@@ -649,7 +672,7 @@ pub fn snapshot() -> Result<(), std::io::Error> {
             println!("Could not write snapshot file - Error:{:#?}", arg);
         }
     }
-    println!("Snapshot:{:#?}", snapshot_db_updated);
+    // println!("Snapshot:{:#?}", snapshot_db_updated);
     Ok(())
 }
 
@@ -691,15 +714,15 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let recever1 = recever.lock().unwrap();
     while stop_signal {
         let data = recever1.recv().unwrap();
-        // match data.value {
-        //     Event::CurrentPriceUpdate(..) => {}
-        //     _ => {
-        //         println!("Envent log: {:#?}", data);
-        //     }
-        // }
+        match data.value {
+            Event::CurrentPriceUpdate(..) => {}
+            _ => {
+                println!("Envent log: {:#?}", data);
+            }
+        }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, zkos_hex_string) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -735,11 +758,15 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         },
                         _ => {}
                     }
+                    orderdb_traderorder
+                        .zkos_msg
+                        .insert(order.uuid, zkos_hex_string);
                 }
                 RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
+                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -756,6 +783,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         .contains_key(&order.uuid.clone())
                     {
                         orderdb_traderorder.ordertable.remove(&order.uuid.clone());
+                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -784,6 +812,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
+                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -845,6 +874,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     .contains_key(&order.uuid.clone())
                 {
                     orderdb_traderorder.ordertable.remove(&order.uuid.clone());
+                    let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
                 }
                 // orderdb_traderorder.event.push(data.value);
                 if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -861,7 +891,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 }
             }
             Event::LendOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateLendOrder(..) => {
+                RpcCommand::CreateLendOrder(_rpc_request, _metadata, zkos_hex_string) => {
                     let order_clone = order.clone();
                     orderdb_lendorder.ordertable.insert(order.uuid, order);
                     // orderdb_lendorder.event.push(data.value);
@@ -871,12 +901,16 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     if orderdb_lendorder.aggrigate_log_sequence < seq {
                         orderdb_lendorder.aggrigate_log_sequence = seq;
                     }
+                    orderdb_lendorder
+                        .zkos_msg
+                        .insert(order_clone.uuid, zkos_hex_string);
                 }
-                RpcCommand::ExecuteLendOrder(..) => {
+                RpcCommand::ExecuteLendOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // orderdb_lendorder.event.push(data.value);
 
                     if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
                         orderdb_lendorder.ordertable.remove(&order.uuid);
+                        let _removed_zkos_msg = orderdb_lendorder.zkos_msg.remove(&order.uuid);
                     }
                     if orderdb_lendorder.aggrigate_log_sequence < seq {
                         orderdb_lendorder.aggrigate_log_sequence = seq;
@@ -903,12 +937,14 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     if lendpool_database.aggrigate_log_sequence < seq {
                         lendpool_database.aggrigate_log_sequence = seq;
                     }
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                 }
                 LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
                     lendpool_database.nonce += 1;
                     lendpool_database.aggrigate_log_sequence += 1;
                     lendpool_database.total_locked_value += deposit * 10000.0;
                     lendpool_database.total_pool_share += lend_order.npoolshare;
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                     // lendpool_database.event_log.push(data.value);
                 }
                 LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
@@ -916,6 +952,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     lendpool_database.aggrigate_log_sequence += 1;
                     lendpool_database.total_locked_value -= withdraw;
                     lendpool_database.total_pool_share -= lend_order.npoolshare;
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                     // lendpool_database.event_log.push(data.value);
                 }
                 LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
@@ -932,6 +969,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         }
                         _ => {}
                     }
+                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
                 }
                 LendPoolCommand::AddFundingData(..) => {}
                 LendPoolCommand::AddTraderOrderSettlement(..) => {}
@@ -1154,7 +1192,7 @@ pub fn load_from_snapshot() {
                 .clone();
             load_trader_data.last_snapshot_id =
                 snapshot_data.orderdb_traderorder.last_snapshot_id.clone();
-
+            load_trader_data.zkos_msg = snapshot_data.orderdb_traderorder.zkos_msg.clone();
             // add field of Lend order db
             load_lend_data.sequence = snapshot_data.orderdb_lendorder.sequence.clone();
             load_lend_data.nonce = snapshot_data.orderdb_lendorder.nonce.clone();
@@ -1164,7 +1202,7 @@ pub fn load_from_snapshot() {
                 .clone();
             load_lend_data.last_snapshot_id =
                 snapshot_data.orderdb_lendorder.last_snapshot_id.clone();
-
+            load_lend_data.zkos_msg = snapshot_data.orderdb_lendorder.zkos_msg.clone();
             drop(load_trader_data);
             drop(load_lend_data);
             let traderorder_hashmap = snapshot_data.orderdb_traderorder.ordertable.clone();
@@ -1230,7 +1268,7 @@ pub fn load_from_snapshot() {
         }
 
         Err(arg) => {
-            println!("unable to load data from snapshot");
+            println!("unable to load data from snapshot \n error: {:?}", arg);
             let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
             let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
             let mut load_pool_data = LEND_POOL_DB.lock().unwrap();

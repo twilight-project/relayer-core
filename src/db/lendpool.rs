@@ -70,28 +70,12 @@ impl PoolBatchOrder {
 impl LendPool {
     pub fn default() -> Self {
         let last_output_state = last_state_output_fixed();
-        let script_address = last_output_state
-            .clone()
-            .as_output_data()
-            .get_script_address()
-            .unwrap()
-            .clone();
-        let owner_address = last_output_state
-            .clone()
-            .as_output_data()
-            .get_owner_address()
-            .clone()
-            .unwrap()
-            .clone();
-        // let last_output_state =
-        //     create_output_state_for_trade_lend_order(0, script_address, owner_address, 0, 0, 0);
 
         LendPool {
             sequence: 0,
             nonce: 0,
             total_pool_share: 0.0,
             total_locked_value: 0.0,
-            // event_log: Vec::new(),
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
@@ -106,20 +90,20 @@ impl LendPool {
             order_status: OrderStatus::SETTLED,
             order_type: OrderType::LEND,
             entry_nonce: 0,
-            exit_nonce: 0,
+            exit_nonce: 1,
             deposit: 10.0,
-            new_lend_state_amount: 10.0 * 10000.0,
+            new_lend_state_amount: 10.0 * 100000000.0,
             timestamp: systemtime_to_utc(),
             npoolshare: 100000.0,
             nwithdraw: 0.0,
             payment: 0.0,
             tlv0: 0.0,
             tps0: 0.0,
-            tlv1: 100000.0,
+            tlv1: 1000000000.0,
             tps1: 100000.0,
-            tlv2: 100000.0,
+            tlv2: 1000000000.0,
             tps2: 100000.0,
-            tlv3: 100000.0,
+            tlv3: 1000000000.0,
             tps3: 100000.0,
             entry_sequence: 0,
         };
@@ -152,12 +136,12 @@ impl LendPool {
                     hashmap
                 },
             },
-            "zkos_hex_string".to_string(),
+            last_state_output_string(),
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);
         let total_pool_share = relayer_initial_lend_order.npoolshare;
-        let total_locked_value = relayer_initial_lend_order.deposit * 10000.0;
+        let total_locked_value = relayer_initial_lend_order.deposit * 100000000.0;
         let mut metadata = HashMap::new();
         metadata.insert(
             String::from("Relayer_Public_Key"),
@@ -179,33 +163,11 @@ impl LendPool {
 
         //need to pick from env variable later
         let last_output_state = last_state_output_fixed();
-        let script_address = last_output_state
-            .clone()
-            .as_output_data()
-            .get_script_address()
-            .unwrap()
-            .clone();
-        let owner_address = last_output_state
-            .clone()
-            .as_output_data()
-            .get_owner_address()
-            .clone()
-            .unwrap()
-            .clone();
-
-        // let last_output_state = create_output_state_for_trade_lend_order(
-        //     0,
-        //     script_address,
-        //     owner_address,
-        //     total_locked_value.round() as u64,
-        //     total_pool_share.round() as u64,
-        //     0,
-        // );
 
         let lendpool = LendPool {
             sequence: 0,
-            nonce: 0,
-            total_pool_share: total_pool_share,
+            nonce: 1,
+            total_pool_share,
             total_locked_value: total_locked_value,
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 1,
@@ -565,7 +527,11 @@ impl LendPool {
                                             self.total_pool_share.round() as u64,
                                             0,
                                         );
-                                    println!("I am at lendpool line 534");
+                                    println!("I am at lendpool line 568");
+                                    println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
+
+                                    self.last_output_state = next_output_state.clone();
+
                                     zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
                                         order,
                                         rpc_cmd,

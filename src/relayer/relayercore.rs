@@ -3,11 +3,6 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use address::Network;
-use quisquislib::keys::PublicKey;
-use quisquislib::keys::SecretKey;
-use quisquislib::ristretto::RistrettoPublicKey;
-use rand::rngs::OsRng;
-use quisquislib::ristretto::RistrettoSecretKey;
 use std::sync::{Arc, Mutex, RwLock};
 use std::fs::File;
 use std::io::prelude::*;
@@ -477,10 +472,17 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                                 .unwrap(),
                                             )
                                             .unwrap();
-    
+
+                                 let result_output = update_trader_output_memo(zkos_create_order.output, trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
+
+println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.round() : {:?} ,",trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
+
+                                 let output_memo_bin = bincode::serialize(&result_output.clone().unwrap().clone()).unwrap();
+                                 let output_memo_hex = hex::encode(&output_memo_bin);
+                                 println!("\n output_memo_hex: {:?} \n", output_memo_hex);
                                         let transaction = create_trade_order(
                                             zkos_create_order.input,
-                                            zkos_create_order.output,
+                                            result_output.unwrap(),
                                             zkos_create_order.signature,
                                             zkos_create_order.proof,
                                             &ContractManager::import_program(
@@ -574,13 +576,13 @@ pub fn zkos_order_handler(command: ZkosTxCommand) {
                                     )
                                     .unwrap();
 
-                                let wallet = relayerwalletlib::relayer::load_relayer_wallet("your_password_he".to_string(), "your_password_he".to_string(), "wallet.txt".to_string());
+                                let contract_owner_sk =get_sk_from_fixed_wallet();
+                                let contract_owner_pk = get_pk_from_fixed_wallet();
+            
+                                let lock_error =get_lock_error_for_lend_create(lend_order.clone());
 
-                                let  contract_owner_sk=wallet.unwrap();
-            
-                                let  contract_owner_pk=relayerwalletlib::relayer::load_public_key(wallet.unwrap(), "wallet.txt".to_string());
-            
-let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((lend_order.deposit * lend_order.tps0).round() as i128);
+
+
                                 let transaction =  create_lend_order_transaction(
                                     zkos_create_order.input.clone(), 
                                     zkos_create_order.output.clone(),
@@ -617,11 +619,11 @@ let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((
                                 let mut file =
                                 File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
                                     .unwrap();
-                            file.write_all(
-                                &serde_json::to_vec(&tx_hash_result.clone())
-                                    .unwrap(),
-                            )
-                            .unwrap();
+                                file.write_all(
+                                    &serde_json::to_vec(&tx_hash_result.clone())
+                                        .unwrap(),
+                                )
+                                .unwrap();
 
                             match tx_hash_result{
                                 Ok(tx_hash)=>{let _ = tx_hash_storage.add(
@@ -680,29 +682,26 @@ let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((
                                     .unwrap();
 
                            
-                            let wallet = relayerwalletlib::relayer::load_relayer_wallet("your_password_he".to_string(), "your_password_he".to_string(), "wallet.txt".to_string());
-
-                            let  contract_owner_sk=wallet.unwrap();
+                                let contract_owner_sk =get_sk_from_fixed_wallet();
+                                let contract_owner_pk = get_pk_from_fixed_wallet();
         
-                            let  contract_owner_pk=relayerwalletlib::relayer::load_public_key(wallet.unwrap(), "wallet.txt".to_string());
-        
-let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((lend_order.deposit * lend_order.tps0).round() as i128);
+                                let lock_error =get_lock_error_for_lend_settle(lend_order.clone());
 
 
                                 let transaction = create_lend_order_settlement_transaction(
-                                zkos_settle_msg.output, // Memo Output sent by the client (C(Deposit), Poolshare)
-                                lend_order.new_lend_state_amount.round() as u64, // amount to be paid to the client
+                                zkos_settle_msg.output, 
+                                lend_order.new_lend_state_amount.round() as u64, 
                                 &ContractManager::import_program(
                                     &WALLET_PROGRAM_PATH.clone()
                                 ),
                                 Network::Mainnet,
                                 1u64,                      
-                                last_state_output.as_output_data().get_owner_address().unwrap().clone(),  // Address of the CONTRACT State Owner
-                                last_state_output, // Output State to be used as Input State for this tx
-                                next_state_output, // Output State for this tx
+                                last_state_output.as_output_data().get_owner_address().unwrap().clone(),  
+                                last_state_output, 
+                                next_state_output,
                                 lock_error,
-                                contract_owner_sk, // Secret key of the CONTRACT State Owner
-                                contract_owner_pk, // Public key of the CONTRACT State Owner
+                                contract_owner_sk, 
+                                contract_owner_pk, 
                             );
 
                             
@@ -766,13 +765,13 @@ let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((
 
                         match zkos_settle_msg_result {
                             Ok(zkos_settle_msg) => {
-                                let mut file = File::create(format!("./{:?}_zkos_settle_msg.txt",trader_order.uuid.clone())).unwrap();
+                                let mut file = File::create(format!("./zkos_settle_msg_{:?}.txt",trader_order.uuid.clone())).unwrap();
                                 file.write_all(
                                     &serde_json::to_vec(&zkos_settle_msg.clone()).unwrap(),
                                 )
                                 .unwrap();
                                 let mut file_bin =
-                                    File::create(format!("./{:?}_zkos_settle_msg_file_bin.txt",trader_order.uuid.clone())).unwrap();
+                                    File::create(format!("./zkos_settle_msg_file_bin_{:?}.txt",trader_order.uuid.clone())).unwrap();
                                 file_bin
                                     .write_all(
                                         &serde_json::to_vec(
@@ -784,80 +783,77 @@ let lock_error =((lend_order.npoolshare * lend_order.tlv0).round() as i128) - ((
                                     .unwrap();
 
                                 
-                                    println!("I am at line 782 relayer core");   
-                    let wallet = relayerwalletlib::relayer::load_relayer_wallet("your_password_he".to_string(), "your_password_he".to_string(), "wallet.txt".to_string());
-println!("I am at line 784 relayer core");
-                    let  contract_owner_sk=wallet.unwrap();
-println!("key:{:?}",contract_owner_sk);
-                    // let  contract_owner_pk=relayerwalletlib::relayer::load_public_key(wallet.unwrap(), "./wallet.txt".to_string());
-                    let contract_owner_pk = RistrettoPublicKey::from_secret_key(&contract_owner_sk, &mut OsRng);
-                    println!("contract_owner_pk:{:?}",contract_owner_pk);
-                    // let  
-                    let lock_error= ((trader_order.available_margin.round() as i128 - trader_order.initial_margin.round()as i128 - ( trader_order.available_margin - trader_order.initial_margin).clone().round() as i128) * trader_order.entryprice.round() as i128 * trader_order.settlement_price.round() as i128)  - ( trader_order.positionsize.round() as i128 * (match trader_order.position_type {
-                       
-                        PositionType::LONG => {
-                            1
-                        }
-                      
-                        PositionType::SHORT => {
-                         -1
-                        }
-                    } )* (trader_order.entryprice.round() as i128  - trader_order.settlement_price.round() as i128));
 
-                     let transaction=  settle_trader_order(
-                            zkos_settle_msg.output.clone(),  
-                            trader_order.available_margin.clone().round() as u64,                            
-                            &ContractManager::import_program(
-                                &WALLET_PROGRAM_PATH.clone()
-                            ),
-                            Network::Mainnet,
-                            1u64,                      
-                            last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
-                           last_state_output.clone(),   
-                           next_state_output.clone(), 
-                           lock_error,  
-                        ( trader_order.available_margin - trader_order.initial_margin).clone().round() as u64, 
-                            trader_order.settlement_price.round() as u64, 
-                            contract_owner_sk, 
-                            contract_owner_pk,
-                        );
+                                let contract_owner_sk =get_sk_from_fixed_wallet();
 
-                                                        
-                                let mut file = File::create("./settle_transaction.txt").unwrap();
-                                file.write_all(
-                                    &serde_json::to_vec(&transaction.clone()).unwrap(),
-                                )
-                                .unwrap();
+                                let contract_owner_pk = get_pk_from_fixed_wallet();
 
-                            //     let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
-                            //         Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
-                            //         Err(arg)=>{Err(arg.to_string())}
-                            //     };
-                            //     let mut tx_hash_storage =
-                            //     TXHASH_STORAGE.lock().unwrap();
+                                let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
 
-                            //     let mut file =
-                            //     File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
-                            //         .unwrap();
-                            // file.write_all(
-                            //     &serde_json::to_vec(&tx_hash_result.clone())
-                            //         .unwrap(),
-                            // )
-                            // .unwrap();
+                                let transaction=  settle_trader_order(
+                                        zkos_settle_msg.output.clone(),  
+                                        trader_order.available_margin.clone().round() as u64,                            
+                                        &ContractManager::import_program(
+                                            &WALLET_PROGRAM_PATH.clone()
+                                        ),
+                                        Network::Mainnet,
+                                        1u64,                      
+                                        last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
+                                    last_state_output.clone(),   
+                                    next_state_output.clone(), 
+                                    lock_error,  
+                                    ( trader_order.available_margin - trader_order.initial_margin).clone().round() as u64, 
+                                        trader_order.settlement_price.round() as u64, 
+                                        contract_owner_sk, 
+                                        contract_owner_pk,
+                                    );
 
-                            // match tx_hash_result{
-                            //     Ok(tx_hash)=>{let _ = tx_hash_storage.add(
-                            //         bincode::serialize(&trader_order.uuid).unwrap(),
-                            //         serde_json::to_string(&tx_hash).unwrap(),
-                            //         0,
-                            //     );}
-                            //     Err(arg)=>{let _ = tx_hash_storage.add(
-                            //         bincode::serialize(&trader_order.uuid).unwrap(),
-                            //         serde_json::to_string(&arg).unwrap(),
-                            //         0,
-                            //     );}
-                            // }
-                            // drop(tx_hash_storage);
+                                                                    
+                                    let mut file = File::create(format!("./settle_transaction_{:?}.txt",trader_order.uuid.clone())).unwrap();
+                                    file.write_all(
+                                        &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                    )
+                                    .unwrap();
+
+
+                                    match transaction {
+                                        Ok(tx)=>{
+                                        let verify_tx =  tx.verify();
+                                            println!("verify:{:?}",verify_tx);
+
+                                        }
+                                        Err(arg)=>println!("error at line 859 :{:?}",arg)
+                                    }
+
+                                        //     let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
+                                        //         Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
+                                        //         Err(arg)=>{Err(arg.to_string())}
+                                        //     };
+                                        //     let mut tx_hash_storage =
+                                        //     TXHASH_STORAGE.lock().unwrap();
+
+                                        //     let mut file =
+                                        //     File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                        //         .unwrap();
+                                        // file.write_all(
+                                        //     &serde_json::to_vec(&tx_hash_result.clone())
+                                        //         .unwrap(),
+                                        // )
+                                        // .unwrap();
+
+                                        // match tx_hash_result{
+                                        //     Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                        //         bincode::serialize(&trader_order.uuid).unwrap(),
+                                        //         serde_json::to_string(&tx_hash).unwrap(),
+                                        //         0,
+                                        //     );}
+                                        //     Err(arg)=>{let _ = tx_hash_storage.add(
+                                        //         bincode::serialize(&trader_order.uuid).unwrap(),
+                                        //         serde_json::to_string(&arg).unwrap(),
+                                        //         0,
+                                        //     );}
+                                        // }
+                                        // drop(tx_hash_storage);
                                 
                             }
                             Err(arg) => {
