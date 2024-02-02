@@ -57,6 +57,7 @@ pub enum Event {
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
+    TxHash(Uuid, String, String, OrderType, OrderStatus, String), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime
     Stop(String),
 }
 use stopwatch::Stopwatch;
@@ -106,7 +107,7 @@ impl Event {
                 // .with_topic(topic)
                 .with_group(group)
                 .with_topic_partitions(topic, &[0])
-                // .with_fallback_offset(FetchOffset::Earliest)
+                .with_fallback_offset(FetchOffset::Earliest)
                 .with_offset_storage(GroupOffsetStorage::Kafka)
                 .create()
                 .unwrap();
@@ -164,7 +165,7 @@ impl Event {
                 // .with_topic(topic)
                 .with_group(group)
                 .with_topic_partitions(topic.clone(), &[0])
-                // .with_fallback_offset(fetchoffset)
+                .with_fallback_offset(fetchoffset)
                 .with_offset_storage(GroupOffsetStorage::Kafka)
                 .create()
                 .unwrap();
@@ -198,9 +199,12 @@ impl Event {
                                 }
                             }
                         }
-                        // let _ = con.consume_messageset(ms);
+                        if connection_status == false {
+                            break;
+                        }
+                        let _ = con.consume_messageset(ms);
                     }
-                    // con.commit_consumed().unwrap();
+                    con.commit_consumed().unwrap();
                 }
             }
             // con.commit_consumed().unwrap();

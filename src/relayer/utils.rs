@@ -5,7 +5,7 @@ pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
     initial_margin * leverage
 }
 pub fn positionsize(entryvalue: f64, entryprice: f64) -> f64 {
-    entryvalue * (entryprice.round())
+    entryvalue * (entryprice)
 }
 
 // execution_price = settle price
@@ -97,18 +97,14 @@ pub fn set_localdb_string(key: &'static str, value: String) {
 }
 
 pub fn get_lock_error_for_trader_settle(trader_order: TraderOrder) -> i128 {
-    let lock_error = ((trader_order.available_margin.round() as i128
-        - trader_order.initial_margin.round() as i128
-        - (trader_order.available_margin - trader_order.initial_margin)
-            .clone()
-            .round() as i128)
+    let lock_error = ((trader_order.unrealized_pnl.round() as i128)
         * trader_order.entryprice.round() as i128
         * trader_order.settlement_price.round() as i128)
         - (trader_order.positionsize.round() as i128
             * (match trader_order.position_type {
-                PositionType::LONG => 1,
+                PositionType::LONG => -1,
 
-                PositionType::SHORT => -1,
+                PositionType::SHORT => 1,
             })
             * (trader_order.entryprice.round() as i128
                 - trader_order.settlement_price.round() as i128));

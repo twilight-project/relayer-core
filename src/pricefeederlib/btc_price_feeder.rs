@@ -28,7 +28,12 @@ pub fn update_btc_price(payload: String) {
         let binance_payload_clone = binance_payload.clone();
         set_localdb(
             "Latest_Price",
-            binance_payload_clone.clone().c.parse::<f64>().unwrap(),
+            binance_payload_clone
+                .clone()
+                .c
+                .parse::<f64>()
+                .unwrap()
+                .round(),
         );
         redis_pool.execute(move || {
             redis_db::set("btc:price", &binance_payload.clone().c);
