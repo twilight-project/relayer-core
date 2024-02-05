@@ -68,7 +68,6 @@ pub fn rpc_event_handler(command: RpcCommand) {
             buffer.execute(move || {
                 let execution_price = rpc_request.execution_price.clone();
                 let mut current_price = get_localdb("CurrentPrice");
-                 current_price = 43500.0;
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let order_detail_wraped = trader_order_db.get_mut(rpc_request.uuid);
                 drop(trader_order_db);
