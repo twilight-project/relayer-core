@@ -111,13 +111,15 @@ pub fn get_lock_error_for_trader_settle(trader_order: TraderOrder) -> i128 {
     lock_error
 }
 pub fn get_lock_error_for_lend_create(lend_order: LendOrder) -> i128 {
-    let lock_error = ((lend_order.npoolshare * lend_order.tlv0).round() as i128)
-        - ((lend_order.deposit * lend_order.tps0).round() as i128);
+    let lock_error = (((lend_order.npoolshare / 10000.0).round() * lend_order.tlv0.round()).round()
+        as i128)
+        - ((lend_order.deposit.round() * lend_order.tps0.round()).round() as i128);
     lock_error
 }
 pub fn get_lock_error_for_lend_settle(lend_order: LendOrder) -> i128 {
-    let lock_error = ((lend_order.npoolshare * lend_order.tlv0).round() as i128)
-        - ((lend_order.deposit * lend_order.tps0).round() as i128);
+    let lock_error = (((lend_order.npoolshare / 10000.0).round() * lend_order.tlv0.round()).round()
+        as i128)
+        - ((lend_order.deposit.round() * lend_order.tps0.round()).round() as i128);
     lock_error
 }
 

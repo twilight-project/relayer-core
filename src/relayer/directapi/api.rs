@@ -313,6 +313,18 @@ pub fn startserver() {
                             println!("\n LEND_ORDER_DB : {:#?}", lend_order_db);
                             drop(lend_order_db);
                         }
+                        18 => {
+                            let mut lend_pool_db = LEND_POOL_DB.lock().unwrap();
+                            // *lend_pool_db = LendPool::new();
+                            println!(
+                                "\n LEND_POOL_DB : {:#?}",
+                                hex::encode(
+                                    bincode::serialize(&lend_pool_db.last_output_state.clone())
+                                        .unwrap()
+                                )
+                            );
+                            drop(lend_pool_db);
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);

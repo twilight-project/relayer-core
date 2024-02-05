@@ -100,11 +100,11 @@ impl LendPool {
             tlv0: 0.0,
             tps0: 0.0,
             tlv1: 1000000000.0,
-            tps1: 10.0,
+            tps1: 100000.0,
             tlv2: 1000000000.0,
-            tps2: 10.0,
+            tps2: 100000.0,
             tlv3: 1000000000.0,
-            tps3: 10.0,
+            tps3: 100000.0,
             entry_sequence: 0,
         };
         let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
@@ -140,7 +140,7 @@ impl LendPool {
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);
-        let total_pool_share = relayer_initial_lend_order.npoolshare / 10000.0;
+        let total_pool_share = relayer_initial_lend_order.npoolshare;
         let total_locked_value = relayer_initial_lend_order.deposit * 100000000.0;
         let mut metadata = HashMap::new();
         metadata.insert(
@@ -166,9 +166,9 @@ impl LendPool {
 
         let lendpool = LendPool {
             sequence: 0,
-            nonce: 1,
-            total_pool_share,
-            total_locked_value: total_locked_value,
+            nonce: 2,
+            total_pool_share: 110000.0,
+            total_locked_value: 1100000000.0,
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: 1,
             last_snapshot_id: 0,
@@ -371,8 +371,8 @@ impl LendPool {
             LendPoolCommand::LendOrderCreateOrder(rpc_request, mut lend_order, deposit) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
-                self.total_locked_value += deposit * 10000.0;
-                self.total_pool_share += lend_order.npoolshare;
+                self.total_locked_value += deposit;
+                self.total_pool_share += lend_order.npoolshare / 10000.0;
                 lend_order.tps1 = self.total_pool_share.clone();
                 lend_order.tlv1 = self.total_locked_value.clone();
                 lend_order.order_status = OrderStatus::FILLED;
@@ -426,12 +426,12 @@ impl LendPool {
                 drop(lendorder_db);
             }
 
-            LendPoolCommand::LendOrderSettleOrder(rpc_request, mut lend_order, withdraw) => {
+            LendPoolCommand::LendOrderSettleOrder(rpc_request, mut lend_order, nwithdraw) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
                 // self.total_locked_value -= withdraw * 10000.0;
-                self.total_locked_value -= withdraw;
-                self.total_pool_share -= lend_order.npoolshare;
+                self.total_locked_value -= nwithdraw / 10000.0;
+                self.total_pool_share -= lend_order.npoolshare / 10000.0;
                 lend_order.tps3 = self.total_pool_share;
                 lend_order.tlv3 = self.total_locked_value;
                 lend_order.order_status = OrderStatus::SETTLED;
@@ -473,7 +473,7 @@ impl LendPool {
                         LendPoolCommand::LendOrderSettleOrder(
                             rpc_request.clone(),
                             lend_order.clone(),
-                            withdraw.clone(),
+                            nwithdraw.clone(),
                         ),
                         lendpool_clone_with_empty_trade_order.clone(),
                         self.aggrigate_log_sequence,

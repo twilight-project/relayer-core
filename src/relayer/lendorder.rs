@@ -54,7 +54,7 @@ impl LendOrder {
         let order_type = rpc_command.order_type;
         let order_status = rpc_command.order_status;
         let deposit = rpc_command.deposit;
-        let ndeposit = deposit * 10000.0;
+        let ndeposit = deposit;
         let npoolshare = tps0 * deposit * 10000.0 / tlv0;
         let poolshare = tps0 * deposit / tlv0;
         let tps1 = tps0 + poolshare;
@@ -93,7 +93,7 @@ impl LendOrder {
                 "insufficient pool fund!",
             ));
         }
-        let payment = nwithdraw - self.new_lend_state_amount;
+        let payment = withdraw - self.new_lend_state_amount;
         self.nwithdraw = nwithdraw;
         self.payment = payment;
         self.tlv2 = tlv2;
@@ -101,7 +101,7 @@ impl LendOrder {
         self.tlv3 = 0.0;
         self.tps3 = 0.0;
         self.order_status = OrderStatus::SETTLED;
-
+        self.new_lend_state_amount = withdraw;
         Ok(())
     }
 }
