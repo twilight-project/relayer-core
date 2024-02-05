@@ -597,11 +597,13 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                 let lock_error =get_lock_error_for_lend_create(lend_order.clone());
 
                               let result_poolshare_output =   update_lender_output_memo(
-                                zkos_create_order.output,
+                                zkos_create_order.output.clone(),
                                 (lend_order.npoolshare/10000.0).round() as u64,
                                 );
-
-
+                                let output_memo_bin_old = bincode::serialize(&zkos_create_order.output.clone()).unwrap();
+                                let output_memo_hex_old = hex::encode(&output_memo_bin_old);
+                                println!("\n output_memo_hex_old: {:?} \n", output_memo_hex_old);
+                                println!("\n output_memo_orignal_old: {:?} \n", zkos_create_order.output);
 
                                 let output_memo_bin = bincode::serialize(&result_poolshare_output.clone().unwrap().clone()).unwrap();
                                 let output_memo_hex = hex::encode(&output_memo_bin);
@@ -619,6 +621,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
 
                                 let transaction =  create_lend_order_transaction(
                                     zkos_create_order.input.clone(), 
+                                    // zkos_create_order.output,
                                     result_poolshare_output.unwrap(),
                                     last_state_output.clone(),   
                                     next_state_output.clone(), 
@@ -680,7 +683,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                 .unwrap()
                                 .as_micros()
-                                .to_string()), String::from("tx_hash_error"),
+                                .to_string()), String::from("tx_hash_result"),
                                 LENDPOOL_EVENT_LOG.clone().to_string());
                             
                             }
@@ -801,7 +804,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                 .unwrap()
                                 .as_micros()
-                                .to_string()), String::from("tx_hash_error"),
+                                .to_string()), String::from("tx_hash_result"),
                                 LENDPOOL_EVENT_LOG.clone().to_string());
                             }
                                 Err(arg)=>{let _ = tx_hash_storage.add(
@@ -945,7 +948,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                         .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                         .unwrap()
                                         .as_micros()
-                                        .to_string()), String::from("tx_hash_error"),
+                                        .to_string()), String::from("tx_hash_result"),
                                         LENDPOOL_EVENT_LOG.clone().to_string());
                                     
                                     }

@@ -42,7 +42,7 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                updatefundingrate_localdb(1.0);
+                // updatefundingrate_localdb(1.0);
             });
             // scheduler.every(1.seconds()).run(move || {
             //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
@@ -418,7 +418,7 @@ pub fn fundingcycle(
     println!("length : {}", length);
     let sw = Stopwatch::start_new();
     if length > 0 {
-        let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
+        let threadpool = ThreadPool::new(10, String::from("Funding cycle pool"));
         let mut poolbatch = PoolBatchOrder::new();
         let (send, recv) = mpsc::channel();
         let mut liquidity_update_short: Vec<(Uuid, i64)> = Vec::new();

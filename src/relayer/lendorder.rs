@@ -85,7 +85,7 @@ impl LendOrder {
         }
     }
     pub fn calculatepayment_localdb(&mut self, tlv2: f64, tps2: f64) -> Result<(), std::io::Error> {
-        let nwithdraw = tlv2 * self.npoolshare / tps2;
+        let nwithdraw = (tlv2 * (self.npoolshare / 10000.0).round() / tps2) * 10000.0;
         let withdraw = nwithdraw / 10000.0;
         if tlv2 < withdraw {
             return Err(std::io::Error::new(

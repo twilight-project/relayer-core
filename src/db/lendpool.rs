@@ -17,6 +17,7 @@ use zkvm::Output;
 type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
+type Nonce = usize;
 use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LendPool {
@@ -28,6 +29,28 @@ pub struct LendPool {
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
     pub last_output_state: Output,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OutputStateCommand {
+    TraderSettle(Uuid, Nonce),
+    LendCreate(Uuid, Nonce),
+    LendSettle(Uuid, Nonce),
+    FundingInterest(Payment),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PoolStateHistory {
+    nonce: Nonce,
+    state_outputs_hex: String,
+    previous_lendpool: LendPool,
+    cmd: OutputStateCommand,
+    aggrigate_log_sequence: usize,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PoolStateHistoryDB {
+    pub state_outputs: HashMap<Nonce, PoolStateHistory>,
+    pub orderid_to_nonce_link: HashMap<Uuid, Nonce>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -83,28 +106,34 @@ impl LendPool {
         }
     }
     pub fn new() -> Self {
+        // let tlv_init = 10.00015939;
+        // let tps_init = 100001.0;
+        let tlv_init = 10.0;
+        let tps_init = 100000.0;
+        let nonce_init = 1;
+        let aggrigate_log_sequence_init = 1;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
             account_id: String::from("Relayer Initial Transaction, with public key"),
-            balance: 10.0,
+            balance: tlv_init,
             order_status: OrderStatus::SETTLED,
             order_type: OrderType::LEND,
             entry_nonce: 0,
-            exit_nonce: 1,
-            deposit: 10.0,
-            new_lend_state_amount: 10.0 * 100000000.0,
+            exit_nonce: nonce_init,
+            deposit: tlv_init,
+            new_lend_state_amount: tlv_init * 100000000.0,
             timestamp: systemtime_to_utc(),
-            npoolshare: 100000.0,
+            npoolshare: tps_init,
             nwithdraw: 0.0,
             payment: 0.0,
             tlv0: 0.0,
             tps0: 0.0,
-            tlv1: 1000000000.0,
-            tps1: 100000.0,
-            tlv2: 1000000000.0,
-            tps2: 100000.0,
-            tlv3: 1000000000.0,
-            tps3: 100000.0,
+            tlv1: tlv_init * 100000000.0,
+            tps1: tps_init,
+            tlv2: tlv_init * 100000000.0,
+            tps2: tps_init,
+            tlv3: tlv_init * 100000000.0,
+            tps3: tps_init,
             entry_sequence: 0,
         };
         let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
@@ -166,15 +195,15 @@ impl LendPool {
 
         let lendpool = LendPool {
             sequence: 0,
-            nonce: 2,
-            total_pool_share: 110000.0,
-            total_locked_value: 1100000000.0,
+            nonce: nonce_init,
+            total_pool_share: tps_init.round(),
+            total_locked_value: (tlv_init * 100000000.0).round(),
             pending_orders: PoolBatchOrder::new(),
-            aggrigate_log_sequence: 1,
+            aggrigate_log_sequence: aggrigate_log_sequence_init,
             last_snapshot_id: 0,
             last_output_state,
         };
-        let pool_event = Event::PoolUpdate(relayer_command.clone(), lendpool.clone(), 1);
+        let pool_event = Event::PoolUpdate(relayer_command.clone(), lendpool.clone(), nonce_init);
         let _pool_event_execute = Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
@@ -371,8 +400,8 @@ impl LendPool {
             LendPoolCommand::LendOrderCreateOrder(rpc_request, mut lend_order, deposit) => {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
-                self.total_locked_value += deposit;
-                self.total_pool_share += lend_order.npoolshare / 10000.0;
+                self.total_locked_value += deposit.round();
+                self.total_pool_share += (lend_order.npoolshare / 10000.0).round();
                 lend_order.tps1 = self.total_pool_share.clone();
                 lend_order.tlv1 = self.total_locked_value.clone();
                 lend_order.order_status = OrderStatus::FILLED;
@@ -430,8 +459,8 @@ impl LendPool {
                 self.nonce += 1;
                 self.aggrigate_log_sequence += 1;
                 // self.total_locked_value -= withdraw * 10000.0;
-                self.total_locked_value -= nwithdraw / 10000.0;
-                self.total_pool_share -= lend_order.npoolshare / 10000.0;
+                self.total_locked_value -= (nwithdraw / 10000.0).round();
+                self.total_pool_share -= (lend_order.npoolshare / 10000.0).round();
                 lend_order.tps3 = self.total_pool_share;
                 lend_order.tlv3 = self.total_locked_value;
                 lend_order.order_status = OrderStatus::SETTLED;
@@ -490,7 +519,7 @@ impl LendPool {
                 RelayerCommand::FundingCycle(pool_batch_order, _metadata, _fundingrate) => {
                     self.nonce += 1;
                     self.aggrigate_log_sequence += 1;
-                    self.total_locked_value -= pool_batch_order.amount * 10000.0;
+                    self.total_locked_value -= (pool_batch_order.amount * 10000.0).round();
                     // self.event_log.push(Event::new(
                     //     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     //     String::from("FundingCycleDataUpdate"),
@@ -503,7 +532,7 @@ impl LendPool {
                         self.nonce += 1;
                         self.aggrigate_log_sequence += 1;
 
-                        self.total_locked_value -= batch.amount;
+                        self.total_locked_value -= (batch.amount).round();
 
                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                         for cmd in batch.trader_order_data {
