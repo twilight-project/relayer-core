@@ -596,22 +596,30 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
             
                                 let lock_error =get_lock_error_for_lend_create(lend_order.clone());
 
+                              let result_poolshare_output =   update_lender_output_memo(
+                                zkos_create_order.output,
+                                (lend_order.npoolshare/10000.0).round() as u64,
+                                );
+
+
+
+                                let output_memo_bin = bincode::serialize(&result_poolshare_output.clone().unwrap().clone()).unwrap();
+                                let output_memo_hex = hex::encode(&output_memo_bin);
+                                println!("\n output_memo_hex: {:?} \n", output_memo_hex);
+                                println!("\n output_memo_orignal: {:?} \n", result_poolshare_output.clone().unwrap());
+
                                 println!("lock_error : {:?}",lock_error);
                                 println!("zkos_create_order.input.clone() : {:?}",zkos_create_order.input.clone());
-                                println!("zkos_create_order.output.clone() : {:?}",zkos_create_order.output.clone());
+                                println!("zkos_create_order.output.clone() : {:?}",result_poolshare_output.clone().unwrap());
                                 println!("last_state_output.clone() : {:?}",last_state_output.clone());
                                 println!("next_state_output.clone() : {:?}",next_state_output.clone());
                                 println!("lock_error : {:?}",lock_error);
                                 println!("lock_error : {:?}",lock_error);
 
 
-
-
-
-
                                 let transaction =  create_lend_order_transaction(
                                     zkos_create_order.input.clone(), 
-                                    zkos_create_order.output.clone(),
+                                    result_poolshare_output.unwrap(),
                                     last_state_output.clone(),   
                                     next_state_output.clone(), 
                                     zkos_create_order.signature, 
@@ -713,7 +721,9 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                 let buffer = THREADPOOL_ZKOS.lock().unwrap();
                 buffer.execute(move || match rpc_command {
                     RpcCommand::ExecuteLendOrder(order_request, meta,_zkos_hex_string,) =>{
-println!("lend_order:{:#?}",lend_order.clone());
+
+                        println!("lend_order:{:#?}",lend_order.clone());
+                        
                         let zkos_settle_msg_result=ZkosSettleMsg::decode_from_hex_string(_zkos_hex_string);
 
                         match zkos_settle_msg_result {
