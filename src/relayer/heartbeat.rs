@@ -417,7 +417,7 @@ pub fn fundingcycle(
     println!("length : {}", length);
     let sw = Stopwatch::start_new();
     if length > 0 {
-        let threadpool = ThreadPool::new(100, String::from("Funding cycle pool"));
+        let threadpool = ThreadPool::new(10, String::from("Funding cycle pool"));
         let mut poolbatch = PoolBatchOrder::new();
         let (send, recv) = mpsc::channel();
         let mut liquidity_update_short: Vec<(Uuid, i64)> = Vec::new();
