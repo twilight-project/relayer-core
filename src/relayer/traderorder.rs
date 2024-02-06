@@ -30,8 +30,8 @@ pub struct TraderOrder {
 }
 impl TraderOrder {
     pub fn new_order(mut rpc_request: CreateTraderOrder) -> (Self, bool) {
-        let current_price = get_localdb("CurrentPrice");
-        // let current_price = 20000.0;
+        let mut current_price = get_localdb("CurrentPrice");
+        current_price = 43378.0;
         let mut order_entry_status: bool = false;
         if rpc_request.order_type == OrderType::LIMIT {
             match rpc_request.position_type {
@@ -55,7 +55,7 @@ impl TraderOrder {
         } else if rpc_request.order_type == OrderType::MARKET {
             order_entry_status = true;
         }
-
+        // rpc_request.position_type = PositionType::SHORT;
         let account_id = rpc_request.account_id;
         let position_type = rpc_request.position_type;
         let order_type = rpc_request.order_type;
@@ -372,7 +372,14 @@ impl TraderOrder {
             self.entryprice,
             current_price,
         );
-        let payment = u_pnl + margindifference;
+        println!(
+            "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
+            u_pnl,
+            u_pnl.round(),
+            margindifference,
+            margindifference.round()
+        );
+        let payment = u_pnl.round() + margindifference.round();
         self.order_status = OrderStatus::SETTLED;
         self.available_margin += payment;
         self.settlement_price = current_price;

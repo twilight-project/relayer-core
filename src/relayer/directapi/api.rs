@@ -293,6 +293,38 @@ pub fn startserver() {
                                 })
                                 .unwrap();
                         }
+                        16 => {
+                            let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                            *trader_lp_long = LendPool::new();
+                            drop(trader_lp_long);
+                        }
+                        17 => {
+                            let mut lend_pool_db = LEND_POOL_DB.lock().unwrap();
+                            *lend_pool_db = LendPool::new();
+                            println!("\n LEND_POOL_DB : {:#?}", lend_pool_db);
+                            drop(lend_pool_db);
+                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                            *trader_order_db = LocalDB::<TraderOrder>::new();
+                            println!("\n Trader_ORDER_DB : {:#?}", trader_order_db);
+                            drop(trader_order_db);
+                            let mut lend_order_db = LEND_ORDER_DB.lock().unwrap();
+                            *lend_order_db = LocalDB::<LendOrder>::new();
+                            println!("\n LEND_ORDER_DB : {:#?}", lend_order_db);
+                            drop(lend_order_db);
+                        }
+                        18 => {
+                            let mut lend_pool_db = LEND_POOL_DB.lock().unwrap();
+                            // *lend_pool_db = LendPool::new();
+                            println!(
+                                "\n LEND_POOL_DB : {:#?}",
+                                hex::encode(
+                                    bincode::serialize(&lend_pool_db.last_output_state.clone())
+                                        .unwrap()
+                                )
+                            );
+                            drop(lend_pool_db);
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);

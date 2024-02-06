@@ -13,7 +13,7 @@ use uuid::Uuid;
 pub fn heartbeat() {
     dotenv::dotenv().expect("Failed loading dotenv");
     //load previous database
-    println!("Looking for previous database...");
+
     // let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
     // let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
     // let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
@@ -25,9 +25,10 @@ pub fn heartbeat() {
     // drop(load_trader_data);
     // drop(load_lend_data);
     // drop(load_pool_data);
+    init_psql();
+    println!("Looking for previous database...");
     load_from_snapshot();
     ordertest::initprice();
-    init_psql();
     init_output_txhash_storage();
 
     thread::sleep(time::Duration::from_millis(100));
@@ -41,7 +42,7 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                updatefundingrate_localdb(1.0);
+                // updatefundingrate_localdb(1.0);
             });
             // scheduler.every(1.seconds()).run(move || {
             //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());

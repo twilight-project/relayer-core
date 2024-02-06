@@ -39,3 +39,4 @@ relayerapi-docker/id_ed*
 rpckafka/id_ed*
 id_ed*
 certbot
+snapshot_storage
