@@ -4,6 +4,7 @@ use crate::config::*;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
+use curve25519_dalek::scalar::Scalar;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
@@ -18,7 +19,9 @@ type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
 type Nonce = usize;
-use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
+use relayerwalletlib::zkoswalletlib::util::{
+    create_output_state_for_trade_lend_order, get_state_info_from_output_hex,
+};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LendPool {
     pub sequence: usize,
@@ -108,9 +111,30 @@ impl LendPool {
     pub fn new() -> Self {
         // let tlv_init = 10.00015939;
         // let tps_init = 100001.0;
-        let tlv_init = 20048621560.0 / 100000000.0;
-        let tps_init = 2000000.0;
-        let nonce_init = 7;
+        let mut tlv_init: f64 = 20048621560.0 / 100000000.0;
+        let mut tps_init: f64 = 2000000.0;
+        let mut nonce_init = 7;
+        let (nonce, tlv_witness, _, tps_witness, _) =
+            match get_state_info_from_output_hex(last_state_output_string()) {
+                Ok((nonce, tlv_witness, _tlv_blinding, tps_witness, _tps_blinding)) => (
+                    nonce,
+                    tlv_witness,
+                    _tlv_blinding,
+                    tps_witness,
+                    _tps_blinding,
+                ),
+                Err(_arg) => (
+                    nonce_init,
+                    tlv_init.round() as u64,
+                    Scalar::random(&mut rand::thread_rng()),
+                    tps_init.round() as u64,
+                    Scalar::random(&mut rand::thread_rng()),
+                ),
+            };
+        nonce_init = nonce;
+        tps_init = tps_witness as f64;
+        tlv_init = tlv_witness as f64;
+
         let aggrigate_log_sequence_init = 8;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
@@ -119,7 +143,7 @@ impl LendPool {
             order_status: OrderStatus::SETTLED,
             order_type: OrderType::LEND,
             entry_nonce: 0,
-            exit_nonce: nonce_init,
+            exit_nonce: nonce_init as usize,
             deposit: tlv_init,
             new_lend_state_amount: tlv_init * 100000000.0,
             timestamp: systemtime_to_utc(),
@@ -198,7 +222,7 @@ impl LendPool {
 
         let lendpool = LendPool {
             sequence: 0,
-            nonce: nonce_init,
+            nonce: nonce_init as usize,
             total_pool_share: total_pool_share.round(),
             total_locked_value: (tlv_init * 100000000.0).round(),
             pending_orders: PoolBatchOrder::new(),
@@ -206,7 +230,11 @@ impl LendPool {
             last_snapshot_id: 0,
             last_output_state,
         };
-        let pool_event = Event::PoolUpdate(relayer_command.clone(), lendpool.clone(), nonce_init);
+        let pool_event = Event::PoolUpdate(
+            relayer_command.clone(),
+            lendpool.clone(),
+            nonce_init as usize,
+        );
         let _pool_event_execute = Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
