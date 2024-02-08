@@ -110,8 +110,8 @@ impl LendPool {
         // let tps_init = 100001.0;
         let tlv_init = 20048621560.0 / 100000000.0;
         let tps_init = 2000000.0;
-        let nonce_init = 6;
-        let aggrigate_log_sequence_init = 7;
+        let nonce_init = 7;
+        let aggrigate_log_sequence_init = 8;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
             account_id: String::from("Relayer Initial Transaction, with public key"),
