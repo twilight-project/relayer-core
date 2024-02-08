@@ -18,6 +18,7 @@ use zkvm::Output;
 type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
+type PoolLockError = i128;
 type Nonce = usize;
 use relayerwalletlib::zkoswalletlib::util::{
     create_output_state_for_trade_lend_order, get_state_info_from_output_hex,
@@ -654,9 +655,9 @@ impl LendPool {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum OutputStateCommand {
-    TraderSettle(Uuid, Nonce),
-    LendCreate(Uuid, Nonce),
-    LendSettle(Uuid, Nonce),
+    TraderSettle(Uuid, Nonce, PoolLockError),
+    LendCreate(Uuid, Nonce, PoolLockError),
+    LendSettle(Uuid, Nonce, PoolLockError),
     FundingInterest(Payment),
     InitiateNewPool(Payment, Nonce),
 }
@@ -664,9 +665,9 @@ pub enum OutputStateCommand {
 impl OutputStateCommand {
     pub fn get_order_id(&self) -> Option<Uuid> {
         match self.clone() {
-            OutputStateCommand::TraderSettle(uuid, _nonce) => Some(uuid),
-            OutputStateCommand::LendCreate(uuid, _nonce) => Some(uuid),
-            OutputStateCommand::LendSettle(uuid, _nonce) => Some(uuid),
+            OutputStateCommand::TraderSettle(uuid, _nonce, _lock_error) => Some(uuid),
+            OutputStateCommand::LendCreate(uuid, _nonce, _lock_error) => Some(uuid),
+            OutputStateCommand::LendSettle(uuid, _nonce, _lock_error) => Some(uuid),
             OutputStateCommand::FundingInterest(_payment) => None,
             OutputStateCommand::InitiateNewPool(_payment, _nonce) => None,
         }
@@ -689,13 +690,29 @@ pub struct PoolStateHistoryDB {
 }
 
 impl PoolStateHistory {
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         PoolStateHistory {
             nonce: 0,
             state_outputs_hex: "".to_string(),
             previous_lendpool: LendPool::default(),
             cmd: OutputStateCommand::InitiateNewPool(0.0, 0),
             aggrigate_log_sequence: 0,
+        }
+    }
+
+    pub fn new(
+        nonce: Nonce,
+        state_outputs_hex: String,
+        previous_lendpool: LendPool,
+        cmd: OutputStateCommand,
+        aggrigate_log_sequence: usize,
+    ) -> Self {
+        PoolStateHistory {
+            nonce,
+            state_outputs_hex,
+            previous_lendpool,
+            cmd,
+            aggrigate_log_sequence,
         }
     }
     pub fn get_nonce(&mut self) -> Nonce {
