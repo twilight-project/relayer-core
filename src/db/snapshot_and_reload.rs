@@ -484,6 +484,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 _order_type,
                 _order_status,
                 _timestamp,
+                _option_output,
             ) => {}
         }
     }
@@ -1147,6 +1148,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 _order_type,
                 _order_status,
                 _timestamp,
+                _option_output,
             ) => {}
         }
     }
