@@ -22,7 +22,6 @@ pub struct OrderDB<T> {
     pub ordertable: HashMap<Uuid, Arc<RwLock<T>>>,
     pub sequence: usize,
     pub nonce: usize,
-    // pub event: Vec<Event>,
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
     pub zkos_msg: HashMap<Uuid, ZkosHexString>,

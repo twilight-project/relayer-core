@@ -13,6 +13,7 @@ extern crate lazy_static;
 fn main() {
     thread::sleep(time::Duration::from_millis(10000));
     dotenv::dotenv().expect("Failed loading dotenv");
+    init_psql();
     thread::Builder::new()
         .name(String::from("upload_rpc_command_to_psql"))
         .spawn(move || {

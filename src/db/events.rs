@@ -29,7 +29,6 @@ lazy_static! {
     pub static ref KAFKA_PRODUCER_EVENT: Mutex<Producer> = {
         dotenv::dotenv().expect("Failed loading dotenv");
         let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
-        println!("linkkk:{:#?}", broker);
         let producer = Producer::from_hosts(vec![broker.to_owned()])
             .with_ack_timeout(Duration::from_secs(3))
             .with_required_acks(RequiredAcks::None)
@@ -58,6 +57,7 @@ pub enum Event {
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
+    TxHash(Uuid, String, String, OrderType, OrderStatus, String), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime
     Stop(String),
 }
 use stopwatch::Stopwatch;
@@ -164,7 +164,7 @@ impl Event {
             let mut con = Consumer::from_hosts(broker)
                 // .with_topic(topic)
                 .with_group(group)
-                .with_topic_partitions(topic, &[0])
+                .with_topic_partitions(topic.clone(), &[0])
                 .with_fallback_offset(fetchoffset)
                 .with_offset_storage(GroupOffsetStorage::Kafka)
                 .create()
@@ -190,6 +190,7 @@ impl Event {
                                 Ok(_) => {
                                     // let _ = con.consume_message(&topic_clone, partition, m.offset);
                                     // println!("Im here");
+                                    let _ = con.consume_message(&topic, 0, m.offset);
                                 }
                                 Err(_arg) => {
                                     // println!("Closing Kafka Consumer Connection : {:#?}", arg);
@@ -198,12 +199,15 @@ impl Event {
                                 }
                             }
                         }
+                        if connection_status == false {
+                            break;
+                        }
                         let _ = con.consume_messageset(ms);
                     }
                     con.commit_consumed().unwrap();
                 }
             }
-            con.commit_consumed().unwrap();
+            // con.commit_consumed().unwrap();
             thread::park();
         });
         Ok(Arc::new(Mutex::new(receiver)))

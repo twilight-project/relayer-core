@@ -48,6 +48,14 @@ docker compose build --no-cache archiver api
 ```
 
 ```yaml
+docker-compose up --build redis-server postgresql-master questdb rpckafka
+```
+
+```yaml
+docker-compose up --build api auth archiver database frontend querykafkapsql
+```
+
+```yaml
 docker-compose up --build
 ```
 

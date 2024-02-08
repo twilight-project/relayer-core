@@ -85,7 +85,13 @@ pub fn receive_btc_price() {
                         OwnedMessage::Close(e) => {
                             thread::spawn(|| {
                                 thread::sleep(std::time::Duration::from_millis(10));
-                                receive_btc_price();
+                                thread::Builder::new()
+                                    .name(String::from("BTC Binance Websocket Connection 1"))
+                                    .spawn(move || {
+                                        // thread::sleep(time::Duration::from_millis(1000));
+                                        receive_btc_price();
+                                    })
+                                    .unwrap();
                             });
                             Some(OwnedMessage::Close(e))
                         }

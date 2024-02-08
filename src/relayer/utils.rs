@@ -5,7 +5,7 @@ pub fn entryvalue(initial_margin: f64, leverage: f64) -> f64 {
     initial_margin * leverage
 }
 pub fn positionsize(entryvalue: f64, entryprice: f64) -> f64 {
-    entryvalue * entryprice
+    entryvalue * (entryprice)
 }
 
 // execution_price = settle price
@@ -94,6 +94,37 @@ pub fn set_localdb_string(key: &'static str, value: String) {
     let mut local_storage = LOCALDBSTRING.lock().unwrap();
     local_storage.insert(key, value);
     drop(local_storage);
+}
+
+pub fn get_lock_error_for_trader_settle(trader_order: TraderOrder) -> i128 {
+    let lock_error = ((trader_order.unrealized_pnl.round() as i128)
+        * trader_order.entryprice.round() as i128
+        * trader_order.settlement_price.round() as i128)
+        - (trader_order.positionsize.round() as i128
+            * (match trader_order.position_type {
+                PositionType::LONG => -1,
+
+                PositionType::SHORT => 1,
+            })
+            * (trader_order.entryprice.round() as i128
+                - trader_order.settlement_price.round() as i128));
+    lock_error
+}
+pub fn get_lock_error_for_lend_create(lend_order: LendOrder) -> i128 {
+    let lock_error = (((lend_order.npoolshare / 10000.0).round() * lend_order.tlv0.round()).round()
+        as i128)
+        - ((lend_order.deposit.round() * lend_order.tps0.round()).round() as i128);
+    lock_error
+}
+pub fn get_lock_error_for_lend_settle(lend_order: LendOrder) -> i128 {
+    // let lock_error = (((lend_order.npoolshare / 10000.0).round() * lend_order.tlv0.round()).round()
+    //     as i128)
+    //     - ((lend_order.deposit.round() * lend_order.tps0.round()).round() as i128);
+
+    let lock_error = (((lend_order.nwithdraw / 10000.0).round() * lend_order.tps2.round()).round()
+        as i128)
+        - (((lend_order.npoolshare / 10000.0).round() * lend_order.tlv2.round()).round() as i128);
+    lock_error
 }
 
 use datasize::data_size;
