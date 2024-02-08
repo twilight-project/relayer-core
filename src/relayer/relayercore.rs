@@ -13,7 +13,9 @@ use utxo_in_memory::db::LocalDBtrait;
 // use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(15, String::from("THREADPOOL_NORMAL_ORDER")));
+        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_NORMAL_ORDER")));
+    pub static ref THREADPOOL_NORMAL_ORDER_INSERT: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(8, String::from("THREADPOOL_NORMAL_ORDER_INSERT")));
     pub static ref THREADPOOL_URGENT_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(15, String::from("THREADPOOL_URGENT_ORDER")));
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
@@ -55,11 +57,25 @@ pub fn rpc_event_handler(command: RpcCommand) {
         RpcCommand::CreateTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
+
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
-                let order_state = orderdata.orderinsert_localdb(status);
+                let orderdata_clone=orderdata.clone();
+            
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                let completed_order = trader_order_db.add(order_state, command_clone);
+
+                if trader_order_db.set_order_check(orderdata.account_id.clone()){
+                let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
+                buffer_insert.execute(move || {
+                let order_state = orderdata.orderinsert_localdb(status);
+                });
+                drop(buffer_insert);
+                let completed_order = trader_order_db.add(orderdata_clone, command_clone);
+
+                }
+
+              
                 drop(trader_order_db);
+                
             });
             drop(buffer);
         }
@@ -120,7 +136,13 @@ pub fn rpc_event_handler(command: RpcCommand) {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
+                let is_order_exist:bool;
+                
+                let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
+                is_order_exist = lendorder_db.set_order_check(rpc_request.account_id.clone());
+                drop(lendorder_db);
 
+                if is_order_exist{
                 let (tlv0, tps0) = lend_pool.get_lendpool();
                 let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
                 // let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, 20048615383.0, 2000000.0);
@@ -130,6 +152,8 @@ pub fn rpc_event_handler(command: RpcCommand) {
                     lendorder.clone(),
                     lendorder.deposit,
                 ));
+                }
+
                 drop(lend_pool);
             });
             drop(buffer);
