@@ -70,7 +70,7 @@ pub enum LendPoolCommand {
     LendOrderCreateOrder(RpcCommand, LendOrder, Deposit),
     LendOrderSettleOrder(RpcCommand, LendOrder, Withdraw),
     BatchExecuteTraderOrder(RelayerCommand),
-    InitiateNewPool(LendOrder, Meta),
+    InitiateNewPool(LendOrder, Meta, Payment),
 }
 
 impl PoolBatchOrder {
@@ -108,10 +108,10 @@ impl LendPool {
     pub fn new() -> Self {
         // let tlv_init = 10.00015939;
         // let tps_init = 100001.0;
-        let tlv_init = 10.0;
-        let tps_init = 100000.0;
-        let nonce_init = 1;
-        let aggrigate_log_sequence_init = 1;
+        let tlv_init = 20048621560.0 / 100000000.0;
+        let tps_init = 2000000.0;
+        let nonce_init = 6;
+        let aggrigate_log_sequence_init = 7;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
             account_id: String::from("Relayer Initial Transaction, with public key"),
@@ -123,7 +123,7 @@ impl LendPool {
             deposit: tlv_init,
             new_lend_state_amount: tlv_init * 100000000.0,
             timestamp: systemtime_to_utc(),
-            npoolshare: tps_init,
+            npoolshare: tps_init * 10000.0,
             nwithdraw: 0.0,
             payment: 0.0,
             tlv0: 0.0,
@@ -169,7 +169,7 @@ impl LendPool {
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);
-        let total_pool_share = relayer_initial_lend_order.npoolshare;
+        let total_pool_share = relayer_initial_lend_order.npoolshare / 10000.0;
         let total_locked_value = relayer_initial_lend_order.deposit * 100000000.0;
         let mut metadata = HashMap::new();
         metadata.insert(
@@ -187,8 +187,11 @@ impl LendPool {
             ),
         );
 
-        let relayer_command =
-            LendPoolCommand::InitiateNewPool(relayer_initial_lend_order, Meta { metadata });
+        let relayer_command = LendPoolCommand::InitiateNewPool(
+            relayer_initial_lend_order,
+            Meta { metadata },
+            total_locked_value,
+        );
 
         //need to pick from env variable later
         let last_output_state = last_state_output_fixed();
@@ -196,7 +199,7 @@ impl LendPool {
         let lendpool = LendPool {
             sequence: 0,
             nonce: nonce_init,
-            total_pool_share: tps_init.round(),
+            total_pool_share: total_pool_share.round(),
             total_locked_value: (tlv_init * 100000000.0).round(),
             pending_orders: PoolBatchOrder::new(),
             aggrigate_log_sequence: aggrigate_log_sequence_init,
@@ -243,7 +246,7 @@ impl LendPool {
             let data = recever1.recv().unwrap();
             match data.value.clone() {
                 Event::PoolUpdate(cmd, _lendpool, seq) => match cmd.clone() {
-                    LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
+                    LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payment) => {
                         let total_pool_share = lend_order.deposit;
                         let total_locked_value = lend_order.deposit * 10000.0;
                         if database.sequence < lend_order.entry_sequence {
@@ -626,7 +629,7 @@ impl LendPool {
                 }
                 _ => {}
             },
-            LendPoolCommand::InitiateNewPool(_lend_order, _smetadata) => {
+            LendPoolCommand::InitiateNewPool(_lend_order, _metadata, _payment) => {
                 // self.aggrigate_log_sequence += 1;
             }
             LendPoolCommand::AddFundingData(..) => {}

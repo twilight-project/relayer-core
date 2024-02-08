@@ -5,7 +5,7 @@ use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_core::*;
 use jsonrpc_http_server::{
     hyper,
-    jsonrpc_core::{MetaIoHandler, Metadata, Params, Value},
+    jsonrpc_core::{MetaIoHandler, Metadata, Params},
     ServerBuilder,
 };
 use relayerwalletlib::verify_client_message::*;
@@ -59,7 +59,7 @@ pub fn startserver() {
             };
             // println!("data: {:#?}", request.clone().unwrap().query_trader_order);
             match request {
-                Ok(mut query) => {
+                Ok(query) => {
                     //verify signature
                     match verify_query_order(
                         query.msg.clone(),
@@ -135,7 +135,7 @@ pub fn startserver() {
             };
 
             match request {
-                Ok(mut query) => {
+                Ok(query) => {
                     match verify_query_order(
                         query.msg.clone(),
                         &bincode::serialize(&query.query_lend_order).unwrap(),
@@ -289,7 +289,7 @@ pub fn startserver() {
                             std::thread::Builder::new()
                                 .name(String::from("snapshot"))
                                 .spawn(move || {
-                                    snapshot();
+                                    let _ = snapshot();
                                 })
                                 .unwrap();
                         }
@@ -314,7 +314,7 @@ pub fn startserver() {
                             drop(lend_order_db);
                         }
                         18 => {
-                            let mut lend_pool_db = LEND_POOL_DB.lock().unwrap();
+                            let lend_pool_db = LEND_POOL_DB.lock().unwrap();
                             // *lend_pool_db = LendPool::new();
                             println!(
                                 "\n LEND_POOL_DB : {:#?}",

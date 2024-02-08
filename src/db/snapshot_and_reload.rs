@@ -269,7 +269,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 _ => {}
             },
             Event::PoolUpdate(cmd, lend_pool, seq) => match cmd.clone() {
-                LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
+                LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payemnt) => {
                     let total_pool_share = lend_order.deposit;
                     let total_locked_value = lend_order.deposit * 100000000.0;
                     if lendpool_database.sequence < lend_order.entry_sequence {
@@ -477,7 +477,14 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 // position_size_log.total_short_positionsize = event.total_short_positionsize;
                 *position_size_log = event;
             }
-            Event::TxHash(orderid, account_id, tx_hash, order_type, order_status, timestamp) => {}
+            Event::TxHash(
+                _orderid,
+                _account_id,
+                _tx_hash,
+                _order_type,
+                _order_status,
+                _timestamp,
+            ) => {}
         }
     }
     drop(liquidation_long_sortedset_db);
@@ -923,7 +930,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 _ => {}
             },
             Event::PoolUpdate(cmd, lend_pool, seq) => match cmd.clone() {
-                LendPoolCommand::InitiateNewPool(lend_order, _metadata) => {
+                LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payment) => {
                     let total_pool_share = lend_order.deposit;
                     let total_locked_value = lend_order.deposit * 100000000.0;
                     if lendpool_database.sequence < lend_order.entry_sequence {
@@ -1133,7 +1140,14 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 // position_size_log.total_short_positionsize = event.total_short_positionsize;
                 position_size_log = event;
             }
-            Event::TxHash(orderid, account_id, tx_hash, order_type, order_status, timestamp) => {}
+            Event::TxHash(
+                _orderid,
+                _account_id,
+                _tx_hash,
+                _order_type,
+                _order_status,
+                _timestamp,
+            ) => {}
         }
     }
     if orderdb_traderorder.sequence > 0 {

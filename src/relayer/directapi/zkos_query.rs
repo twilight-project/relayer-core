@@ -1,17 +1,9 @@
 use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
 use crate::db::*;
 use crate::relayer::*;
-use quisquislib::accounts::SigmaProof;
-use serde_derive::{Deserialize, Serialize};
-use std::sync::mpsc;
-// use transaction::verify_relayer::{
-//     verify_query_order, verify_settle_requests, verify_trade_lend_order,
-// };
-use relayerwalletlib::verify_client_message::*;
 
-use zkschnorr::Signature;
-use zkvm::zkos_types::{Input, Output};
-// use uuid::{uuid, Uuid};
+use std::sync::mpsc;
+
 use uuid::Uuid;
 /********* zkos wasm msg Start */
 // To create zkos Wasm request for new Trade and Lend Order
@@ -46,7 +38,7 @@ pub fn get_traderorder_details_by_account_id(
             is_raw = false;
         }
         if is_raw {
-            sender.send(Err(std::io::Error::new(
+            let _ = sender.send(Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("order not found for key:{}", account),
             )));
@@ -93,7 +85,7 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
             is_raw = false;
         }
         if is_raw {
-            sender.send(Err(std::io::Error::new(
+            let _ = sender.send(Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("order not found for key:{}", account),
             )));

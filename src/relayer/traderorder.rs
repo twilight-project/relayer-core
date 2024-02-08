@@ -30,8 +30,7 @@ pub struct TraderOrder {
 }
 impl TraderOrder {
     pub fn new_order(mut rpc_request: CreateTraderOrder) -> (Self, bool) {
-        let mut current_price = get_localdb("CurrentPrice");
-        current_price = 43378.0;
+        let current_price = get_localdb("CurrentPrice");
         let mut order_entry_status: bool = false;
         if rpc_request.order_type == OrderType::LIMIT {
             match rpc_request.position_type {
@@ -55,7 +54,6 @@ impl TraderOrder {
         } else if rpc_request.order_type == OrderType::MARKET {
             order_entry_status = true;
         }
-        // rpc_request.position_type = PositionType::SHORT;
         let account_id = rpc_request.account_id;
         let position_type = rpc_request.position_type;
         let order_type = rpc_request.order_type;
