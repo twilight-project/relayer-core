@@ -41,6 +41,7 @@ pub trait LocalDB<T> {
     fn aggrigate_log_sequence(&mut self) -> usize;
     fn set_order_check(&mut self, account_id: String) -> bool;
     fn remove_order_check(&mut self, account_id: String) -> bool;
+    fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String>;
     // fn load_data() -> (bool, OrderDB<T>);
     // fn check_backup() -> Self;
     fn liquidate(&mut self, order: T, cmd: RelayerCommand) -> Result<T, std::io::Error>;
@@ -235,6 +236,13 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
     fn set_order_check(&mut self, account_id: String) -> bool {
         self.hash.insert(account_id)
     }
+    fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String> {
+        let zkos_msg_hex = match self.zkos_msg.get(&order_id) {
+            Some(hex_string) => Some(hex_string.clone()),
+            None => None,
+        };
+        zkos_msg_hex
+    }
 }
 
 impl LocalDB<LendOrder> for OrderDB<LendOrder> {
@@ -363,6 +371,13 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
     }
     fn set_order_check(&mut self, account_id: String) -> bool {
         self.hash.insert(account_id)
+    }
+    fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String> {
+        let zkos_msg_hex = match self.zkos_msg.get(&order_id) {
+            Some(hex_string) => Some(hex_string.clone()),
+            None => None,
+        };
+        zkos_msg_hex
     }
 }
 

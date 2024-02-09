@@ -1114,7 +1114,8 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
             
             ZkosTxCommand::CreateTraderOrderLIMITTX(trader_order, relayer_command) => {}
             
-            ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(trader_order, rpc_command) => {}
+            ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(trader_order, zkos_string, last_state_output, next_state_output) => {}
+            ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(trader_order, zkos_string, last_state_output, next_state_output) => {}
         }
     
     
