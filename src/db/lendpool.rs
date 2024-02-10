@@ -592,57 +592,57 @@ impl LendPool {
                                     relayer_cmd,
                                     mut order,
                                     _payment,
-                                ) => {
-                                    match relayer_cmd {
-                                        RelayerCommand::PriceTickerOrderSettle(
-                                            _,
-                                            metadata,
-                                            current_price,
-                                        ) => {
-                                            order.exit_nonce = self.nonce;
-                                            let dummy_rpccommand =
-                                                RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
-                                                    order.clone(),
-                                                    metadata,
-                                                    current_price,
-                                                );
-
-                                            let next_output_state =
-                                                create_output_state_for_trade_lend_order(
-                                                    self.nonce as u32,
-                                                    self.last_output_state
-                                                        .clone()
-                                                        .as_output_data()
-                                                        .get_script_address()
-                                                        .unwrap()
-                                                        .clone(),
-                                                    self.last_output_state
-                                                        .clone()
-                                                        .as_output_data()
-                                                        .get_owner_address()
-                                                        .clone()
-                                                        .unwrap()
-                                                        .clone(),
-                                                    self.total_locked_value.round() as u64,
-                                                    self.total_pool_share.round() as u64,
-                                                    0,
-                                                );
-                                            println!("I am at lendpool line 628");
-                                            println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
-
-                                            zkos_order_handler(ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
+                                ) => match relayer_cmd {
+                                    RelayerCommand::PriceTickerOrderSettle(
+                                        _,
+                                        metadata,
+                                        current_price,
+                                    ) => {
+                                        order.exit_nonce = self.nonce;
+                                        let dummy_rpccommand =
+                                            RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
                                                 order.clone(),
-                                            trader_order_db.get_zkos_string(order.uuid.clone()),
-                                            self.last_output_state.clone(),
-                                            next_output_state.clone(),
-                                        ));
-                                            self.last_output_state = next_output_state.clone();
-                                            let _ = trader_order_db
-                                                .remove(order.clone(), dummy_rpccommand.clone());
-                                        }
-                                        _ => {}
+                                                metadata,
+                                                current_price,
+                                            );
+
+                                        let next_output_state =
+                                            create_output_state_for_trade_lend_order(
+                                                self.nonce as u32,
+                                                self.last_output_state
+                                                    .clone()
+                                                    .as_output_data()
+                                                    .get_script_address()
+                                                    .unwrap()
+                                                    .clone(),
+                                                self.last_output_state
+                                                    .clone()
+                                                    .as_output_data()
+                                                    .get_owner_address()
+                                                    .clone()
+                                                    .unwrap()
+                                                    .clone(),
+                                                self.total_locked_value.round() as u64,
+                                                self.total_pool_share.round() as u64,
+                                                0,
+                                            );
+                                        println!("I am at lendpool line 628");
+                                        println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
+
+                                        zkos_order_handler(
+                                            ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
+                                                order.clone(),
+                                                trader_order_db.get_zkos_string(order.uuid.clone()),
+                                                self.last_output_state.clone(),
+                                                next_output_state.clone(),
+                                            ),
+                                        );
+                                        self.last_output_state = next_output_state.clone();
+                                        let _ = trader_order_db
+                                            .remove(order.clone(), dummy_rpccommand.clone());
                                     }
-                                }
+                                    _ => {}
+                                },
                                 LendPoolCommand::AddTraderOrderLiquidation(
                                     relayer_cmd,
                                     mut order,
