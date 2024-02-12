@@ -383,7 +383,11 @@ impl TraderOrder {
         self.settlement_price = current_price;
         self.unrealized_pnl = u_pnl;
 
-        // remove from liquidation sorted set and candle update (test required)
+        payment
+    }
+
+    pub fn order_remove_from_localdb(&self) {
+        let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
         match ordertx.position_type {
             PositionType::LONG => {
@@ -417,10 +421,7 @@ impl TraderOrder {
             price: ordertx.entryprice,
             timestamp: std::time::SystemTime::now(),
         });
-
-        payment
     }
-
     pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
         match self.order_type {

@@ -3,7 +3,7 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use address::Network;
-use std::borrow::Borrow;
+use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 use std::sync::{Arc, Mutex, RwLock,mpsc};
 use std::fs::File;
 use std::io::prelude::*;
@@ -18,7 +18,7 @@ lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER_INSERT: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(8, String::from("THREADPOOL_NORMAL_ORDER_INSERT")));
     pub static ref THREADPOOL_URGENT_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(15, String::from("THREADPOOL_URGENT_ORDER")));
+        Mutex::new(ThreadPool::new(2, String::from("THREADPOOL_URGENT_ORDER")));
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
@@ -132,7 +132,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             drop(buffer);
         }
         RpcCommand::ExecuteTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
-            let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
+            let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let execution_price = rpc_request.execution_price.clone();
                 let current_price = get_localdb("CurrentPrice");
@@ -142,26 +142,81 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 match order_detail_wraped {
                     Ok(order_detail) => {
                         let mut order = order_detail.write().unwrap();
-                        match order.order_status {
+                        let mut order_updated_clone= order.clone();
+                        match order_updated_clone.order_status {
                             OrderStatus::FILLED => {
-                                let (payment, order_status) = order.check_for_settlement(
+                                let (payment, order_status) = order_updated_clone.check_for_settlement(
                                     execution_price,
                                     current_price,
                                     rpc_request.order_type,
                                 );
                                 match order_status {
                                     OrderStatus::SETTLED => {
-                                        let order_clone = order.clone();
-                                        drop(order);
+                                        let order_clone = order_updated_clone.clone();
+                                        
                                         let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                                        lendpool.add_transaction(
-                                            LendPoolCommand::AddTraderOrderSettlement(
-                                                command_clone,
-                                                order_clone.clone(),
-                                                payment,
-                                            ),
+
+
+                                        let next_output_state =
+                                        create_output_state_for_trade_lend_order(
+                                            (lendpool.nonce+1) as u32,
+                                            lendpool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                            lendpool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                            (lendpool.total_locked_value.round() + payment.round()) as u64,
+                                            lendpool.total_pool_share.round() as u64,
+                                            0,
                                         );
+                                     let  chain_result_receiver=   zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
+                                            order_clone.clone(),
+                                            command_clone.clone(),
+                                            lendpool.last_output_state.clone(),
+                                            next_output_state.clone(),
+                                        ));
+                                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+
+                                        match zkos_receiver.recv() {
+                                            Ok(chain_message)=>{
+                                                match chain_message{
+                                                    Ok(tx_hash)=>{
+                                                        *order =order_clone.clone();
+                                                        order_updated_clone.order_remove_from_localdb();
+                                                        lendpool.add_transaction(
+                                                            LendPoolCommand::AddTraderOrderSettlement(
+                                                                command_clone,
+                                                                order_clone.clone(),
+                                                                payment,
+                                                                next_output_state
+                                                            ),
+                                                        );
+                                                    }
+                                                    Err(verification_error)=>{
+                                                        
+                                                    }
+                                                }
+                                            }
+                                            Err(arg)=>{
+                                               
+                                            }
+    
+    
+                                        }
+                                       
                                         drop(lendpool);
+
+                                      
+                                        drop(order);
                                     }
                                     _ => {
                                         drop(order);

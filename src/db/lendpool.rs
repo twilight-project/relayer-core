@@ -45,7 +45,7 @@ pub struct PoolBatchOrder {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum LendPoolCommand {
-    AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment),
+    AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment, Output),
     AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment),
     AddFundingData(TraderOrder, Payment),
     AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment),
@@ -347,7 +347,12 @@ impl LendPool {
     pub fn add_transaction(&mut self, command: LendPoolCommand) {
         let command_clone = command.clone();
         match command {
-            LendPoolCommand::AddTraderOrderSettlement(_rpc_request, _trader_order, payment) => {
+            LendPoolCommand::AddTraderOrderSettlement(
+                _rpc_request,
+                _trader_order,
+                payment,
+                _next_output_state,
+            ) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
                 // self.pending_orders.amount += payment * 10000.0;
@@ -553,39 +558,21 @@ impl LendPool {
                                     rpc_cmd,
                                     mut order,
                                     _payment,
+                                    next_output_state,
                                 ) => {
                                     // println!("hey, im here");
                                     order.exit_nonce = self.nonce;
                                     let _ = trader_order_db.remove(order.clone(), rpc_cmd.clone());
-                                    let next_output_state =
-                                        create_output_state_for_trade_lend_order(
-                                            self.nonce as u32,
-                                            self.last_output_state
-                                                .clone()
-                                                .as_output_data()
-                                                .get_script_address()
-                                                .unwrap()
-                                                .clone(),
-                                            self.last_output_state
-                                                .clone()
-                                                .as_output_data()
-                                                .get_owner_address()
-                                                .clone()
-                                                .unwrap()
-                                                .clone(),
-                                            self.total_locked_value.round() as u64,
-                                            self.total_pool_share.round() as u64,
-                                            0,
-                                        );
+
                                     println!("I am at lendpool line 568");
                                     println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
 
-                                    zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
-                                        order,
-                                        rpc_cmd,
-                                        self.last_output_state.clone(),
-                                        next_output_state.clone(),
-                                    ));
+                                    // zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
+                                    //     order,
+                                    //     rpc_cmd,
+                                    //     self.last_output_state.clone(),
+                                    //     next_output_state.clone(),
+                                    // ));
                                     self.last_output_state = next_output_state.clone();
                                 }
                                 LendPoolCommand::AddTraderLimitOrderSettlement(
