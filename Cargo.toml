@@ -73,6 +73,8 @@ rand = "0.7"
 # [dependencies.zkos-relayer-wallet]
 # path = "../zkos-relayer-wallet"
 
+curve25519-dalek = { version = "3", default-features = false }
+
 
 [dependencies.zkos-relayer-wallet]
 git = "ssh://github.com/twilight-project/zkos-relayer-wallet.git"

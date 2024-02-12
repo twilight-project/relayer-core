@@ -54,7 +54,18 @@ pub enum ZkosTxCommand {
     ExecuteTraderOrderTX(TraderOrder, RpcCommand, zkvm::Output, zkvm::Output),
     ExecuteLendOrderTX(LendOrder, RpcCommand, zkvm::Output, zkvm::Output),
     CancelTraderOrderTX(TraderOrder, RpcCommand),
-    RelayerCommandTraderOrderSettleOnLimitTX(TraderOrder, Option<ZkosHexString>),
+    RelayerCommandTraderOrderSettleOnLimitTX(
+        TraderOrder,
+        Option<ZkosHexString>,
+        zkvm::Output,
+        zkvm::Output,
+    ),
+    RelayerCommandTraderOrderLiquidateTX(
+        TraderOrder,
+        Option<ZkosHexString>,
+        zkvm::Output,
+        zkvm::Output,
+    ),
 }
 
 impl RpcCommand {

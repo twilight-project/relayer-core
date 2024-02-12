@@ -57,7 +57,15 @@ pub enum Event {
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
-    TxHash(Uuid, String, String, OrderType, OrderStatus, String), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime
+    TxHash(
+        Uuid,
+        String,
+        String,
+        OrderType,
+        OrderStatus,
+        String,
+        Option<String>,
+    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
 }
 use stopwatch::Stopwatch;

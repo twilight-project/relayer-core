@@ -25,6 +25,7 @@ pub struct OrderDB<T> {
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
     pub zkos_msg: HashMap<Uuid, ZkosHexString>,
+    pub hash: HashSet<String>,
 }
 
 pub trait LocalDB<T> {
@@ -38,6 +39,9 @@ pub trait LocalDB<T> {
     fn update(&mut self, order: T, cmd: RelayerCommand) -> Result<T, std::io::Error>;
     fn remove(&mut self, order: T, cmd: RpcCommand) -> Result<T, std::io::Error>;
     fn aggrigate_log_sequence(&mut self) -> usize;
+    fn set_order_check(&mut self, account_id: String) -> bool;
+    fn remove_order_check(&mut self, account_id: String) -> bool;
+    fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String>;
     // fn load_data() -> (bool, OrderDB<T>);
     // fn check_backup() -> Self;
     fn liquidate(&mut self, order: T, cmd: RelayerCommand) -> Result<T, std::io::Error>;
@@ -53,6 +57,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
             zkos_msg: HashMap::new(),
+            hash: HashSet::new(),
         }
     }
 
@@ -129,6 +134,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     format!("remove_order-{}", order.uuid),
                     TRADERORDER_EVENT_LOG.clone().to_string(),
                 );
+                let _ = self.remove_order_check(order.account_id.clone());
                 Ok(order)
             }
             None => {
@@ -223,6 +229,20 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
     fn aggrigate_log_sequence(&mut self) -> usize {
         self.aggrigate_log_sequence
     }
+
+    fn remove_order_check(&mut self, account_id: String) -> bool {
+        self.hash.remove(&account_id)
+    }
+    fn set_order_check(&mut self, account_id: String) -> bool {
+        self.hash.insert(account_id)
+    }
+    fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String> {
+        let zkos_msg_hex = match self.zkos_msg.get(&order_id) {
+            Some(hex_string) => Some(hex_string.clone()),
+            None => None,
+        };
+        zkos_msg_hex
+    }
 }
 
 impl LocalDB<LendOrder> for OrderDB<LendOrder> {
@@ -234,6 +254,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
             zkos_msg: HashMap::new(),
+            hash: HashSet::new(),
         }
     }
 
@@ -323,6 +344,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                     format!("remove_order-{}", order.uuid),
                     LENDORDER_EVENT_LOG.clone().to_string(),
                 );
+                let _ = self.remove_order_check(order.account_id.clone());
                 Ok(order)
             }
             None => {
@@ -342,6 +364,20 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
     }
     fn aggrigate_log_sequence(&mut self) -> usize {
         self.aggrigate_log_sequence
+    }
+
+    fn remove_order_check(&mut self, account_id: String) -> bool {
+        self.hash.remove(&account_id)
+    }
+    fn set_order_check(&mut self, account_id: String) -> bool {
+        self.hash.insert(account_id)
+    }
+    fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String> {
+        let zkos_msg_hex = match self.zkos_msg.get(&order_id) {
+            Some(hex_string) => Some(hex_string.clone()),
+            None => None,
+        };
+        zkos_msg_hex
     }
 }
 

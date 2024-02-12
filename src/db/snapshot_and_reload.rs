@@ -107,12 +107,14 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     orderdb_traderorder
                         .zkos_msg
                         .insert(order.uuid, zkos_hex_string);
+                    let _ = orderdb_traderorder.set_order_check(order.account_id);
                 }
                 RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
                         let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -130,6 +132,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     {
                         orderdb_traderorder.ordertable.remove(&order.uuid.clone());
                         let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -159,6 +162,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
                         let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -221,6 +225,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 {
                     orderdb_traderorder.ordertable.remove(&order.uuid.clone());
                     let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                    let _ = orderdb_traderorder.remove_order_check(order.account_id);
                 }
                 // orderdb_traderorder.event.push(data.value);
                 if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -251,6 +256,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     orderdb_lendorder
                         .zkos_msg
                         .insert(order_clone.uuid, zkos_hex_string);
+                    let _ = orderdb_lendorder.set_order_check(order_clone.account_id);
                 }
                 RpcCommand::ExecuteLendOrder(..) => {
                     // orderdb_lendorder.event.push(data.value);
@@ -258,6 +264,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                     if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
                         orderdb_lendorder.ordertable.remove(&order.uuid);
                         let _removed_zkos_msg = orderdb_lendorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_lendorder.remove_order_check(order.account_id);
                     }
                     if orderdb_lendorder.aggrigate_log_sequence < seq {
                         orderdb_lendorder.aggrigate_log_sequence = seq;
@@ -268,61 +275,66 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 }
                 _ => {}
             },
-            Event::PoolUpdate(cmd, lend_pool, seq) => match cmd.clone() {
-                LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payemnt) => {
-                    let total_pool_share = lend_order.deposit;
-                    let total_locked_value = lend_order.deposit * 100000000.0;
-                    if lendpool_database.sequence < lend_order.entry_sequence {
-                        lendpool_database.sequence = lend_order.entry_sequence;
-                    }
-                    if lendpool_database.nonce < lend_order.entry_nonce {
-                        lendpool_database.nonce = lend_order.entry_nonce;
-                    }
-                    lendpool_database.total_pool_share = total_pool_share;
-                    lendpool_database.total_locked_value = total_locked_value;
-                    // lendpool_database.event_log.push(data.value);
-                    if lendpool_database.aggrigate_log_sequence < seq {
-                        lendpool_database.aggrigate_log_sequence = seq;
-                    }
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+            Event::PoolUpdate(_cmd, lend_pool, _seq) => {
+                // match cmd.clone() {
+                //     LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payemnt) => {
+                //         let total_pool_share = lend_order.deposit;
+                //         let total_locked_value = lend_order.deposit * 100000000.0;
+                //         if lendpool_database.sequence < lend_order.entry_sequence {
+                //             lendpool_database.sequence = lend_order.entry_sequence;
+                //         }
+                //         if lendpool_database.nonce < lend_order.entry_nonce {
+                //             lendpool_database.nonce = lend_order.entry_nonce;
+                //         }
+                //         lendpool_database.total_pool_share = total_pool_share;
+                //         lendpool_database.total_locked_value = total_locked_value;
+                //         // lendpool_database.event_log.push(data.value);
+                //         if lendpool_database.aggrigate_log_sequence < seq {
+                //             lendpool_database.aggrigate_log_sequence = seq;
+                //         }
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //     }
+                //     LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
+                //         lendpool_database.nonce += 1;
+                //         lendpool_database.aggrigate_log_sequence += 1;
+                //         lendpool_database.total_locked_value += deposit * 10000.0;
+                //         lendpool_database.total_pool_share += lend_order.npoolshare;
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //         // lendpool_database.event_log.push(data.value);
+                //     }
+                //     LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
+                //         lendpool_database.nonce += 1;
+                //         lendpool_database.aggrigate_log_sequence += 1;
+                //         lendpool_database.total_locked_value -= withdraw;
+                //         lendpool_database.total_pool_share -= lend_order.npoolshare;
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //         // lendpool_database.event_log.push(data.value);
+                //     }
+                //     LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
+                //         lendpool_database.nonce += 1;
+                //         lendpool_database.aggrigate_log_sequence += 1;
+                //         match cmd {
+                //             RelayerCommand::FundingCycle(batch, _metadata, _fundingrate) => {
+                //                 lendpool_database.total_locked_value -= batch.amount * 10000.0;
+                //             }
+                //             RelayerCommand::RpcCommandPoolupdate() => {
+                //                 let batch = lendpool_database.pending_orders.clone();
+                //                 lendpool_database.total_locked_value -= batch.amount * 10000.0;
+                //                 lendpool_database.pending_orders = PoolBatchOrder::new();
+                //             }
+                //             _ => {}
+                //         }
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //     }
+                //     LendPoolCommand::AddFundingData(..) => {}
+                //     LendPoolCommand::AddTraderOrderSettlement(..) => {}
+                //     LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
+                //     LendPoolCommand::AddTraderOrderLiquidation(..) => {}
+                // }
+                if lend_pool.nonce > lendpool_database.nonce {
+                    lendpool_database = lend_pool;
                 }
-                LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
-                    lendpool_database.nonce += 1;
-                    lendpool_database.aggrigate_log_sequence += 1;
-                    lendpool_database.total_locked_value += deposit * 10000.0;
-                    lendpool_database.total_pool_share += lend_order.npoolshare;
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
-                    // lendpool_database.event_log.push(data.value);
-                }
-                LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
-                    lendpool_database.nonce += 1;
-                    lendpool_database.aggrigate_log_sequence += 1;
-                    lendpool_database.total_locked_value -= withdraw;
-                    lendpool_database.total_pool_share -= lend_order.npoolshare;
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
-                    // lendpool_database.event_log.push(data.value);
-                }
-                LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
-                    lendpool_database.nonce += 1;
-                    lendpool_database.aggrigate_log_sequence += 1;
-                    match cmd {
-                        RelayerCommand::FundingCycle(batch, _metadata, _fundingrate) => {
-                            lendpool_database.total_locked_value -= batch.amount * 10000.0;
-                        }
-                        RelayerCommand::RpcCommandPoolupdate() => {
-                            let batch = lendpool_database.pending_orders.clone();
-                            lendpool_database.total_locked_value -= batch.amount * 10000.0;
-                            lendpool_database.pending_orders = PoolBatchOrder::new();
-                        }
-                        _ => {}
-                    }
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
-                }
-                LendPoolCommand::AddFundingData(..) => {}
-                LendPoolCommand::AddTraderOrderSettlement(..) => {}
-                LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
-                LendPoolCommand::AddTraderOrderLiquidation(..) => {}
-            },
+            }
             Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 set_localdb("FundingRate", funding_rate);
             }
@@ -484,6 +496,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 _order_type,
                 _order_status,
                 _timestamp,
+                _option_output,
             ) => {}
         }
     }
@@ -525,6 +538,7 @@ pub struct OrderDBSnapShotTO {
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
     pub zkos_msg: HashMap<Uuid, ZkosHexString>,
+    pub hash: HashSet<String>,
 }
 impl OrderDBSnapShotTO {
     fn new() -> Self {
@@ -535,7 +549,14 @@ impl OrderDBSnapShotTO {
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
             zkos_msg: HashMap::new(),
+            hash: HashSet::new(),
         }
+    }
+    fn remove_order_check(&mut self, account_id: String) -> bool {
+        self.hash.remove(&account_id)
+    }
+    fn set_order_check(&mut self, account_id: String) -> bool {
+        self.hash.insert(account_id)
     }
 }
 
@@ -547,6 +568,7 @@ pub struct OrderDBSnapShotLO {
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
     pub zkos_msg: HashMap<Uuid, ZkosHexString>,
+    pub hash: HashSet<String>,
 }
 impl OrderDBSnapShotLO {
     fn new() -> Self {
@@ -557,7 +579,14 @@ impl OrderDBSnapShotLO {
             aggrigate_log_sequence: 0,
             last_snapshot_id: 0,
             zkos_msg: HashMap::new(),
+            hash: HashSet::new(),
         }
+    }
+    fn remove_order_check(&mut self, account_id: String) -> bool {
+        self.hash.remove(&account_id)
+    }
+    fn set_order_check(&mut self, account_id: String) -> bool {
+        self.hash.insert(account_id)
     }
 }
 
@@ -769,12 +798,14 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     orderdb_traderorder
                         .zkos_msg
                         .insert(order.uuid, zkos_hex_string);
+                    let _ = orderdb_traderorder.set_order_check(order.account_id);
                 }
                 RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
                         let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -792,6 +823,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     {
                         orderdb_traderorder.ordertable.remove(&order.uuid.clone());
                         let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -821,6 +853,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
                         let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     // orderdb_traderorder.event.push(data.value);
                     if orderdb_traderorder.sequence < order_clone.entry_sequence {
@@ -883,6 +916,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 {
                     orderdb_traderorder.ordertable.remove(&order.uuid.clone());
                     let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                    let _ = orderdb_traderorder.remove_order_check(order.account_id);
                 }
                 // orderdb_traderorder.event.push(data.value);
                 if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -912,6 +946,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     orderdb_lendorder
                         .zkos_msg
                         .insert(order_clone.uuid, zkos_hex_string);
+                    let _ = orderdb_traderorder.set_order_check(order_clone.account_id);
                 }
                 RpcCommand::ExecuteLendOrder(_rpc_request, _metadata, _zkos_hex_string) => {
                     // orderdb_lendorder.event.push(data.value);
@@ -919,6 +954,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                     if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
                         orderdb_lendorder.ordertable.remove(&order.uuid);
                         let _removed_zkos_msg = orderdb_lendorder.zkos_msg.remove(&order.uuid);
+                        let _ = orderdb_traderorder.remove_order_check(order.account_id);
                     }
                     if orderdb_lendorder.aggrigate_log_sequence < seq {
                         orderdb_lendorder.aggrigate_log_sequence = seq;
@@ -929,61 +965,67 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 }
                 _ => {}
             },
-            Event::PoolUpdate(cmd, lend_pool, seq) => match cmd.clone() {
-                LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payment) => {
-                    let total_pool_share = lend_order.deposit;
-                    let total_locked_value = lend_order.deposit * 100000000.0;
-                    if lendpool_database.sequence < lend_order.entry_sequence {
-                        lendpool_database.sequence = lend_order.entry_sequence;
-                    }
-                    if lendpool_database.nonce < lend_order.entry_nonce {
-                        lendpool_database.nonce = lend_order.entry_nonce;
-                    }
-                    lendpool_database.total_pool_share = total_pool_share;
-                    lendpool_database.total_locked_value = total_locked_value;
-                    // lendpool_database.event_log.push(data.value);
-                    if lendpool_database.aggrigate_log_sequence < seq {
-                        lendpool_database.aggrigate_log_sequence = seq;
-                    }
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+            Event::PoolUpdate(_cmd, lend_pool, _seq) => {
+                // match cmd.clone() {
+                //     LendPoolCommand::InitiateNewPool(lend_order, _metadata, _payment) => {
+                //         let total_pool_share = lend_order.deposit;
+                //         let total_locked_value = lend_order.deposit * 100000000.0;
+                //         if lendpool_database.sequence < lend_order.entry_sequence {
+                //             lendpool_database.sequence = lend_order.entry_sequence;
+                //         }
+                //         if lendpool_database.nonce < lend_order.entry_nonce {
+                //             lendpool_database.nonce = lend_order.entry_nonce;
+                //         }
+                //         lendpool_database.total_pool_share = total_pool_share;
+                //         lendpool_database.total_locked_value = total_locked_value;
+                //         // lendpool_database.event_log.push(data.value);
+                //         if lendpool_database.aggrigate_log_sequence < seq {
+                //             lendpool_database.aggrigate_log_sequence = seq;
+                //         }
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //     }
+                //     LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
+                //         lendpool_database.nonce += 1;
+                //         lendpool_database.aggrigate_log_sequence += 1;
+                //         lendpool_database.total_locked_value += deposit * 10000.0;
+                //         lendpool_database.total_pool_share += lend_order.npoolshare;
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //         // lendpool_database.event_log.push(data.value);
+                //     }
+                //     LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
+                //         lendpool_database.nonce += 1;
+                //         lendpool_database.aggrigate_log_sequence += 1;
+                //         lendpool_database.total_locked_value -= withdraw;
+                //         lendpool_database.total_pool_share -= lend_order.npoolshare;
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //         // lendpool_database.event_log.push(data.value);
+                //     }
+                //     LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
+                //         lendpool_database.nonce += 1;
+                //         lendpool_database.aggrigate_log_sequence += 1;
+                //         match cmd {
+                //             RelayerCommand::FundingCycle(batch, _metadata, _fundingrate) => {
+                //                 lendpool_database.total_locked_value -= batch.amount * 10000.0;
+                //             }
+                //             RelayerCommand::RpcCommandPoolupdate() => {
+                //                 let batch = lendpool_database.pending_orders.clone();
+                //                 lendpool_database.total_locked_value -= batch.amount * 10000.0;
+                //                 lendpool_database.pending_orders = PoolBatchOrder::new();
+                //             }
+                //             _ => {}
+                //         }
+                //         lendpool_database.last_output_state = lend_pool.clone().last_output_state;
+                //     }
+                //     LendPoolCommand::AddFundingData(..) => {}
+                //     LendPoolCommand::AddTraderOrderSettlement(..) => {}
+                //     LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
+                //     LendPoolCommand::AddTraderOrderLiquidation(..) => {}
+                // }
+
+                if lend_pool.nonce > lendpool_database.nonce {
+                    lendpool_database = lend_pool;
                 }
-                LendPoolCommand::LendOrderCreateOrder(_rpc_request, lend_order, deposit) => {
-                    lendpool_database.nonce += 1;
-                    lendpool_database.aggrigate_log_sequence += 1;
-                    lendpool_database.total_locked_value += deposit * 10000.0;
-                    lendpool_database.total_pool_share += lend_order.npoolshare;
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
-                    // lendpool_database.event_log.push(data.value);
-                }
-                LendPoolCommand::LendOrderSettleOrder(_rpc_request, lend_order, withdraw) => {
-                    lendpool_database.nonce += 1;
-                    lendpool_database.aggrigate_log_sequence += 1;
-                    lendpool_database.total_locked_value -= withdraw;
-                    lendpool_database.total_pool_share -= lend_order.npoolshare;
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
-                    // lendpool_database.event_log.push(data.value);
-                }
-                LendPoolCommand::BatchExecuteTraderOrder(cmd) => {
-                    lendpool_database.nonce += 1;
-                    lendpool_database.aggrigate_log_sequence += 1;
-                    match cmd {
-                        RelayerCommand::FundingCycle(batch, _metadata, _fundingrate) => {
-                            lendpool_database.total_locked_value -= batch.amount * 10000.0;
-                        }
-                        RelayerCommand::RpcCommandPoolupdate() => {
-                            let batch = lendpool_database.pending_orders.clone();
-                            lendpool_database.total_locked_value -= batch.amount * 10000.0;
-                            lendpool_database.pending_orders = PoolBatchOrder::new();
-                        }
-                        _ => {}
-                    }
-                    lendpool_database.last_output_state = lend_pool.clone().last_output_state;
-                }
-                LendPoolCommand::AddFundingData(..) => {}
-                LendPoolCommand::AddTraderOrderSettlement(..) => {}
-                LendPoolCommand::AddTraderLimitOrderSettlement(..) => {}
-                LendPoolCommand::AddTraderOrderLiquidation(..) => {}
-            },
+            }
             Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 // set_localdb("FundingRate", funding_rate);
                 localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
@@ -1147,6 +1189,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 _order_type,
                 _order_status,
                 _timestamp,
+                _option_output,
             ) => {}
         }
     }
@@ -1209,6 +1252,7 @@ pub fn load_from_snapshot() {
             load_trader_data.last_snapshot_id =
                 snapshot_data.orderdb_traderorder.last_snapshot_id.clone();
             load_trader_data.zkos_msg = snapshot_data.orderdb_traderorder.zkos_msg.clone();
+            load_trader_data.hash = snapshot_data.orderdb_traderorder.hash.clone();
             // add field of Lend order db
             load_lend_data.sequence = snapshot_data.orderdb_lendorder.sequence.clone();
             load_lend_data.nonce = snapshot_data.orderdb_lendorder.nonce.clone();
@@ -1219,6 +1263,7 @@ pub fn load_from_snapshot() {
             load_lend_data.last_snapshot_id =
                 snapshot_data.orderdb_lendorder.last_snapshot_id.clone();
             load_lend_data.zkos_msg = snapshot_data.orderdb_lendorder.zkos_msg.clone();
+            load_lend_data.hash = snapshot_data.orderdb_lendorder.hash.clone();
             drop(load_trader_data);
             drop(load_lend_data);
             let traderorder_hashmap = snapshot_data.orderdb_traderorder.ordertable.clone();

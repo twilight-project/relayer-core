@@ -4,6 +4,7 @@ use crate::config::*;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
+use curve25519_dalek::scalar::Scalar;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
@@ -17,8 +18,11 @@ use zkvm::Output;
 type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
+type PoolLockError = i128;
 type Nonce = usize;
-use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
+use relayerwalletlib::zkoswalletlib::util::{
+    create_output_state_for_trade_lend_order, get_state_info_from_output_hex,
+};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LendPool {
     pub sequence: usize,
@@ -29,28 +33,6 @@ pub struct LendPool {
     pub aggrigate_log_sequence: usize,
     pub last_snapshot_id: usize,
     pub last_output_state: Output,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum OutputStateCommand {
-    TraderSettle(Uuid, Nonce),
-    LendCreate(Uuid, Nonce),
-    LendSettle(Uuid, Nonce),
-    FundingInterest(Payment),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PoolStateHistory {
-    nonce: Nonce,
-    state_outputs_hex: String,
-    previous_lendpool: LendPool,
-    cmd: OutputStateCommand,
-    aggrigate_log_sequence: usize,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PoolStateHistoryDB {
-    pub state_outputs: HashMap<Nonce, PoolStateHistory>,
-    pub orderid_to_nonce_link: HashMap<Uuid, Nonce>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -106,20 +88,45 @@ impl LendPool {
         }
     }
     pub fn new() -> Self {
-        // let tlv_init = 10.00015939;
-        // let tps_init = 100001.0;
-        let tlv_init = 20048621560.0 / 100000000.0;
-        let tps_init = 2000000.0;
-        let nonce_init = 7;
+        let mut tlv_init: f64 = 20048621560.0 / 100000000.0;
+        let mut tps_init: f64 = 2000000.0;
+        let mut nonce_init = 7;
+        let (nonce, tlv_witness, _, tps_witness, _) =
+            match get_state_info_from_output_hex(last_state_output_string()) {
+                Ok((nonce, tlv_witness, _tlv_blinding, tps_witness, _tps_blinding)) => (
+                    nonce,
+                    tlv_witness,
+                    _tlv_blinding,
+                    tps_witness,
+                    _tps_blinding,
+                ),
+                Err(_arg) => (
+                    nonce_init,
+                    tlv_init.round() as u64,
+                    Scalar::random(&mut rand::thread_rng()),
+                    tps_init.round() as u64,
+                    Scalar::random(&mut rand::thread_rng()),
+                ),
+            };
+        nonce_init = nonce;
+        tps_init = tps_witness as f64;
+        tlv_init = tlv_witness as f64;
+        let last_output_state = last_state_output_fixed();
         let aggrigate_log_sequence_init = 8;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
-            account_id: String::from("Relayer Initial Transaction, with public key"),
+            account_id: last_output_state
+                .clone()
+                .as_output_data()
+                .get_owner_address()
+                .clone()
+                .unwrap()
+                .clone(),
             balance: tlv_init,
             order_status: OrderStatus::SETTLED,
             order_type: OrderType::LEND,
             entry_nonce: 0,
-            exit_nonce: nonce_init,
+            exit_nonce: 1 as usize,
             deposit: tlv_init,
             new_lend_state_amount: tlv_init * 100000000.0,
             timestamp: systemtime_to_utc(),
@@ -194,11 +201,10 @@ impl LendPool {
         );
 
         //need to pick from env variable later
-        let last_output_state = last_state_output_fixed();
 
         let lendpool = LendPool {
             sequence: 0,
-            nonce: nonce_init,
+            nonce: nonce_init as usize,
             total_pool_share: total_pool_share.round(),
             total_locked_value: (tlv_init * 100000000.0).round(),
             pending_orders: PoolBatchOrder::new(),
@@ -206,7 +212,11 @@ impl LendPool {
             last_snapshot_id: 0,
             last_output_state,
         };
-        let pool_event = Event::PoolUpdate(relayer_command.clone(), lendpool.clone(), nonce_init);
+        let pool_event = Event::PoolUpdate(
+            relayer_command.clone(),
+            lendpool.clone(),
+            nonce_init as usize,
+        );
         let _pool_event_execute = Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
@@ -358,11 +368,7 @@ impl LendPool {
                 ));
             }
 
-            LendPoolCommand::AddTraderLimitOrderSettlement(
-                _relayer_request,
-                _trader_order,
-                payment,
-            ) => {
+            LendPoolCommand::AddTraderLimitOrderSettlement(_rel_cmd, _trader_order, payment) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders.amount += payment * 10000.0;
@@ -519,15 +525,17 @@ impl LendPool {
             }
 
             LendPoolCommand::BatchExecuteTraderOrder(relayer_command) => match relayer_command {
-                RelayerCommand::FundingCycle(pool_batch_order, _metadata, _fundingrate) => {
-                    self.nonce += 1;
-                    self.aggrigate_log_sequence += 1;
-                    self.total_locked_value -= (pool_batch_order.amount * 10000.0).round();
-                    // self.event_log.push(Event::new(
-                    //     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
-                    //     String::from("FundingCycleDataUpdate"),
-                    //     LENDPOOL_EVENT_LOG.clone().to_string(),
-                    // ));
+                RelayerCommand::FundingCycle(_pool_batch_order, _metadata, _fundingrate) => {
+                    // // "funding fn on chain is pending in zkos module"
+                    // self.nonce += 1;
+                    // self.aggrigate_log_sequence += 1;
+                    // self.total_locked_value -= (pool_batch_order.amount * 10000.0).round();
+                    // // do not send the event, it is too big for msg queue
+                    // // self.event_log.push(Event::new(
+                    // //     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
+                    // //     String::from("FundingCycleDataUpdate"),
+                    // //     LENDPOOL_EVENT_LOG.clone().to_string(),
+                    // // ));
                 }
                 RelayerCommand::RpcCommandPoolupdate() => {
                     let batch = self.pending_orders.clone();
@@ -597,8 +605,41 @@ impl LendPool {
                                                 metadata,
                                                 current_price,
                                             );
-                                        let _ =
-                                            trader_order_db.remove(order.clone(), dummy_rpccommand);
+
+                                        let next_output_state =
+                                            create_output_state_for_trade_lend_order(
+                                                self.nonce as u32,
+                                                self.last_output_state
+                                                    .clone()
+                                                    .as_output_data()
+                                                    .get_script_address()
+                                                    .unwrap()
+                                                    .clone(),
+                                                self.last_output_state
+                                                    .clone()
+                                                    .as_output_data()
+                                                    .get_owner_address()
+                                                    .clone()
+                                                    .unwrap()
+                                                    .clone(),
+                                                self.total_locked_value.round() as u64,
+                                                self.total_pool_share.round() as u64,
+                                                0,
+                                            );
+                                        println!("I am at lendpool line 628");
+                                        println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
+
+                                        zkos_order_handler(
+                                            ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
+                                                order.clone(),
+                                                trader_order_db.get_zkos_string(order.uuid.clone()),
+                                                self.last_output_state.clone(),
+                                                next_output_state.clone(),
+                                            ),
+                                        );
+                                        self.last_output_state = next_output_state.clone();
+                                        let _ = trader_order_db
+                                            .remove(order.clone(), dummy_rpccommand.clone());
                                     }
                                     _ => {}
                                 },
@@ -608,7 +649,40 @@ impl LendPool {
                                     _payment,
                                 ) => {
                                     order.exit_nonce = self.nonce;
-                                    let _ = trader_order_db.liquidate(order, relayer_cmd);
+
+                                    let next_output_state =
+                                        create_output_state_for_trade_lend_order(
+                                            self.nonce as u32,
+                                            self.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                            self.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                            self.total_locked_value.round() as u64,
+                                            self.total_pool_share.round() as u64,
+                                            0,
+                                        );
+                                    println!("I am at lendpool line 671");
+                                    println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
+
+                                    zkos_order_handler(
+                                        ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
+                                            order.clone(),
+                                            trader_order_db.get_zkos_string(order.uuid.clone()),
+                                            self.last_output_state.clone(),
+                                            next_output_state.clone(),
+                                        ),
+                                    );
+                                    self.last_output_state = next_output_state.clone();
+                                    let _ = trader_order_db.liquidate(order.clone(), relayer_cmd);
                                 }
                                 _ => {}
                             }
@@ -638,5 +712,201 @@ impl LendPool {
 
     pub fn get_lendpool(&mut self) -> (f64, f64) {
         (self.total_locked_value, self.total_pool_share)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OutputStateCommand {
+    TraderSettle(Uuid, Nonce, PoolLockError),
+    LendCreate(Uuid, Nonce, PoolLockError),
+    LendSettle(Uuid, Nonce, PoolLockError),
+    FundingInterest(Payment),
+    InitiateNewPool(Payment, Nonce),
+}
+
+impl OutputStateCommand {
+    pub fn get_order_id(&self) -> Option<Uuid> {
+        match self.clone() {
+            OutputStateCommand::TraderSettle(uuid, _nonce, _lock_error) => Some(uuid),
+            OutputStateCommand::LendCreate(uuid, _nonce, _lock_error) => Some(uuid),
+            OutputStateCommand::LendSettle(uuid, _nonce, _lock_error) => Some(uuid),
+            OutputStateCommand::FundingInterest(_payment) => None,
+            OutputStateCommand::InitiateNewPool(_payment, _nonce) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PoolStateHistory {
+    nonce: Nonce,
+    state_outputs_hex: String,
+    previous_lendpool: LendPool,
+    cmd: OutputStateCommand,
+    aggrigate_log_sequence: usize,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PoolStateHistoryDB {
+    state_outputs: HashMap<Nonce, PoolStateHistory>,
+    orderid_to_nonce_link: HashMap<Uuid, Nonce>,
+    last_nonce: Nonce,
+}
+
+impl PoolStateHistory {
+    pub fn default() -> Self {
+        PoolStateHistory {
+            nonce: 0,
+            state_outputs_hex: "".to_string(),
+            previous_lendpool: LendPool::default(),
+            cmd: OutputStateCommand::InitiateNewPool(0.0, 0),
+            aggrigate_log_sequence: 0,
+        }
+    }
+
+    pub fn new(
+        nonce: Nonce,
+        state_outputs_hex: String,
+        previous_lendpool: LendPool,
+        cmd: OutputStateCommand,
+        aggrigate_log_sequence: usize,
+    ) -> Self {
+        PoolStateHistory {
+            nonce,
+            state_outputs_hex,
+            previous_lendpool,
+            cmd,
+            aggrigate_log_sequence,
+        }
+    }
+    pub fn get_nonce(&mut self) -> Nonce {
+        self.nonce
+    }
+    pub fn get_state_outputs_hex(&mut self) -> String {
+        self.state_outputs_hex.clone()
+    }
+    pub fn get_previous_lendpool(&mut self) -> LendPool {
+        self.previous_lendpool.clone()
+    }
+    pub fn get_cmd(&mut self) -> OutputStateCommand {
+        self.cmd.clone()
+    }
+    pub fn get_aggrigate_log_sequence(&mut self) -> usize {
+        self.aggrigate_log_sequence
+    }
+}
+impl PoolStateHistoryDB {
+    pub fn new() -> Self {
+        PoolStateHistoryDB {
+            state_outputs: HashMap::new(),
+            orderid_to_nonce_link: HashMap::new(),
+            last_nonce: 0,
+        }
+    }
+    pub fn insert_pool_history(
+        &mut self,
+        mut pool_state_history: PoolStateHistory,
+    ) -> Option<PoolStateHistory> {
+        let nonce = pool_state_history.get_nonce();
+        let order_id = pool_state_history.get_cmd().get_order_id();
+        let _uuid_store_result = match order_id {
+            Some(order_id_uuid) => self.orderid_to_nonce_link.insert(order_id_uuid, nonce),
+            None => None,
+        };
+        self.last_nonce = nonce;
+        self.state_outputs.insert(nonce, pool_state_history)
+    }
+
+    pub fn update_pool_history(
+        &mut self,
+        mut pool_state_history: PoolStateHistory,
+    ) -> Option<PoolStateHistory> {
+        let nonce = pool_state_history.get_nonce();
+        let order_id = pool_state_history.get_cmd().get_order_id();
+        let _uuid_store_result = match order_id {
+            Some(order_id_uuid) => self.orderid_to_nonce_link.insert(order_id_uuid, nonce),
+            None => None,
+        };
+        self.state_outputs.insert(nonce, pool_state_history)
+    }
+
+    pub fn delete_last_state(&mut self) -> Option<PoolStateHistory> {
+        let nonce = self.last_nonce;
+        let last_state = self.state_outputs.remove(&nonce);
+        if self.last_nonce > 0 {
+            self.last_nonce -= 1;
+        }
+
+        match last_state.clone() {
+            Some(mut pool_state) => {
+                let order_id = pool_state.get_cmd().get_order_id();
+                match order_id {
+                    Some(uuid) => {
+                        self.orderid_to_nonce_link.remove(&uuid);
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        last_state
+    }
+    pub fn delete_state_by_nonce(&mut self, nonce: Nonce) -> Option<PoolStateHistory> {
+        let last_state = self.state_outputs.remove(&nonce);
+
+        match last_state.clone() {
+            Some(mut pool_state) => {
+                let order_id = pool_state.get_cmd().get_order_id();
+                match order_id {
+                    Some(uuid) => {
+                        self.orderid_to_nonce_link.remove(&uuid);
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+
+        last_state
+    }
+    pub fn delete_bulk_state_history(
+        &mut self,
+        from_nonce: Option<Nonce>,
+        to_nonce: Option<Nonce>,
+    ) {
+        let from = match from_nonce {
+            Some(from) => from,
+            None => 0,
+        };
+        let to = match to_nonce {
+            Some(to) => to,
+            None => self.last_nonce,
+        };
+        for nonce in from..to {
+            let _ = self.delete_state_by_nonce(nonce);
+        }
+    }
+
+    pub fn get_pool_history_by_nonce(&mut self, nonce: Nonce) -> Result<PoolStateHistory, String> {
+        match self.state_outputs.get(&nonce) {
+            Some(pool_history) => Ok(pool_history.clone()),
+            None => Err("Pool History Not Availble for given Nonce".to_string()),
+        }
+    }
+
+    pub fn get_nonce_by_uuid(&mut self, order_id: Uuid) -> Option<&Nonce> {
+        self.orderid_to_nonce_link.get(&order_id)
+    }
+    pub fn get_last_nonce(&mut self) -> Nonce {
+        self.last_nonce
+    }
+
+    pub fn get_pool_history_by_uuid(&mut self, order_id: Uuid) -> Result<PoolStateHistory, String> {
+        match self.orderid_to_nonce_link.get(&order_id) {
+            Some(nonce) => match self.state_outputs.get(&nonce) {
+                Some(pool_history) => Ok(pool_history.clone()),
+                None => Err("Pool History Not Availble for given uuid".to_string()),
+            },
+            None => Err("Pool History Not Availble for given uuid".to_string()),
+        }
     }
 }
