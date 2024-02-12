@@ -4,6 +4,7 @@ use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use address::Network;
 use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
+use uuid::Uuid;
 use std::sync::{Arc, Mutex, RwLock,mpsc};
 use std::fs::File;
 use std::io::prelude::*;
@@ -173,7 +174,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                                 .clone()
                                                 .unwrap()
                                                 .clone(),
-                                            (lendpool.total_locked_value.round() + payment.round()) as u64,
+                                            (lendpool.total_locked_value.round() - payment.round()) as u64,
                                             lendpool.total_pool_share.round() as u64,
                                             0,
                                         );
@@ -229,11 +230,28 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
+                                // send event for txhash with error saying order already exist in the relayer
+                                Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order not found or invalid order status !!".to_string(), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string(),None), String::from("trader_tx_not_found_error"),
+                                LENDPOOL_EVENT_LOG.clone().to_string());
+
+
                             }
                         }
                     }
                     Err(arg) => {
                         println!("Error found:{:#?}", arg);
+                        // send event for txhash with error saying order already exist in the relayer
+                        Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, format!("Error found:{:#?}", arg), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros()
+                        .to_string(),None), String::from("trader_tx_not_found_error"),
+                        LENDPOOL_EVENT_LOG.clone().to_string());
+
                     }
                 }
             });
@@ -250,15 +268,71 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 drop(lendorder_db);
 
                 if is_order_exist{
-                let (tlv0, tps0) = lend_pool.get_lendpool();
-                let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
-                // let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, 20048615383.0, 2000000.0);
-                lendorder.order_status = OrderStatus::FILLED;
-                lend_pool.add_transaction(LendPoolCommand::LendOrderCreateOrder(
-                    command_clone,
-                    lendorder.clone(),
-                    lendorder.deposit,
-                ));
+                        let (tlv0, tps0) = lend_pool.get_lendpool();
+                        let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
+                        lendorder.order_status = OrderStatus::FILLED;
+                        // let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, 20048615383.0, 2000000.0);
+
+                        let next_output_state = create_output_state_for_trade_lend_order(
+                            (lend_pool.nonce + 1) as u32,
+                            lend_pool.last_output_state
+                                .clone()
+                                .as_output_data()
+                                .get_script_address()
+                                .unwrap()
+                                .clone(),
+                                lend_pool.last_output_state
+                                .clone()
+                                .as_output_data()
+                                .get_owner_address()
+                                .clone()
+                                .unwrap()
+                                .clone(),
+                                lendorder.tlv1 as u64,
+                                lendorder.tps1 as u64,
+                            0,
+                        );
+
+                        let  chain_result_receiver=zkos_order_handler(ZkosTxCommand::CreateLendOrderTX(
+                            lendorder.clone(),
+                            command_clone.clone(),
+                            lend_pool.last_output_state.clone(),
+                            next_output_state.clone(),
+                        ));
+                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+                        match zkos_receiver.recv() {
+                        Ok(chain_message)=>{
+                            match chain_message{
+                                Ok(tx_hash)=>{
+                                    lend_pool.add_transaction(LendPoolCommand::LendOrderCreateOrder(
+                                        command_clone,
+                                        lendorder.clone(),
+                                        lendorder.deposit,
+                                        next_output_state
+                                    ));
+                                }
+                                Err(verification_error)=>{
+                                    println!("Error in line relayercore.rs 299 : {:?}",verification_error);
+                                }
+                            }
+                        }
+                        Err(arg)=>{
+                            println!("Error in line relayercore.rs 304 : {:?}",arg);
+                        }
+
+
+                        }
+
+                } else 
+                {
+                    // send event for txhash with error saying order already exist in the relayer
+                    Event::new(Event::TxHash(Uuid::new_v4(), rpc_request.account_id.clone(), "Duplicate order found in the database with same public key".to_string(), OrderType::LEND, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+                    .to_string(),None), String::from("tx_duplicate_error"),
+                    LENDPOOL_EVENT_LOG.clone().to_string());
                 }
 
                 drop(lend_pool);
@@ -274,23 +348,72 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 drop(lendorder_db);
                 match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
-                        match order.order_status {
+                      let mut order = order_detail.write().unwrap();
+                        let mut order_updated_clone= order.clone();
+                        match order_updated_clone.order_status {
                             OrderStatus::FILLED => {
                                 let (tlv2, tps2) = lend_pool.get_lendpool();
-                                match order.calculatepayment_localdb(tlv2, tps2) {
+                                match order_updated_clone.calculatepayment_localdb(tlv2, tps2) {
                                     Ok(_) => {
-                                        let order_clone = order.clone();
-                                        drop(order);
-                                        lend_pool.add_transaction(
-                                            LendPoolCommand::LendOrderSettleOrder(
-                                                command_clone,
-                                                order_clone.clone(),
-                                                order_clone.nwithdraw,
-                                            ),
+                                        let mut order_clone = order_updated_clone.clone();
+                                        order_clone.order_status = OrderStatus::SETTLED;
+                                        order_clone.exit_nonce = lend_pool.nonce+1;
+
+                                        let next_output_state = create_output_state_for_trade_lend_order(
+                                            (lend_pool.nonce+1) as u32,
+                                            lend_pool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                                lend_pool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                                order_clone.tlv3.round() as u64,
+                                                order_clone.tps3.round() as u64,
+                                            0,
                                         );
-                                        drop(lend_pool);
-                                    }
+
+
+                                        let  chain_result_receiver=zkos_order_handler(ZkosTxCommand::ExecuteLendOrderTX(
+                                            order_clone.clone(),
+                                            command_clone.clone(),
+                                            lend_pool.last_output_state.clone(),
+                                            next_output_state.clone(),
+                                        ));
+                                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+                                        match zkos_receiver.recv() {
+                                            Ok(chain_message)=>{
+                                                match chain_message{
+                                                    Ok(tx_hash)=>{
+                                                        *order = order_clone.clone();
+                                                        drop(order);
+                                                        lend_pool.add_transaction(
+                                                            LendPoolCommand::LendOrderSettleOrder(
+                                                                command_clone,
+                                                                order_clone.clone(),
+                                                                order_clone.nwithdraw,next_output_state
+                                                            ),
+                                                        ); 
+                                                    }
+                                                    Err(verification_error)=>{
+                                                        println!("Error in line relayercore.rs 299 : {:?}",verification_error);
+                                                    }
+                                                }
+                                            }
+                                            Err(arg)=>{
+                                                println!("Error in line relayercore.rs 304 : {:?}",arg);
+                                            }
+                            }
+                               drop(lend_pool);
+
+                                }
                                     Err(arg) => {
                                         drop(order);
                                         drop(lend_pool);
@@ -305,12 +428,26 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
+                                 // send event for txhash with error saying order already exist in the relayer
+                                Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order not found or invalid order status !!".to_string(), OrderType::LEND, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string(),None), String::from("lend_tx_not_found_error"),
+                                LENDPOOL_EVENT_LOG.clone().to_string());
                             }
                         }
                     }
                     Err(arg) => {
                         drop(lend_pool);
                         println!("Error found:{:#?}", arg);
+                         // send event for txhash with error saying order already exist in the relayer
+                        Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, format!("Error found:{:#?}", arg), OrderType::LEND, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros()
+                        .to_string(),None), String::from("lend_tx_not_found_error"),
+                        LENDPOOL_EVENT_LOG.clone().to_string());
                     }
                 }
             });
