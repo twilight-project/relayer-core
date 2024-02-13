@@ -556,47 +556,119 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(lendpool);
         }
         RelayerCommand::PriceTickerLiquidation(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+            let mut orderdetails_array: Vec<(Result<Arc<RwLock<TraderOrder>>, std::io::Error>,Option<String>)> =
                 Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
-                let orderdetail = trader_order_db.get_mut(order_id);
+                let orderdetail = (trader_order_db.get_mut(order_id),trader_order_db.get_zkos_string(order_id));
                 orderdetails_array.push(orderdetail);
             }
             drop(trader_order_db);
-            let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
-            for order_detail_wraped in orderdetails_array {
+            let buffer = THREADPOOL_BULK_PENDING_ORDER_REMOVE.lock().unwrap();
+            for (order_detail_wraped,zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
                 buffer.execute(move || match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
+                        let mut order_mut_ref = order_detail.write().unwrap();
+                        let mut order: TraderOrder =order_mut_ref.clone();
                         match order.order_status {
                             OrderStatus::FILLED => {
                                 order.order_status = OrderStatus::LIQUIDATE;
                                 //update batch process
                                 let payment = order.liquidate(current_price_clone);
-                                let order_clone = order.clone();
-                                drop(order);
-                                println!("locking mutex LEND_POOL_DB");
+
                                 let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                                lendpool.add_transaction(
-                                    LendPoolCommand::AddTraderOrderLiquidation(
-                                        RelayerCommand::PriceTickerLiquidation(
-                                            vec![order_clone.uuid.clone()],
-                                            metadata_clone,
-                                            current_price_clone,
-                                        ),
-                                        order_clone.clone(),
-                                        payment,
+
+                                let next_output_state =
+                                create_output_state_for_trade_lend_order(
+                                    (lendpool.nonce+1) as u32,
+                                    lendpool.last_output_state
+                                        .clone()
+                                        .as_output_data()
+                                        .get_script_address()
+                                        .unwrap()
+                                        .clone(),
+                                    lendpool.last_output_state
+                                        .clone()
+                                        .as_output_data()
+                                        .get_owner_address()
+                                        .clone()
+                                        .unwrap()
+                                        .clone(),
+                                    (lendpool.total_locked_value.round() - payment.round()) as u64,
+                                    lendpool.total_pool_share.round() as u64,
+                                    0,
+                                );
+
+
+                                let  chain_result_receiver=zkos_order_handler(
+                                    ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
+                                        order.clone(),
+                                        zkos_msg_hex,
+                                        lendpool.last_output_state.clone(),
+                                        next_output_state.clone(),
                                     ),
                                 );
-                                println!("dropping mutex LEND_POOL_DB");
 
+                                let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+
+                                match zkos_receiver.recv() {
+                                    Ok(chain_message)=>{
+                                        match chain_message{
+                                            Ok(tx_hash)=>{
+                                                PositionSizeLog::remove_order(order.position_type.clone(), order.positionsize.clone());
+
+                                                
+                                                *order_mut_ref =order.clone();
+                                                drop(order_mut_ref);
+                                                println!("locking mutex LEND_POOL_DB");
+                                                
+                                                lendpool.add_transaction(
+                                                    LendPoolCommand::AddTraderOrderLiquidation(
+                                                        RelayerCommand::PriceTickerLiquidation(
+                                                            vec![order.uuid.clone()],
+                                                            metadata_clone,
+                                                            current_price_clone,
+                                                        ),
+                                                        order.clone(),
+                                                        payment,
+                                                    ),
+                                                );
+                                                println!("dropping mutex LEND_POOL_DB");
+                
+                                            }
+                                            Err(verification_error)=>{
+                                                println!("Error in line relayercore.rs 822 : {:?}",verification_error);
+                                                // settle limit removed from the db, need to place new limit/market settle request
+                                                Event::new(Event::TxHash(order.uuid, order.account_id, format!("Error : {:?}, liquidation failed",verification_error), order.order_type, OrderStatus::FILLED, std::time::SystemTime::now()
+                                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                .unwrap()
+                                                .as_micros()
+                                                .to_string(),None), String::from("tx_hash_error"),
+                                                LENDPOOL_EVENT_LOG.clone().to_string());
+
+
+                                            }
+                                        }
+                                    }
+                                    Err(arg)=>{
+                                        println!("Error in line relayercore.rs 827 : {:?}",arg);
+                                    }
+
+
+                                }
+                               
                                 drop(lendpool);
+
+
+
+
+                                
                             }
                             _ => {
-                                drop(order);
+                                drop(order_mut_ref);
                                 println!("Invalid order status !!\n");
                             }
                         }
@@ -752,13 +824,11 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                         match order.order_status {
                             OrderStatus::FILLED => {
 
-
                                 let (payment, order_status) = order.check_for_settlement(
                                     current_price_clone,
                                     current_price_clone,
                                     OrderType::MARKET,
                                 );
-
 
                                 match order_status {
                                     OrderStatus::SETTLED => {
@@ -820,6 +890,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     }
                                                     Err(verification_error)=>{
                                                         println!("Error in line relayercore.rs 822 : {:?}",verification_error);
+                                                        // settle limit removed from the db, need to place new limit/market settle request
+                                                        
+
+
                                                     }
                                                 }
                                             }
@@ -1790,7 +1864,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                         0,
                                     );
                                 
-                                    Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                    Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, format!("Error : {:?}, need to place new limit/market settle request",arg), trader_order.order_type, OrderStatus::FILLED, std::time::SystemTime::now()
                                     .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                     .unwrap()
                                     .as_micros()
@@ -1944,7 +2018,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                             0,
                                         );
                                     
-                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, format!("Error : {:?}, liquidation failed",arg), trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
                                         .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                         .unwrap()
                                         .as_micros()

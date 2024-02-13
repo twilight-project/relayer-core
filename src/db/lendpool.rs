@@ -395,7 +395,7 @@ impl LendPool {
             ) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
-                self.pending_orders.amount += payment * 10000.0;
+                self.pending_orders.amount += payment;
                 self.pending_orders
                     .trader_order_data
                     .push(command_clone.clone());
@@ -413,7 +413,7 @@ impl LendPool {
 
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
-                self.pending_orders.amount -= payment * 10000.0;
+                self.pending_orders.amount -= payment;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders
                     .trader_order_data
@@ -619,14 +619,6 @@ impl LendPool {
                                     println!("I am at lendpool line 671");
                                     println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
 
-                                    zkos_order_handler(
-                                        ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
-                                            order.clone(),
-                                            trader_order_db.get_zkos_string(order.uuid.clone()),
-                                            self.last_output_state.clone(),
-                                            next_output_state.clone(),
-                                        ),
-                                    );
                                     self.last_output_state = next_output_state.clone();
                                     let _ = trader_order_db.liquidate(order.clone(), relayer_cmd);
                                 }

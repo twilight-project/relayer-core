@@ -477,7 +477,7 @@ impl TraderOrder {
         self.liquidation_price = current_price;
         self.available_margin = 0.0;
         // adding candle data
-        PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+        // PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
 
         let side = match ordertx.position_type {
             PositionType::SHORT => Side::BUY,
