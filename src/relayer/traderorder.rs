@@ -128,7 +128,7 @@ impl TraderOrder {
         )
     }
 
-    pub fn pending_order(&mut self, current_price: f64) -> (Self, bool) {
+    pub fn pending_order(&self, current_price: f64) -> (Self, bool) {
         let order_entry_status: bool = true;
         let position_type = self.position_type.clone();
         let leverage = self.leverage;
@@ -383,7 +383,11 @@ impl TraderOrder {
         self.settlement_price = current_price;
         self.unrealized_pnl = u_pnl;
 
-        // remove from liquidation sorted set and candle update (test required)
+        payment
+    }
+
+    pub fn order_remove_from_localdb(&self) {
+        let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
         match ordertx.position_type {
             PositionType::LONG => {
@@ -417,10 +421,7 @@ impl TraderOrder {
             price: ordertx.entryprice,
             timestamp: std::time::SystemTime::now(),
         });
-
-        payment
     }
-
     pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
         match self.order_type {
@@ -476,7 +477,7 @@ impl TraderOrder {
         self.liquidation_price = current_price;
         self.available_margin = 0.0;
         // adding candle data
-        PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+        // PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
 
         let side = match ordertx.position_type {
             PositionType::SHORT => Side::BUY,

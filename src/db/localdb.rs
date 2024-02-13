@@ -29,6 +29,8 @@ lazy_static! {
         Arc::new(Mutex::new(LocalDB::<LendOrder>::new()));
     pub static ref LEND_POOL_DB: Arc<Mutex<LendPool>> =
         Arc::new(Mutex::new(LendPool::default()));
+    pub static ref LEND_POOL_HISTORY_DB: Arc<Mutex<PoolStateHistoryDB>> =
+        Arc::new(Mutex::new(PoolStateHistoryDB::new()));
     // pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
     //     Arc::new(Mutex::new(LocalDB::<TraderOrder>::check_backup()));
     // pub static ref LEND_ORDER_DB: Arc<Mutex<OrderDB<LendOrder>>> =

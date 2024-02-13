@@ -42,6 +42,11 @@ pub trait LocalDB<T> {
     fn set_order_check(&mut self, account_id: String) -> bool;
     fn remove_order_check(&mut self, account_id: String) -> bool;
     fn get_zkos_string(&mut self, order_id: Uuid) -> Option<String>;
+    fn set_zkos_string_on_limit_update(
+        &mut self,
+        order_id: Uuid,
+        zkos_msg: String,
+    ) -> Option<String>;
     // fn load_data() -> (bool, OrderDB<T>);
     // fn check_backup() -> Self;
     fn liquidate(&mut self, order: T, cmd: RelayerCommand) -> Result<T, std::io::Error>;
@@ -94,17 +99,17 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 format!("update_order-{}", order.uuid),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
-            if order.order_status == OrderStatus::FILLED {
-                let zkos_msg_hex = match self.zkos_msg.get(&order.uuid) {
-                    Some(hex_string) => Some(hex_string.clone()),
-                    None => None,
-                };
+            // if order.order_status == OrderStatus::FILLED {
+            //     let zkos_msg_hex = match self.zkos_msg.get(&order.uuid) {
+            //         Some(hex_string) => Some(hex_string.clone()),
+            //         None => None,
+            //     };
 
-                zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
-                    order.clone(),
-                    zkos_msg_hex,
-                ));
-            }
+            //     zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
+            //         order.clone(),
+            //         zkos_msg_hex,
+            //     ));
+            // }
 
             Ok(order.clone())
         } else {
@@ -239,6 +244,13 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             None => None,
         };
         zkos_msg_hex
+    }
+    fn set_zkos_string_on_limit_update(
+        &mut self,
+        order_id: Uuid,
+        zkos_msg: String,
+    ) -> Option<String> {
+        self.zkos_msg.insert(order_id, zkos_msg)
     }
 }
 
@@ -375,6 +387,13 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
             None => None,
         };
         zkos_msg_hex
+    }
+    fn set_zkos_string_on_limit_update(
+        &mut self,
+        order_id: Uuid,
+        zkos_msg: String,
+    ) -> Option<String> {
+        self.zkos_msg.insert(order_id, zkos_msg)
     }
 }
 
