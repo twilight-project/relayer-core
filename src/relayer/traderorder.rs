@@ -128,7 +128,7 @@ impl TraderOrder {
         )
     }
 
-    pub fn pending_order(&mut self, current_price: f64) -> (Self, bool) {
+    pub fn pending_order(&self, current_price: f64) -> (Self, bool) {
         let order_entry_status: bool = true;
         let position_type = self.position_type.clone();
         let leverage = self.leverage;

@@ -46,7 +46,7 @@ pub struct PoolBatchOrder {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum LendPoolCommand {
     AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment, Output),
-    AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment),
+    AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment, Output),
     AddFundingData(TraderOrder, Payment),
     AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment),
     LendOrderCreateOrder(RpcCommand, LendOrder, Deposit, Output),
@@ -387,7 +387,12 @@ impl LendPool {
                 ));
             }
 
-            LendPoolCommand::AddTraderLimitOrderSettlement(_rel_cmd, _trader_order, payment) => {
+            LendPoolCommand::AddTraderLimitOrderSettlement(
+                _rel_cmd,
+                _trader_order,
+                payment,
+                _next_output_state,
+            ) => {
                 self.pending_orders.len += 1;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders.amount += payment * 10000.0;
@@ -560,6 +565,7 @@ impl LendPool {
                                     relayer_cmd,
                                     mut order,
                                     _payment,
+                                    next_output_state,
                                 ) => match relayer_cmd {
                                     RelayerCommand::PriceTickerOrderSettle(
                                         _,
@@ -574,37 +580,9 @@ impl LendPool {
                                                 current_price,
                                             );
 
-                                        let next_output_state =
-                                            create_output_state_for_trade_lend_order(
-                                                self.nonce as u32,
-                                                self.last_output_state
-                                                    .clone()
-                                                    .as_output_data()
-                                                    .get_script_address()
-                                                    .unwrap()
-                                                    .clone(),
-                                                self.last_output_state
-                                                    .clone()
-                                                    .as_output_data()
-                                                    .get_owner_address()
-                                                    .clone()
-                                                    .unwrap()
-                                                    .clone(),
-                                                self.total_locked_value.round() as u64,
-                                                self.total_pool_share.round() as u64,
-                                                0,
-                                            );
                                         println!("I am at lendpool line 628");
                                         println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
 
-                                        zkos_order_handler(
-                                            ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
-                                                order.clone(),
-                                                trader_order_db.get_zkos_string(order.uuid.clone()),
-                                                self.last_output_state.clone(),
-                                                next_output_state.clone(),
-                                            ),
-                                        );
                                         self.last_output_state = next_output_state.clone();
                                         let _ = trader_order_db
                                             .remove(order.clone(), dummy_rpccommand.clone());
