@@ -94,17 +94,17 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 format!("update_order-{}", order.uuid),
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
-            if order.order_status == OrderStatus::FILLED {
-                let zkos_msg_hex = match self.zkos_msg.get(&order.uuid) {
-                    Some(hex_string) => Some(hex_string.clone()),
-                    None => None,
-                };
+            // if order.order_status == OrderStatus::FILLED {
+            //     let zkos_msg_hex = match self.zkos_msg.get(&order.uuid) {
+            //         Some(hex_string) => Some(hex_string.clone()),
+            //         None => None,
+            //     };
 
-                zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
-                    order.clone(),
-                    zkos_msg_hex,
-                ));
-            }
+            //     zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
+            //         order.clone(),
+            //         zkos_msg_hex,
+            //     ));
+            // }
 
             Ok(order.clone())
         } else {

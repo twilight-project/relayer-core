@@ -23,6 +23,8 @@ lazy_static! {
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_FIFO_ORDER")));
+    pub static ref THREADPOOL_BULK_PENDING_ORDER_INSERT: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_ZKOS_TRADER_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_ZKOS")));
@@ -474,6 +476,12 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         let cancelled_order =
                                             trader_order_db.remove(order_clone, command_clone);
                                         drop(trader_order_db);
+                                        Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order successfully cancelled !!".to_string(), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_micros()
+                                        .to_string(),None), String::from("trader_tx_not_found_error"),
+                                        LENDPOOL_EVENT_LOG.clone().to_string());
                                     }
                                     _ => {
                                         drop(order);
@@ -486,6 +494,12 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
+                                Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order not found or invalid order status !!".to_string(), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string(),None), String::from("trader_tx_not_found_error"),
+                                LENDPOOL_EVENT_LOG.clone().to_string());
                             }
                         }
                     }
@@ -585,46 +599,121 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(buffer);
         }
         RelayerCommand::PriceTickerOrderFill(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+            let mut orderdetails_array: Vec<(Result<Arc<RwLock<TraderOrder>>, std::io::Error>,Option<String>)> =
                 Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
-                let orderdetail = trader_order_db.get_mut(order_id);
+                let orderdetail = (trader_order_db.get_mut(order_id),trader_order_db.get_zkos_string(order_id));
                 orderdetails_array.push(orderdetail);
             }
             drop(trader_order_db);
             let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
-            for order_detail_wraped in orderdetails_array {
+            for (order_detail_wraped,zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
                 buffer.execute(move || match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
+                        let order2 = Arc::clone(&order_detail);
+                        let order1 = order_detail.read().unwrap();
+                        let mut order = order1.clone();
                         match order.order_status {
                             OrderStatus::PENDING => {
-                                let (update_order_detail, order_status) =
-                                    order.pending_order(current_price_clone);
+                                let buffer_insert = THREADPOOL_BULK_PENDING_ORDER_INSERT.lock().unwrap();
+                                buffer_insert.execute(move || {
+                                    let mut order2 = order2.write().unwrap();
 
-                                let filled_order =
-                                    update_order_detail.orderinsert_localdb(order_status);
-                                order.order_status = OrderStatus::FILLED;
-                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                                drop(order);
-                                let _ = trader_order_db.update(
-                                    filled_order.clone(),
-                                    RelayerCommand::PriceTickerOrderFill(
-                                        vec![filled_order.uuid.clone()],
-                                        metadata_clone,
-                                        current_price_clone,
-                                    ),
-                                );
-                                drop(trader_order_db);
+                                let (mut update_order_detail, order_status) =
+                                    order.pending_order(current_price_clone);
+                            
+                                    let chain_result_receiver= zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
+                                            update_order_detail.clone(),
+                                            zkos_msg_hex,
+                                        ));
+                                    let zkos_receiver =  chain_result_receiver.lock().unwrap();
+                                    match zkos_receiver.recv() {
+                                        Ok(chain_message)=>{
+                                            match chain_message{
+                                                Ok(tx_hash)=>{
+                                                    let mut filled_order =
+                                                    update_order_detail.orderinsert_localdb(order_status);
+                                                    filled_order.order_status = OrderStatus::FILLED;
+                                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                
+                                                *order2 =filled_order.clone();
+                                                drop(order2);
+                                                let _ = trader_order_db.update(
+                                                    filled_order.clone(),
+                                                    RelayerCommand::PriceTickerOrderFill(
+                                                        vec![filled_order.uuid.clone()],
+                                                        metadata_clone,
+                                                        current_price_clone,
+                                                    ),
+                                                );
+                                                drop(trader_order_db);
+                                                }
+                                                Err(verification_error)=>{
+                                                    drop(order2);
+                                                    let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                   
+                                                    update_order_detail.order_status=OrderStatus::CANCELLED;
+                                                   
+                                                    let dummy_rpccommand =
+                                                    RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
+                                                        update_order_detail.clone(),
+                                                        metadata_clone,
+                                                        current_price_clone,
+                                                    );
+                                                    //remove invalid order from the localdb
+                                                    let _ = trader_order_db.remove(update_order_detail.clone(), dummy_rpccommand.clone());
+                                                    drop(trader_order_db);
+
+                                                    Event::new(Event::TxHash(update_order_detail.uuid, update_order_detail.account_id, verification_error, OrderType::LIMIT, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                    .unwrap()
+                                                    .as_micros()
+                                                    .to_string(),None), String::from("tx_hash_error"),
+                                                    LENDPOOL_EVENT_LOG.clone().to_string());
+
+                                                }
+                                            }
+                                        }
+                                        Err(arg)=>{
+                                            drop(order2);
+                                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                            update_order_detail.order_status=OrderStatus::CANCELLED;
+                                                   
+                                            let dummy_rpccommand =
+                                            RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
+                                                update_order_detail.clone(),
+                                                metadata_clone,
+                                                current_price_clone,
+                                            );
+                                            //remove invalid order from the localdb
+                                            let _ = trader_order_db.remove(update_order_detail.clone(), dummy_rpccommand.clone());
+                                            drop(trader_order_db);
+
+                                                    Event::new(Event::TxHash(update_order_detail.uuid, update_order_detail.account_id, format!("Error found:{:#?}", arg), OrderType::LIMIT, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                    .unwrap()
+                                                    .as_micros()
+                                                    .to_string(),None), String::from("Receiver_error_limit"),
+                                                    LENDPOOL_EVENT_LOG.clone().to_string());
+                                        }
+
+
+                                    }
+                            
+
+
+                                
+                            });
                             }
                             _ => {
                                 drop(order);
                                 println!("Invalid order status !!\n");
                             }
                         }
+                        drop(order1);
                     }
                     Err(arg) => {
                         println!("Error found:{:#?}", arg);
