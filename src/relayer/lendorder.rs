@@ -57,8 +57,8 @@ impl LendOrder {
         let ndeposit = deposit;
         let npoolshare = tps0 * deposit * 10000.0 / tlv0;
         let poolshare = tps0 * deposit / tlv0;
-        let tps1 = tps0 + poolshare;
-        let tlv1 = tlv0 + ndeposit;
+        let tps1 = tps0.round() + poolshare.round();
+        let tlv1 = tlv0.round() + ndeposit.round();
         LendOrder {
             uuid: Uuid::new_v4(),
             account_id: String::from(account_id),
@@ -75,8 +75,8 @@ impl LendOrder {
             payment: 0.0,
             tlv0,
             tps0,
-            tlv1: 0.0,
-            tps1: 0.0,
+            tlv1: tlv1,
+            tps1: tps1,
             tlv2: 0.0,
             tps2: 0.0,
             tlv3: 0.0,
@@ -95,11 +95,13 @@ impl LendOrder {
         }
         let payment = withdraw - self.new_lend_state_amount;
         self.nwithdraw = nwithdraw;
+        let tlv3 = tlv2 - (nwithdraw / 10000.0).round();
+        let tps3 = tps2 - (self.npoolshare / 10000.0).round();
         self.payment = payment;
         self.tlv2 = tlv2;
         self.tps2 = tps2;
-        self.tlv3 = 0.0;
-        self.tps3 = 0.0;
+        self.tlv3 = tlv3;
+        self.tps3 = tps3;
         self.order_status = OrderStatus::SETTLED;
         self.new_lend_state_amount = withdraw;
         Ok(())

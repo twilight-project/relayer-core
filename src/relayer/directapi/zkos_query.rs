@@ -1,4 +1,4 @@
-use crate::config::{POSTGRESQL_POOL_CONNECTION, THREADPOOL};
+use crate::config::{POSTGRESQL_POOL_CONNECTION_API, THREADPOOL};
 use crate::db::*;
 use crate::relayer::*;
 
@@ -24,7 +24,7 @@ pub fn get_traderorder_details_by_account_id(
             account
         );
         // println!("query:{}", query);
-        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+        let mut client = POSTGRESQL_POOL_CONNECTION_API.get().unwrap();
         let mut is_raw = true;
         for row in client.query(&query, &[]).unwrap() {
             // println!("is it coming here");
@@ -72,7 +72,7 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
 	FROM  public.lend_order where account_id='{}' Order By  timestamp desc Limit 1 ;",
             account
         );
-        let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+        let mut client = POSTGRESQL_POOL_CONNECTION_API.get().unwrap();
         let mut is_raw = true;
         for row in client.query(&query, &[]).unwrap() {
             let uuid_string: String = row.get("uuid");

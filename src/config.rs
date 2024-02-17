@@ -32,6 +32,18 @@ lazy_static! {
         );
         r2d2::Pool::new(manager).unwrap()
     };
+    pub static ref POSTGRESQL_POOL_CONNECTION_API: r2d2::Pool<PostgresConnectionManager<NoTls>> = {
+        dotenv::dotenv().expect("Failed loading dotenv");
+        // POSTGRESQL_URL
+        let postgresql_url =
+            std::env::var("DATABASE_URL").expect("missing environment variable DATABASE_URL");
+        let manager = PostgresConnectionManager::new(
+            // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
+            postgresql_url.parse().unwrap(),
+            NoTls,
+        );
+        r2d2::Pool::new(manager).unwrap()
+    };
 
     pub static ref QUESTDB_POOL_CONNECTION: r2d2::Pool<PostgresConnectionManager<NoTls>> = {
         dotenv::dotenv().expect("Failed loading dotenv");

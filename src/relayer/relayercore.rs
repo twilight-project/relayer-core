@@ -3,6 +3,8 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use address::Network;
+use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
+use uuid::Uuid;
 use std::sync::{Arc, Mutex, RwLock,mpsc};
 use std::fs::File;
 use std::io::prelude::*;
@@ -17,10 +19,14 @@ lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER_INSERT: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(8, String::from("THREADPOOL_NORMAL_ORDER_INSERT")));
     pub static ref THREADPOOL_URGENT_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(15, String::from("THREADPOOL_URGENT_ORDER")));
+        Mutex::new(ThreadPool::new(2, String::from("THREADPOOL_URGENT_ORDER")));
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_FIFO_ORDER")));
+    pub static ref THREADPOOL_BULK_PENDING_ORDER_INSERT: Mutex<ThreadPool> =
+        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
+    pub static ref THREADPOOL_BULK_PENDING_ORDER_REMOVE: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_ZKOS_TRADER_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_ZKOS")));
@@ -55,6 +61,7 @@ pub fn client_cmd_receiver() {
 
 pub fn rpc_event_handler(command: RpcCommand) {
     let command_clone = command.clone();
+    let command_clone_for_zkos = command.clone();
     match command {
         RpcCommand::CreateTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
@@ -62,27 +69,75 @@ pub fn rpc_event_handler(command: RpcCommand) {
 
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
                 let orderdata_clone=orderdata.clone();
+                let orderdata_clone_for_zkos=orderdata.clone();
             
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                let  is_order_duplicate = trader_order_db.set_order_check(orderdata.account_id.clone()).clone();
+                drop(trader_order_db);
+                if is_order_duplicate{
 
-                if trader_order_db.set_order_check(orderdata.account_id.clone()){
-                let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
-                buffer_insert.execute(move || {
-                let order_state = orderdata.orderinsert_localdb(status);
-                });
-                drop(buffer_insert);
-                let completed_order = trader_order_db.add(orderdata_clone, command_clone);
+                    if orderdata_clone.order_status == OrderStatus::FILLED {
 
+                        let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
+                            buffer_insert.execute(move || {
+
+                                let chain_result_receiver=  zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(orderdata_clone_for_zkos, command_clone_for_zkos));
+                                let zkos_receiver =  chain_result_receiver.lock().unwrap();
+                                    match zkos_receiver.recv() {
+                                        Ok(chain_message)=>{
+                                            match chain_message{
+                                                Ok(tx_hash)=>{
+                                                    let order_state = orderdata.orderinsert_localdb(status);
+                                                    let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                    let completed_order = trader_order_db.add(orderdata_clone, command_clone);
+                                                    drop(trader_order_db);
+                                                }
+                                                Err(verification_error)=>{
+                                                    let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                    let _ = trader_order_db.remove_order_check(orderdata_clone.account_id.clone());
+                                                    drop(trader_order_db);
+                                                }
+                                            }
+                                        }
+                                        Err(arg)=>{
+                                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                    let _ = trader_order_db.remove_order_check(orderdata_clone.account_id.clone());
+                                                    drop(trader_order_db);
+                                        }
+
+
+                                    }
+                            
+                            });
+                        drop(buffer_insert);
+
+                        
+
+
+                    }
+                    else if  orderdata_clone.order_status == OrderStatus::PENDING {
+                        //submit limit order after checking from chain or your db about order existanse of utxo
+                        let order_state = orderdata.orderinsert_localdb(false);
+                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                        let completed_order = trader_order_db.add(orderdata_clone, command_clone);
+                        drop(trader_order_db);
+                    }
+                }
+                else{
+                    // send event for txhash with error saying order already exist in the relayer
+                    Event::new(Event::TxHash(orderdata.uuid, orderdata.account_id, "Duplicate order found in the database with same public key".to_string(), orderdata.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+                    .to_string(),None), String::from("tx_duplicate_error"),
+                    LENDPOOL_EVENT_LOG.clone().to_string());
                 }
 
-              
-                drop(trader_order_db);
-                
             });
             drop(buffer);
         }
-        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, _zkos_hex_string) => {
-            let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
+        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string) => {
+            let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let execution_price = rpc_request.execution_price.clone();
                 let current_price = get_localdb("CurrentPrice");
@@ -92,26 +147,89 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 match order_detail_wraped {
                     Ok(order_detail) => {
                         let mut order = order_detail.write().unwrap();
-                        match order.order_status {
+                        let mut order_updated_clone= order.clone();
+                        match order_updated_clone.order_status {
                             OrderStatus::FILLED => {
-                                let (payment, order_status) = order.check_for_settlement(
+                                let (payment, order_status) = order_updated_clone.check_for_settlement(
                                     execution_price,
                                     current_price,
                                     rpc_request.order_type,
                                 );
                                 match order_status {
                                     OrderStatus::SETTLED => {
-                                        let order_clone = order.clone();
-                                        drop(order);
+                                        let order_clone = order_updated_clone.clone();
+                                        
                                         let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                                        lendpool.add_transaction(
-                                            LendPoolCommand::AddTraderOrderSettlement(
-                                                command_clone,
-                                                order_clone.clone(),
-                                                payment,
-                                            ),
+
+
+                                        let next_output_state =
+                                        create_output_state_for_trade_lend_order(
+                                            (lendpool.nonce+1) as u32,
+                                            lendpool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                            lendpool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                            (lendpool.total_locked_value.round() - payment.round()) as u64,
+                                            lendpool.total_pool_share.round() as u64,
+                                            0,
                                         );
+                                     let  chain_result_receiver=   zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
+                                            order_clone.clone(),
+                                            command_clone.clone(),
+                                            lendpool.last_output_state.clone(),
+                                            next_output_state.clone(),
+                                        ));
+                                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+
+                                        match zkos_receiver.recv() {
+                                            Ok(chain_message)=>{
+                                                match chain_message{
+                                                    Ok(tx_hash)=>{
+                                                        *order =order_clone.clone();
+                                                        order_updated_clone.order_remove_from_localdb();
+                                                        drop(order);
+                                                        lendpool.add_transaction(
+                                                            LendPoolCommand::AddTraderOrderSettlement(
+                                                                command_clone,
+                                                                order_clone.clone(),
+                                                                payment,
+                                                                next_output_state
+                                                            ),
+                                                        );
+                                                    }
+                                                    Err(verification_error)=>{
+                                                        
+                                                    }
+                                                }
+                                            }
+                                            Err(arg)=>{
+                                               
+                                            }
+    
+    
+                                        }
+                                       
                                         drop(lendpool);
+
+                                      
+                                        
+                                    }
+                                    OrderStatus::FILLED => {
+                                        drop(order);
+                                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                        trader_order_db.set_zkos_string_on_limit_update(order_updated_clone.uuid,zkos_hex_string);
+                                        drop(trader_order_db);
+                                        
                                     }
                                     _ => {
                                         drop(order);
@@ -124,11 +242,28 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
+                                // send event for txhash with error saying order already exist in the relayer
+                                Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order not found or invalid order status !!".to_string(), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string(),None), String::from("trader_tx_not_found_error"),
+                                LENDPOOL_EVENT_LOG.clone().to_string());
+
+
                             }
                         }
                     }
                     Err(arg) => {
                         println!("Error found:{:#?}", arg);
+                        // send event for txhash with error saying order already exist in the relayer
+                        Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, format!("Error found:{:#?}", arg), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros()
+                        .to_string(),None), String::from("trader_tx_not_found_error"),
+                        LENDPOOL_EVENT_LOG.clone().to_string());
+
                     }
                 }
             });
@@ -145,15 +280,71 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 drop(lendorder_db);
 
                 if is_order_exist{
-                let (tlv0, tps0) = lend_pool.get_lendpool();
-                let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
-                // let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, 20048615383.0, 2000000.0);
-                lendorder.order_status = OrderStatus::FILLED;
-                lend_pool.add_transaction(LendPoolCommand::LendOrderCreateOrder(
-                    command_clone,
-                    lendorder.clone(),
-                    lendorder.deposit,
-                ));
+                        let (tlv0, tps0) = lend_pool.get_lendpool();
+                        let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, tlv0, tps0);
+                        lendorder.order_status = OrderStatus::FILLED;
+                        // let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, 20048615383.0, 2000000.0);
+
+                        let next_output_state = create_output_state_for_trade_lend_order(
+                            (lend_pool.nonce + 1) as u32,
+                            lend_pool.last_output_state
+                                .clone()
+                                .as_output_data()
+                                .get_script_address()
+                                .unwrap()
+                                .clone(),
+                                lend_pool.last_output_state
+                                .clone()
+                                .as_output_data()
+                                .get_owner_address()
+                                .clone()
+                                .unwrap()
+                                .clone(),
+                                lendorder.tlv1 as u64,
+                                lendorder.tps1 as u64,
+                            0,
+                        );
+
+                        let  chain_result_receiver=zkos_order_handler(ZkosTxCommand::CreateLendOrderTX(
+                            lendorder.clone(),
+                            command_clone.clone(),
+                            lend_pool.last_output_state.clone(),
+                            next_output_state.clone(),
+                        ));
+                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+                        match zkos_receiver.recv() {
+                        Ok(chain_message)=>{
+                            match chain_message{
+                                Ok(tx_hash)=>{
+                                    lend_pool.add_transaction(LendPoolCommand::LendOrderCreateOrder(
+                                        command_clone,
+                                        lendorder.clone(),
+                                        lendorder.deposit,
+                                        next_output_state
+                                    ));
+                                }
+                                Err(verification_error)=>{
+                                    println!("Error in line relayercore.rs 299 : {:?}",verification_error);
+                                }
+                            }
+                        }
+                        Err(arg)=>{
+                            println!("Error in line relayercore.rs 304 : {:?}",arg);
+                        }
+
+
+                        }
+
+                } else 
+                {
+                    // send event for txhash with error saying order already exist in the relayer
+                    Event::new(Event::TxHash(Uuid::new_v4(), rpc_request.account_id.clone(), "Duplicate order found in the database with same public key".to_string(), OrderType::LEND, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros()
+                    .to_string(),None), String::from("tx_duplicate_error"),
+                    LENDPOOL_EVENT_LOG.clone().to_string());
                 }
 
                 drop(lend_pool);
@@ -169,23 +360,72 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 drop(lendorder_db);
                 match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
-                        match order.order_status {
+                      let mut order = order_detail.write().unwrap();
+                        let mut order_updated_clone= order.clone();
+                        match order_updated_clone.order_status {
                             OrderStatus::FILLED => {
                                 let (tlv2, tps2) = lend_pool.get_lendpool();
-                                match order.calculatepayment_localdb(tlv2, tps2) {
+                                match order_updated_clone.calculatepayment_localdb(tlv2, tps2) {
                                     Ok(_) => {
-                                        let order_clone = order.clone();
-                                        drop(order);
-                                        lend_pool.add_transaction(
-                                            LendPoolCommand::LendOrderSettleOrder(
-                                                command_clone,
-                                                order_clone.clone(),
-                                                order_clone.nwithdraw,
-                                            ),
+                                        let mut order_clone = order_updated_clone.clone();
+                                        order_clone.order_status = OrderStatus::SETTLED;
+                                        order_clone.exit_nonce = lend_pool.nonce+1;
+
+                                        let next_output_state = create_output_state_for_trade_lend_order(
+                                            (lend_pool.nonce+1) as u32,
+                                            lend_pool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                                lend_pool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                                order_clone.tlv3.round() as u64,
+                                                order_clone.tps3.round() as u64,
+                                            0,
                                         );
-                                        drop(lend_pool);
-                                    }
+
+
+                                        let  chain_result_receiver=zkos_order_handler(ZkosTxCommand::ExecuteLendOrderTX(
+                                            order_clone.clone(),
+                                            command_clone.clone(),
+                                            lend_pool.last_output_state.clone(),
+                                            next_output_state.clone(),
+                                        ));
+                                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+                                        match zkos_receiver.recv() {
+                                            Ok(chain_message)=>{
+                                                match chain_message{
+                                                    Ok(tx_hash)=>{
+                                                        *order = order_clone.clone();
+                                                        drop(order);
+                                                        lend_pool.add_transaction(
+                                                            LendPoolCommand::LendOrderSettleOrder(
+                                                                command_clone,
+                                                                order_clone.clone(),
+                                                                order_clone.nwithdraw,next_output_state
+                                                            ),
+                                                        ); 
+                                                    }
+                                                    Err(verification_error)=>{
+                                                        println!("Error in line relayercore.rs 299 : {:?}",verification_error);
+                                                    }
+                                                }
+                                            }
+                                            Err(arg)=>{
+                                                println!("Error in line relayercore.rs 304 : {:?}",arg);
+                                            }
+                            }
+                               drop(lend_pool);
+
+                                }
                                     Err(arg) => {
                                         drop(order);
                                         drop(lend_pool);
@@ -200,12 +440,26 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
+                                 // send event for txhash with error saying order already exist in the relayer
+                                Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order not found or invalid order status !!".to_string(), OrderType::LEND, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string(),None), String::from("lend_tx_not_found_error"),
+                                LENDPOOL_EVENT_LOG.clone().to_string());
                             }
                         }
                     }
                     Err(arg) => {
                         drop(lend_pool);
                         println!("Error found:{:#?}", arg);
+                         // send event for txhash with error saying order already exist in the relayer
+                        Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, format!("Error found:{:#?}", arg), OrderType::LEND, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                        .unwrap()
+                        .as_micros()
+                        .to_string(),None), String::from("lend_tx_not_found_error"),
+                        LENDPOOL_EVENT_LOG.clone().to_string());
                     }
                 }
             });
@@ -232,6 +486,12 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         let cancelled_order =
                                             trader_order_db.remove(order_clone, command_clone);
                                         drop(trader_order_db);
+                                        Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order successfully cancelled !!".to_string(), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_micros()
+                                        .to_string(),None), String::from("trader_tx_not_found_error"),
+                                        LENDPOOL_EVENT_LOG.clone().to_string());
                                     }
                                     _ => {
                                         drop(order);
@@ -244,6 +504,12 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                     "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
+                                Event::new(Event::TxHash(rpc_request.uuid, rpc_request.account_id, "Order not found or invalid order status !!".to_string(), rpc_request.order_type, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros()
+                                .to_string(),None), String::from("trader_tx_not_found_error"),
+                                LENDPOOL_EVENT_LOG.clone().to_string());
                             }
                         }
                     }
@@ -290,47 +556,119 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(lendpool);
         }
         RelayerCommand::PriceTickerLiquidation(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+            let mut orderdetails_array: Vec<(Result<Arc<RwLock<TraderOrder>>, std::io::Error>,Option<String>)> =
                 Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
-                let orderdetail = trader_order_db.get_mut(order_id);
+                let orderdetail = (trader_order_db.get_mut(order_id),trader_order_db.get_zkos_string(order_id));
                 orderdetails_array.push(orderdetail);
             }
             drop(trader_order_db);
-            let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
-            for order_detail_wraped in orderdetails_array {
+            let buffer = THREADPOOL_BULK_PENDING_ORDER_REMOVE.lock().unwrap();
+            for (order_detail_wraped,zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
                 buffer.execute(move || match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
+                        let mut order_mut_ref = order_detail.write().unwrap();
+                        let mut order: TraderOrder =order_mut_ref.clone();
                         match order.order_status {
                             OrderStatus::FILLED => {
                                 order.order_status = OrderStatus::LIQUIDATE;
                                 //update batch process
                                 let payment = order.liquidate(current_price_clone);
-                                let order_clone = order.clone();
-                                drop(order);
-                                println!("locking mutex LEND_POOL_DB");
+
                                 let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                                lendpool.add_transaction(
-                                    LendPoolCommand::AddTraderOrderLiquidation(
-                                        RelayerCommand::PriceTickerLiquidation(
-                                            vec![order_clone.uuid.clone()],
-                                            metadata_clone,
-                                            current_price_clone,
-                                        ),
-                                        order_clone.clone(),
-                                        payment,
+
+                                let next_output_state =
+                                create_output_state_for_trade_lend_order(
+                                    (lendpool.nonce+1) as u32,
+                                    lendpool.last_output_state
+                                        .clone()
+                                        .as_output_data()
+                                        .get_script_address()
+                                        .unwrap()
+                                        .clone(),
+                                    lendpool.last_output_state
+                                        .clone()
+                                        .as_output_data()
+                                        .get_owner_address()
+                                        .clone()
+                                        .unwrap()
+                                        .clone(),
+                                    (lendpool.total_locked_value.round() - payment.round()) as u64,
+                                    lendpool.total_pool_share.round() as u64,
+                                    0,
+                                );
+
+
+                                let  chain_result_receiver=zkos_order_handler(
+                                    ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
+                                        order.clone(),
+                                        zkos_msg_hex,
+                                        lendpool.last_output_state.clone(),
+                                        next_output_state.clone(),
                                     ),
                                 );
-                                println!("dropping mutex LEND_POOL_DB");
 
+                                let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+
+                                match zkos_receiver.recv() {
+                                    Ok(chain_message)=>{
+                                        match chain_message{
+                                            Ok(tx_hash)=>{
+                                                PositionSizeLog::remove_order(order.position_type.clone(), order.positionsize.clone());
+
+                                                
+                                                *order_mut_ref =order.clone();
+                                                drop(order_mut_ref);
+                                                println!("locking mutex LEND_POOL_DB");
+                                                
+                                                lendpool.add_transaction(
+                                                    LendPoolCommand::AddTraderOrderLiquidation(
+                                                        RelayerCommand::PriceTickerLiquidation(
+                                                            vec![order.uuid.clone()],
+                                                            metadata_clone,
+                                                            current_price_clone,
+                                                        ),
+                                                        order.clone(),
+                                                        payment,
+                                                    ),
+                                                );
+                                                println!("dropping mutex LEND_POOL_DB");
+                
+                                            }
+                                            Err(verification_error)=>{
+                                                println!("Error in line relayercore.rs 822 : {:?}",verification_error);
+                                                // settle limit removed from the db, need to place new limit/market settle request
+                                                Event::new(Event::TxHash(order.uuid, order.account_id, format!("Error : {:?}, liquidation failed",verification_error), order.order_type, OrderStatus::FILLED, std::time::SystemTime::now()
+                                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                .unwrap()
+                                                .as_micros()
+                                                .to_string(),None), String::from("tx_hash_error"),
+                                                LENDPOOL_EVENT_LOG.clone().to_string());
+
+
+                                            }
+                                        }
+                                    }
+                                    Err(arg)=>{
+                                        println!("Error in line relayercore.rs 827 : {:?}",arg);
+                                    }
+
+
+                                }
+                               
                                 drop(lendpool);
+
+
+
+
+                                
                             }
                             _ => {
-                                drop(order);
+                                drop(order_mut_ref);
                                 println!("Invalid order status !!\n");
                             }
                         }
@@ -343,46 +681,121 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(buffer);
         }
         RelayerCommand::PriceTickerOrderFill(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+            let mut orderdetails_array: Vec<(Result<Arc<RwLock<TraderOrder>>, std::io::Error>,Option<String>)> =
                 Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
-                let orderdetail = trader_order_db.get_mut(order_id);
+                let orderdetail = (trader_order_db.get_mut(order_id),trader_order_db.get_zkos_string(order_id));
                 orderdetails_array.push(orderdetail);
             }
             drop(trader_order_db);
             let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
-            for order_detail_wraped in orderdetails_array {
+            for (order_detail_wraped,zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
                 buffer.execute(move || match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
+                        let order_mut_clone = Arc::clone(&order_detail);
+                        let order_read_only_ref = order_detail.read().unwrap();
+                        let  order = order_read_only_ref.clone();
                         match order.order_status {
                             OrderStatus::PENDING => {
-                                let (update_order_detail, order_status) =
-                                    order.pending_order(current_price_clone);
+                                let buffer_insert = THREADPOOL_BULK_PENDING_ORDER_INSERT.lock().unwrap();
+                                buffer_insert.execute(move || {
+                                    let mut order_mut_ref = order_mut_clone.write().unwrap();
+                                    let mut order=order_mut_ref.clone();
+                                    let (mut update_order_detail, order_status) =
+                                        order.pending_order(current_price_clone);
+                            
+                                    let chain_result_receiver= zkos_order_handler(ZkosTxCommand::CreateTraderOrderLIMITTX(
+                                            update_order_detail.clone(),
+                                            zkos_msg_hex,
+                                        ));
+                                    let zkos_receiver =  chain_result_receiver.lock().unwrap();
+                                    match zkos_receiver.recv() {
+                                        Ok(chain_message)=>{
+                                            match chain_message{
+                                                Ok(tx_hash)=>{
+                                                    let mut filled_order =
+                                                    update_order_detail.orderinsert_localdb(order_status);
+                                                    filled_order.order_status = OrderStatus::FILLED;
+                                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                
+                                                *order_mut_ref =filled_order.clone();
+                                                drop(order_mut_ref);
+                                                let _ = trader_order_db.update(
+                                                    filled_order.clone(),
+                                                    RelayerCommand::PriceTickerOrderFill(
+                                                        vec![filled_order.uuid.clone()],
+                                                        metadata_clone,
+                                                        current_price_clone,
+                                                    ),
+                                                );
+                                                drop(trader_order_db);
+                                                }
+                                                Err(verification_error)=>{
+                                                    let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                                    drop(order_mut_ref);
+                                                   
+                                                    update_order_detail.order_status=OrderStatus::CANCELLED;
+                                                   
+                                                    let dummy_rpccommand =
+                                                    RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
+                                                        update_order_detail.clone(),
+                                                        metadata_clone,
+                                                        current_price_clone,
+                                                    );
+                                                    //remove invalid order from the localdb
+                                                    let _ = trader_order_db.remove(update_order_detail.clone(), dummy_rpccommand.clone());
+                                                    drop(trader_order_db);
 
-                                let filled_order =
-                                    update_order_detail.orderinsert_localdb(order_status);
-                                order.order_status = OrderStatus::FILLED;
-                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                                drop(order);
-                                let _ = trader_order_db.update(
-                                    filled_order.clone(),
-                                    RelayerCommand::PriceTickerOrderFill(
-                                        vec![filled_order.uuid.clone()],
-                                        metadata_clone,
-                                        current_price_clone,
-                                    ),
-                                );
-                                drop(trader_order_db);
+                                                    Event::new(Event::TxHash(update_order_detail.uuid, update_order_detail.account_id, verification_error, OrderType::LIMIT, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                    .unwrap()
+                                                    .as_micros()
+                                                    .to_string(),None), String::from("tx_hash_error"),
+                                                    LENDPOOL_EVENT_LOG.clone().to_string());
+
+                                                }
+                                            }
+                                        }
+                                        Err(arg)=>{
+                                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                            drop(order_mut_ref);
+                                            update_order_detail.order_status=OrderStatus::CANCELLED;
+                                                   
+                                            let dummy_rpccommand =
+                                            RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
+                                                update_order_detail.clone(),
+                                                metadata_clone,
+                                                current_price_clone,
+                                            );
+                                            //remove invalid order from the localdb
+                                            let _ = trader_order_db.remove(update_order_detail.clone(), dummy_rpccommand.clone());
+                                            drop(trader_order_db);
+
+                                                    Event::new(Event::TxHash(update_order_detail.uuid, update_order_detail.account_id, format!("Error found:{:#?}", arg), OrderType::LIMIT, OrderStatus::CANCELLED, std::time::SystemTime::now()
+                                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                    .unwrap()
+                                                    .as_micros()
+                                                    .to_string(),None), String::from("Receiver_error_limit"),
+                                                    LENDPOOL_EVENT_LOG.clone().to_string());
+                                        }
+
+
+                                    }
+                            
+
+
+                                
+                            });
                             }
                             _ => {
                                 drop(order);
                                 println!("Invalid order status !!\n");
                             }
                         }
+                        drop(order_read_only_ref);
                     }
                     Err(arg) => {
                         println!("Error found:{:#?}", arg);
@@ -392,45 +805,109 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(buffer);
         }
         RelayerCommand::PriceTickerOrderSettle(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<Result<Arc<RwLock<TraderOrder>>, std::io::Error>> =
+            let mut orderdetails_array: Vec<(Result<Arc<RwLock<TraderOrder>>, std::io::Error>,Option<String>)> =
                 Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
-                let orderdetail = trader_order_db.get_mut(order_id);
+                let orderdetail = (trader_order_db.get_mut(order_id),trader_order_db.get_zkos_string(order_id));
                 orderdetails_array.push(orderdetail);
             }
             drop(trader_order_db);
-            let buffer = THREADPOOL_BULK_PENDING_ORDER.lock().unwrap();
-            for order_detail_wraped in orderdetails_array {
+            let buffer = THREADPOOL_BULK_PENDING_ORDER_REMOVE.lock().unwrap();
+            for (order_detail_wraped,zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
                 buffer.execute(move || match order_detail_wraped {
                     Ok(order_detail) => {
-                        let mut order = order_detail.write().unwrap();
+                        let mut order_mut_ref = order_detail.write().unwrap();
+                        let mut order: TraderOrder =order_mut_ref.clone();
                         match order.order_status {
                             OrderStatus::FILLED => {
+
                                 let (payment, order_status) = order.check_for_settlement(
                                     current_price_clone,
                                     current_price_clone,
                                     OrderType::MARKET,
                                 );
+
                                 match order_status {
                                     OrderStatus::SETTLED => {
                                         let order_clone = order.clone();
-                                        drop(order);
+                                        
                                         let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                                        lendpool.add_transaction(
-                                            LendPoolCommand::AddTraderLimitOrderSettlement(
-                                                RelayerCommand::PriceTickerOrderSettle(
-                                                    vec![order_clone.uuid.clone()],
-                                                    metadata_clone,
-                                                    current_price_clone,
-                                                ),
-                                                order_clone.clone(),
-                                                payment,
-                                            ),
+
+                                        let next_output_state =
+                                        create_output_state_for_trade_lend_order(
+                                            (lendpool.nonce+1) as u32,
+                                            lendpool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_script_address()
+                                                .unwrap()
+                                                .clone(),
+                                            lendpool.last_output_state
+                                                .clone()
+                                                .as_output_data()
+                                                .get_owner_address()
+                                                .clone()
+                                                .unwrap()
+                                                .clone(),
+                                            (lendpool.total_locked_value.round() - payment.round()) as u64,
+                                            lendpool.total_pool_share.round() as u64,
+                                            0,
                                         );
+
+
+                                     let  chain_result_receiver=    zkos_order_handler(
+                                        ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
+                                            order_clone.clone(),
+                                            zkos_msg_hex,
+                                            lendpool.last_output_state.clone(),
+                                            next_output_state.clone(),
+                                        ),
+                                    );
+                                        let zkos_receiver =  chain_result_receiver.lock().unwrap();
+
+
+                                        match zkos_receiver.recv() {
+                                            Ok(chain_message)=>{
+                                                match chain_message{
+                                                    Ok(tx_hash)=>{
+                                                        *order_mut_ref =order_clone.clone();
+                                                        order_clone.order_remove_from_localdb();
+                                                        drop(order_mut_ref);
+                                                        lendpool.add_transaction(
+                                                            LendPoolCommand::AddTraderLimitOrderSettlement(
+                                                                RelayerCommand::PriceTickerOrderSettle(
+                                                                    vec![order_clone.uuid.clone()],
+                                                                    metadata_clone,
+                                                                    current_price_clone
+                                                                ),
+                                                                order_clone.clone(),
+                                                                payment,next_output_state
+                                                            ),
+                                                        );
+                                                    }
+                                                    Err(verification_error)=>{
+                                                        println!("Error in line relayercore.rs 822 : {:?}",verification_error);
+                                                        // settle limit removed from the db, need to place new limit/market settle request
+                                                        
+
+
+                                                    }
+                                                }
+                                            }
+                                            Err(arg)=>{
+                                                println!("Error in line relayercore.rs 827 : {:?}",arg);
+                                            }
+    
+    
+                                        }
+                                       
                                         drop(lendpool);
+
+                                        
+                                        
                                     }
                                     _ => {
                                         drop(order);
@@ -467,7 +944,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
     }
 }
 
-pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<Arc<Mutex<mpsc::Receiver<Result<String, std::string::String>>>>>> {
+pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Result<String, std::string::String>>>>{
     let command_clone = command.clone();
     let (sender, receiver) = mpsc::channel();
     let receiver_mutex = Arc::new(Mutex::new(receiver));
@@ -547,30 +1024,33 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                     sender_clone.send(tx_hash_result.clone()).unwrap();
     
                                     match tx_hash_result{
-                                        Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                        Ok(tx_hash)=>{
+                                            let _ = tx_hash_storage.add(
                                             bincode::serialize(&trader_order.uuid).unwrap(),
                                             serde_json::to_string(&tx_hash).unwrap(),
                                             0,
-                                        );
-                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
-                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                        .unwrap()
-                                        .as_micros()
-                                        .to_string(),Some(output_memo_hex)), String::from("tx_hash_result"),
-                                        LENDPOOL_EVENT_LOG.clone().to_string());
-                                    }
-                                        Err(arg)=>{let _ = tx_hash_storage.add(
+                                            );
+                                            Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_micros()
+                                            .to_string(),Some(output_memo_hex)), String::from("tx_hash_result"),
+                                            LENDPOOL_EVENT_LOG.clone().to_string());
+                                        }
+                                        Err(arg)=>{
+                                            let _ = tx_hash_storage.add(
                                             bincode::serialize(&trader_order.uuid).unwrap(),
                                             serde_json::to_string(&arg).unwrap(),
                                             0,
-                                        );
+                                            );
                                     
-                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
-                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                        .unwrap()
-                                        .as_micros()
-                                        .to_string(),None), String::from("tx_hash_error"),
-                                        LENDPOOL_EVENT_LOG.clone().to_string());}
+                                            Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_micros()
+                                            .to_string(),None), String::from("tx_hash_error"),
+                                            LENDPOOL_EVENT_LOG.clone().to_string());
+                                        }
                                     }
                                     drop(tx_hash_storage);
                                               
@@ -1384,7 +1864,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                         0,
                                     );
                                 
-                                    Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                    Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, format!("Error : {:?}, need to place new limit/market settle request",arg), trader_order.order_type, OrderStatus::FILLED, std::time::SystemTime::now()
                                     .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                     .unwrap()
                                     .as_micros()
@@ -1538,7 +2018,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                             0,
                                         );
                                     
-                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, format!("Error : {:?}, liquidation failed",arg), trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
                                         .duration_since(std::time::SystemTime::UNIX_EPOCH)
                                         .unwrap()
                                         .as_micros()
@@ -1577,7 +2057,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
         let fn_response_tx_hash=Err("ZKOS CHAIN TRANSACTION IS NOT ACTIVE".to_string());
         sender.send(fn_response_tx_hash).unwrap();
     }
-return   Arc::new(Mutex::new(receiver_mutex));
+return   Arc::clone(&receiver_mutex);
 }
 
 
