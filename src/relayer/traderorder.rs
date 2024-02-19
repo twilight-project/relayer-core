@@ -489,7 +489,7 @@ impl TraderOrder {
             price: ordertx.entryprice,
             timestamp: std::time::SystemTime::now(),
         });
-        self.initial_margin.clone()
+        -self.initial_margin.clone()
     }
 
     //order code for batching

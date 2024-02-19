@@ -596,7 +596,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         .clone()
                                         .unwrap()
                                         .clone(),
-                                    (lendpool.total_locked_value.round() + payment.round()) as u64,
+                                    (lendpool.total_locked_value.round() - payment.round()) as u64,
                                     lendpool.total_pool_share.round() as u64,
                                     0,
                                 );
@@ -633,7 +633,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             current_price_clone,
                                                         ),
                                                         order.clone(),
-                                                        -payment,
+                                                        payment,
                                                     ),
                                                 );
                                                 println!("dropping mutex LEND_POOL_DB");
