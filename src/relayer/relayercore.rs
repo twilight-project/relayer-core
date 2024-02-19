@@ -633,7 +633,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             current_price_clone,
                                                         ),
                                                         order.clone(),
-                                                        payment,
+                                                        -payment,
                                                     ),
                                                 );
                                                 println!("dropping mutex LEND_POOL_DB");
