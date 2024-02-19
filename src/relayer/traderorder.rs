@@ -379,7 +379,7 @@ impl TraderOrder {
         );
         let payment = u_pnl.round() + margindifference.round();
         self.order_status = OrderStatus::SETTLED;
-        self.available_margin += payment;
+        self.available_margin = self.initial_margin + payment;
         self.settlement_price = current_price;
         self.unrealized_pnl = u_pnl;
 

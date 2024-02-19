@@ -1405,8 +1405,14 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
 
                                 let mut margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone()    - trader_order.unrealized_pnl.round() ;
                                 println!("margin_dif : {:?}",margin_dif);
+
+                                let mut program_tag = "SettleTraderOrder".to_string();
+
+
+
                                 if margin_dif < 0.0 { 
                                     margin_dif = margin_dif*(-1.0);
+                                    program_tag = "SettleTraderOrderNegativeMarginDifference".to_string();
                                 }
                                 let margin_dif_u64 =margin_dif.round() as u64;
 
@@ -1437,6 +1443,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         trader_order.settlement_price.round() as u64, 
                                         contract_owner_sk, 
                                         contract_owner_pk,
+                                        program_tag
                                     );
 
                                                                     
@@ -1784,7 +1791,18 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
 
                                 let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
 
-                                let margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone() as u64  - trader_order.unrealized_pnl.round() as u64;
+                                let mut margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone()    - trader_order.unrealized_pnl.round() ;
+                                println!("margin_dif : {:?}",margin_dif);
+
+                                let mut program_tag = "SettleTraderOrder".to_string();
+
+
+
+                                if margin_dif < 0.0 { 
+                                    margin_dif = margin_dif*(-1.0);
+                                    program_tag = "SettleTraderOrderNegativeMarginDifference".to_string();
+                                }
+                                let margin_dif_u64 =margin_dif.round() as u64;
                                 
                                 println!("\n\n next_state_output.clone() : {:?}",next_state_output.clone());
                                 println!("\n\n last_state_output.clone() : {:?}",last_state_output.clone());
@@ -1808,10 +1826,11 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                     last_state_output.clone(),   
                                     next_state_output.clone(), 
                                     lock_error,  
-                                    margin_dif, 
+                                    margin_dif_u64, 
                                         trader_order.settlement_price.round() as u64, 
                                         contract_owner_sk, 
                                         contract_owner_pk,
+                                        program_tag
                                     );
 
                                                                     
@@ -1939,7 +1958,18 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
     
                                 let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
     
-                                let margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone() as u64  - trader_order.unrealized_pnl.round() as u64;
+                                let mut margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone()    - trader_order.unrealized_pnl.round() ;
+                                println!("margin_dif : {:?}",margin_dif);
+
+                                let mut program_tag = "LiquidateOrder".to_string();
+
+
+
+                                if margin_dif < 0.0 { 
+                                    margin_dif = margin_dif*(-1.0);
+                                    program_tag = "LiquidateOrder".to_string();
+                                }
+                                let margin_dif_u64 =margin_dif.round() as u64;
                                 
                                 println!("\n\n next_state_output.clone() : {:?}",next_state_output.clone());
                                 println!("\n\n last_state_output.clone() : {:?}",last_state_output.clone());
@@ -1962,11 +1992,12 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
                                     last_state_output.clone(),   
                                     next_state_output.clone(), 
-                                    lock_error,  
-                                    margin_dif, 
+                                    0,  
+                                    0, 
                                         trader_order.settlement_price.round() as u64, 
                                         contract_owner_sk, 
                                         contract_owner_pk,
+                                        program_tag
                                     );
     
                                                                     
