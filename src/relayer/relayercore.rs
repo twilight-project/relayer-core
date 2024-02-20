@@ -703,7 +703,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 let buffer_insert = THREADPOOL_BULK_PENDING_ORDER_INSERT.lock().unwrap();
                                 buffer_insert.execute(move || {
                                     let mut order_mut_ref = order_mut_clone.write().unwrap();
-                                    let mut order=order_mut_ref.clone();
+                                    let order=order_mut_ref.clone();
                                     let (mut update_order_detail, order_status) =
                                         order.pending_order(current_price_clone);
                             
@@ -981,7 +981,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
 
                                  let result_output = update_trader_output_memo(zkos_create_order.output, trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
 
-println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.round() : {:?} ,",trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
+                                println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.round() : {:?} ,",trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
 
                                  let output_memo_bin = bincode::serialize(&result_output.clone().unwrap().clone()).unwrap();
                                  let output_memo_hex = hex::encode(&output_memo_bin);
@@ -1403,12 +1403,24 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
 
                                 let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
 
-                                let margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone() as u64  - trader_order.unrealized_pnl.round() as u64;
-                                
+                                let mut margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone()    - trader_order.unrealized_pnl.round() ;
+                                println!("margin_dif : {:?}",margin_dif);
+
+                                let mut program_tag = "SettleTraderOrder".to_string();
+
+
+
+                                if margin_dif < 0.0 { 
+                                    margin_dif = margin_dif*(-1.0);
+                                    program_tag = "SettleTraderOrderNegativeMarginDifference".to_string();
+                                }
+                                let margin_dif_u64 =margin_dif.round() as u64;
+
                                 println!("\n\n next_state_output.clone() : {:?}",next_state_output.clone());
                                 println!("\n\n last_state_output.clone() : {:?}",last_state_output.clone());
 
-                                println!("margin_dif : {:?}",margin_dif);
+                                
+                                println!("margin_dif : {:?}",margin_dif_u64);
                                 println!(" \n zkos_settle_msg.output.clone() : {:?}",zkos_settle_msg.output.clone());
                                 println!("\n\n trader_order.available_margin.clone().round() : {:?}",trader_order.available_margin.clone().round() as u64);
                                 println!("\n\n trader_order.settlement_price.round() : {:?}",trader_order.settlement_price.round() as u64);
@@ -1427,10 +1439,11 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                     last_state_output.clone(),   
                                     next_state_output.clone(), 
                                     lock_error,  
-                                    margin_dif, 
+                                    margin_dif_u64, 
                                         trader_order.settlement_price.round() as u64, 
                                         contract_owner_sk, 
                                         contract_owner_pk,
+                                        program_tag
                                     );
 
                                                                     
@@ -1637,7 +1650,7 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
 
                                  let result_output = update_trader_output_memo(zkos_create_order.output, trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
 
-println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.round() : {:?} ,",trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
+                                println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.round() : {:?} ,",trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
 
                                  let output_memo_bin = bincode::serialize(&result_output.clone().unwrap().clone()).unwrap();
                                  let output_memo_hex = hex::encode(&output_memo_bin);
@@ -1744,152 +1757,165 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
             ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(trader_order, zkos_string, last_state_output, next_state_output) => {
 
             let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
-            buffer.execute(move || 
-               match zkos_string {
-                    Some(zkos_settle_msg_result) =>{
+                buffer.execute(move || 
+                match zkos_string {
+                        Some(zkos_settle_msg_result) =>{
 
-                        println!("lend_order:{:#?}",trader_order.clone());
-                        let zkos_settle_msg_result=ZkosCreateOrder::decode_from_hex_string(zkos_settle_msg_result);
-                       
-                        match zkos_settle_msg_result {
-                            Ok(zkos_settle_msg) => {
-                            let mut file = File::create(format!("./zkos_settle_msg_{:?}.txt",trader_order.uuid.clone())).unwrap();
-                            file.write_all(
-                                &serde_json::to_vec(&zkos_settle_msg.clone()).unwrap(),
-                            )
-                            .unwrap();
-                            let mut file_bin =
-                                File::create(format!("./zkos_settle_msg_file_bin_{:?}.txt",trader_order.uuid.clone())).unwrap();
-                            file_bin
-                                .write_all(
-                                    &serde_json::to_vec(
-                                        &bincode::serialize(&zkos_settle_msg.clone())
+                            println!("lend_order:{:#?}",trader_order.clone());
+                            let zkos_settle_msg_result=ZkosCreateOrder::decode_from_hex_string(zkos_settle_msg_result);
+                        
+                            match zkos_settle_msg_result {
+                                Ok(zkos_settle_msg) => {
+                                let mut file = File::create(format!("./zkos_settle_msg_{:?}.txt",trader_order.uuid.clone())).unwrap();
+                                file.write_all(
+                                    &serde_json::to_vec(&zkos_settle_msg.clone()).unwrap(),
+                                )
+                                .unwrap();
+                                let mut file_bin =
+                                    File::create(format!("./zkos_settle_msg_file_bin_{:?}.txt",trader_order.uuid.clone())).unwrap();
+                                file_bin
+                                    .write_all(
+                                        &serde_json::to_vec(
+                                            &bincode::serialize(&zkos_settle_msg.clone())
+                                                .unwrap(),
+                                        )
+                                        .unwrap(),
+                                    )
+                                    .unwrap();
+
+                                
+
+                                let contract_owner_sk =get_sk_from_fixed_wallet();
+
+                                let contract_owner_pk = get_pk_from_fixed_wallet();
+
+                                let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
+
+                                let mut margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone()    - trader_order.unrealized_pnl.round() ;
+                                println!("margin_dif : {:?}",margin_dif);
+
+                                let mut program_tag = "SettleTraderOrder".to_string();
+
+
+
+                                if margin_dif < 0.0 { 
+                                    margin_dif = margin_dif*(-1.0);
+                                    program_tag = "SettleTraderOrderNegativeMarginDifference".to_string();
+                                }
+                                let margin_dif_u64 =margin_dif.round() as u64;
+                                
+                                println!("\n\n next_state_output.clone() : {:?}",next_state_output.clone());
+                                println!("\n\n last_state_output.clone() : {:?}",last_state_output.clone());
+
+                                println!("margin_dif : {:?}",margin_dif);
+                                println!(" \n zkos_settle_msg.output.clone() : {:?}",zkos_settle_msg.output.clone());
+                                println!("\n\n trader_order.available_margin.clone().round() : {:?}",trader_order.available_margin.clone().round() as u64);
+                                println!("\n\n trader_order.settlement_price.round() : {:?}",trader_order.settlement_price.round() as u64);
+                                println!("\n\n lock_error : {:?}",lock_error);
+
+
+                                let transaction=  settle_trader_order(
+                                        zkos_settle_msg.output.clone(),  
+                                        trader_order.available_margin.clone().round() as u64,                            
+                                        &ContractManager::import_program(
+                                            &WALLET_PROGRAM_PATH.clone()
+                                        ),
+                                        Network::Mainnet,
+                                        1u64,                      
+                                        last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
+                                    last_state_output.clone(),   
+                                    next_state_output.clone(), 
+                                    lock_error,  
+                                    margin_dif_u64, 
+                                        trader_order.settlement_price.round() as u64, 
+                                        contract_owner_sk, 
+                                        contract_owner_pk,
+                                        program_tag
+                                    );
+
+                                                                    
+                                let mut file = File::create(format!("./settle_transaction_{:?}.txt",trader_order.uuid.clone())).unwrap();
+                                file.write_all(
+                                    &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                )
+                                .unwrap();
+
+
+                                match transaction.clone() {
+                                    Ok(tx)=>{
+                                    let verify_tx =  tx.verify();
+                                    println!("tx hex : {:?}",hex::encode(bincode::serialize(&tx).unwrap()));
+                                        println!("verify:{:?}",verify_tx);
+
+                                    }
+                                    Err(arg)=>println!("error at line 859 :{:?}",arg)
+                                }
+
+                                        let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
+                                            Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
+                                            Err(arg)=>{Err(arg.to_string())}
+                                        };
+                                        let sender_clone = sender.clone();
+                                        sender_clone.send(tx_hash_result.clone()).unwrap();
+                                        let mut tx_hash_storage =
+                                        TXHASH_STORAGE.lock().unwrap();
+
+                                        let mut file =
+                                        File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                            .unwrap();
+                                    file.write_all(
+                                        &serde_json::to_vec(&tx_hash_result.clone())
                                             .unwrap(),
                                     )
-                                    .unwrap(),
-                                )
-                                .unwrap();
+                                    .unwrap();
 
-                            
-
-                            let contract_owner_sk =get_sk_from_fixed_wallet();
-
-                            let contract_owner_pk = get_pk_from_fixed_wallet();
-
-                            let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
-
-                            let margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone() as u64  - trader_order.unrealized_pnl.round() as u64;
-                            
-                            println!("\n\n next_state_output.clone() : {:?}",next_state_output.clone());
-                            println!("\n\n last_state_output.clone() : {:?}",last_state_output.clone());
-
-                            println!("margin_dif : {:?}",margin_dif);
-                            println!(" \n zkos_settle_msg.output.clone() : {:?}",zkos_settle_msg.output.clone());
-                            println!("\n\n trader_order.available_margin.clone().round() : {:?}",trader_order.available_margin.clone().round() as u64);
-                            println!("\n\n trader_order.settlement_price.round() : {:?}",trader_order.settlement_price.round() as u64);
-                            println!("\n\n lock_error : {:?}",lock_error);
-
-
-                            let transaction=  settle_trader_order(
-                                    zkos_settle_msg.output.clone(),  
-                                    trader_order.available_margin.clone().round() as u64,                            
-                                    &ContractManager::import_program(
-                                        &WALLET_PROGRAM_PATH.clone()
-                                    ),
-                                    Network::Mainnet,
-                                    1u64,                      
-                                    last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
-                                last_state_output.clone(),   
-                                next_state_output.clone(), 
-                                lock_error,  
-                                margin_dif, 
-                                    trader_order.settlement_price.round() as u64, 
-                                    contract_owner_sk, 
-                                    contract_owner_pk,
-                                );
-
-                                                                
-                            let mut file = File::create(format!("./settle_transaction_{:?}.txt",trader_order.uuid.clone())).unwrap();
-                            file.write_all(
-                                &serde_json::to_vec(&transaction.clone()).unwrap(),
-                            )
-                            .unwrap();
-
-
-                            match transaction.clone() {
-                                Ok(tx)=>{
-                                let verify_tx =  tx.verify();
-                                println!("tx hex : {:?}",hex::encode(bincode::serialize(&tx).unwrap()));
-                                    println!("verify:{:?}",verify_tx);
-
-                                }
-                                Err(arg)=>println!("error at line 859 :{:?}",arg)
+                                    match tx_hash_result{
+                                        Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                            bincode::serialize(&trader_order.uuid).unwrap(),
+                                            serde_json::to_string(&tx_hash).unwrap(),
+                                            0,
+                                        );
+                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_micros()
+                                        .to_string(),None), String::from("tx_hash_result"),
+                                        LENDPOOL_EVENT_LOG.clone().to_string());
+                                    
+                                    }
+                                        Err(arg)=>{let _ = tx_hash_storage.add(
+                                            bincode::serialize(&trader_order.uuid).unwrap(),
+                                            serde_json::to_string(&arg).unwrap(),
+                                            0,
+                                        );
+                                    
+                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, format!("Error : {:?}, need to place new limit/market settle request",arg), trader_order.order_type, OrderStatus::FILLED, std::time::SystemTime::now()
+                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_micros()
+                                        .to_string(),None), String::from("tx_hash_error"),
+                                        LENDPOOL_EVENT_LOG.clone().to_string());}
+                                    }
+                                    drop(tx_hash_storage);
+                                
                             }
-
-                                    let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
-                                        Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
-                                        Err(arg)=>{Err(arg.to_string())}
-                                    };
-                                    let sender_clone = sender.clone();
-                                    sender_clone.send(tx_hash_result.clone()).unwrap();
-                                    let mut tx_hash_storage =
-                                    TXHASH_STORAGE.lock().unwrap();
-
-                                    let mut file =
-                                    File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
-                                        .unwrap();
-                                file.write_all(
-                                    &serde_json::to_vec(&tx_hash_result.clone())
-                                        .unwrap(),
-                                )
-                                .unwrap();
-
-                                match tx_hash_result{
-                                    Ok(tx_hash)=>{let _ = tx_hash_storage.add(
-                                        bincode::serialize(&trader_order.uuid).unwrap(),
-                                        serde_json::to_string(&tx_hash).unwrap(),
-                                        0,
-                                    );
-                                    Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
-                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_micros()
-                                    .to_string(),None), String::from("tx_hash_result"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string());
-                                
-                                }
-                                    Err(arg)=>{let _ = tx_hash_storage.add(
-                                        bincode::serialize(&trader_order.uuid).unwrap(),
-                                        serde_json::to_string(&arg).unwrap(),
-                                        0,
-                                    );
-                                
-                                    Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, format!("Error : {:?}, need to place new limit/market settle request",arg), trader_order.order_type, OrderStatus::FILLED, std::time::SystemTime::now()
-                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_micros()
-                                    .to_string(),None), String::from("tx_hash_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string());}
-                                }
-                                drop(tx_hash_storage);
-                            
+                            Err(arg) => {
+                                println!(
+                                    "Error:ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX : arg:{:#?}",
+                                    arg
+                                );
+                            }
                         }
-                        Err(arg) => {
-                            println!(
-                                "Error:ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX : arg:{:#?}",
-                                arg
-                            );
-                        }
+
+
                     }
-
-
-                }
-                None => {println!(
-                    "Zkos Order string not found"
-                );
-                let sender_clone = sender.clone();
-                                    let fn_response_tx_hash = Err("Zkos Order String Not Found".to_string());
-                                    sender_clone.send(fn_response_tx_hash.clone()).unwrap();
+                    None => {println!(
+                        "Zkos Order string not found"
+                    );
+                    let sender_clone = sender.clone();
+                                        let fn_response_tx_hash = Err("Zkos Order String Not Found".to_string());
+                                        sender_clone.send(fn_response_tx_hash.clone()).unwrap();
+                
             }
         }
     );
@@ -1932,7 +1958,18 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
     
                                 let lock_error= get_lock_error_for_trader_settle(trader_order.clone());
     
-                                let margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone() as u64  - trader_order.unrealized_pnl.round() as u64;
+                                let mut margin_dif =( trader_order.available_margin.round()  - trader_order.initial_margin.round()).clone()    - trader_order.unrealized_pnl.round() ;
+                                println!("margin_dif : {:?}",margin_dif);
+
+                                let mut program_tag = "LiquidateOrder".to_string();
+
+
+
+                                if margin_dif < 0.0 { 
+                                    margin_dif = margin_dif*(-1.0);
+                                    program_tag = "LiquidateOrder".to_string();
+                                }
+                                let margin_dif_u64 =margin_dif.round() as u64;
                                 
                                 println!("\n\n next_state_output.clone() : {:?}",next_state_output.clone());
                                 println!("\n\n last_state_output.clone() : {:?}",last_state_output.clone());
@@ -1955,11 +1992,12 @@ println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.ro
                                         last_state_output.as_output_data().get_owner_address().unwrap().clone(), 
                                     last_state_output.clone(),   
                                     next_state_output.clone(), 
-                                    lock_error,  
-                                    margin_dif, 
+                                    0,  
+                                    0, 
                                         trader_order.settlement_price.round() as u64, 
                                         contract_owner_sk, 
                                         contract_owner_pk,
+                                        program_tag
                                     );
     
                                                                     
