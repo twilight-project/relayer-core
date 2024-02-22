@@ -74,7 +74,7 @@ pub fn get_localdb(key: &str) -> f64 {
     let local_storage = LOCALDB.lock().unwrap();
     let price = local_storage.get(key).unwrap().clone();
     drop(local_storage);
-    price
+    price.round()
 }
 
 pub fn set_localdb(key: &'static str, value: f64) {

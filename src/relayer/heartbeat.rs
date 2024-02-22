@@ -42,7 +42,7 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                // updatefundingrate_localdb(1.0);
+                updatefundingrate_localdb(1.0);
             });
             // scheduler.every(1.seconds()).run(move || {
             //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
@@ -100,18 +100,19 @@ pub fn price_check_and_update() {
 
     //get_localdb with single mutex unlock
     let local_storage = LOCALDB.lock().unwrap();
-    let currentprice = local_storage.get("Latest_Price").unwrap().clone();
+    let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
     let old_price = local_storage.get("CurrentPrice").unwrap().clone();
     drop(local_storage);
 
     if currentprice != old_price {
-        set_localdb("CurrentPrice", currentprice);
-        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         Event::new(
             Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
             String::from("insert_CurrentPrice"),
             TRADERORDER_EVENT_LOG.clone().to_string(),
         );
+        set_localdb("CurrentPrice", currentprice);
+        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
+        currentprice = currentprice.round();
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
         treadpool_pending_order.execute(move || {
             check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
