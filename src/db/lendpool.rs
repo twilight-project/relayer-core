@@ -626,7 +626,8 @@ impl LendPool {
                             }
                         }
                         drop(trader_order_db);
-                        self.pending_orders.trader_order_data = Vec::new();
+                        // self.pending_orders.trader_order_data = Vec::new();
+                        self.pending_orders = PoolBatchOrder::new();
                         Event::new(
                             Event::PoolUpdate(
                                 command_clone,
@@ -636,7 +637,6 @@ impl LendPool {
                             String::from(format!("RpcCommandPoolupdate-nonce-{}", self.nonce)),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
-                        self.pending_orders = PoolBatchOrder::new();
                     }
                 }
                 _ => {}
