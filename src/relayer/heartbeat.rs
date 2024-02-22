@@ -32,6 +32,15 @@ pub fn heartbeat() {
     init_output_txhash_storage();
 
     thread::sleep(time::Duration::from_millis(100));
+
+    thread::Builder::new()
+        .name(String::from("BTC Binance Websocket Connection"))
+        .spawn(move || {
+            // thread::sleep(time::Duration::from_millis(1000));
+            receive_btc_price();
+        })
+        .unwrap();
+    thread::sleep(time::Duration::from_millis(500));
     // start_cronjobs();
     // main thread for scheduler
     thread::Builder::new()
@@ -42,16 +51,16 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                // updatefundingrate_localdb(1.0);
+                updatefundingrate_localdb(1.0);
             });
             // scheduler.every(1.seconds()).run(move || {
             //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
             // });
-            scheduler.every(75.minute()).run(move || {
-                // let _ = snapshot();
+            scheduler.every(15.minute()).run(move || {
+                let _ = snapshot();
             });
 
-            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
+            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(1000));
             loop {
                 thread::sleep(time::Duration::from_millis(100000000));
             }
@@ -72,14 +81,6 @@ pub fn heartbeat() {
         .name(String::from("json-RPC startserver"))
         .spawn(move || {
             startserver();
-        })
-        .unwrap();
-
-    thread::Builder::new()
-        .name(String::from("BTC Binance Websocket Connection"))
-        .spawn(move || {
-            // thread::sleep(time::Duration::from_millis(1000));
-            receive_btc_price();
         })
         .unwrap();
 
