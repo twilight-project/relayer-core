@@ -100,9 +100,21 @@ pub fn price_check_and_update() {
     let current_time = std::time::SystemTime::now();
 
     //get_localdb with single mutex unlock
-    let local_storage = LOCALDB.lock().unwrap();
-    let currentprice = local_storage.get("Latest_Price").unwrap().clone();
-    let old_price = local_storage.get("CurrentPrice").unwrap().clone();
+    let mut local_storage = LOCALDB.lock().unwrap();
+    // let currentprice = local_storage.get("Latest_Price").unwrap().clone();
+    let currentprice = match local_storage.get("Latest_price") {
+        Some(price) => price.clone(),
+        None => return,
+    };
+    let old_price = match local_storage.get("CurrentPrice") {
+        Some(price) => price.clone(),
+        None => {
+            local_storage.insert("CurrentPrice", currentprice);
+            currentprice.clone()
+        }
+    };
+
+    // let old_price = local_storage.get("CurrentPrice").unwrap().clone();
     drop(local_storage);
 
     if currentprice != old_price {
