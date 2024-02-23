@@ -159,9 +159,9 @@ lazy_static! {
     .expect("missing environment variable ZKOS_TRANSACTION_RPC_ENDPOINT");
 
 
-    pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<zkvm::zkos_types::Output>>> =
+    pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>>> =
     Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
-        zkvm::zkos_types::Output,
+        Option<zkvm::zkos_types::Output>,
     >::new(1)));
 
     pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
@@ -246,9 +246,9 @@ pub struct BinanceMiniTickerPayload {
 }
 
 pub fn init_output_txhash_storage() {
-    let mut output_storage = OUTPUT_STORAGE.lock().unwrap();
-    let _ = output_storage.load_from_snapshot();
-    drop(output_storage);
+    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+    let _ = output_hex_storage.load_from_snapshot();
+    drop(output_hex_storage);
     let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
     let _ = txhash_storage.load_from_snapshot();
     drop(txhash_storage);

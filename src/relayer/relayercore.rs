@@ -5,6 +5,7 @@ use crate::relayer::*;
 use address::Network;
 use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 use uuid::Uuid;
+use zkvm::Output;
 use std::sync::{Arc, Mutex, RwLock,mpsc};
 use std::fs::File;
 use std::io::prelude::*;
@@ -982,81 +983,87 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         let result_output = update_trader_output_memo(zkos_create_order.output, trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
 
                                         println!("trader_order.entryprice.round() : {:?} \n trader_order.positionsize.round() : {:?} ,",trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
+                                        let mut output_option:Option<Output>;
+                                        match result_output{
+                                            Ok(output)=>{
+                                                let output_memo_bin = bincode::serialize(&result_output.clone().unwrap().clone()).unwrap();
+                                                let output_memo_hex = hex::encode(&output_memo_bin);
+                                                println!("\n output_memo_hex: {:?} \n", output_memo_hex);
+                                                println!("\n output_memo_orignal: {:?} \n", result_output.clone().unwrap());
+                                                let transaction = create_trade_order(
+                                                    zkos_create_order.input,
+                                                    output.clone(),
+                                                    zkos_create_order.signature,
+                                                    zkos_create_order.proof,
+                                                    &ContractManager::import_program(
+                                                        &WALLET_PROGRAM_PATH.clone(),
+                                                    ),
+                                                    Network::Mainnet,
+                                                    5u64,
+                                                );
+                                                output_option=Some(output);
 
-                                        let output_memo_bin = bincode::serialize(&result_output.clone().unwrap().clone()).unwrap();
-                                        let output_memo_hex = hex::encode(&output_memo_bin);
-                                        println!("\n output_memo_hex: {:?} \n", output_memo_hex);
-                                        println!("\n output_memo_orignal: {:?} \n", result_output.clone().unwrap());
-                                        let transaction = create_trade_order(
-                                            zkos_create_order.input,
-                                            result_output.unwrap(),
-                                            zkos_create_order.signature,
-                                            zkos_create_order.proof,
-                                            &ContractManager::import_program(
-                                                &WALLET_PROGRAM_PATH.clone(),
-                                            ),
-                                            Network::Mainnet,
-                                            5u64,
-                                        );
-                                    
-                                        let mut file = File::create("./traderOrder_transaction.txt").unwrap();
-                                        file.write_all(
-                                            &serde_json::to_vec(&transaction.clone()).unwrap(),
-                                        )
-                                        .unwrap();
-    
-                                        let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
-                                            Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
-                                            Err(arg)=>{Err(arg.to_string())}
-                                        };
-                                        let mut tx_hash_storage =
-                                        TXHASH_STORAGE.lock().unwrap();
-    
-                                            let mut file =
-                                            File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                                let mut file = File::create("./traderOrder_transaction.txt").unwrap();
+                                                file.write_all(
+                                                    &serde_json::to_vec(&transaction.clone()).unwrap(),
+                                                )
                                                 .unwrap();
-                                        file.write_all(
-                                            &serde_json::to_vec(&tx_hash_result.clone())
-                                                .unwrap(),
-                                        )
-                                        .unwrap();
-                                        let sender_clone = sender.clone();
-                                        sender_clone.send(tx_hash_result.clone()).unwrap();
-    
-                                        match tx_hash_result{
-                                            Ok(tx_hash)=>{
-                                                let _ = tx_hash_storage.add(
-                                                bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&tx_hash).unwrap(),
-                                                0,
-                                                );
-                                                Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
-                                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                                .unwrap()
-                                                .as_micros()
-                                                .to_string(),Some(output_memo_hex)), String::from("tx_hash_result"),
-                                                LENDPOOL_EVENT_LOG.clone().to_string());
-                                            }
-                                            Err(arg)=>{
-                                                let _ = tx_hash_storage.add(
-                                                bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&arg).unwrap(),
-                                                0,
-                                                );
-                                        
-                                                Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
-                                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                                .unwrap()
-                                                .as_micros()
-                                                .to_string(),None), String::from("tx_hash_error"),
-                                                LENDPOOL_EVENT_LOG.clone().to_string());
-                                            }
-                                        }
-
-                                        drop(tx_hash_storage);
+            
+                                                let tx_hash_result:Result<std::string::String, std::string::String>=match transaction{
+                                                    Ok(tx)=>{relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx)}
+                                                    Err(arg)=>{Err(arg.to_string())}
+                                                };
+                                                let mut output_hex_storage =
+                                                OUTPUT_STORAGE.lock().unwrap();
+            
+                                                    let mut file =
+                                                    File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
+                                                        .unwrap();
+                                                file.write_all(
+                                                    &serde_json::to_vec(&tx_hash_result.clone())
+                                                        .unwrap(),
+                                                )
+                                                .unwrap();
+                                                let sender_clone = sender.clone();
+                                                sender_clone.send(tx_hash_result.clone()).unwrap();
+            
+                                                match tx_hash_result{
+                                                    Ok(tx_hash)=>{
+                                                        let _ = output_hex_storage.add(
+                                                        bincode::serialize(&trader_order.uuid).unwrap(),
+                                                        output_option,
+                                                        0,
+                                                        );
+                                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                        .unwrap()
+                                                        .as_micros()
+                                                        .to_string(),Some(output_memo_hex)), String::from("tx_hash_result"),
+                                                        LENDPOOL_EVENT_LOG.clone().to_string());
+                                                    }
+                                                    Err(arg)=>{
+                                                        let _ = output_hex_storage.add(
+                                                        bincode::serialize(&trader_order.uuid).unwrap(),
+                                                        None,
+                                                        0,
+                                                        );
                                                 
-    
-    
+                                                        Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, arg, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
+                                                        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                                        .unwrap()
+                                                        .as_micros()
+                                                        .to_string(),None), String::from("tx_hash_error"),
+                                                        LENDPOOL_EVENT_LOG.clone().to_string());
+                                                    }
+                                                }
+
+                                                drop(output_hex_storage);
+                                                            
+                                    }
+                                    Err(arg)=>{
+                                        output_option=None;
+                                    }
+                                                                                }
                                       
                                     }
                                     Err(arg) => {
@@ -1175,8 +1182,8 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                 };
                                 let sender_clone = sender.clone();
                                     sender_clone.send(tx_hash_result.clone()).unwrap();
-                                let mut tx_hash_storage =
-                                TXHASH_STORAGE.lock().unwrap();
+                                let mut output_hex_storage =
+                                OUTPUT_STORAGE.lock().unwrap();
 
                                 let mut file =
                                 File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
@@ -1188,9 +1195,9 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                 .unwrap();
 
                                 match tx_hash_result{
-                                    Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                    Ok(tx_hash)=>{let _ = output_hex_storage.add(
                                         bincode::serialize(&lend_order.uuid).unwrap(),
-                                        serde_json::to_string(&tx_hash).unwrap(),
+                                        zkos_create_order.output,
                                         0,
                                     );
                                     Event::new(Event::TxHash(lend_order.uuid, lend_order.account_id, tx_hash, lend_order.order_type, lend_order.order_status, std::time::SystemTime::now()
@@ -1201,7 +1208,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                     LENDPOOL_EVENT_LOG.clone().to_string());
                                 
                                 }
-                                Err(arg)=>{let _ = tx_hash_storage.add(
+                                Err(arg)=>{let _ = output_hex_storage.add(
                                     bincode::serialize(&lend_order.uuid).unwrap(),
                                     serde_json::to_string(&arg).unwrap(),
                                     0,
@@ -1217,7 +1224,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                             }
                             }
 
-                            drop(tx_hash_storage);
+                            drop(output_hex_storage);
                                 
                             }
                             Err(arg) => {
@@ -1313,8 +1320,8 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                 };
                                 let sender_clone = sender.clone();
                                 sender_clone.send(tx_hash_result.clone()).unwrap();
-                                let mut tx_hash_storage =
-                                TXHASH_STORAGE.lock().unwrap();
+                                let mut output_hex_storage =
+                                OUTPUT_STORAGE.lock().unwrap();
 
                                 let mut file =
                                 File::create(format!("./ZKOS_TRANSACTION_RPC_ENDPOINT_{:?}.txt",lend_order.uuid.clone()))
@@ -1326,9 +1333,9 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                 .unwrap();
 
                                 match tx_hash_result{
-                                    Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                    Ok(tx_hash)=>{let _ = output_hex_storage.add(
                                         bincode::serialize(&lend_order.uuid).unwrap(),
-                                        serde_json::to_string(&tx_hash).unwrap(),
+                                        zkos_create_order.output,
                                         0,
                                     );
                                     Event::new(Event::TxHash(lend_order.uuid, lend_order.account_id, tx_hash, lend_order.order_type, lend_order.order_status, std::time::SystemTime::now()
@@ -1338,7 +1345,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                     .to_string(),None), String::from("tx_hash_result"),
                                     LENDPOOL_EVENT_LOG.clone().to_string());
                                     }
-                                    Err(arg)=>{let _ = tx_hash_storage.add(
+                                    Err(arg)=>{let _ = output_hex_storage.add(
                                         bincode::serialize(&lend_order.uuid).unwrap(),
                                         serde_json::to_string(&arg).unwrap(),
                                         0,
@@ -1352,7 +1359,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                 
                                 }
                             }
-                            drop(tx_hash_storage);
+                            drop(output_hex_storage);
                                 
                             }
                             Err(arg) => {
@@ -1473,8 +1480,8 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         };
                                         let sender_clone = sender.clone();
                                         sender_clone.send(tx_hash_result.clone()).unwrap();
-                                        let mut tx_hash_storage =
-                                        TXHASH_STORAGE.lock().unwrap();
+                                        let mut output_hex_storage =
+                                        OUTPUT_STORAGE.lock().unwrap();
 
                                         let mut file =
                                         File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
@@ -1486,9 +1493,9 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                     .unwrap();
 
                                     match tx_hash_result{
-                                        Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                        Ok(tx_hash)=>{let _ = output_hex_storage.add(
                                             bincode::serialize(&trader_order.uuid).unwrap(),
-                                            serde_json::to_string(&tx_hash).unwrap(),
+                                            zkos_create_order.output,
                                             0,
                                         );
                                         Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
@@ -1499,7 +1506,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         LENDPOOL_EVENT_LOG.clone().to_string());
                                     
                                     }
-                                        Err(arg)=>{let _ = tx_hash_storage.add(
+                                        Err(arg)=>{let _ = output_hex_storage.add(
                                             bincode::serialize(&trader_order.uuid).unwrap(),
                                             serde_json::to_string(&arg).unwrap(),
                                             0,
@@ -1512,7 +1519,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         .to_string(),None), String::from("tx_hash_error"),
                                         LENDPOOL_EVENT_LOG.clone().to_string());}
                                     }
-                                    drop(tx_hash_storage);
+                                    drop(output_hex_storage);
                                 
                             }
                             Err(arg) => {
@@ -1581,8 +1588,8 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                 };
                                 let sender_clone = sender.clone();
                                 sender_clone.send(tx_hash_result.clone()).unwrap();
-                                let mut tx_hash_storage =
-                                TXHASH_STORAGE.lock().unwrap();
+                                let mut output_hex_storage =
+                                OUTPUT_STORAGE.lock().unwrap();
 
                                 let mut file =
                                 File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
@@ -1594,18 +1601,20 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                             .unwrap();
 
                             match tx_hash_result{
-                                Ok(tx_hash)=>{let _ = tx_hash_storage.add(
+                                Ok(tx_hash)=>{let _ = output_hex_storage.add(
                                     bincode::serialize(&trader_order.uuid).unwrap(),
-                                    serde_json::to_string(&tx_hash).unwrap(),
+                                    zkos_create_order.output,
                                     0,
                                 );}
-                                Err(arg)=>{let _ = tx_hash_storage.add(
-                                    bincode::serialize(&trader_order.uuid).unwrap(),
-                                    serde_json::to_string(&arg).unwrap(),
-                                    0,
-                                );}
+                                Err(arg)=>{
+                                //     let _ = tx_hash_storage.add(
+                                //     bincode::serialize(&trader_order.uuid).unwrap(),
+                                //     serde_json::to_string(&arg).unwrap(),
+                                //     0,
+                                // );
                             }
-                            drop(tx_hash_storage);
+                            }
+                            drop(output_hex_storage);
                                 
                             }
                             Err(arg) => {
@@ -1685,7 +1694,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         let sender_clone = sender.clone();
                                         sender_clone.send(tx_hash_result.clone()).unwrap();
                                         let mut tx_hash_storage =
-                                        TXHASH_STORAGE.lock().unwrap();
+                                        OUTPUT_STORAGE.lock().unwrap();
     
                                         let mut file =
                                         File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
@@ -1699,7 +1708,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                     match tx_hash_result{
                                         Ok(tx_hash)=>{let _ = tx_hash_storage.add(
                                             bincode::serialize(&trader_order.uuid).unwrap(),
-                                            serde_json::to_string(&tx_hash).unwrap(),
+                                            zkos_create_order.output,
                                             0,
                                         );
                                         Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
@@ -1862,7 +1871,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                             let sender_clone = sender.clone();
                                             sender_clone.send(tx_hash_result.clone()).unwrap();
                                             let mut tx_hash_storage =
-                                            TXHASH_STORAGE.lock().unwrap();
+                                            OUTPUT_STORAGE.lock().unwrap();
 
                                             let mut file =
                                             File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
@@ -1876,7 +1885,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                         match tx_hash_result{
                                             Ok(tx_hash)=>{let _ = tx_hash_storage.add(
                                                 bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&tx_hash).unwrap(),
+                                                zkos_create_order.output,
                                                 0,
                                             );
                                             Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
@@ -2028,7 +2037,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                             let sender_clone = sender.clone();
                                         sender_clone.send(tx_hash_result.clone()).unwrap();
                                             let mut tx_hash_storage =
-                                            TXHASH_STORAGE.lock().unwrap();
+                                            OUTPUT_STORAGE.lock().unwrap();
         
                                             let mut file =
                                             File::create("ZKOS_TRANSACTION_RPC_ENDPOINT.txt")
@@ -2043,7 +2052,7 @@ pub fn zkos_order_handler(command: ZkosTxCommand)->Arc<Mutex<mpsc::Receiver<Resu
                                             Ok(tx_hash)=>{
                                                 let _ = tx_hash_storage.add(
                                                 bincode::serialize(&trader_order.uuid).unwrap(),
-                                                serde_json::to_string(&tx_hash).unwrap(),
+                                                zkos_create_order.output,
                                                 0,
                                                 );
                                             Event::new(Event::TxHash(trader_order.uuid, trader_order.account_id, tx_hash, trader_order.order_type, trader_order.order_status, std::time::SystemTime::now()
