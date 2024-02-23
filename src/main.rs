@@ -44,7 +44,6 @@ fn main() {
 // let time = ServerTime::new(SystemTime::now());
 //     println!("Time: {:#?}", time)
 
-
 // fn main() {
 //     dotenv::dotenv().expect("Failed loading dotenv");
 // // let d1:String=serde_json::from_str(&getdatatx()).unwrap();
@@ -70,8 +69,6 @@ fn main() {
 //             // )
 //             // .unwrap();
 
-
-
 // //             /*******   test */
 // let rsp= ZkosTxResponse{
 //      txHash: "7DE9F3368FDBA3E23CED4AB9F425475C848CFAD5E62B692AE9DAB70B374F087F".to_string(),
@@ -80,7 +77,7 @@ fn main() {
 //  let error_from_chain = r#"{"jsonrpc":"2.0","id":"a691ee44-52a3-4c46-b03f-0ebf50ca08d3","result":{"Ok":"Error: failed to verify utxo"}}"#;
 //  let error_from_rpc = r#"{"jsonrpc":"2.0","id":"a6dde34d-1eb1-4d7d-a392-0ff2c00c3f0f","result":{"Err":"{"code":-32601,\"message\":\"Method not found\", \"data\":""}"}}"#;
 //  let correct_result = r#"{"jsonrpc":"2.0","id":"a691ee44-52a3-4c46-b03f-0ebf50ca08d3","result":{"Ok":"{\"txHash\" : \"7DE9F3368FDBA3E23CED4AB9F425475C848CFAD5E62B692AE9DAB70B374F087F\"}"}}"#;
-    
+
 // //  let resp:transactionapi::rpcclient::txrequest::RpcResponse<serde_json::Value>=serde_json::from_str(&serde_json::to_string(&intermediate_response).unwrap()).unwrap();
 //  let resp:transactionapi::rpcclient::txrequest::RpcResponse<serde_json::Value>=serde_json::from_str(&error_from_chain).unwrap();
 //  let tx_hash:String = match resp.result{
@@ -98,9 +95,6 @@ fn main() {
 //                                             };
 //                                             println!("checkid :{:#?}",tx_hash);
 //                                               /*******   test */
-
-
-
 //             // let tx_hash:String = match intermediate_response.result{
 //             //                             Ok(response)=>{match serde_json::from_value(response) {
 //             //                                 Ok(ZkosTxResponse{
@@ -111,14 +105,13 @@ fn main() {
 //             //                             Err(arg)=>{
 //             //                                 arg.to_string()}
 //             //                                 };
-         
+
 //         }
 //         Err(arg) => {
 //             println!("errr1:{:#?}", arg);
 //         }
 //     }
 
-    
 // }
 // use serde_derive::{Deserialize, Serialize};
 // #[derive(Serialize, Deserialize)]
@@ -132,8 +125,6 @@ fn main() {
 // use std::fs::File;
 // use std::io::prelude::*;
 // use transactionapi::rpcclient::txrequest::{Resp, RpcBody, RpcRequest};
-
-
 
 // fn main() {
 //     dotenv::dotenv().expect("Failed loading dotenv");
