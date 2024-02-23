@@ -19,7 +19,7 @@ pub fn upload_rpc_command_to_psql() {
         0,
     )
     .unwrap();
-    let threadpool = ThreadPool::new(20, String::from("PSQL Client pool"));
+    let threadpool = ThreadPool::new(5, String::from("PSQL Client pool"));
     let recever1 = recever.lock().unwrap();
     // let mut count = 0;
     // let mut sw = Stopwatch::start_new();
@@ -42,6 +42,37 @@ pub fn upload_rpc_command_to_psql() {
         // }
     }
 }
+pub fn upload_rpc_failed_command_to_psql() {
+    let recever = receive_event_from_kafka_queue(
+        // RPC_CLIENT_REQUEST.clone().to_string(),
+        String::from("CLIENT-FAILED-REQUEST"),
+        String::from("Query_Saver_Group_Failed"),
+        0,
+    )
+    .unwrap();
+    let threadpool = ThreadPool::new(5, String::from("PSQL Client Failed pool"));
+    let recever1 = recever.lock().unwrap();
+    // let mut count = 0;
+    // let mut sw = Stopwatch::start_new();
+    loop {
+        let data = recever1.recv().unwrap();
+        let _event = data.clone();
+
+        threadpool.execute(move || {
+            psql_rpc_failed_command(data.clone());
+        });
+        // count += 1;
+        // if count == 10 {
+        //     let times = sw.elapsed();
+        //     println!(
+        //         "count done at:{:#?} with offset : {:#?}",
+        //         times, event.offset
+        //     );
+        //     sw = Stopwatch::start_new();
+        //     count = 0;
+        // }
+    }
+}
 pub fn upload_event_log_to_psql() {
     let recever = receive_event_from_kafka_queue(
         // CORE_EVENT_LOG.clone().to_string(),
@@ -50,7 +81,7 @@ pub fn upload_event_log_to_psql() {
         0,
     )
     .unwrap();
-    let threadpool = ThreadPool::new(20, String::from("PSQL pool"));
+    let threadpool = ThreadPool::new(5, String::from("PSQL pool"));
     let recever1 = recever.lock().unwrap();
     loop {
         let data = recever1.recv().unwrap();
@@ -136,6 +167,16 @@ pub fn psql_rpc_command(data: EventLogRPCQuery) {
 
     let query = format!(
         "INSERT INTO public.rpc_query(\"offset\", key, payload) VALUES ({},'{}',$1);",
+        data.offset, data.key
+    );
+    client.execute(&query, &[&data.value]).unwrap();
+}
+pub fn psql_rpc_failed_command(data: EventLogRPCQuery) {
+    //creating static connection
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+    let query = format!(
+        "INSERT INTO public.rpc_query_failed(\"offset\", key, payload) VALUES ({},'{}',$1);",
         data.offset, data.key
     );
     client.execute(&query, &[&data.value]).unwrap();

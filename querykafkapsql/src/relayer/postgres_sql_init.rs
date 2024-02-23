@@ -57,6 +57,10 @@ pub fn init_psql() {
         Ok(_) => println!("rpc_query table inserted successfully"),
         Err(arg) => println!("Some Error 12 Found, {:#?}", arg),
     }
+    match create_rpc_query_failed_req_table() {
+        Ok(_) => println!("rpc_query failed table inserted successfully"),
+        Err(arg) => println!("Some Error 12 Found, {:#?}", arg),
+    }
 }
 
 fn create_binance_ticker_table() -> Result<(), r2d2_postgres::postgres::Error> {
@@ -341,6 +345,21 @@ fn create_event_logs_table() -> Result<(), r2d2_postgres::postgres::Error> {
 fn create_rpc_query_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS public.rpc_query (
+            \"offset\" bigint NOT NULL,
+            key VARCHAR(100) NOT NULL,
+            payload json NOT NULL
+          );"
+    );
+    let mut client = POSTGRESQL_POOL_CONNECTION.get().unwrap();
+
+    match client.execute(&query, &[]) {
+        Ok(_) => Ok(()),
+        Err(arg) => Err(arg),
+    }
+}
+fn create_rpc_query_failed_req_table() -> Result<(), r2d2_postgres::postgres::Error> {
+    let query = format!(
+        "CREATE TABLE IF NOT EXISTS public.rpc_query_failed (
             \"offset\" bigint NOT NULL,
             key VARCHAR(100) NOT NULL,
             payload json NOT NULL
