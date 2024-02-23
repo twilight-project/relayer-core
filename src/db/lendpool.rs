@@ -161,13 +161,7 @@ impl LendPool {
                     );
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(
-                            SystemTime::now()
-                                .duration_since(SystemTime::UNIX_EPOCH)
-                                .unwrap()
-                                .as_micros()
-                                .to_string(),
-                        ),
+                        Some(ServerTime::now().epoch),
                     );
                     hashmap
                 },
@@ -185,13 +179,7 @@ impl LendPool {
         );
         metadata.insert(
             String::from("Pool_Initiate_time"),
-            Some(
-                SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_micros()
-                    .to_string(),
-            ),
+            Some(ServerTime::now().epoch),
         );
 
         let relayer_command = LendPoolCommand::InitiateNewPool(
@@ -229,11 +217,7 @@ impl LendPool {
         // fn load_data() -> (bool, Self) {
         let mut database: LendPool = LendPool::default();
 
-        let time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_micros()
-            .to_string();
+        let time = ServerTime::now().epoch;
         let eventstop: Event = Event::Stop(time.clone());
         Event::send_event_to_kafka_queue(
             eventstop.clone(),
@@ -244,11 +228,7 @@ impl LendPool {
 
         let recever = Event::receive_event_from_kafka_queue(
             LENDPOOL_EVENT_LOG.clone().to_string(),
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_micros()
-                .to_string(),
+            ServerTime::now().epoch,
         )
         .unwrap();
         let recever1 = recever.lock().unwrap();

@@ -187,13 +187,7 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
                 let mut hashmap = HashMap::new();
                 hashmap.insert(
                     String::from("request_server_time"),
-                    Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros()
-                            .to_string(),
-                    ),
+                    Some(ServerTime::now().epoch),
                 );
                 hashmap.insert(
                     String::from("CurrentPrice"),
@@ -259,13 +253,7 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
                 let mut hashmap = HashMap::new();
                 hashmap.insert(
                     String::from("request_server_time"),
-                    Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros()
-                            .to_string(),
-                    ),
+                    Some(ServerTime::now().epoch),
                 );
                 hashmap.insert(
                     String::from("CurrentPrice"),
@@ -330,13 +318,7 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
                 let mut hashmap = HashMap::new();
                 hashmap.insert(
                     String::from("request_server_time"),
-                    Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros()
-                            .to_string(),
-                    ),
+                    Some(ServerTime::now().epoch),
                 );
                 hashmap.insert(
                     String::from("CurrentPrice"),

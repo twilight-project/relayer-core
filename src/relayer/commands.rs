@@ -2,6 +2,7 @@ use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
+use zkvm::Output;
 pub type ZkosHexString = String;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
@@ -60,12 +61,7 @@ pub enum ZkosTxCommand {
         zkvm::Output,
         zkvm::Output,
     ),
-    RelayerCommandTraderOrderLiquidateTX(
-        TraderOrder,
-        Option<ZkosHexString>,
-        zkvm::Output,
-        zkvm::Output,
-    ),
+    RelayerCommandTraderOrderLiquidateTX(TraderOrder, Option<Output>, zkvm::Output, zkvm::Output),
 }
 
 impl RpcCommand {

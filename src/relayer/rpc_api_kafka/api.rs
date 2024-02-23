@@ -10,7 +10,6 @@ use jsonrpc_http_server::{
 };
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::SystemTime;
 
 #[derive(Default, Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Meta {
@@ -177,13 +176,7 @@ pub fn kafka_queue_rpc_server() {
                     hashmap.insert(String::from("Relayer"), relayer);
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(
-                            SystemTime::now()
-                                .duration_since(SystemTime::UNIX_EPOCH)
-                                .unwrap()
-                                .as_micros()
-                                .to_string(),
-                        ),
+                        Some(ServerTime::now().epoch),
                     );
                     hashmap
                 },

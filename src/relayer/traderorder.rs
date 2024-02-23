@@ -576,4 +576,11 @@ impl TraderOrder {
         let deserialized: TraderOrder = serde_json::from_str(json).unwrap();
         deserialized
     }
+
+    pub fn uuid_to_byte(&self) -> Vec<u8> {
+        match bincode::serialize(&self.uuid) {
+            Ok(uuid_v_u8) => uuid_v_u8,
+            Err(_) => Vec::new(),
+        }
+    }
 }
