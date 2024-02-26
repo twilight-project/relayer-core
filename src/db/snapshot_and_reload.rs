@@ -17,6 +17,7 @@ use std::fs;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
+use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 lazy_static! {
     pub static ref SNAPSHOT_DATA: Arc<Mutex<SnapshotDB>> = Arc::new(Mutex::new(SnapshotDB::new()));
@@ -34,7 +35,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     let mut close_long_sortedset_db = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
     let mut close_short_sortedset_db = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
     let mut position_size_log = POSITION_SIZE_LOG.lock().unwrap();
-
+    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -490,14 +491,49 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 *position_size_log = event;
             }
             Event::TxHash(
-                _orderid,
+                orderid,
                 _account_id,
                 _tx_hash,
-                _order_type,
-                _order_status,
+                order_type,
+                order_status,
                 _timestamp,
-                _option_output,
-            ) => {}
+                option_output,
+            ) => match order_type {
+                OrderType::LIMIT | OrderType::MARKET => match order_status {
+                    OrderStatus::FILLED => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let output_memo_option = match option_output {
+                            Some(output_hex_string) => match hex::decode(output_hex_string) {
+                                Ok(output_byte) => match bincode::deserialize(&output_byte) {
+                                    Ok(output_memo) => Some(output_memo),
+                                    Err(_) => None,
+                                },
+                                Err(_) => None,
+                            },
+                            None => None,
+                        };
+
+                        match output_memo_option {
+                            Some(output_memo) => {
+                                let _ = output_hex_storage.add(uuid_to_byte, Some(output_memo), 0);
+                            }
+                            None => {}
+                        }
+                    }
+                    OrderStatus::SETTLED | OrderStatus::CANCELLED | OrderStatus::LIQUIDATE => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let _ = output_hex_storage.remove(uuid_to_byte, 0);
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
         }
     }
     drop(liquidation_long_sortedset_db);
@@ -507,6 +543,8 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     drop(close_long_sortedset_db);
     drop(close_short_sortedset_db);
     drop(position_size_log);
+    let _ = output_hex_storage.take_snapshot();
+    drop(output_hex_storage);
     if orderdb_traderorder.sequence > 0 {
         println!("TraderOrder Database Loaded ....");
     } else {
@@ -603,6 +641,7 @@ pub struct SnapshotDB {
     pub close_short_sortedset_db: SortedSet,
     pub position_size_log: PositionSizeLog,
     pub localdb_hashmap: HashMap<String, f64>,
+    // pub output_memo_hashmap: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
     pub event_offset: i64,
     pub event_timestamp: String,
 }
@@ -620,6 +659,8 @@ impl SnapshotDB {
             close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
             localdb_hashmap: HashMap::new(),
+            // output_memo_hashmap:
+            //     utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
             event_offset: 0,
             event_timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
@@ -672,6 +713,9 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = decoded_snapshot.clone();
     drop(snapshot_data);
+    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+    let _ = output_hex_storage.load_from_snapshot();
+    drop(output_hex_storage);
     let snapshot_db_updated = create_snapshot_data(fetchoffset);
 
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
@@ -710,6 +754,7 @@ pub fn snapshot() -> Result<(), std::io::Error> {
         }
     }
     // println!("Snapshot:{:#?}", snapshot_db_updated);
+
     Ok(())
 }
 
@@ -726,6 +771,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let mut close_short_sortedset_db = snapshot_db.close_short_sortedset_db;
     let mut position_size_log = snapshot_db.position_size_log;
     let mut localdb_hashmap = snapshot_db.localdb_hashmap;
+    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
     let mut event_offset: i64 = 0;
     let time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -1183,23 +1229,52 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 position_size_log = event;
             }
             Event::TxHash(
-                _orderid,
+                orderid,
                 _account_id,
                 _tx_hash,
                 order_type,
                 order_status,
                 _timestamp,
-                _option_output,
+                option_output,
             ) => match order_type {
                 OrderType::LIMIT | OrderType::MARKET => match order_status {
-                    OrderStatus::FILLED => {}
-                    OrderStatus::SETTLED | OrderStatus::CANCELLED | OrderStatus::LIQUIDATE => {}
+                    OrderStatus::FILLED => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let output_memo_option = match option_output {
+                            Some(output_hex_string) => match hex::decode(output_hex_string) {
+                                Ok(output_byte) => match bincode::deserialize(&output_byte) {
+                                    Ok(output_memo) => Some(output_memo),
+                                    Err(_) => None,
+                                },
+                                Err(_) => None,
+                            },
+                            None => None,
+                        };
+                        match output_memo_option {
+                            Some(output_memo) => {
+                                let _ = output_hex_storage.add(uuid_to_byte, Some(output_memo), 0);
+                            }
+                            None => {}
+                        }
+                    }
+                    OrderStatus::SETTLED | OrderStatus::CANCELLED | OrderStatus::LIQUIDATE => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let _ = output_hex_storage.remove(uuid_to_byte, 0);
+                    }
                     _ => {}
                 },
                 _ => {}
             },
         }
     }
+    let _ = output_hex_storage.take_snapshot();
+    drop(output_hex_storage);
     if orderdb_traderorder.sequence > 0 {
         println!("TraderOrder Database Loaded ....");
     } else {

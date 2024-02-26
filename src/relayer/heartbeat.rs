@@ -29,7 +29,7 @@ pub fn heartbeat() {
     println!("Looking for previous database...");
     load_from_snapshot();
     ordertest::initprice();
-    init_output_txhash_storage();
+    // init_output_txhash_storage();
 
     thread::sleep(time::Duration::from_millis(100));
 

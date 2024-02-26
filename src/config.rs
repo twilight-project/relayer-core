@@ -245,11 +245,11 @@ pub struct BinanceMiniTickerPayload {
     pub q: String, // Total traded quote asset volume
 }
 
-pub fn init_output_txhash_storage() {
-    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-    let _ = output_hex_storage.load_from_snapshot();
-    drop(output_hex_storage);
-    // let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
-    // let _ = txhash_storage.load_from_snapshot();
-    // drop(txhash_storage);
-}
+// pub fn init_output_txhash_storage() {
+//     let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+//     let _ = output_hex_storage.load_from_snapshot();
+//     drop(output_hex_storage);
+//     // let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
+//     // let _ = txhash_storage.load_from_snapshot();
+//     // drop(txhash_storage);
+// }
