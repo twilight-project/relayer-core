@@ -164,10 +164,10 @@ lazy_static! {
         Option<zkvm::zkos_types::Output>,
     >::new(1)));
 
-    pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
-    Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
-        String
-    >::new(1)));
+    // pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
+    // Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
+    //     String
+    // >::new(1)));
 
     pub static ref WALLET_PROGRAM_PATH: String =
     std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
@@ -249,7 +249,7 @@ pub fn init_output_txhash_storage() {
     let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
     let _ = output_hex_storage.load_from_snapshot();
     drop(output_hex_storage);
-    let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
-    let _ = txhash_storage.load_from_snapshot();
-    drop(txhash_storage);
+    // let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
+    // let _ = txhash_storage.load_from_snapshot();
+    // drop(txhash_storage);
 }

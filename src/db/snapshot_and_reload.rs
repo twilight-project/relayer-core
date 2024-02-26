@@ -703,7 +703,7 @@ pub fn snapshot() -> Result<(), std::io::Error> {
                 ),
                 format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
             )
-            .unwrap()
+            .unwrap();
         }
         Err(arg) => {
             println!("Could not write snapshot file - Error:{:#?}", arg);
@@ -1186,11 +1186,18 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 _orderid,
                 _account_id,
                 _tx_hash,
-                _order_type,
-                _order_status,
+                order_type,
+                order_status,
                 _timestamp,
                 _option_output,
-            ) => {}
+            ) => match order_type {
+                OrderType::LIMIT | OrderType::MARKET => match order_status {
+                    OrderStatus::FILLED => {}
+                    OrderStatus::SETTLED | OrderStatus::CANCELLED | OrderStatus::LIQUIDATE => {}
+                    _ => {}
+                },
+                _ => {}
+            },
         }
     }
     if orderdb_traderorder.sequence > 0 {
