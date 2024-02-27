@@ -106,7 +106,7 @@ impl Event {
         group: String,
     ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
         let (sender, receiver) = mpsc::channel();
-        let _topic_clone = topic.clone();
+        // let _topic_clone = topic.clone();
         thread::spawn(move || {
             let broker = vec![std::env::var("BROKER")
                 .expect("missing environment variable BROKER")
@@ -114,7 +114,7 @@ impl Event {
             let mut con = Consumer::from_hosts(broker)
                 // .with_topic(topic)
                 .with_group(group)
-                .with_topic_partitions(topic, &[0])
+                .with_topic_partitions(topic.clone(), &[0])
                 .with_fallback_offset(FetchOffset::Earliest)
                 .with_offset_storage(GroupOffsetStorage::Kafka)
                 .create()
@@ -140,6 +140,7 @@ impl Event {
                                 Ok(_) => {
                                     // let _ = con.consume_message(&topic_clone, partition, m.offset);
                                     // println!("Im here");
+                                    let _ = con.consume_message(&topic, 0, m.offset);
                                 }
                                 Err(_arg) => {
                                     // println!("Closing Kafka Consumer Connection : {:#?}", arg);
@@ -148,12 +149,15 @@ impl Event {
                                 }
                             }
                         }
+                        if connection_status == false {
+                            break;
+                        }
                         let _ = con.consume_messageset(ms);
                     }
                     con.commit_consumed().unwrap();
                 }
             }
-            con.commit_consumed().unwrap();
+            // con.commit_consumed().unwrap();
             thread::park();
         });
         Ok(Arc::new(Mutex::new(receiver)))
@@ -164,7 +168,7 @@ impl Event {
         fetchoffset: FetchOffset,
     ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
         let (sender, receiver) = mpsc::channel();
-        let _topic_clone = topic.clone();
+        // let _topic_clone = topic.clone();
         thread::spawn(move || {
             let broker = vec![std::env::var("BROKER")
                 .expect("missing environment variable BROKER")
