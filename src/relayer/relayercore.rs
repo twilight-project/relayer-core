@@ -534,7 +534,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                                 ServerTime::now().epoch,
                                                 None,
                                             ),
-                                            String::from("trader_tx_not_found_error"),
+                                            String::from("tx_hash_result"),
                                             LENDPOOL_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -559,7 +559,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         ServerTime::now().epoch,
                                         None,
                                     ),
-                                    String::from("trader_tx_not_found_error"),
+                                    String::from("trader_order_not_found_error"),
                                     LENDPOOL_EVENT_LOG.clone().to_string(),
                                 );
                             }
@@ -2107,7 +2107,7 @@ pub fn zkos_order_handler(
             }
         }
     } else {
-        let fn_response_tx_hash = Err("ZKOS CHAIN TRANSACTION IS NOT ACTIVE".to_string());
+        let fn_response_tx_hash = Ok("ZKOS CHAIN TRANSACTION IS NOT ACTIVE".to_string());
         sender.send(fn_response_tx_hash).unwrap();
     }
     return Arc::clone(&receiver_mutex);
