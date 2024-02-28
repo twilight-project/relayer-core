@@ -88,9 +88,9 @@ impl LendPool {
         }
     }
     pub fn new() -> Self {
-        let mut tlv_init: f64 = 20048547734.0;
-        let mut tps_init: f64 = 2000000.0;
-        let mut nonce_init = 8;
+        let mut tlv_init: f64 = 10000000000.0;
+        let mut tps_init: f64 = 1000000.0;
+        let mut nonce_init = 1;
         let (nonce, tlv_witness, _, tps_witness, _) =
             match get_state_info_from_output_hex(last_state_output_string()) {
                 Ok((nonce, tlv_witness, _tlv_blinding, tps_witness, _tps_blinding)) => (
@@ -112,7 +112,7 @@ impl LendPool {
         tps_init = tps_witness as f64;
         tlv_init = (tlv_witness as f64) / 100000000.0;
         let last_output_state = last_state_output_fixed();
-        let aggrigate_log_sequence_init = 9;
+        let aggrigate_log_sequence_init = 1;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
             account_id: last_output_state
