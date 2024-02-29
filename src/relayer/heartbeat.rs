@@ -12,19 +12,6 @@ use uuid::Uuid;
 
 pub fn heartbeat() {
     dotenv::dotenv().expect("Failed loading dotenv");
-    //load previous database
-
-    // let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
-    // let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
-    // let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-    // let (data1, data2, data3): (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) =
-    //     load_backup_data();
-    // *load_trader_data = data1;
-    // *load_lend_data = data2;
-    // *load_pool_data = data3;
-    // drop(load_trader_data);
-    // drop(load_lend_data);
-    // drop(load_pool_data);
     init_psql();
     println!("Looking for previous database...");
     load_from_snapshot();
@@ -70,7 +57,7 @@ pub fn heartbeat() {
     thread::Builder::new()
         .name(String::from("price_check_and_update"))
         .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(250));
+            thread::sleep(time::Duration::from_millis(2500));
             thread::spawn(move || {
                 price_check_and_update();
             });
@@ -101,8 +88,8 @@ pub fn price_check_and_update() {
 
     //get_localdb with single mutex unlock
     let mut local_storage = LOCALDB.lock().unwrap();
-    // let currentprice = local_storage.get("Latest_Price").unwrap().clone();
-    let mut currentprice = match local_storage.get("Latest_price") {
+    // let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
+    let mut currentprice = match local_storage.get("Latest_Price") {
         Some(price) => price.clone(),
         None => return,
     };
