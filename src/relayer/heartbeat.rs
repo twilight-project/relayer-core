@@ -102,7 +102,7 @@ pub fn price_check_and_update() {
     //get_localdb with single mutex unlock
     let mut local_storage = LOCALDB.lock().unwrap();
     // let currentprice = local_storage.get("Latest_Price").unwrap().clone();
-    let currentprice = match local_storage.get("Latest_price") {
+    let mut currentprice = match local_storage.get("Latest_price") {
         Some(price) => price.clone(),
         None => return,
     };
@@ -118,13 +118,14 @@ pub fn price_check_and_update() {
     drop(local_storage);
 
     if currentprice != old_price {
-        set_localdb("CurrentPrice", currentprice);
-        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         Event::new(
             Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
             String::from("insert_CurrentPrice"),
             TRADERORDER_EVENT_LOG.clone().to_string(),
         );
+        currentprice = currentprice.round();
+        set_localdb("CurrentPrice", currentprice);
+        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
         treadpool_pending_order.execute(move || {
             check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
