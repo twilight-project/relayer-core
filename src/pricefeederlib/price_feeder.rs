@@ -24,11 +24,13 @@ use crate::pricefeederlib::btc_price_feeder;
 
 /// This function is used for initializing websocket with binance BTC/USDT pair (Mini Ticker) and update BTC price into redisDB having key/s `btc:price`, `btc:price:full_payload`.
 pub fn receive_btc_price() {
-    dotenv::dotenv().expect("Failed loading dotenv");
+    dotenv::dotenv().ok();
 
     // BINANCE_BTC_SOCKET URL for retriving BTCUSDT pair latest price
-    let url = std::env::var("BINANCE_BTC_SOCKET")
-        .expect("missing environment variable BINANCE_BTC_SOCKET");
+    let url = match std::env::var("BINANCE_BTC_SOCKET") {
+        Ok(ws_adder) => ws_adder,
+        Err(_) => "wss://stream.binance.com:9443/ws/btcusdt@miniTicker".to_string(),
+    };
 
     println!("Connecting to {}", &url);
     let mut runtime = tokionew::runtime::current_thread::Builder::new()
@@ -67,17 +69,17 @@ pub fn receive_btc_price() {
             let (sink, stream) = duplex.split();
             stream
                 .filter_map(|message| {
-                    let binance_payload_raw = message.clone();
+                    // let binance_payload_raw = message.clone();
 
-                    // get json string from Websocket::OwnedMessage in binance_payload_json
-                    let binance_payload_json = match binance_payload_raw {
-                        OwnedMessage::Text(d) => d,
-                        _ => "None".to_string(),
-                    };
+                    // // get json string from Websocket::OwnedMessage in binance_payload_json
+                    // let binance_payload_json = match binance_payload_raw {
+                    //     OwnedMessage::Text(d) => d,
+                    //     _ => "None".to_string(),
+                    // };
 
-                    // BTC Price feeder
-                    // This fucntion is taking payload string received from binance websocket and updating the btc price into redisDB
-                    btc_price_feeder::update_btc_price(binance_payload_json);
+                    // // BTC Price feeder
+                    // // This fucntion is taking payload string received from binance websocket and updating the btc price into redisDB
+                    // btc_price_feeder::update_btc_price(binance_payload_json);
 
                     // Using Ping/Pong mechanism to make connection alive before standard websocket connection timeout time
                     // Binance Note: # The websocket server will send a ping frame every 3 minutes. If the websocket server does not receive a pong frame back from the connection within a 10 minute period, the connection will be disconnected. Unsolicited pong frames are allowed.
@@ -96,6 +98,10 @@ pub fn receive_btc_price() {
                             Some(OwnedMessage::Close(e))
                         }
                         OwnedMessage::Ping(d) => Some(OwnedMessage::Pong(d)),
+                        OwnedMessage::Text(binance_payload_json) => {
+                            btc_price_feeder::update_btc_price(binance_payload_json);
+                            None
+                        }
                         _ => None,
                     }
                 })

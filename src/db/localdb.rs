@@ -24,19 +24,12 @@ lazy_static! {
     pub static ref TRADER_LIMIT_CLOSE_SHORT: Arc<Mutex<SortedSet>> =
         Arc::new(Mutex::new(SortedSet::new()));
     pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
-        Arc::new(Mutex::new( LocalDB::<TraderOrder>::new()));
+        Arc::new(Mutex::new(LocalDB::<TraderOrder>::new()));
     pub static ref LEND_ORDER_DB: Arc<Mutex<OrderDB<LendOrder>>> =
         Arc::new(Mutex::new(LocalDB::<LendOrder>::new()));
-    pub static ref LEND_POOL_DB: Arc<Mutex<LendPool>> =
-        Arc::new(Mutex::new(LendPool::default()));
+    pub static ref LEND_POOL_DB: Arc<Mutex<LendPool>> = Arc::new(Mutex::new(LendPool::default()));
     pub static ref LEND_POOL_HISTORY_DB: Arc<Mutex<PoolStateHistoryDB>> =
         Arc::new(Mutex::new(PoolStateHistoryDB::new()));
-    // pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
-    //     Arc::new(Mutex::new(LocalDB::<TraderOrder>::check_backup()));
-    // pub static ref LEND_ORDER_DB: Arc<Mutex<OrderDB<LendOrder>>> =
-    //     Arc::new(Mutex::new(LocalDB::<LendOrder>::check_backup()));
-    // pub static ref LEND_POOL_DB: Arc<Mutex<LendPool>> =
-    //     Arc::new(Mutex::new(LendPool::check_backup()));
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -103,17 +96,3 @@ impl PositionSizeLog {
         }
     }
 }
-
-// impl Display for TaderOrderError {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "{}", self.0)
-//     }
-// }
-
-// impl std::error::Error for TaderOrderError {}
-
-// impl From<&str> for TaderOrderError {
-//     fn from(message: &str) -> Self {
-//         TaderOrderError(message.to_string())
-//     }
-// }

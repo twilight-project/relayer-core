@@ -24,9 +24,11 @@ lazy_static! {
         dotenv::dotenv().expect("Failed loading dotenv");
         // POSTGRESQL_URL
         let postgresql_url =
-            std::env::var("POSTGRESQL_URL").expect("missing environment variable POSTGRESQL_URL");
+            match std::env::var("POSTGRESQL_URL"){
+                Ok(db_connect_url)=>db_connect_url,
+                Err(_)=>"postgresql://postgres:postgres@localhost:5432/postgres".to_string()
+            };
         let manager = PostgresConnectionManager::new(
-            // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
             postgresql_url.parse().unwrap(),
             NoTls,
         );
@@ -36,7 +38,10 @@ lazy_static! {
         dotenv::dotenv().expect("Failed loading dotenv");
         // POSTGRESQL_URL
         let postgresql_url =
-            std::env::var("DATABASE_URL").expect("missing environment variable DATABASE_URL");
+        match std::env::var("DATABASE_URL"){
+            Ok(db_connect_url)=>db_connect_url,
+            Err(_)=>"postgresql://postgres:postgres@localhost:5432/postgres".to_string()
+        };
         let manager = PostgresConnectionManager::new(
             // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
             postgresql_url.parse().unwrap(),
@@ -65,7 +70,7 @@ lazy_static! {
     pub static ref REDIS_POOL_CONNECTION: r2d2::Pool<RedisConnectionManager> = {
         dotenv::dotenv().expect("Failed loading dotenv");
         let redis_host_name =
-        std::env::var("REDIS_HOSTNAME").expect("missing environment variable REDIS_HOSTNAME");
+        std::env::var("REDIS_HOSTNAME").unwrap_or("redis://default:foobared@localhost/0".to_string());
 
         // let config = Default::default();
         let manager = RedisConnectionManager::new(redis_host_name).unwrap();
@@ -90,7 +95,6 @@ lazy_static! {
     // local orderbook
     pub static ref LOCALDBSTRING: Mutex<HashMap<&'static str,String>> = Mutex::new(HashMap::new());
 
-
     // sync sender threadpool with buffer size = 1
     // using in candle data
     pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2,String::from("THREADPOOL"))));
@@ -113,31 +117,28 @@ lazy_static! {
 
     pub static ref THREADPOOL_PRICE_CHECK_SETTLE_PENDING:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_SETTLE_PENDING")));
 
-    // removeorderfromredis
     pub static ref THREADPOOL_REDIS_ORDER_REMOVE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_REDIS_ORDER_REMOVE")));
 
     pub static ref THREADPOOL_EVENT_AND_SORTED_SET_UPDATE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_EVENT_AND_SORTED_SET_UPDATE")));
 
     pub static ref RELAYER_VERSION: String =
-    std::env::var("RelayerVersion").expect("missing environment variable RelayerVersion");
+    std::env::var("RelayerVersion").unwrap_or("1.000".to_string());
 
     pub static ref SNAPSHOT_VERSION: String =
-    std::env::var("SnapshotVersion").expect("missing environment variable SnapshotVersion");
+    std::env::var("SnapshotVersion").unwrap_or("1.000".to_string());
 
     pub static ref RPC_QUEUE_MODE: String =
-    std::env::var("RPC_QUEUE_MODE").expect("missing environment variable RPC_QUEUE_MODE");
-
+    std::env::var("RPC_QUEUE_MODE").unwrap_or("DIRECT".to_string());
 
     pub static ref RPC_SERVER_SOCKETADDR: String = std::env::var("RPC_SERVER_SOCKETADDR")
-    .expect("missing environment variable RPC_SERVER_SOCKETADDR");
+    .unwrap_or("0.0.0.0:3032".to_string());
 
     pub static ref RPC_SERVER_THREAD: usize = std::env::var("RPC_SERVER_THREAD")
-    .expect("missing environment variable RPC_SERVER_THREAD")
+    .unwrap_or("5".to_string())
     .parse::<usize>()
     .unwrap();
 
-    pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS")
-    .expect("missing environment variable KAFKA_STATUS");
+    pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS").unwrap_or("Enabled".to_string());
 
     pub static ref RPC_CLIENT_REQUEST: String = std::env::var("RPC_CLIENT_REQUEST")
     .expect("missing environment variable RPC_CLIENT_REQUEST");
@@ -158,16 +159,10 @@ lazy_static! {
     pub static ref ZKOS_TRANSACTION_RPC_ENDPOINT: String = std::env::var("ZKOS_TRANSACTION_RPC_ENDPOINT")
     .expect("missing environment variable ZKOS_TRANSACTION_RPC_ENDPOINT");
 
-
     pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>>> =
     Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
         Option<zkvm::zkos_types::Output>,
     >::new(1)));
-
-    // pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
-    // Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
-    //     String
-    // >::new(1)));
 
     pub static ref WALLET_PROGRAM_PATH: String =
     std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
@@ -244,12 +239,3 @@ pub struct BinanceMiniTickerPayload {
     pub v: String, // Total traded base asset volume
     pub q: String, // Total traded quote asset volume
 }
-
-// pub fn init_output_txhash_storage() {
-//     let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-//     let _ = output_hex_storage.load_from_snapshot();
-//     drop(output_hex_storage);
-//     // let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
-//     // let _ = txhash_storage.load_from_snapshot();
-//     // drop(txhash_storage);
-// }

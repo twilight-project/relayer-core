@@ -1275,21 +1275,19 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     }
     let _ = output_hex_storage.take_snapshot();
     drop(output_hex_storage);
-    if orderdb_traderorder.sequence > 0 {
-        println!("TraderOrder Database Loaded ....");
-    } else {
-        println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
-    }
-    if orderdb_lendorder.sequence > 0 {
-        println!("LendOrder Database Loaded ....");
-    } else {
-        println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
-    }
+    // if orderdb_traderorder.sequence > 0 {
+    //     println!("TraderOrder Database Loaded ....");
+    // } else {
+    //     println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
+    // }
+    // if orderdb_lendorder.sequence > 0 {
+    //     println!("LendOrder Database Loaded ....");
+    // } else {
+    //     println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
+    // }
     if lendpool_database.aggrigate_log_sequence > 0 {
-        println!("LendPool Database Loaded ....");
     } else {
         lendpool_database = LendPool::new();
-        println!("No old LendPool Database found ....\nCreating new LendPool_database");
     }
 
     SnapshotDB {
@@ -1323,7 +1321,23 @@ pub fn load_from_snapshot() {
             let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
             let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
             let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-
+            if snapshot_data.orderdb_traderorder.sequence > 0 {
+                println!("TraderOrder Database Loaded ....");
+            } else {
+                println!(
+                    "No old TraderOrder Database found ....\nCreating new TraderOrder_database"
+                );
+            }
+            if snapshot_data.orderdb_lendorder.sequence > 0 {
+                println!("LendOrder Database Loaded ....");
+            } else {
+                println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
+            }
+            if snapshot_data.lendpool_database.aggrigate_log_sequence > 0 {
+                println!("LendPool Database Loaded ....");
+            } else {
+                println!("No old LendPool Database found ....\nCreating new LendPool_database");
+            }
             // add field of Trader order db
             load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();
             load_trader_data.nonce = snapshot_data.orderdb_traderorder.nonce.clone();

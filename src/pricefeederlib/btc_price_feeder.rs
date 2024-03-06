@@ -32,11 +32,11 @@ pub fn update_btc_price(payload: String) {
             "Latest_Price",
             binance_payload_clone.clone().c.parse::<f64>().unwrap(),
         );
-        redis_pool.execute(move || {
-            redis_db::set("btc:price", &binance_payload.clone().c);
-            redis_db::set("btc:price:full_payload", &payload);
-            // println!("rate :{}", &binance_payload.c);
-        });
+        // redis_pool.execute(move || {
+        //     redis_db::set("btc:price", &binance_payload.clone().c);
+        //     redis_db::set("btc:price:full_payload", &payload);
+        //     // println!("rate :{}", &binance_payload.c);
+        // });
         //btc price payload added to kafka topic : BinanceMiniTickerPayload
 
         //removed from relayer core, no need to save in psql by relayer core

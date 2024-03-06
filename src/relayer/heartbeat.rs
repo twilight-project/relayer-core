@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 pub fn heartbeat() {
     dotenv::dotenv().expect("Failed loading dotenv");
-    init_psql();
+    // init_psql();
     println!("Looking for previous database...");
     load_from_snapshot();
     ordertest::initprice();
