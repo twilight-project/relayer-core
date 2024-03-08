@@ -331,7 +331,7 @@ fn create_event_logs_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS public.event_logs (
             \"offset\" bigint NOT NULL,
-            key VARCHAR(100) NOT NULL,
+            key VARCHAR(1024) NOT NULL,
             payload json NOT NULL
           );"
     );
@@ -346,7 +346,7 @@ fn create_rpc_query_table() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE TABLE IF NOT EXISTS public.rpc_query (
             \"offset\" bigint NOT NULL,
-            key VARCHAR(100) NOT NULL,
+            key VARCHAR(1024) NOT NULL,
             payload json NOT NULL
           );"
     );
@@ -361,7 +361,7 @@ fn create_rpc_query_failed_req_table() -> Result<(), r2d2_postgres::postgres::Er
     let query = format!(
         "CREATE TABLE IF NOT EXISTS public.rpc_query_failed (
             \"offset\" bigint NOT NULL,
-            key VARCHAR(100) NOT NULL,
+            key VARCHAR(1024) NOT NULL,
             payload json NOT NULL
           );"
     );
