@@ -109,7 +109,7 @@ pub fn price_check_and_update() {
             Event::CurrentPriceUpdate(
                 currentprice.clone(),
                 iso8601(&current_time.clone()),
-                iso8601(&current_time.clone()),
+                // iso8601(&current_time.clone()),
             ),
             String::from("insert_CurrentPrice"),
             TRADERORDER_EVENT_LOG.clone().to_string(),

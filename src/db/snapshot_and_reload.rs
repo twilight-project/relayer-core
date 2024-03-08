@@ -339,7 +339,7 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
             Event::FundingRateUpdate(funding_rate, _current_price, _time) => {
                 set_localdb("FundingRate", funding_rate);
             }
-            Event::CurrentPriceUpdate(current_price, _time, _time2) => {
+            Event::CurrentPriceUpdate(current_price, _time) => {
                 set_localdb("CurrentPrice", current_price);
             }
             Event::SortedSetDBUpdate(cmd) => match cmd {
@@ -1076,7 +1076,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 // set_localdb("FundingRate", funding_rate);
                 localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
             }
-            Event::CurrentPriceUpdate(current_price, _time, _time1) => {
+            Event::CurrentPriceUpdate(current_price, _time) => {
                 // set_localdb("CurrentPrice", current_price);
                 localdb_hashmap.insert("CurrentPrice".to_string(), current_price);
             }

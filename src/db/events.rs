@@ -151,7 +151,7 @@ pub enum Event {
     LendOrder(LendOrder, RpcCommand, usize),
     PoolUpdate(LendPoolCommand, LendPool, usize),
     FundingRateUpdate(f64, f64, String), //funding rate, btc price, time
-    CurrentPriceUpdate(f64, String, String),
+    CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
     TxHash(
@@ -166,24 +166,24 @@ pub enum Event {
     Stop(String),
 }
 
-impl fmt::Display for Event {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Event::TraderOrder(..) => write!(f, "TraderOrder"),
-            Event::TraderOrderUpdate(..) => write!(f, "macOTraderOrderUpdateS"),
-            Event::TraderOrderFundingUpdate(..) => write!(f, "TraderOrderFundingUpdate"),
-            Event::TraderOrderLiquidation(..) => write!(f, "TraderOrderLiquidation"),
-            Event::LendOrder(..) => write!(f, "LendOrder"),
-            Event::PoolUpdate(..) => write!(f, "PoolUpdate"),
-            Event::FundingRateUpdate(..) => write!(f, "FundingRateUpdate"),
-            Event::CurrentPriceUpdate(..) => write!(f, "CurrentPriceUpdate"),
-            Event::SortedSetDBUpdate(..) => write!(f, "SortedSetDBUpdate"),
-            Event::PositionSizeLogDBUpdate(..) => write!(f, "PositionSizeLogDBUpdate"),
-            Event::TxHash(..) => write!(f, "TxHash"),
-            Event::Stop(..) => write!(f, "Stop"),
-        }
-    }
-}
+// impl fmt::Display for Event {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match self {
+//             Event::TraderOrder(..) => write!(f, "TraderOrder"),
+//             Event::TraderOrderUpdate(..) => write!(f, "macOTraderOrderUpdateS"),
+//             Event::TraderOrderFundingUpdate(..) => write!(f, "TraderOrderFundingUpdate"),
+//             Event::TraderOrderLiquidation(..) => write!(f, "TraderOrderLiquidation"),
+//             Event::LendOrder(..) => write!(f, "LendOrder"),
+//             Event::PoolUpdate(..) => write!(f, "PoolUpdate"),
+//             Event::FundingRateUpdate(..) => write!(f, "FundingRateUpdate"),
+//             Event::CurrentPriceUpdate(..) => write!(f, "CurrentPriceUpdate"),
+//             Event::SortedSetDBUpdate(..) => write!(f, "SortedSetDBUpdate"),
+//             Event::PositionSizeLogDBUpdate(..) => write!(f, "PositionSizeLogDBUpdate"),
+//             Event::TxHash(..) => write!(f, "TxHash"),
+//             Event::Stop(..) => write!(f, "Stop"),
+//         }
+//     }
+// }
 
 use stopwatch::Stopwatch;
 impl Event {
@@ -204,6 +204,7 @@ impl Event {
     }
     pub fn send_event_to_kafka_queue(event: Event, topic: String, key: String) {
         // let sw = Stopwatch::start_new();
+        let key = EventKey::new(key, event.get_event_type()).to_string_or_default();
         let data = serde_json::to_vec(&event).unwrap();
         let pool = KAFKA_EVENT_LOG_THREADPOOL2.lock().unwrap();
         pool.execute(move || {
@@ -342,7 +343,7 @@ impl Event {
         Ok(Arc::new(Mutex::new(receiver)))
     }
 
-    pub fn get_event_type(&mut self) -> String {
+    pub fn get_event_type(&self) -> String {
         match self {
             Event::TraderOrder(..) => "TraderOrder".to_string(),
             Event::TraderOrderUpdate(..) => "macOTraderOrderUpdateS".to_string(),
