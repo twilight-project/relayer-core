@@ -122,10 +122,12 @@ lazy_static! {
     pub static ref THREADPOOL_EVENT_AND_SORTED_SET_UPDATE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_EVENT_AND_SORTED_SET_UPDATE")));
 
     pub static ref RELAYER_VERSION: String =
-    std::env::var("RelayerVersion").unwrap_or("1.000".to_string());
+    std::env::var("RelayerVersion").unwrap_or("1.0.0".to_string());
 
     pub static ref SNAPSHOT_VERSION: String =
-    std::env::var("SnapshotVersion").unwrap_or("1.000".to_string());
+    std::env::var("SnapshotVersion").unwrap_or("1.0.0".to_string());
+    pub static ref EVENTLOG_VERSION: String =
+    std::env::var("EVENTLOG_VERSION").unwrap_or("1.0.0".to_string());
 
     pub static ref RPC_QUEUE_MODE: String =
     std::env::var("RPC_QUEUE_MODE").unwrap_or("DIRECT".to_string());
@@ -136,28 +138,26 @@ lazy_static! {
     pub static ref RPC_SERVER_THREAD: usize = std::env::var("RPC_SERVER_THREAD")
     .unwrap_or("5".to_string())
     .parse::<usize>()
-    .unwrap();
+    .unwrap_or(5);
 
     pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS").unwrap_or("Enabled".to_string());
 
     pub static ref RPC_CLIENT_REQUEST: String = std::env::var("RPC_CLIENT_REQUEST")
-    .expect("missing environment variable RPC_CLIENT_REQUEST");
+    .unwrap_or("CLIENT-REQUEST".to_string());
 
     pub static ref CORE_EVENT_LOG: String = std::env::var("CORE_EVENT_LOG")
-    .expect("missing environment variable CORE_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
 
     pub static ref TRADERORDER_EVENT_LOG: String = std::env::var("TRADERORDER_EVENT_LOG")
-    .expect("missing environment variable TRADERORDER_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
 
     pub static ref LENDORDER_EVENT_LOG: String = std::env::var("LENDORDER_EVENT_LOG")
-    .expect("missing environment variable LENDORDER_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
 
     pub static ref LENDPOOL_EVENT_LOG: String = std::env::var("LENDPOOL_EVENT_LOG")
-    .expect("missing environment variable LENDPOOL_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
     pub static ref SNAPSHOT_LOG: String = std::env::var("SNAPSHOT_LOG")
-    .expect("missing environment variable SNAPSHOT_LOG");
-    pub static ref ZKOS_TRANSACTION_RPC_ENDPOINT: String = std::env::var("ZKOS_TRANSACTION_RPC_ENDPOINT")
-    .expect("missing environment variable ZKOS_TRANSACTION_RPC_ENDPOINT");
+    .unwrap_or("SnapShotLogTopic".to_string());
 
     pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>>> =
     Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
@@ -165,20 +165,20 @@ lazy_static! {
     >::new(1)));
 
     pub static ref WALLET_PROGRAM_PATH: String =
-    std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
+    std::env::var("WALLET_PROGRAM_PATH").unwrap_or("./relayerprogram.json".to_string());
     pub static ref RELAYER_SNAPSHOT_FILE_LOCATION: String =
-    std::env::var("RELAYER_SNAPSHOT_FILE_LOCATION").expect("missing environment variable RELAYER_SNAPSHOT_FILE_LOCATION");
+    std::env::var("RELAYER_SNAPSHOT_FILE_LOCATION").unwrap_or("/usr/bin/relayer_snapshot/snapshot-version".to_string());
 
     // for enabling chain transaction
     pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION")
-    .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION")
+    .unwrap_or("true".to_string())
     .parse::<bool>()
-    .unwrap();
+    .unwrap_or(true);
     // for enabling chain transaction file save
     pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE")
-    .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE")
+    .unwrap_or("true".to_string())
     .parse::<bool>()
-    .unwrap();
+    .unwrap_or(true);
 
 
 }

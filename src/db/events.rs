@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::config::EVENTLOG_VERSION;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
@@ -9,11 +10,14 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
-use std::thread;
 use std::time::Duration;
 use std::time::SystemTime;
+use std::{fmt, thread};
+use uuid::serde::compact::serialize;
 use uuid::Uuid;
 
 lazy_static! {
@@ -46,6 +50,99 @@ pub struct EventLog {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct EventKey {
+    pub agg_id: String,
+    pub event_type: String,
+    pub event_version: String,
+    pub metadata: Option<HashMap<String, String>>,
+}
+impl EventKey {
+    pub fn default() -> Self {
+        EventKey {
+            agg_id: "".to_string(),
+            event_type: "".to_string(),
+            event_version: EVENTLOG_VERSION.to_string(),
+            metadata: None,
+        }
+    }
+    pub fn new(agg_id: String, event_type: String) -> Self {
+        EventKey {
+            agg_id,
+            event_type,
+            event_version: EVENTLOG_VERSION.to_string(),
+            metadata: None,
+        }
+    }
+    pub fn new_with_version(agg_id: String, event_type: String, event_version: String) -> Self {
+        EventKey {
+            agg_id,
+            event_type,
+            event_version,
+            metadata: None,
+        }
+    }
+
+    pub fn add_metadata(mut self, metadata: HashMap<String, String>) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+    pub fn add_in_metadata(&mut self, key: String, value: String) -> bool {
+        match &mut self.metadata {
+            Some(metadata) => metadata.insert(key, value).is_none(),
+            None => {
+                let mut metadata = HashMap::new();
+                let bool = metadata.insert(key, value).is_none();
+                self.metadata = Some(metadata);
+                bool
+            }
+        }
+    }
+
+    pub fn to_string_or_default(&mut self) -> String {
+        match serde_json::to_string(self) {
+            Ok(value) => value,
+            Err(_arg) => "".to_string(),
+        }
+    }
+    pub fn from_string_or_deafault(serialize_event_key: String) -> Self {
+        match serde_json::from_str(&serialize_event_key) {
+            Ok(event_key) => event_key,
+            Err(arg) => {
+                let mut key = EventKey::default();
+                key.event_type = serialize_event_key;
+                key.event_version = "0.0.0".to_string();
+                let _ = key.add_in_metadata("Error".to_string(), arg.to_string());
+                key
+            }
+        }
+    }
+    pub fn is_upcast(&mut self) -> bool {
+        if self.event_version == EVENTLOG_VERSION.to_string() {
+            false
+        } else {
+            true
+        }
+    }
+    pub fn event_log_upcast(&mut self, log: Value) -> Value {
+        match &*self.event_version {
+            "0.0.0" => match &*self.event_type {
+                "TraderOrder" => {}
+                "CurrentPriceUpdate" => {}
+                _ => {}
+            },
+            "0.0.1" => match &self.event_type {
+                _ => {}
+            },
+            "1.0.0" => match &self.event_type {
+                _ => {}
+            },
+            _ => {}
+        }
+        log
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Event {
     TraderOrder(TraderOrder, RpcCommand, usize),
     TraderOrderUpdate(TraderOrder, RelayerCommand, usize),
@@ -54,7 +151,7 @@ pub enum Event {
     LendOrder(LendOrder, RpcCommand, usize),
     PoolUpdate(LendPoolCommand, LendPool, usize),
     FundingRateUpdate(f64, f64, String), //funding rate, btc price, time
-    CurrentPriceUpdate(f64, String),
+    CurrentPriceUpdate(f64, String, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
     TxHash(
@@ -68,6 +165,26 @@ pub enum Event {
     ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
 }
+
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Event::TraderOrder(..) => write!(f, "TraderOrder"),
+            Event::TraderOrderUpdate(..) => write!(f, "macOTraderOrderUpdateS"),
+            Event::TraderOrderFundingUpdate(..) => write!(f, "TraderOrderFundingUpdate"),
+            Event::TraderOrderLiquidation(..) => write!(f, "TraderOrderLiquidation"),
+            Event::LendOrder(..) => write!(f, "LendOrder"),
+            Event::PoolUpdate(..) => write!(f, "PoolUpdate"),
+            Event::FundingRateUpdate(..) => write!(f, "FundingRateUpdate"),
+            Event::CurrentPriceUpdate(..) => write!(f, "CurrentPriceUpdate"),
+            Event::SortedSetDBUpdate(..) => write!(f, "SortedSetDBUpdate"),
+            Event::PositionSizeLogDBUpdate(..) => write!(f, "PositionSizeLogDBUpdate"),
+            Event::TxHash(..) => write!(f, "TxHash"),
+            Event::Stop(..) => write!(f, "Stop"),
+        }
+    }
+}
+
 use stopwatch::Stopwatch;
 impl Event {
     pub fn new(event: Event, key: String, topic: String) -> Self {
@@ -223,5 +340,42 @@ impl Event {
             thread::park();
         });
         Ok(Arc::new(Mutex::new(receiver)))
+    }
+
+    pub fn get_event_type(&mut self) -> String {
+        match self {
+            Event::TraderOrder(..) => "TraderOrder".to_string(),
+            Event::TraderOrderUpdate(..) => "macOTraderOrderUpdateS".to_string(),
+            Event::TraderOrderFundingUpdate(..) => "TraderOrderFundingUpdate".to_string(),
+            Event::TraderOrderLiquidation(..) => "TraderOrderLiquidation".to_string(),
+            Event::LendOrder(..) => "LendOrder".to_string(),
+            Event::PoolUpdate(..) => "PoolUpdate".to_string(),
+            Event::FundingRateUpdate(..) => "FundingRateUpdate".to_string(),
+            Event::CurrentPriceUpdate(..) => "CurrentPriceUpdate".to_string(),
+            Event::SortedSetDBUpdate(..) => "SortedSetDBUpdate".to_string(),
+            Event::PositionSizeLogDBUpdate(..) => "PositionSizeLogDBUpdate".to_string(),
+            Event::TxHash(..) => "TxHash".to_string(),
+            Event::Stop(..) => "Stop".to_string(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use super::EventKey;
+
+    #[test]
+    fn test_eventlog_key() {
+        let mut metadata = HashMap::new();
+        metadata.insert("key1", "value1");
+        let mut event_key = EventKey::new("agg_id".to_string(), "price_update".to_string());
+
+        println!("event_key:{:?}", event_key);
+        event_key.add_in_metadata("key".to_string(), "value".to_string());
+        println!("event_key_meta:{:?}", event_key);
+        event_key.add_in_metadata("key2".to_string(), "value2".to_string());
+        println!("event_key_meta_new:{:?}", event_key);
     }
 }
