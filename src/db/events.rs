@@ -124,8 +124,8 @@ impl EventKey {
         }
     }
     pub fn event_log_upcast(&mut self, log: String) -> String {
-        println!("evet {:?}", &*self.event_version);
-        println!("&*self.event_type  {:?}", &*self.event_type);
+        // println!("evet {:?}", &*self.event_version);
+        // println!("&*self.event_type  {:?}", &*self.event_type);
         match &*self.event_version {
             "0.0.0" => match &*self.event_type {
                 _ => {
