@@ -797,12 +797,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let recever1 = recever.lock().unwrap();
     while stop_signal {
         let data = recever1.recv().unwrap();
-        match data.value {
-            Event::CurrentPriceUpdate(..) => {}
-            _ => {
-                println!("Envent log: {:#?}", data);
-            }
-        }
+        // match data.value {
+        //     Event::CurrentPriceUpdate(..) => {}
+        //     _ => {
+        //         println!("Envent log: {:#?}", data);
+        //     }
+        // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
                 RpcCommand::CreateTraderOrder(_rpc_request, _metadata, zkos_hex_string) => {

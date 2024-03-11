@@ -123,18 +123,34 @@ impl EventKey {
             true
         }
     }
-    pub fn event_log_upcast(&mut self, log: Value) -> Value {
+    pub fn event_log_upcast(&mut self, log: String) -> String {
+        println!("evet {:?}", &*self.event_version);
+        println!("&*self.event_type  {:?}", &*self.event_type);
         match &*self.event_version {
             "0.0.0" => match &*self.event_type {
-                "TraderOrder" => {}
-                "CurrentPriceUpdate" => {}
-                _ => {}
+                _ => {
+                    self.event_version = "1.0.0".to_string();
+                }
             },
-            "0.0.1" => match &self.event_type {
-                _ => {}
-            },
-            "1.0.0" => match &self.event_type {
-                _ => {}
+            "1.0.0" => match &*self.event_type {
+                // "CurrentPriceUpdate" => {
+                //     // #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                //     // pub enum Eventold {
+                //     //     CurrentPriceUpdate(f64, String),
+                //     // }
+
+                //     // // check for enum replacment with vec of value
+                //     // let log_der: Eventold = serde_json::from_str(&log).unwrap();
+                //     // let Eventold::CurrentPriceUpdate(price, time) = log_der;
+                //     // let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
+                //     // // println!("log:{:?}", log);
+                //     // self.event_version = "1.0.1".to_string();
+                //     // // println!("self:{:?}", self);
+                //     // return serde_json::to_string(&new_log).unwrap();
+                // }
+                _ => {
+                    self.event_version = "1.0.1".to_string();
+                }
             },
             _ => {}
         }
@@ -248,11 +264,20 @@ impl Event {
                 } else {
                     for ms in mss.iter() {
                         for m in ms.messages() {
+                            let mut eventkey = EventKey::from_string_or_deafault(
+                                String::from_utf8_lossy(&m.key).to_string(),
+                            );
+                            let mut value = String::from_utf8_lossy(&m.value).to_string();
+                            while eventkey.is_upcast() {
+                                value = eventkey.event_log_upcast(
+                                    String::from_utf8_lossy(&m.value).to_string(),
+                                );
+                            }
+
                             let message = EventLog {
                                 offset: m.offset,
                                 key: String::from_utf8_lossy(&m.key).to_string(),
-                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-                                    .unwrap(),
+                                value: serde_json::from_str(&value).unwrap(),
                             };
                             match sender_clone.send(message) {
                                 Ok(_) => {
@@ -310,11 +335,20 @@ impl Event {
                 } else {
                     for ms in mss.iter() {
                         for m in ms.messages() {
+                            let mut eventkey = EventKey::from_string_or_deafault(
+                                String::from_utf8_lossy(&m.key).to_string(),
+                            );
+                            let mut value = String::from_utf8_lossy(&m.value).to_string();
+                            while eventkey.is_upcast() {
+                                value = eventkey.event_log_upcast(
+                                    String::from_utf8_lossy(&m.value).to_string(),
+                                );
+                            }
+
                             let message = EventLog {
                                 offset: m.offset,
                                 key: String::from_utf8_lossy(&m.key).to_string(),
-                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-                                    .unwrap(),
+                                value: serde_json::from_str(&value).unwrap(),
                             };
                             match sender_clone.send(message) {
                                 Ok(_) => {
