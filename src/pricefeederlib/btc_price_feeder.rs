@@ -3,14 +3,8 @@
 
 #![allow(dead_code)]
 
-use crate::config::{
-    BinanceMiniTickerPayload,
-    POSTGRESQL_POOL_CONNECTION,
-    // THREADPOOL_PSQL_SEQ_QUEUE,
-    THREADPOOL_REDIS_SEQ_QUEUE,
-};
+use crate::config::{BinanceMiniTickerPayload, POSTGRESQL_POOL_CONNECTION};
 // use crate::kafkalib::producer_kafka;
-use crate::redislib::redis_db;
 use crate::relayer::set_localdb;
 // use std::thread;
 
@@ -23,7 +17,7 @@ pub fn update_btc_price(payload: String) {
     //checking if received msg is payload or ping/pong texts
     if payload.contains("24hrMiniTicker") {
         // let psql_pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
-        let redis_pool = THREADPOOL_REDIS_SEQ_QUEUE.lock().unwrap();
+
         //btc price update on redis DB
         let binance_payload: BinanceMiniTickerPayload =
             serde_json::from_str(&payload.clone()).unwrap();

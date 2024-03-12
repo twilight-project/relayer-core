@@ -49,13 +49,10 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
     );
     let mut stop_signal: bool = true;
 
-    let recever = Event::receive_event_from_kafka_queue(
+    let recever = Event::receive_event_for_snapshot_from_kafka_queue(
         CORE_EVENT_LOG.clone().to_string(),
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis()
-            .to_string(),
+        ServerTime::now().epoch,
+        FetchOffset::Earliest,
     )
     .unwrap();
     let recever1 = recever.lock().unwrap();
@@ -662,11 +659,24 @@ impl SnapshotDB {
             // output_memo_hashmap:
             //     utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
             event_offset: 0,
-            event_timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-                .to_string(),
+            event_timestamp: ServerTime::now().epoch,
+        }
+    }
+    fn print_status(&self) {
+        if self.orderdb_traderorder.sequence > 0 {
+            println!("TraderOrder Database Loaded ....");
+        } else {
+            println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
+        }
+        if self.orderdb_lendorder.sequence > 0 {
+            println!("LendOrder Database Loaded ....");
+        } else {
+            println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
+        }
+        if self.lendpool_database.aggrigate_log_sequence > 0 {
+            println!("LendPool Database Loaded ....");
+        } else {
+            println!("No old LendPool Database found ....\nCreating new LendPool_database");
         }
     }
 }
@@ -691,10 +701,6 @@ pub fn snapshot() -> Result<(), std::io::Error> {
                 bincode::deserialize(&snapshot_data_from_file).expect("Could not decode vector");
             is_file_exist = true;
             last_snapshot_time = decoded_snapshot.event_timestamp.clone();
-            // fetchoffset =
-            //     FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap() / 1000000);
-            // fetchoffset = FetchOffset::ByTime(last_snapshot_time.clone().parse::<i64>().unwrap());
-            // fetchoffset = FetchOffset::ByTime(1665747903289);
             fetchoffset = FetchOffset::Earliest;
         }
         Err(arg) => {
@@ -708,8 +714,6 @@ pub fn snapshot() -> Result<(), std::io::Error> {
             fetchoffset = FetchOffset::Earliest;
         }
     }
-    // let decoded_snapshot: SnapshotDB =
-    //     bincode::deserialize(&read_snapshot).expect("Could not decode vector");
     let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     *snapshot_data = decoded_snapshot.clone();
     drop(snapshot_data);
@@ -760,24 +764,25 @@ pub fn snapshot() -> Result<(), std::io::Error> {
 
 pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
-    let mut orderdb_traderorder: OrderDBSnapShotTO = snapshot_db.orderdb_traderorder;
-    let mut orderdb_lendorder: OrderDBSnapShotLO = snapshot_db.orderdb_lendorder;
-    let mut lendpool_database: LendPool = snapshot_db.lendpool_database;
-    let mut liquidation_long_sortedset_db = snapshot_db.liquidation_long_sortedset_db;
-    let mut liquidation_short_sortedset_db = snapshot_db.liquidation_short_sortedset_db;
-    let mut open_long_sortedset_db = snapshot_db.open_long_sortedset_db;
-    let mut open_short_sortedset_db = snapshot_db.open_short_sortedset_db;
-    let mut close_long_sortedset_db = snapshot_db.close_long_sortedset_db;
-    let mut close_short_sortedset_db = snapshot_db.close_short_sortedset_db;
-    let mut position_size_log = snapshot_db.position_size_log;
-    let mut localdb_hashmap = snapshot_db.localdb_hashmap;
+    let SnapshotDB {
+        mut orderdb_traderorder,
+        mut orderdb_lendorder,
+        mut lendpool_database,
+        mut liquidation_long_sortedset_db,
+        mut liquidation_short_sortedset_db,
+        mut open_long_sortedset_db,
+        mut open_short_sortedset_db,
+        mut close_long_sortedset_db,
+        mut close_short_sortedset_db,
+        mut position_size_log,
+        mut localdb_hashmap,
+        mut event_offset,
+        event_timestamp,
+    } = snapshot_db;
+
     let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-    let mut event_offset: i64 = 0;
-    let time = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
-        .to_string();
+    // let mut event_offset: i64 = 0;
+    let time = ServerTime::now().epoch;
     let event_timestamp = time.clone();
     let event_stoper_string = format!("snapsot-start-{}", time);
     let eventstop: Event = Event::Stop(event_stoper_string.clone());
@@ -1275,16 +1280,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
     }
     let _ = output_hex_storage.take_snapshot();
     drop(output_hex_storage);
-    // if orderdb_traderorder.sequence > 0 {
-    //     println!("TraderOrder Database Loaded ....");
-    // } else {
-    //     println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
-    // }
-    // if orderdb_lendorder.sequence > 0 {
-    //     println!("LendOrder Database Loaded ....");
-    // } else {
-    //     println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
-    // }
+
     if lendpool_database.aggrigate_log_sequence > 0 {
     } else {
         lendpool_database = LendPool::new();
@@ -1321,23 +1317,8 @@ pub fn load_from_snapshot() {
             let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
             let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
             let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-            if snapshot_data.orderdb_traderorder.sequence > 0 {
-                println!("TraderOrder Database Loaded ....");
-            } else {
-                println!(
-                    "No old TraderOrder Database found ....\nCreating new TraderOrder_database"
-                );
-            }
-            if snapshot_data.orderdb_lendorder.sequence > 0 {
-                println!("LendOrder Database Loaded ....");
-            } else {
-                println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
-            }
-            if snapshot_data.lendpool_database.aggrigate_log_sequence > 0 {
-                println!("LendPool Database Loaded ....");
-            } else {
-                println!("No old LendPool Database found ....\nCreating new LendPool_database");
-            }
+            snapshot_data.print_status();
+
             // add field of Trader order db
             load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();
             load_trader_data.nonce = snapshot_data.orderdb_traderorder.nonce.clone();
@@ -1349,6 +1330,8 @@ pub fn load_from_snapshot() {
                 snapshot_data.orderdb_traderorder.last_snapshot_id.clone();
             load_trader_data.zkos_msg = snapshot_data.orderdb_traderorder.zkos_msg.clone();
             load_trader_data.hash = snapshot_data.orderdb_traderorder.hash.clone();
+            //end
+
             // add field of Lend order db
             load_lend_data.sequence = snapshot_data.orderdb_lendorder.sequence.clone();
             load_lend_data.nonce = snapshot_data.orderdb_lendorder.nonce.clone();
@@ -1360,10 +1343,12 @@ pub fn load_from_snapshot() {
                 snapshot_data.orderdb_lendorder.last_snapshot_id.clone();
             load_lend_data.zkos_msg = snapshot_data.orderdb_lendorder.zkos_msg.clone();
             load_lend_data.hash = snapshot_data.orderdb_lendorder.hash.clone();
+            // end
             drop(load_trader_data);
             drop(load_lend_data);
             let traderorder_hashmap = snapshot_data.orderdb_traderorder.ordertable.clone();
             let lendorder_hashmap = snapshot_data.orderdb_lendorder.ordertable.clone();
+
             let trader_order_handle = thread::Builder::new()
                 .name(String::from("trader_order_handle"))
                 .spawn(move || {

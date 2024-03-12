@@ -19,7 +19,6 @@ pub use self::commands::*;
 pub use self::directapi::*;
 pub use self::heartbeat::*;
 pub use self::lendorder::LendOrder;
-pub use self::postgres_sql_init::*;
 pub use self::publicapi::*;
 pub use self::queueresolver::QueueResolver;
 pub use self::relayercore::*;
