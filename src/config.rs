@@ -190,9 +190,6 @@ lazy_static! {
 ///  ### BinanceMiniTickerPayload Struct
 /// ```rust,no_run
 ///
-/// use r2d2_postgres::postgres::NoTls;
-/// use r2d2_postgres::PostgresConnectionManager;
-/// use r2d2_redis::RedisConnectionManager;
 /// use serde_derive::Deserialize;
 /// use serde_derive::Serialize;
 /// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -238,4 +235,86 @@ pub struct BinanceMiniTickerPayload {
     pub l: String, // Low price
     pub v: String, // Total traded base asset volume
     pub q: String, // Total traded quote asset volume
+}
+
+/// Binance Individual Symbol aggTicker Stream Payload Struct
+///
+/// https://binance-docs.github.io/apidocs/spot/en/#individual-symbol-mini-ticker-stream
+/// wss://stream.binance.com/ws/btcusdt@aggTrade
+///  ### BinanceAggTradePayload Struct
+/// ```rust,no_run
+///
+/// use serde_derive::Deserialize;
+/// use serde_derive::Serialize;
+/// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// #[serde(rename_all = "camelCase")]
+/// pub struct BinanceAggTradePayload {
+///     #[serde(rename = "e")]
+///     pub event_type: String,
+///     #[serde(rename = "E")]
+///     pub event_time: i64,
+///     #[serde(rename = "s")]
+///     pub symbol: String,
+///     #[serde(rename = "a")]
+///     pub agg_trade_id: i64,
+///     #[serde(rename = "p")]
+///     pub price: String,
+///     #[serde(rename = "q")]
+///     pub quantity: String,
+///     #[serde(rename = "f")]
+///     pub first_trade_id: i64,
+///     #[serde(rename = "l")]
+///     pub last_trade_id: i64,
+///     #[serde(rename = "t")]
+///     pub trade_time: i64,
+///     #[serde(rename = "m")]
+///     pub is_market_maker: bool,
+///     #[serde(rename = "M")]
+///     pub ignore: bool,
+/// }
+
+/// ```
+///
+/// ### Example Payload
+/// ```json
+/// {
+///     "e": "aggTrade",  // Event type
+///     "E": 1672515782136,   // Event time
+///     "s": "BNBBTC",    // Symbol
+///     "a": 12345,       // Aggregate trade ID
+///     "p": "0.001",     // Price
+///     "q": "100",       // Quantity
+///     "f": 100,         // First trade ID
+///     "l": 105,         // Last trade ID
+///     "T": 1672515782136,   // Trade time
+///     "m": true,        // Is the buyer the market maker?
+///     "M": true         // Ignore
+///   }
+/// ```
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BinanceAggTradePayload {
+    #[serde(rename = "e")]
+    pub event_type: String,
+    #[serde(rename = "E")]
+    pub event_time: i64,
+    #[serde(rename = "s")]
+    pub symbol: String,
+    #[serde(rename = "a")]
+    pub agg_trade_id: i64,
+    #[serde(rename = "p")]
+    pub price: String,
+    #[serde(rename = "q")]
+    pub quantity: String,
+    #[serde(rename = "f")]
+    pub first_trade_id: i64,
+    #[serde(rename = "l")]
+    pub last_trade_id: i64,
+    #[serde(rename = "T")]
+    pub trade_time: i64,
+    #[serde(rename = "m")]
+    pub is_market_maker: bool,
+    #[serde(rename = "M")]
+    pub ignore: bool,
 }

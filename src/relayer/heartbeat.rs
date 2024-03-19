@@ -15,7 +15,7 @@ pub fn heartbeat() {
     // init_psql();
     println!("Looking for previous database...");
     load_from_snapshot();
-    ordertest::initprice();
+
     // init_output_txhash_storage();
 
     thread::sleep(time::Duration::from_millis(100));
@@ -28,6 +28,41 @@ pub fn heartbeat() {
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(500));
+    let mut true_price = true;
+    //get_localdb with single mutex unlock
+    while true_price {
+        let mut local_storage = LOCALDB.lock().unwrap();
+        let currentprice = match local_storage.get("Latest_Price") {
+            Some(price) => {
+                true_price = false;
+                price.clone()
+            }
+            None => {
+                thread::sleep(time::Duration::from_millis(50));
+                continue;
+            }
+        };
+        let old_price = match local_storage.get("CurrentPrice") {
+            Some(price) => price.clone(),
+            None => {
+                local_storage.insert("CurrentPrice", currentprice);
+                currentprice.clone()
+            }
+        };
+        drop(local_storage);
+    }
+
+    thread::Builder::new()
+        .name(String::from("price_check_and_update"))
+        .spawn(move || loop {
+            thread::sleep(time::Duration::from_millis(249));
+            thread::spawn(move || {
+                price_check_and_update();
+            });
+        })
+        .unwrap();
+    thread::sleep(time::Duration::from_millis(100));
+    ordertest::initprice();
     // start_cronjobs();
     // main thread for scheduler
     thread::Builder::new()
@@ -51,16 +86,6 @@ pub fn heartbeat() {
             loop {
                 thread::sleep(time::Duration::from_millis(100000000));
             }
-        })
-        .unwrap();
-
-    thread::Builder::new()
-        .name(String::from("price_check_and_update"))
-        .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(2500));
-            thread::spawn(move || {
-                price_check_and_update();
-            });
         })
         .unwrap();
 
@@ -93,42 +118,31 @@ pub fn price_check_and_update() {
         Some(price) => price.clone(),
         None => return,
     };
-    let old_price = match local_storage.get("CurrentPrice") {
-        Some(price) => price.clone(),
-        None => {
-            local_storage.insert("CurrentPrice", currentprice);
-            currentprice.clone()
-        }
-    };
-
-    // let old_price = local_storage.get("CurrentPrice").unwrap().clone();
     drop(local_storage);
 
-    if currentprice != old_price {
-        Event::new(
-            Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
-            String::from("insert_CurrentPrice"),
-            TRADERORDER_EVENT_LOG.clone().to_string(),
-        );
-        currentprice = currentprice.round();
-        set_localdb("CurrentPrice", currentprice);
-        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
-        let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
-        treadpool_pending_order.execute(move || {
-            check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
-        treadpool_liquidation_order.execute(move || {
-            check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
-        treadpool_settling_order.execute(move || {
-            check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        drop(treadpool_pending_order);
-        drop(treadpool_liquidation_order);
-        drop(treadpool_settling_order);
-    }
+    Event::new(
+        Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
+        String::from("insert_CurrentPrice"),
+        TRADERORDER_EVENT_LOG.clone().to_string(),
+    );
+    currentprice = currentprice.round();
+    set_localdb("CurrentPrice", currentprice);
+    // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
+    let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
+    treadpool_pending_order.execute(move || {
+        check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+    });
+    let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+    treadpool_liquidation_order.execute(move || {
+        check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
+    });
+    let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+    treadpool_settling_order.execute(move || {
+        check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+    });
+    drop(treadpool_pending_order);
+    drop(treadpool_liquidation_order);
+    drop(treadpool_settling_order);
 }
 
 pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f64) {
