@@ -23,7 +23,6 @@ pub fn update_btc_price(payload: String, mut last_price: &f64) -> f64 {
             serde_json::from_str(&payload.clone()).unwrap();
         current_price = binance_payload.clone().price.parse::<f64>().unwrap();
         if current_price != *last_price {
-            println!("current_price: {:?}", current_price);
             set_localdb("Latest_Price", current_price);
         }
     } else {
