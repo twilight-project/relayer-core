@@ -556,7 +556,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         rpc_request.account_id,
                                         "Order not found or invalid order status !!".to_string(),
                                         rpc_request.order_type,
-                                        OrderStatus::CANCELLED,
+                                        OrderStatus::OrderNotFound,
                                         ServerTime::now().epoch,
                                         None,
                                     ),
@@ -1158,7 +1158,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                                     trader_order.account_id,
                                                                     arg,
                                                                     trader_order.order_type,
-                                                                    trader_order.order_status,
+                                                                    OrderStatus::RejectedFromChain,
                                                                     ServerTime::now().epoch,
                                                                     None
                                                                 ),
@@ -1175,7 +1175,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             trader_order.account_id,
                                                             arg.to_string(),
                                                             trader_order.order_type,
-                                                            trader_order.order_status,
+                                                            OrderStatus::UtxoError,
                                                             ServerTime::now().epoch,
                                                             None
                                                         ),
@@ -1196,7 +1196,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     trader_order.account_id,
                                                     arg.to_string(),
                                                     trader_order.order_type,
-                                                    trader_order.order_status,
+                                                    OrderStatus::SerializationError,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
@@ -1314,7 +1314,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             lend_order.account_id,
                                                             arg,
                                                             lend_order.order_type,
-                                                            lend_order.order_status,
+                                                            OrderStatus::RejectedFromChain,
                                                             ServerTime::now().epoch,
                                                             None
                                                         ),
@@ -1331,7 +1331,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     lend_order.account_id,
                                                     arg.to_string(),
                                                     lend_order.order_type,
-                                                    lend_order.order_status,
+                                                    OrderStatus::UtxoError,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
@@ -1352,7 +1352,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             lend_order.account_id,
                                             arg,
                                             lend_order.order_type,
-                                            lend_order.order_status,
+                                            OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
                                             None
                                         ),
@@ -1469,7 +1469,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     trader_order.account_id,
                                                     arg,
                                                     trader_order.order_type,
-                                                    trader_order.order_status,
+                                                    OrderStatus::RejectedFromChain,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
@@ -1490,7 +1490,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             trader_order.account_id,
                                             arg,
                                             trader_order.order_type,
-                                            trader_order.order_status,
+                                            OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
                                             None
                                         ),
@@ -1588,7 +1588,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     lend_order.account_id,
                                                     arg,
                                                     lend_order.order_type,
-                                                    lend_order.order_status,
+                                                    OrderStatus::RejectedFromChain,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
@@ -1609,7 +1609,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             lend_order.account_id,
                                             arg,
                                             lend_order.order_type,
-                                            lend_order.order_status,
+                                            OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
                                             None
                                         ),
@@ -1777,7 +1777,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                                     trader_order.account_id,
                                                                     arg,
                                                                     trader_order.order_type,
-                                                                    trader_order.order_status,
+                                                                    OrderStatus::RejectedFromChain,
                                                                     ServerTime::now().epoch,
                                                                     None
                                                                 ),
@@ -1794,7 +1794,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             trader_order.account_id,
                                                             arg.to_string(),
                                                             trader_order.order_type,
-                                                            trader_order.order_status,
+                                                            OrderStatus::UtxoError,
                                                             ServerTime::now().epoch,
                                                             None
                                                         ),
@@ -1815,7 +1815,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     trader_order.account_id,
                                                     arg,
                                                     trader_order.order_type,
-                                                    trader_order.order_status,
+                                                    OrderStatus::SerializationError,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
@@ -1953,7 +1953,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                         arg
                                                     ),
                                                     trader_order.order_type,
-                                                    OrderStatus::FILLED,
+                                                    OrderStatus::RejectedFromChain,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
@@ -1977,7 +1977,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                 arg
                                             ),
                                             trader_order.order_type,
-                                            OrderStatus::FILLED,
+                                            OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
                                             None
                                         ),
@@ -2078,7 +2078,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             trader_order.account_id,
                                             format!("Error : {:?}, liquidation failed", arg),
                                             trader_order.order_type,
-                                            trader_order.order_status,
+                                            OrderStatus::RejectedFromChain,
                                             ServerTime::now().epoch,
                                             None
                                         ),
@@ -2099,7 +2099,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                     trader_order.account_id,
                                     "Error : Output memo not Found, liquidation failed".to_string(),
                                     trader_order.order_type,
-                                    trader_order.order_status,
+                                    OrderStatus::UtxoError,
                                     ServerTime::now().epoch,
                                     None
                                 ),
