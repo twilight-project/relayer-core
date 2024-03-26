@@ -4,6 +4,7 @@ use crate::config::EVENTLOG_VERSION;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
+use jsonrpc::Request;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::{Producer, Record, RequiredAcks};
@@ -178,6 +179,16 @@ pub enum Event {
         OrderStatus,
         String,
         Option<String>,
+        RequestID,
+    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output, RequestID
+    TxHashUpdate(
+        Uuid,
+        String,
+        String,
+        OrderType,
+        OrderStatus,
+        String,
+        Option<String>,
     ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
 }
@@ -318,6 +329,7 @@ impl Event {
             Event::SortedSetDBUpdate(..) => "SortedSetDBUpdate".to_string(),
             Event::PositionSizeLogDBUpdate(..) => "PositionSizeLogDBUpdate".to_string(),
             Event::TxHash(..) => "TxHash".to_string(),
+            Event::TxHashUpdate(..) => "TxHashUpdate".to_string(),
             Event::Stop(..) => "Stop".to_string(),
         }
     }

@@ -515,6 +515,51 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 order_status,
                 _timestamp,
                 option_output,
+                _request_id,
+            ) => match order_type {
+                OrderType::LIMIT | OrderType::MARKET => match order_status {
+                    OrderStatus::FILLED => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let output_memo_option = match option_output {
+                            Some(output_hex_string) => match hex::decode(output_hex_string) {
+                                Ok(output_byte) => match bincode::deserialize(&output_byte) {
+                                    Ok(output_memo) => Some(output_memo),
+                                    Err(_) => None,
+                                },
+                                Err(_) => None,
+                            },
+                            None => None,
+                        };
+
+                        match output_memo_option {
+                            Some(output_memo) => {
+                                let _ = output_hex_storage.add(uuid_to_byte, Some(output_memo), 0);
+                            }
+                            None => {}
+                        }
+                    }
+                    OrderStatus::SETTLED | OrderStatus::CANCELLED | OrderStatus::LIQUIDATE => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let _ = output_hex_storage.remove(uuid_to_byte, 0);
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
+            Event::TxHashUpdate(
+                orderid,
+                _account_id,
+                _tx_hash,
+                order_type,
+                order_status,
+                _timestamp,
+                option_output,
             ) => match order_type {
                 OrderType::LIMIT | OrderType::MARKET => match order_status {
                     OrderStatus::FILLED => {
@@ -1279,6 +1324,50 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 position_size_log = event;
             }
             Event::TxHash(
+                orderid,
+                _account_id,
+                _tx_hash,
+                order_type,
+                order_status,
+                _timestamp,
+                option_output,
+                _request_id,
+            ) => match order_type {
+                OrderType::LIMIT | OrderType::MARKET => match order_status {
+                    OrderStatus::FILLED => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let output_memo_option = match option_output {
+                            Some(output_hex_string) => match hex::decode(output_hex_string) {
+                                Ok(output_byte) => match bincode::deserialize(&output_byte) {
+                                    Ok(output_memo) => Some(output_memo),
+                                    Err(_) => None,
+                                },
+                                Err(_) => None,
+                            },
+                            None => None,
+                        };
+                        match output_memo_option {
+                            Some(output_memo) => {
+                                let _ = output_hex_storage.add(uuid_to_byte, Some(output_memo), 0);
+                            }
+                            None => {}
+                        }
+                    }
+                    OrderStatus::SETTLED | OrderStatus::CANCELLED | OrderStatus::LIQUIDATE => {
+                        let uuid_to_byte = match bincode::serialize(&orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let _ = output_hex_storage.remove(uuid_to_byte, 0);
+                    }
+                    _ => {}
+                },
+                _ => {}
+            },
+            Event::TxHashUpdate(
                 orderid,
                 _account_id,
                 _tx_hash,

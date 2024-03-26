@@ -65,7 +65,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
     let command_clone = command.clone();
     let command_clone_for_zkos = command.clone();
     match command {
-        RpcCommand::CreateTraderOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
+        RpcCommand::CreateTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
@@ -118,6 +118,20 @@ pub fn rpc_event_handler(command: RpcCommand) {
                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                         let completed_order = trader_order_db.add(orderdata_clone, command_clone);
                         drop(trader_order_db);
+                        Event::new(
+                            Event::TxHash(
+                                completed_order.uuid,
+                                completed_order.account_id,
+                                request_id.clone(),
+                                completed_order.order_type,
+                                OrderStatus::PENDING,
+                                ServerTime::now().epoch,
+                                None,
+                                request_id,
+                            ),
+                            String::from("tx_limit_submit"),
+                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                        );
                     }
                 } else {
                     // send event for txhash with error saying order already exist in the relayer
@@ -128,9 +142,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                             "Duplicate order found in the database with same public key"
                                 .to_string(),
                             orderdata.order_type,
-                            OrderStatus::CANCELLED,
+                            OrderStatus::DuplicateOrder,
                             ServerTime::now().epoch,
                             None,
+                            request_id,
                         ),
                         String::from("tx_duplicate_error"),
                         LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -139,7 +154,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
+        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let execution_price = rpc_request.execution_price.clone();
@@ -229,6 +244,20 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                             zkos_hex_string,
                                         );
                                         drop(trader_order_db);
+                                        Event::new(
+                                            Event::TxHash(
+                                                order_updated_clone.uuid,
+                                                order_updated_clone.account_id,
+                                                request_id.clone(),
+                                                order_updated_clone.order_type,
+                                                OrderStatus::PENDING,
+                                                ServerTime::now().epoch,
+                                                None,
+                                                request_id,
+                                            ),
+                                            String::from("tx_settle_limit_submit"),
+                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                        );
                                     }
                                     _ => {
                                         drop(order);
@@ -248,9 +277,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         rpc_request.account_id,
                                         "Order not found or invalid order status !!".to_string(),
                                         rpc_request.order_type,
-                                        OrderStatus::CANCELLED,
+                                        OrderStatus::OrderNotFound,
                                         ServerTime::now().epoch,
                                         None,
+                                        request_id,
                                     ),
                                     String::from("trader_tx_not_found_error"),
                                     LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -267,9 +297,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 rpc_request.account_id,
                                 format!("Error found:{:#?}", arg),
                                 rpc_request.order_type,
-                                OrderStatus::CANCELLED,
+                                OrderStatus::Error,
                                 ServerTime::now().epoch,
                                 None,
+                                request_id,
                             ),
                             String::from("trader_tx_not_found_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -279,7 +310,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::CreateLendOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
+        RpcCommand::CreateLendOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
@@ -356,9 +387,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                             "Duplicate order found in the database with same public key"
                                 .to_string(),
                             OrderType::LEND,
-                            OrderStatus::CANCELLED,
+                            OrderStatus::DuplicateOrder,
                             ServerTime::now().epoch,
                             None,
+                            request_id,
                         ),
                         String::from("tx_duplicate_error"),
                         LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -369,7 +401,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::ExecuteLendOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
+        RpcCommand::ExecuteLendOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
@@ -472,9 +504,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         rpc_request.account_id,
                                         "Order not found or invalid order status !!".to_string(),
                                         OrderType::LEND,
-                                        OrderStatus::CANCELLED,
+                                        OrderStatus::OrderNotFound,
                                         ServerTime::now().epoch,
                                         None,
+                                        request_id,
                                     ),
                                     String::from("lend_tx_not_found_error"),
                                     LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -492,9 +525,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 rpc_request.account_id,
                                 format!("Error found:{:#?}", arg),
                                 OrderType::LEND,
-                                OrderStatus::CANCELLED,
+                                OrderStatus::Error,
                                 ServerTime::now().epoch,
                                 None,
+                                request_id,
                             ),
                             String::from("lend_tx_not_found_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -504,7 +538,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::CancelTraderOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
+        RpcCommand::CancelTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
@@ -534,6 +568,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                                 OrderStatus::CANCELLED,
                                                 ServerTime::now().epoch,
                                                 None,
+                                                request_id,
                                             ),
                                             String::from("tx_hash_result"),
                                             LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -559,6 +594,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         OrderStatus::OrderNotFound,
                                         ServerTime::now().epoch,
                                         None,
+                                        request_id,
                                     ),
                                     String::from("trader_order_not_found_error"),
                                     LENDPOOL_EVENT_LOG.clone().to_string(),
@@ -706,22 +742,22 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         verification_error
                                                     );
                                                     // settle limit removed from the db, need to place new limit/market settle request
-                                                    Event::new(
-                                                        Event::TxHash(
-                                                            order.uuid,
-                                                            order.account_id,
-                                                            format!(
-                                                                "Error : {:?}, liquidation failed",
-                                                                verification_error
-                                                            ),
-                                                            order.order_type,
-                                                            OrderStatus::FILLED,
-                                                            ServerTime::now().epoch,
-                                                            None,
-                                                        ),
-                                                        String::from("tx_hash_error"),
-                                                        LENDPOOL_EVENT_LOG.clone().to_string(),
-                                                    );
+                                                    // Event::new(
+                                                    //     Event::TxHashUpdate(
+                                                    //         order.uuid,
+                                                    //         order.account_id,
+                                                    //         format!(
+                                                    //             "Error : {:?}, liquidation failed",
+                                                    //             verification_error
+                                                    //         ),
+                                                    //         order.order_type,
+                                                    //         OrderStatus::FILLED,
+                                                    //         ServerTime::now().epoch,
+                                                    //         None,
+                                                    //     ),
+                                                    //     String::from("tx_hash_error"),
+                                                    //     LENDPOOL_EVENT_LOG.clone().to_string(),
+                                                    // );
                                                 }
                                             }
                                         }
@@ -836,19 +872,19 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         );
                                                         drop(trader_order_db);
 
-                                                        Event::new(
-                                                            Event::TxHash(
-                                                                update_order_detail.uuid,
-                                                                update_order_detail.account_id,
-                                                                verification_error,
-                                                                OrderType::LIMIT,
-                                                                OrderStatus::CANCELLED,
-                                                                ServerTime::now().epoch,
-                                                                None
-                                                            ),
-                                                            String::from("tx_hash_error"),
-                                                            LENDPOOL_EVENT_LOG.clone().to_string()
-                                                        );
+                                                        // Event::new(
+                                                        //     Event::TxHash(
+                                                        //         update_order_detail.uuid,
+                                                        //         update_order_detail.account_id,
+                                                        //         verification_error,
+                                                        //         OrderType::LIMIT,
+                                                        //         OrderStatus::CANCELLED,
+                                                        //         ServerTime::now().epoch,
+                                                        //         None
+                                                        //     ),
+                                                        //     String::from("tx_hash_error"),
+                                                        //     LENDPOOL_EVENT_LOG.clone().to_string()
+                                                        // );
                                                     }
                                                 }
                                             }
@@ -872,19 +908,19 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 );
                                                 drop(trader_order_db);
 
-                                                Event::new(
-                                                    Event::TxHash(
-                                                        update_order_detail.uuid,
-                                                        update_order_detail.account_id,
-                                                        format!("Error found:{:#?}", arg),
-                                                        OrderType::LIMIT,
-                                                        OrderStatus::CANCELLED,
-                                                        ServerTime::now().epoch,
-                                                        None
-                                                    ),
-                                                    String::from("Receiver_error_limit"),
-                                                    LENDPOOL_EVENT_LOG.clone().to_string()
-                                                );
+                                                // Event::new(
+                                                //     Event::TxHash(
+                                                //         update_order_detail.uuid,
+                                                //         update_order_detail.account_id,
+                                                //         format!("Error found:{:#?}", arg),
+                                                //         OrderType::LIMIT,
+                                                //         OrderStatus::CANCELLED,
+                                                //         ServerTime::now().epoch,
+                                                //         None
+                                                //     ),
+                                                //     String::from("Receiver_error_limit"),
+                                                //     LENDPOOL_EVENT_LOG.clone().to_string()
+                                                // );
                                             }
                                         }
                                     });
@@ -1069,15 +1105,19 @@ pub fn zkos_order_handler(
                                 RpcCommand::CreateTraderOrder(
                                     order_request,
                                     meta,
-                                    zkos_hex_string,_request_id
+                                    zkos_hex_string,
+                                    request_id,
                                 ) => {
-let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
-                Ok(bytes) =>  match bincode::deserialize(&bytes) {
-                                    Ok(tx)=>Ok(tx),
-                                    Err(arg)=>  Err(arg.to_string())
-                                }
-                Err(arg)=> Err(arg.to_string())
-                };
+                                    let tx_result: Result<Transaction, String> = match
+                                        hex::decode(zkos_hex_string)
+                                    {
+                                        Ok(bytes) =>
+                                            match bincode::deserialize(&bytes) {
+                                                Ok(tx) => Ok(tx),
+                                                Err(arg) => Err(arg.to_string()),
+                                            }
+                                        Err(arg) => Err(arg.to_string()),
+                                    };
 
                                     // let zkos_create_order_result =
                                     //     ZkosCreateOrder::decode_from_hex_string(zkos_hex_string);
@@ -1089,19 +1129,23 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             //     trader_order.entryprice.round() as u64,
                                             //     trader_order.positionsize.round() as u64
                                             // );
-                                            let updated_tx_result = update_memo_tx_client_order(&tx, trader_order.entryprice.round() as u64, trader_order.positionsize.round() as u64);
+                                            let updated_tx_result = update_memo_tx_client_order(
+                                                &tx,
+                                                trader_order.entryprice.round() as u64,
+                                                trader_order.positionsize.round() as u64
+                                            );
 
                                             match updated_tx_result {
                                                 Ok(tx_and_outputmemo) => {
                                                     let output = tx_and_outputmemo.get_output();
                                                     let output_memo_hex = match
                                                         bincode::serialize(&output.clone())
-                                                        {
+                                                    {
                                                         Ok(output_memo_bin) => {
                                                             Some(hex::encode(&output_memo_bin))
                                                         }
                                                         Err(_) => None,
-                                                        };
+                                                    };
                                                     // let transaction = create_trade_order(
                                                     //     zkos_create_order.input,
                                                     //     output.clone(),
@@ -1113,11 +1157,11 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     //     Network::Mainnet,
                                                     //     5u64
                                                     // );
-                                                   let transaction  = tx_and_outputmemo.get_tx();
+                                                    let transaction = tx_and_outputmemo.get_tx();
                                                     let tx_hash_result =
-                                                            relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
-                                                                transaction
-                                                            );
+                                                        relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
+                                                            transaction
+                                                        );
 
                                                     let sender_clone = sender.clone();
                                                     match sender_clone.send(tx_hash_result.clone()) {
@@ -1145,7 +1189,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                                     trader_order.order_type,
                                                                     trader_order.order_status,
                                                                     ServerTime::now().epoch,
-                                                                    output_memo_hex
+                                                                    output_memo_hex,
+                                                                    request_id
                                                                 ),
                                                                 String::from("tx_hash_result"),
                                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1160,7 +1205,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                                     trader_order.order_type,
                                                                     OrderStatus::RejectedFromChain,
                                                                     ServerTime::now().epoch,
-                                                                    None
+                                                                    None,
+                                                                    request_id
                                                                 ),
                                                                 String::from("tx_hash_error"),
                                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1177,7 +1223,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             trader_order.order_type,
                                                             OrderStatus::UtxoError,
                                                             ServerTime::now().epoch,
-                                                            None
+                                                            None,
+                                                            request_id
                                                         ),
                                                         String::from("tx_hash_error"),
                                                         LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1198,7 +1245,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     trader_order.order_type,
                                                     OrderStatus::SerializationError,
                                                     ServerTime::now().epoch,
-                                                    None
+                                                    None,
+                                                    request_id
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1224,7 +1272,12 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::CreateLendOrder(order_request, meta, zkos_hex_string,_request_id) => {
+                        RpcCommand::CreateLendOrder(
+                            order_request,
+                            meta,
+                            zkos_hex_string,
+                            request_id,
+                        ) => {
                             let zkos_create_order_result =
                                 ZkosCreateOrder::decode_from_hex_string(zkos_hex_string);
 
@@ -1301,7 +1354,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             lend_order.order_type,
                                                             lend_order.order_status,
                                                             ServerTime::now().epoch,
-                                                            output_memo_hex
+                                                            output_memo_hex,
+                                                            request_id
                                                         ),
                                                         String::from("tx_hash_result"),
                                                         LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1316,7 +1370,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             lend_order.order_type,
                                                             OrderStatus::RejectedFromChain,
                                                             ServerTime::now().epoch,
-                                                            None
+                                                            None,
+                                                            request_id
                                                         ),
                                                         String::from("tx_hash_error"),
                                                         LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1333,7 +1388,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     lend_order.order_type,
                                                     OrderStatus::UtxoError,
                                                     ServerTime::now().epoch,
-                                                    None
+                                                    None,
+                                                    request_id
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1354,7 +1410,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             lend_order.order_type,
                                             OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
-                                            None
+                                            None,
+                                            request_id
                                         ),
                                         String::from("tx_hash_error"),
                                         LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1377,7 +1434,12 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::ExecuteTraderOrder(order_request, meta, zkos_hex_string,_request_id) => {
+                        RpcCommand::ExecuteTraderOrder(
+                            order_request,
+                            meta,
+                            zkos_hex_string,
+                            request_id,
+                        ) => {
                             let zkos_settle_msg_result =
                                 ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
 
@@ -1456,7 +1518,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     trader_order.order_type,
                                                     trader_order.order_status,
                                                     ServerTime::now().epoch,
-                                                    None
+                                                    None,
+                                                    request_id
                                                 ),
                                                 String::from("tx_hash_result"),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1471,7 +1534,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     trader_order.order_type,
                                                     OrderStatus::RejectedFromChain,
                                                     ServerTime::now().epoch,
-                                                    None
+                                                    None,
+                                                    request_id
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1492,7 +1556,8 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             trader_order.order_type,
                                             OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
-                                            None
+                                            None,
+                                            request_id
                                         ),
                                         String::from("tx_hash_error"),
                                         LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1516,7 +1581,12 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::ExecuteLendOrder(order_request, meta, zkos_hex_string,_request_id) => {
+                        RpcCommand::ExecuteLendOrder(
+                            order_request,
+                            meta,
+                            zkos_hex_string,
+                            request_id,
+                        ) => {
                             let zkos_settle_msg_result =
                                 ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
 
@@ -1575,7 +1645,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     lend_order.order_type,
                                                     lend_order.order_status,
                                                     ServerTime::now().epoch,
-                                                    None
+                                                    None,request_id
                                                 ),
                                                 String::from("tx_hash_result"),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1590,7 +1660,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                     lend_order.order_type,
                                                     OrderStatus::RejectedFromChain,
                                                     ServerTime::now().epoch,
-                                                    None
+                                                    None,request_id
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1611,7 +1681,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             lend_order.order_type,
                                             OrderStatus::SerializationError,
                                             ServerTime::now().epoch,
-                                            None
+                                            None,request_id
                                         ),
                                         String::from("tx_hash_error"),
                                         LENDPOOL_EVENT_LOG.clone().to_string()
@@ -1630,7 +1700,12 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_TRADER_ORDER.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::CancelTraderOrder(order_request, meta, zkos_hex_string,_request_id) => {
+                        RpcCommand::CancelTraderOrder(
+                            order_request,
+                            meta,
+                            zkos_hex_string,
+                            _request_id,
+                        ) => {
                             let zkos_create_order_result =
                                 ZkosCreateOrder::decode_from_hex_string(zkos_hex_string);
 
@@ -1757,7 +1832,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                             );
                                                             drop(tx_hash_storage);
                                                             Event::new(
-                                                                Event::TxHash(
+                                                                Event::TxHashUpdate(
                                                                     trader_order.uuid,
                                                                     trader_order.account_id,
                                                                     tx_hash,
@@ -1772,7 +1847,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                         }
                                                         Err(arg) => {
                                                             Event::new(
-                                                                Event::TxHash(
+                                                                Event::TxHashUpdate(
                                                                     trader_order.uuid,
                                                                     trader_order.account_id,
                                                                     arg,
@@ -1789,7 +1864,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                 }
                                                 Err(arg) => {
                                                     Event::new(
-                                                        Event::TxHash(
+                                                        Event::TxHashUpdate(
                                                             trader_order.uuid,
                                                             trader_order.account_id,
                                                             arg.to_string(),
@@ -1810,7 +1885,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                                 arg
                                             );
                                             Event::new(
-                                                Event::TxHash(
+                                                Event::TxHashUpdate(
                                                     trader_order.uuid,
                                                     trader_order.account_id,
                                                     arg,
@@ -1930,7 +2005,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                             );
                                             drop(tx_hash_storage);
                                             Event::new(
-                                                Event::TxHash(
+                                                Event::TxHashUpdate(
                                                     trader_order.uuid,
                                                     trader_order.account_id,
                                                     tx_hash,
@@ -1945,7 +2020,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                         }
                                         Err(arg) => {
                                             Event::new(
-                                                Event::TxHash(
+                                                Event::TxHashUpdate(
                                                     trader_order.uuid,
                                                     trader_order.account_id,
                                                     format!(
@@ -1969,7 +2044,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                         arg
                                     );
                                     Event::new(
-                                        Event::TxHash(
+                                        Event::TxHashUpdate(
                                             trader_order.uuid,
                                             trader_order.account_id,
                                             format!(
@@ -2058,7 +2133,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                     let _ = tx_hash_storage.remove(trader_order.uuid_to_byte(), 0);
                                     drop(tx_hash_storage);
                                     Event::new(
-                                        Event::TxHash(
+                                        Event::TxHashUpdate(
                                             trader_order.uuid,
                                             trader_order.account_id,
                                             tx_hash,
@@ -2073,7 +2148,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                                 }
                                 Err(arg) => {
                                     Event::new(
-                                        Event::TxHash(
+                                        Event::TxHashUpdate(
                                             trader_order.uuid,
                                             trader_order.account_id,
                                             format!("Error : {:?}, liquidation failed", arg),
@@ -2094,7 +2169,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                             let fn_response_tx_hash = Err("Output memo not Found".to_string());
                             sender_clone.send(fn_response_tx_hash.clone()).unwrap();
                             Event::new(
-                                Event::TxHash(
+                                Event::TxHashUpdate(
                                     trader_order.uuid,
                                     trader_order.account_id,
                                     "Error : Output memo not Found, liquidation failed".to_string(),
