@@ -141,6 +141,7 @@ impl Message {
                 createtraderorder,
                 Meta { mut metadata },
                 _zkos_hex_string,
+                _request_id,
             ) => {
                 metadata.insert(String::from("offset"), Some(value.offset.to_string()));
                 metadata.insert(String::from("kafka_key"), Some(value.key));
@@ -148,6 +149,7 @@ impl Message {
                     createtraderorder,
                     Meta { metadata: metadata },
                     _zkos_hex_string,
+                    _request_id,
                 );
                 return rcmd;
             }

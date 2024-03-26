@@ -11,7 +11,7 @@ use crate::relayer::set_localdb;
 /// BTC Price updater
 ///  calling this function inside receive_btc_price() to update price in redisDB
 /// This fucntion is taking payload string received from binance websocket and updating the btc price into redisDB having key "btc:price" for only price-value and key "btc:price:full_payload" to update full payload having price, timestamp etc.
-pub fn update_btc_price(payload: String, mut last_price: &f64) -> f64 {
+pub fn update_btc_price(payload: String, last_price: &f64) -> f64 {
     // let payload_clone = payload.clone();
     let current_price: f64;
     //checking if received msg is payload or ping/pong texts

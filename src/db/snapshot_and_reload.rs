@@ -66,7 +66,12 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, zkos_hex_string) => {
+                RpcCommand::CreateTraderOrder(
+                    _rpc_request,
+                    _metadata,
+                    zkos_hex_string,
+                    _request_id,
+                ) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -107,7 +112,12 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         .insert(order.uuid, zkos_hex_string);
                     let _ = orderdb_traderorder.set_order_check(order.account_id);
                 }
-                RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::CancelTraderOrder(
+                    _rpc_request,
+                    _metadata,
+                    _zkos_hex_string,
+                    _request_id,
+                ) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -122,7 +132,12 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::ExecuteTraderOrder(
+                    _rpc_request,
+                    _metadata,
+                    _zkos_hex_string,
+                    _request_id,
+                ) => {
                     // let order_clone = order.clone();
                     if orderdb_traderorder
                         .ordertable
@@ -239,7 +254,12 @@ pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool
                 }
             }
             Event::LendOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateLendOrder(_rpc_request, _metadata, zkos_hex_string) => {
+                RpcCommand::CreateLendOrder(
+                    _rpc_request,
+                    _metadata,
+                    zkos_hex_string,
+                    _request_id,
+                ) => {
                     let order_clone = order.clone();
                     orderdb_lendorder
                         .ordertable
@@ -777,7 +797,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         mut position_size_log,
         mut localdb_hashmap,
         mut event_offset,
-        event_timestamp,
+        event_timestamp: _,
     } = snapshot_db;
 
     let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
@@ -810,7 +830,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         // }
         match data.value.clone() {
             Event::TraderOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateTraderOrder(_rpc_request, _metadata, zkos_hex_string) => {
+                RpcCommand::CreateTraderOrder(
+                    _rpc_request,
+                    _metadata,
+                    zkos_hex_string,
+                    _request_id,
+                ) => {
                     // let order_clone = order.clone();
                     orderdb_traderorder
                         .ordertable
@@ -851,7 +876,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         .insert(order.uuid, zkos_hex_string);
                     let _ = orderdb_traderorder.set_order_check(order.account_id);
                 }
-                RpcCommand::CancelTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::CancelTraderOrder(
+                    _rpc_request,
+                    _metadata,
+                    _zkos_hex_string,
+                    _request_id,
+                ) => {
                     let order_clone = order.clone();
                     if orderdb_traderorder.ordertable.contains_key(&order.uuid) {
                         orderdb_traderorder.ordertable.remove(&order.uuid);
@@ -866,7 +896,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         orderdb_traderorder.aggrigate_log_sequence = seq;
                     }
                 }
-                RpcCommand::ExecuteTraderOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::ExecuteTraderOrder(
+                    _rpc_request,
+                    _metadata,
+                    _zkos_hex_string,
+                    _request_id,
+                ) => {
                     // let order_clone = order.clone();
                     if orderdb_traderorder
                         .ordertable
@@ -984,7 +1019,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                 }
             }
             Event::LendOrder(order, cmd, seq) => match cmd {
-                RpcCommand::CreateLendOrder(_rpc_request, _metadata, zkos_hex_string) => {
+                RpcCommand::CreateLendOrder(
+                    _rpc_request,
+                    _metadata,
+                    zkos_hex_string,
+                    _request_id,
+                ) => {
                     let order_clone = order.clone();
                     orderdb_lendorder.ordertable.insert(order.uuid, order);
                     // orderdb_lendorder.event.push(data.value);
@@ -999,7 +1039,12 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
                         .insert(order_clone.uuid, zkos_hex_string);
                     let _ = orderdb_traderorder.set_order_check(order_clone.account_id);
                 }
-                RpcCommand::ExecuteLendOrder(_rpc_request, _metadata, _zkos_hex_string) => {
+                RpcCommand::ExecuteLendOrder(
+                    _rpc_request,
+                    _metadata,
+                    _zkos_hex_string,
+                    _request_id,
+                ) => {
                     // orderdb_lendorder.event.push(data.value);
 
                     if orderdb_lendorder.ordertable.contains_key(&order.uuid) {

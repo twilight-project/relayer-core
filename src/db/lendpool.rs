@@ -8,6 +8,7 @@ use curve25519_dalek::scalar::Scalar;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
+use relayerwalletlib::zkoswalletlib::relayer_rpcclient::method::RequestResponse;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
@@ -167,6 +168,17 @@ impl LendPool {
                 },
             },
             last_state_output_string(),
+            RequestResponse::new(
+                "Relayer_default_pool".to_string(),
+                last_output_state
+                    .clone()
+                    .as_output_data()
+                    .get_owner_address()
+                    .clone()
+                    .unwrap()
+                    .clone(),
+            )
+            .get_id(),
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);

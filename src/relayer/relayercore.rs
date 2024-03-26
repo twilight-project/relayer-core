@@ -11,7 +11,6 @@ use std::sync::{mpsc, Arc, Mutex, RwLock};
 use transaction::Transaction;
 use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
-use zkvm::tx;
 use zkvm::Output;
 // use stopwatch::Stopwatch;
 lazy_static! {
@@ -66,7 +65,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
     let command_clone = command.clone();
     let command_clone_for_zkos = command.clone();
     match command {
-        RpcCommand::CreateTraderOrder(rpc_request, metadata, zkos_hex_string) => {
+        RpcCommand::CreateTraderOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
             let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
@@ -140,7 +139,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string) => {
+        RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let execution_price = rpc_request.execution_price.clone();
@@ -280,7 +279,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::CreateLendOrder(rpc_request, metadata, zkos_hex_string) => {
+        RpcCommand::CreateLendOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
@@ -370,7 +369,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::ExecuteLendOrder(rpc_request, metadata, zkos_hex_string) => {
+        RpcCommand::ExecuteLendOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
@@ -505,7 +504,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
             });
             drop(buffer);
         }
-        RpcCommand::CancelTraderOrder(rpc_request, metadata, zkos_hex_string) => {
+        RpcCommand::CancelTraderOrder(rpc_request, metadata, zkos_hex_string, _request_id) => {
             let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
             buffer.execute(move || {
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
@@ -1070,7 +1069,7 @@ pub fn zkos_order_handler(
                                 RpcCommand::CreateTraderOrder(
                                     order_request,
                                     meta,
-                                    zkos_hex_string,
+                                    zkos_hex_string,_request_id
                                 ) => {
 let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 Ok(bytes) =>  match bincode::deserialize(&bytes) {
@@ -1225,7 +1224,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::CreateLendOrder(order_request, meta, zkos_hex_string) => {
+                        RpcCommand::CreateLendOrder(order_request, meta, zkos_hex_string,_request_id) => {
                             let zkos_create_order_result =
                                 ZkosCreateOrder::decode_from_hex_string(zkos_hex_string);
 
@@ -1378,7 +1377,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::ExecuteTraderOrder(order_request, meta, zkos_hex_string) => {
+                        RpcCommand::ExecuteTraderOrder(order_request, meta, zkos_hex_string,_request_id) => {
                             let zkos_settle_msg_result =
                                 ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
 
@@ -1517,7 +1516,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::ExecuteLendOrder(order_request, meta, zkos_hex_string) => {
+                        RpcCommand::ExecuteLendOrder(order_request, meta, zkos_hex_string,_request_id) => {
                             let zkos_settle_msg_result =
                                 ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
 
@@ -1631,7 +1630,7 @@ let tx_result:Result<Transaction,String> = match hex::decode(zkos_hex_string){
                 let buffer = THREADPOOL_ZKOS_TRADER_ORDER.lock().unwrap();
                 buffer.execute(move || {
                     match rpc_command {
-                        RpcCommand::CancelTraderOrder(order_request, meta, zkos_hex_string) => {
+                        RpcCommand::CancelTraderOrder(order_request, meta, zkos_hex_string,_request_id) => {
                             let zkos_create_order_result =
                                 ZkosCreateOrder::decode_from_hex_string(zkos_hex_string);
 

@@ -2,7 +2,6 @@ use crate::config::*;
 use crate::db::*;
 use crate::ordertest;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
-use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
 use std::collections::HashMap;
@@ -112,7 +111,7 @@ pub fn price_check_and_update() {
     let current_time = std::time::SystemTime::now();
 
     //get_localdb with single mutex unlock
-    let mut local_storage = LOCALDB.lock().unwrap();
+    let local_storage = LOCALDB.lock().unwrap();
     // let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
     let mut currentprice = match local_storage.get("Latest_Price") {
         Some(price) => price.clone(),
