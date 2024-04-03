@@ -297,7 +297,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 rpc_request.account_id,
                                 format!("Error found:{:#?}", arg),
                                 rpc_request.order_type,
-                                OrderStatus::Error,
+                                OrderStatus::OrderNotFound,
                                 ServerTime::now().epoch,
                                 None,
                                 request_id,
