@@ -72,7 +72,9 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                updatefundingrate_localdb(1.0);
+                if *IS_RELAYER_ACTIVE {
+                    updatefundingrate_localdb(1.0);
+                }
             });
             // scheduler.every(1.seconds()).run(move || {
             //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
@@ -118,30 +120,32 @@ pub fn price_check_and_update() {
         None => return,
     };
     drop(local_storage);
+    if *IS_RELAYER_ACTIVE {
+        Event::new(
+            Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
+            String::from("insert_CurrentPrice"),
+            TRADERORDER_EVENT_LOG.clone().to_string(),
+        );
 
-    Event::new(
-        Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
-        String::from("insert_CurrentPrice"),
-        TRADERORDER_EVENT_LOG.clone().to_string(),
-    );
-    currentprice = currentprice.round();
-    set_localdb("CurrentPrice", currentprice);
-    // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
-    let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
-    treadpool_pending_order.execute(move || {
-        check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-    });
-    let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
-    treadpool_liquidation_order.execute(move || {
-        check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
-    });
-    let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
-    treadpool_settling_order.execute(move || {
-        check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-    });
-    drop(treadpool_pending_order);
-    drop(treadpool_liquidation_order);
-    drop(treadpool_settling_order);
+        currentprice = currentprice.round();
+        set_localdb("CurrentPrice", currentprice);
+        // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
+        let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
+        treadpool_pending_order.execute(move || {
+            check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+        });
+        let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+        treadpool_liquidation_order.execute(move || {
+            check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
+        });
+        let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+        treadpool_settling_order.execute(move || {
+            check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+        });
+        drop(treadpool_pending_order);
+        drop(treadpool_liquidation_order);
+        drop(treadpool_settling_order);
+    }
 }
 
 pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f64) {

@@ -49,9 +49,16 @@ pub fn client_cmd_receiver() {
             Ok(rpc_cmd_receiver) => {
                 let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
                 loop {
-                    let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap().recv().unwrap();
-                    // println!("print command : {:#?}", rpc_client_cmd_request);
-                    rpc_event_handler(rpc_client_cmd_request);
+                    let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap();
+                    match rpc_client_cmd_request.recv() {
+                        Ok(rpc_command) => {
+                            rpc_event_handler(rpc_command);
+                        }
+                        Err(arg) => {
+                            println!("Relayer turn off command receiver from client-request");
+                            break;
+                        }
+                    }
                 }
             }
             Err(arg) => {

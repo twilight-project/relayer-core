@@ -180,7 +180,7 @@ lazy_static! {
     .parse::<bool>()
     .unwrap_or(true);
 
-
+    pub static ref IS_RELAYER_ACTIVE: bool = true;
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct

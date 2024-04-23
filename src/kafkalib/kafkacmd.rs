@@ -1,6 +1,7 @@
 //https://docs.rs/kafka/0.4.1/kafka/client/struct.KafkaClient.html
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use crate::config::IS_RELAYER_ACTIVE;
 use crate::relayer::*;
 use kafka::client::{metadata::Broker, FetchPartition, KafkaClient};
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
@@ -75,7 +76,7 @@ pub fn receive_from_kafka_queue(
         let mut con = Consumer::from_hosts(broker)
             // .with_topic(topic)
             .with_group(group)
-            .with_topic_partitions(topic, &[0])
+            .with_topic_partitions(topic.clone(), &[0])
             .with_fallback_offset(FetchOffset::Earliest)
             .with_offset_storage(GroupOffsetStorage::Kafka)
             .create()
@@ -83,38 +84,46 @@ pub fn receive_from_kafka_queue(
         let mut connection_status = true;
         let _partition: i32 = 0;
         while connection_status {
-            let sender_clone = sender.clone();
-            let mss = con.poll().unwrap();
-            if mss.is_empty() {
-                // println!("No messages available right now.");
-                // return Ok(());
-            } else {
-                for ms in mss.iter() {
-                    for m in ms.messages() {
-                        let message = Message {
-                            offset: m.offset,
-                            key: String::from_utf8_lossy(&m.key).to_string(),
-                            value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-                                .unwrap(),
-                        };
-                        match sender_clone.send(Message::new(message)) {
-                            Ok(_) => {
-                                // let _ = con.consume_message(&topic_clone, partition, m.offset);
-                                // println!("Im here");
-                            }
-                            Err(arg) => {
-                                println!("Closing Kafka Consumer Connection : {:#?}", arg);
-                                connection_status = false;
-                                break;
+            if *IS_RELAYER_ACTIVE {
+                let sender_clone = sender.clone();
+                let mss = con.poll().unwrap();
+                if mss.is_empty() {
+                    // println!("No messages available right now.");
+                    // return Ok(());
+                } else {
+                    for ms in mss.iter() {
+                        for m in ms.messages() {
+                            let message = Message {
+                                offset: m.offset,
+                                key: String::from_utf8_lossy(&m.key).to_string(),
+                                value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
+                                    .unwrap(),
+                            };
+                            match sender_clone.send(Message::new(message)) {
+                                Ok(_) => {
+                                    // let _ = con.consume_message(&topic_clone, partition, m.offset);
+                                    // println!("Im here");
+                                    let _ = con.consume_message(&topic, 0, m.offset);
+                                }
+                                Err(arg) => {
+                                    println!("Closing Kafka Consumer Connection : {:#?}", arg);
+                                    connection_status = false;
+                                    break;
+                                }
                             }
                         }
+                        if connection_status == false {
+                            break;
+                        }
+                        let _ = con.consume_messageset(ms);
                     }
-                    let _ = con.consume_messageset(ms);
+                    con.commit_consumed().unwrap();
                 }
-                con.commit_consumed().unwrap();
+            } else {
+                println!("Relayer turn off command received at kafka receiver");
+                break;
             }
         }
-        con.commit_consumed().unwrap();
         thread::park();
     });
 
