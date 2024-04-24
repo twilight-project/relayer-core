@@ -22,11 +22,11 @@ fn main() {
         if get_relayer_status() {
         } else {
             thread::sleep(time::Duration::from_millis(5000));
-            println!("Relayer relayer started taling snapshot");
+            println!("Relayer relayer started taking snapshot");
             let _ = snapshot();
             thread::sleep(time::Duration::from_millis(10000));
             println!("Relayer Shutting down");
-            process::exit(1);
+            process::exit(0);
         }
     }
 }
