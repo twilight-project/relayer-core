@@ -7,7 +7,6 @@ mod pricefeederlib;
 mod questdb;
 mod redislib;
 mod relayer;
-use config::IS_RELAYER_ACTIVE;
 use db::snapshot;
 use relayer::*;
 use std::{process, thread, time};
@@ -20,7 +19,7 @@ fn main() {
     heartbeat();
     loop {
         thread::sleep(time::Duration::from_millis(10000));
-        if *IS_RELAYER_ACTIVE {
+        if get_relayer_status() {
         } else {
             thread::sleep(time::Duration::from_millis(5000));
             println!("Relayer relayer started taling snapshot");

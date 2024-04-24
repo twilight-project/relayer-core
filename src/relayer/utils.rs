@@ -127,6 +127,18 @@ pub fn get_lock_error_for_lend_settle(lend_order: LendOrder) -> i128 {
     lock_error
 }
 
+pub fn get_relayer_status() -> bool {
+    let status = IS_RELAYER_ACTIVE.lock().unwrap();
+    let status_result = *status;
+    drop(status);
+    status_result
+}
+pub fn set_relayer_status(new_status: bool) {
+    let mut status = IS_RELAYER_ACTIVE.lock().unwrap();
+    *status = new_status;
+    drop(status);
+}
+
 use datasize::data_size;
 use datasize::DataSize;
 pub fn get_size_in_mb<T>(value: &T)

@@ -84,7 +84,7 @@ pub fn receive_from_kafka_queue(
         let mut connection_status = true;
         let _partition: i32 = 0;
         while connection_status {
-            if *IS_RELAYER_ACTIVE {
+            if get_relayer_status() {
                 let sender_clone = sender.clone();
                 let mss = con.poll().unwrap();
                 if mss.is_empty() {

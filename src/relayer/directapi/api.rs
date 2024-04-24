@@ -325,6 +325,9 @@ pub fn startserver() {
                             );
                             drop(lend_pool_db);
                         }
+                        19 => {
+                            set_relayer_status(value.relayer_status);
+                        }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
                             println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
