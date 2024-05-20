@@ -1779,20 +1779,31 @@ pub fn zkos_order_handler(
                         OrderStatus::FILLED => {
                             match zkos_string {
                                 Some(zkos_create_order_result) => {
-                                    let zkos_create_order_result =
-                                        ZkosCreateOrder::decode_from_hex_string(
-                                            zkos_create_order_result
-                                        );
+                                    // let zkos_create_order_result =
+                                    //     ZkosCreateOrder::decode_from_hex_string(
+                                    //         zkos_create_order_result
+                                    //     );
+                                        let tx_result: Result<Transaction, String> = match
+                                        hex::decode(zkos_create_order_result)
+                                    {
+                                        Ok(bytes) =>
+                                            match bincode::deserialize(&bytes) {
+                                                Ok(tx) => Ok(tx),
+                                                Err(arg) => Err(arg.to_string()),
+                                            }
+                                        Err(arg) => Err(arg.to_string()),
+                                    };
                                     // create transaction
-                                    match zkos_create_order_result {
-                                        Ok(zkos_create_order) => {
-                                            let result_output = update_trader_output_memo(
-                                                zkos_create_order.output,
+                                    match tx_result {
+                                        Ok(tx) => {
+                                            let updated_tx_result = update_memo_tx_client_order(
+                                                &tx,
                                                 trader_order.entryprice.round() as u64,
                                                 trader_order.positionsize.round() as u64
                                             );
-                                            match result_output {
-                                                Ok(output) => {
+                                            match updated_tx_result {
+                                                Ok(tx_and_outputmemo) => {
+                                                    let output = tx_and_outputmemo.get_output();
                                                     let output_memo_hex = match
                                                         bincode::serialize(&output.clone())
                                                     {
@@ -1801,25 +1812,12 @@ pub fn zkos_order_handler(
                                                         }
                                                         Err(_) => None,
                                                     };
-                                                    let transaction = create_trade_order(
-                                                        zkos_create_order.input,
-                                                        output.clone(),
-                                                        zkos_create_order.signature,
-                                                        zkos_create_order.proof,
-                                                        &ContractManager::import_program(
-                                                            &WALLET_PROGRAM_PATH.clone()
-                                                        ),
-                                                        Network::Mainnet,
-                                                        5u64
-                                                    );
-                                                    let tx_hash_result = match transaction {
-                                                        Ok(tx) => {
-                                                            relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
-                                                                tx
-                                                            )
-                                                        }
-                                                        Err(arg) => { Err(arg.to_string()) }
-                                                    };
+                                                    let transaction = tx_and_outputmemo.get_tx();
+                                                    let tx_hash_result =
+                                                        relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
+                                                            transaction
+                                                        );
+
                                                     let sender_clone = sender.clone();
                                                     match sender_clone.send(tx_hash_result.clone()) {
                                                         Ok(_) => {}
@@ -1829,15 +1827,14 @@ pub fn zkos_order_handler(
                                                     }
                                                     match tx_hash_result {
                                                         Ok(tx_hash) => {
-                                                            let mut tx_hash_storage =
+                                                            let mut output_hex_storage =
                                                                 OUTPUT_STORAGE.lock().unwrap();
-
-                                                            let _ = tx_hash_storage.add(
+                                                            let _ = output_hex_storage.add(
                                                                 trader_order.uuid_to_byte(),
                                                                 Some(output),
                                                                 0
                                                             );
-                                                            drop(tx_hash_storage);
+                                                            drop(output_hex_storage);
                                                             Event::new(
                                                                 Event::TxHashUpdate(
                                                                     trader_order.uuid,
@@ -1846,7 +1843,7 @@ pub fn zkos_order_handler(
                                                                     trader_order.order_type,
                                                                     trader_order.order_status,
                                                                     ServerTime::now().epoch,
-                                                                    output_memo_hex
+                                                                    output_memo_hex,
                                                                 ),
                                                                 String::from("tx_hash_result"),
                                                                 LENDPOOL_EVENT_LOG.clone().to_string()
