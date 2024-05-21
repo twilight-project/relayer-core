@@ -49,7 +49,7 @@ pub enum LendPoolCommand {
     AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment, Output),
     AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment, Output),
     AddFundingData(TraderOrder, Payment),
-    AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment),
+    AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment, Output),
     LendOrderCreateOrder(RpcCommand, LendOrder, Deposit, Output),
     LendOrderSettleOrder(RpcCommand, LendOrder, Withdraw, Output),
     BatchExecuteTraderOrder(RelayerCommand),
@@ -404,7 +404,12 @@ impl LendPool {
                 ));
             }
 
-            LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
+            LendPoolCommand::AddTraderOrderLiquidation(
+                _relayer_command,
+                trader_order,
+                payment,
+                _next_output_state,
+            ) => {
                 self.pending_orders.len += 1;
                 self.pending_orders.amount += payment;
                 self.aggrigate_log_sequence += 1;
@@ -574,29 +579,30 @@ impl LendPool {
                                     relayer_cmd,
                                     mut order,
                                     _payment,
+                                    next_output_state,
                                 ) => {
                                     order.exit_nonce = self.nonce;
 
-                                    let next_output_state =
-                                        create_output_state_for_trade_lend_order(
-                                            self.nonce as u32,
-                                            self.last_output_state
-                                                .clone()
-                                                .as_output_data()
-                                                .get_script_address()
-                                                .unwrap()
-                                                .clone(),
-                                            self.last_output_state
-                                                .clone()
-                                                .as_output_data()
-                                                .get_owner_address()
-                                                .clone()
-                                                .unwrap()
-                                                .clone(),
-                                            self.total_locked_value.round() as u64,
-                                            self.total_pool_share.round() as u64,
-                                            0,
-                                        );
+                                    // let next_output_state =
+                                    //     create_output_state_for_trade_lend_order(
+                                    //         self.nonce as u32,
+                                    //         self.last_output_state
+                                    //             .clone()
+                                    //             .as_output_data()
+                                    //             .get_script_address()
+                                    //             .unwrap()
+                                    //             .clone(),
+                                    //         self.last_output_state
+                                    //             .clone()
+                                    //             .as_output_data()
+                                    //             .get_owner_address()
+                                    //             .clone()
+                                    //             .unwrap()
+                                    //             .clone(),
+                                    //         self.total_locked_value.round() as u64,
+                                    //         self.total_pool_share.round() as u64,
+                                    //         0,
+                                    //     );
 
                                     self.last_output_state = next_output_state.clone();
                                     let _ = trader_order_db.liquidate(order.clone(), relayer_cmd);

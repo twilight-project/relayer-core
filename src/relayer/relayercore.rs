@@ -739,6 +739,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             ),
                                                             order.clone(),
                                                             payment,
+                                                            next_output_state,
                                                         ),
                                                     );
                                                     println!("dropping mutex LEND_POOL_DB");

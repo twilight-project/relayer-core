@@ -513,17 +513,17 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             let db_pool = THREADPOOL_EVENT_AND_SORTED_SET_UPDATE.lock().unwrap();
             let ordertx_clone = ordertx.clone();
             db_pool.execute(move || {
-                let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
-                    RelayerCommand::FundingCycleLiquidation(
-                        vec![ordertx_clone.uuid.clone()],
-                        meta.clone(),
-                        current_price,
-                    ),
-                    ordertx_clone.clone(),
-                    payment,
-                ));
-                drop(lendpool);
+                // let mut lendpool = LEND_POOL_DB.lock().unwrap();
+                // lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
+                //     RelayerCommand::FundingCycleLiquidation(
+                //         vec![ordertx_clone.uuid.clone()],
+                //         meta.clone(),
+                //         current_price,
+                //     ),
+                //     ordertx_clone.clone(),
+                //     payment,
+                // ));
+                // drop(lendpool);
                 match ordertx_clone.position_type {
                     PositionType::LONG => {
                         let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
