@@ -4,11 +4,12 @@ use crate::ordertest;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
+use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 use std::collections::HashMap;
 use std::sync::{mpsc, Arc, RwLock};
 use std::{thread, time};
+use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
-
 pub fn heartbeat() {
     dotenv::dotenv().expect("Failed loading dotenv");
     // init_psql();
@@ -510,42 +511,106 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             //call liquidation
             let payment = ordertx.liquidate(current_price);
             ordertx.order_status = OrderStatus::LIQUIDATE;
-            let db_pool = THREADPOOL_EVENT_AND_SORTED_SET_UPDATE.lock().unwrap();
-            let ordertx_clone = ordertx.clone();
-            db_pool.execute(move || {
-                // let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                // lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
-                //     RelayerCommand::FundingCycleLiquidation(
-                //         vec![ordertx_clone.uuid.clone()],
-                //         meta.clone(),
-                //         current_price,
-                //     ),
-                //     ordertx_clone.clone(),
-                //     payment,
-                // ));
-                // drop(lendpool);
-                match ordertx_clone.position_type {
-                    PositionType::LONG => {
-                        let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
-                        let _ = add_to_liquidation_list.remove(ordertx_clone.uuid);
-                        drop(add_to_liquidation_list);
+
+            let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+            let uuid_to_byte = match bincode::serialize(&ordertx.uuid.clone()) {
+                Ok(uuid_v_u8) => uuid_v_u8,
+                Err(_) => Vec::new(),
+            };
+            let output_option = match output_hex_storage.get_utxo_by_id(uuid_to_byte, 0) {
+                Ok(output) => output,
+                Err(_) => None,
+            };
+
+            drop(output_hex_storage);
+
+            let mut lendpool = LEND_POOL_DB.lock().unwrap();
+
+            let next_output_state = create_output_state_for_trade_lend_order(
+                (lendpool.nonce + 1) as u32,
+                lendpool
+                    .last_output_state
+                    .clone()
+                    .as_output_data()
+                    .get_script_address()
+                    .unwrap()
+                    .clone(),
+                lendpool
+                    .last_output_state
+                    .clone()
+                    .as_output_data()
+                    .get_owner_address()
+                    .clone()
+                    .unwrap()
+                    .clone(),
+                (lendpool.total_locked_value.round() - payment.round()) as u64,
+                lendpool.total_pool_share.round() as u64,
+                0,
+            );
+
+            let chain_result_receiver =
+                zkos_order_handler(ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
+                    ordertx.clone(),
+                    output_option,
+                    lendpool.last_output_state.clone(),
+                    next_output_state.clone(),
+                ));
+
+            let zkos_receiver = chain_result_receiver.lock().unwrap();
+
+            match zkos_receiver.recv() {
+                Ok(chain_message) => match chain_message {
+                    Ok(tx_hash) => {
+                        //remove position size
+                        PositionSizeLog::remove_order(
+                            ordertx.position_type.clone(),
+                            ordertx.positionsize.clone(),
+                        );
+                        //remove liquidation price from liqudation set
+                        match ordertx.position_type {
+                            PositionType::LONG => {
+                                let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                                drop(add_to_liquidation_list);
+                            }
+                            PositionType::SHORT => {
+                                let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                                drop(add_to_liquidation_list);
+                            }
+                        }
+
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
+                                ordertx.uuid.clone(),
+                                ordertx.position_type.clone(),
+                            )),
+                            format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+
+                        lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
+                            RelayerCommand::PriceTickerLiquidation(
+                                vec![ordertx.uuid.clone()],
+                                meta,
+                                current_price,
+                            ),
+                            ordertx.clone(),
+                            payment,
+                            next_output_state,
+                        ));
+                        println!("dropping mutex LEND_POOL_DB");
                     }
-                    PositionType::SHORT => {
-                        let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
-                        let _ = add_to_liquidation_list.remove(ordertx_clone.uuid);
-                        drop(add_to_liquidation_list);
+                    Err(verification_error) => {
+                        println!("Error in line heartbeat.rs 607 : {:?}", verification_error);
                     }
+                },
+                Err(arg) => {
+                    println!("Error in line heartbeat.rs 612 : {:?}", arg);
                 }
-                Event::new(
-                    Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
-                        ordertx_clone.uuid.clone(),
-                        ordertx_clone.position_type.clone(),
-                    )),
-                    format!("RemoveLiquidationPrice-{}", ordertx_clone.uuid.clone()),
-                    CORE_EVENT_LOG.clone().to_string(),
-                );
-            });
-            drop(db_pool);
+            }
+
+            drop(lendpool);
         } else {
             ordertx.liquidation_price = liquidationprice(
                 ordertx.entryprice,
