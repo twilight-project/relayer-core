@@ -406,7 +406,7 @@ impl LendPool {
 
             LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
                 self.pending_orders.len += 1;
-                self.pending_orders.amount -= payment;
+                self.pending_orders.amount += payment;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders
                     .trader_order_data
