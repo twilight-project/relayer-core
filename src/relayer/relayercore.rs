@@ -2199,3 +2199,100 @@ pub fn zkos_order_handler(
     }
     return Arc::clone(&receiver_mutex);
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_liquidate_trader_order() {
+        let mut order = TraderOrder {
+     uuid:  Uuid::parse_str("ecc9c451-b97b-4432-a583-a6e9dd753572").unwrap(),
+     account_id: "0c0c3982b5fa3a03e5d08f03f63f57a60e95435352024269adea4c91c7d4b1ef081814d655840b7576065242abbe7c15e449cc67628d9c4bad5b05e7272a07be72578c183c".to_string(),
+     position_type: PositionType::LONG,
+     order_status: OrderStatus::FILLED,
+     order_type: OrderType::LIMIT,
+     entryprice: 69179.0,
+     execution_price: 69200.0,
+     positionsize: 1037685000000.0,
+     leverage: 50.0,
+     initial_margin: 300000.0,
+     available_margin: 281240.7802,
+     timestamp: "2024-05-22T22:35:08.729538964+00:00".to_string(),
+     bankruptcy_price: 67822.54901960785,
+     bankruptcy_value: 15300000.0,
+     maintenance_margin: 79125.0,
+     liquidation_price: 69645.0,
+     unrealized_pnl: 0.0,
+     settlement_price: 69645.0,
+     entry_nonce: 0,
+     exit_nonce: 0,
+     entry_sequence: 5,
+};
+        order.order_status = OrderStatus::LIQUIDATE;
+        //update batch process
+        let payment = order.liquidate(67402.99);
+        let output_hex = "01000000010000002a000000000000003138323237323664346265336336623333623166333434633734333263626530343230333861663162388a000000000000003063306333393832623566613361303365356430386630336636336635376136306539353433353335323032343236396164656134633931633764346231656630383138313464363535383430623735373630363532343261626265376331356534343963633637363238643963346261643562303565373237326130376265373235373863313833630100000000000000e0930400000000000000000000000000ff0c4982d6afaf4363d7510b2fc2b24dbaef68d131857325fbbf47b6b57ed60101040000000000000003000000010000004087d89af100000000000000000000000000000000000000000000000000000002000000010000000000000032000000000000000000000000000000ff0c4982d6afaf4363d7510b2fc2b24dbaef68d131857325fbbf47b6b57ed60103000000010000003b0e0100000000000000000000000000000000000000000000000000000000000300000001000000ecd3f55c1a631258d69cf7a2def9de140000000000000000000000000000001001000000".to_string();
+        let output_option: Option<Output> = match hex::decode(output_hex) {
+            Ok(output_byte) => match bincode::deserialize(&output_byte) {
+                Ok(output_result) => Some(output_result),
+                Err(_) => None,
+            },
+            Err(_) => None,
+        };
+        println!("payment : {:?}\n", payment);
+        println!("output_option : {:?}\n", output_option);
+
+        let last_state_output_hex = "0200000002000000040000002a000000000000003138323237323664346265336336623333623166333434633734333263626530343230333861663162388a000000000000003063353265346363373132323935663463343466333964613133336664336162373033396131616561383639343263343963363137303463376530353966663037363161316430646230303231393235333430353935313134333934396332646663383663643364303862623163643738623365653137376430656233373233326138663234623963350100000000000000c0bdeb0b0000000000000000000000000703e2071d25909254c808fb3391e88f6107d230fe919deae877c96b97c1b20601010000000000000002000000010000000000000080841e000000000000000000000000002755eeb2425ab4fde6707053a5c98e72918cd7b9f60d760365410b6666b9490c00000000".to_string();
+        let last_state_output_hex_option: Option<Output> = match hex::decode(last_state_output_hex)
+        {
+            Ok(output_byte) => match bincode::deserialize(&output_byte) {
+                Ok(output_result) => Some(output_result),
+                Err(_) => None,
+            },
+            Err(_) => None,
+        };
+        let last_state_output = last_state_output_hex_option.unwrap();
+        let next_state_output = create_output_state_for_trade_lend_order(
+            (4 + 1) as u32,
+            "1822726d4be3c6b33b1f344c7432cbe042038af1b8".to_string(),
+            "0c52e4cc712295f4c44f39da133fd3ab7039a1aea86942c49c61704c7e059ff0761a1d0db00219253405951143949c2dfc86cd3d08bb1cd78b3ee177d0eb37232a8f24b9c5".to_string(),
+            (199998912.0 + 300000.0) as u64,
+            2000000.0 as u64,
+            0,
+        );
+        println!("next_state_output : {:?}", next_state_output);
+        println!(
+            "\n next_state_output_hex : {:#?}",
+            hex::encode(bincode::serialize(&next_state_output).unwrap())
+        );
+
+        // create tx
+        let contract_owner_sk = get_sk_from_fixed_wallet();
+
+        let contract_owner_pk = get_pk_from_fixed_wallet();
+
+        let program_tag = "LiquidateOrder".to_string();
+
+        let transaction = settle_trader_order(
+            output_option.unwrap().clone(),
+            order.available_margin.clone().round() as u64,
+            &ContractManager::import_program(&WALLET_PROGRAM_PATH.clone()),
+            Network::Mainnet,
+            1u64,
+            last_state_output
+                .as_output_data()
+                .get_owner_address()
+                .unwrap()
+                .clone(),
+            last_state_output.clone(),
+            next_state_output.clone(),
+            0,
+            0,
+            order.settlement_price.round() as u64,
+            contract_owner_sk,
+            contract_owner_pk,
+            program_tag,
+        );
+        println!("\ntransaction: \n{:?}", transaction);
+    }
+}
