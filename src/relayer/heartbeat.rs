@@ -512,7 +512,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             let payment = ordertx.liquidate(current_price);
             ordertx.order_status = OrderStatus::LIQUIDATE;
 
-            let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
             let uuid_to_byte = match bincode::serialize(&ordertx.uuid.clone()) {
                 Ok(uuid_v_u8) => uuid_v_u8,
                 Err(_) => Vec::new(),

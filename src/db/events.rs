@@ -322,11 +322,18 @@ impl Event {
                             while eventkey.is_upcast() {
                                 value = eventkey.event_log_upcast(value);
                             }
-
+                            let value = match serde_json::from_str(&value) {
+                                Ok(ser_value) => ser_value,
+                                Err(arg) => {
+                                    eprintln!("Error in event log snapshot : {:?}", arg);
+                                    let _ = con.consume_message(&topic, 0, m.offset);
+                                    continue;
+                                }
+                            };
                             let message = EventLog {
                                 offset: m.offset,
                                 key: String::from_utf8_lossy(&m.key).to_string(),
-                                value: serde_json::from_str(&value).unwrap(),
+                                value: value,
                             };
                             match sender_clone.send(message) {
                                 Ok(_) => {

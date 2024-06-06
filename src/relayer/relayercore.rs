@@ -84,77 +84,99 @@ pub fn rpc_event_handler(command: RpcCommand) {
                     .set_order_check(orderdata.account_id.clone())
                     .clone();
                 drop(trader_order_db);
-                if is_order_duplicate {
-                    if orderdata_clone.order_status == OrderStatus::FILLED {
-                        let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
-                        buffer_insert.execute(move || {
-                            let chain_result_receiver =
-                                zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(
-                                    orderdata_clone_for_zkos,
-                                    command_clone_for_zkos,
-                                ));
-                            let zkos_receiver = chain_result_receiver.lock().unwrap();
-                            match zkos_receiver.recv() {
-                                Ok(chain_message) => match chain_message {
-                                    Ok(tx_hash) => {
-                                        let order_state = orderdata.orderinsert_localdb(status);
-                                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                                        let completed_order =
-                                            trader_order_db.add(orderdata_clone, command_clone);
-                                        drop(trader_order_db);
-                                    }
-                                    Err(verification_error) => {
+
+                if rpc_request.initial_margin > 0.0 {
+                    if is_order_duplicate {
+                        if orderdata_clone.order_status == OrderStatus::FILLED {
+                            let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
+                            buffer_insert.execute(move || {
+                                let chain_result_receiver =
+                                    zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(
+                                        orderdata_clone_for_zkos,
+                                        command_clone_for_zkos,
+                                    ));
+                                let zkos_receiver = chain_result_receiver.lock().unwrap();
+                                match zkos_receiver.recv() {
+                                    Ok(chain_message) => match chain_message {
+                                        Ok(tx_hash) => {
+                                            let order_state = orderdata.orderinsert_localdb(status);
+                                            let mut trader_order_db =
+                                                TRADER_ORDER_DB.lock().unwrap();
+                                            let completed_order =
+                                                trader_order_db.add(orderdata_clone, command_clone);
+                                            drop(trader_order_db);
+                                        }
+                                        Err(verification_error) => {
+                                            let mut trader_order_db =
+                                                TRADER_ORDER_DB.lock().unwrap();
+                                            let _ = trader_order_db.remove_order_check(
+                                                orderdata_clone.account_id.clone(),
+                                            );
+                                            drop(trader_order_db);
+                                        }
+                                    },
+                                    Err(arg) => {
                                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                                         let _ = trader_order_db
                                             .remove_order_check(orderdata_clone.account_id.clone());
                                         drop(trader_order_db);
                                     }
-                                },
-                                Err(arg) => {
-                                    let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                                    let _ = trader_order_db
-                                        .remove_order_check(orderdata_clone.account_id.clone());
-                                    drop(trader_order_db);
                                 }
-                            }
-                        });
-                        drop(buffer_insert);
-                    } else if orderdata_clone.order_status == OrderStatus::PENDING {
-                        //submit limit order after checking from chain or your db about order existanse of utxo
-                        let order_state = orderdata.orderinsert_localdb(false);
-                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                        let completed_order = trader_order_db.add(orderdata_clone, command_clone);
-                        drop(trader_order_db);
+                            });
+                            drop(buffer_insert);
+                        } else if orderdata_clone.order_status == OrderStatus::PENDING {
+                            //submit limit order after checking from chain or your db about order existanse of utxo
+                            let order_state = orderdata.orderinsert_localdb(false);
+                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                            let completed_order =
+                                trader_order_db.add(orderdata_clone, command_clone);
+                            drop(trader_order_db);
+                            Event::new(
+                                Event::TxHash(
+                                    completed_order.uuid,
+                                    completed_order.account_id,
+                                    request_id.clone(),
+                                    completed_order.order_type,
+                                    OrderStatus::PENDING,
+                                    ServerTime::now().epoch,
+                                    None,
+                                    request_id,
+                                ),
+                                String::from("tx_limit_submit"),
+                                LENDPOOL_EVENT_LOG.clone().to_string(),
+                            );
+                        }
+                    } else {
+                        // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
-                                completed_order.uuid,
-                                completed_order.account_id,
-                                request_id.clone(),
-                                completed_order.order_type,
-                                OrderStatus::PENDING,
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                "Duplicate order found in the database with same public key"
+                                    .to_string(),
+                                orderdata.order_type,
+                                OrderStatus::DuplicateOrder,
                                 ServerTime::now().epoch,
                                 None,
                                 request_id,
                             ),
-                            String::from("tx_limit_submit"),
+                            String::from("tx_duplicate_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
                     }
                 } else {
-                    // send event for txhash with error saying order already exist in the relayer
                     Event::new(
                         Event::TxHash(
                             orderdata.uuid,
                             orderdata.account_id,
-                            "Duplicate order found in the database with same public key"
-                                .to_string(),
+                            "Invalid Initial margin should be greater that Zero".to_string(),
                             orderdata.order_type,
-                            OrderStatus::DuplicateOrder,
+                            OrderStatus::CANCELLED,
                             ServerTime::now().epoch,
                             None,
                             request_id,
                         ),
-                        String::from("tx_duplicate_error"),
+                        String::from("tx_wrong_parameter_error"),
                         LENDPOOL_EVENT_LOG.clone().to_string(),
                     );
                 }
@@ -649,7 +671,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                 Result<Arc<RwLock<TraderOrder>>, std::io::Error>,
                 Option<Output>,
             )> = Vec::new();
-            let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
                 let uuid_to_byte = match bincode::serialize(&order_id) {

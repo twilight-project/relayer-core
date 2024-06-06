@@ -59,7 +59,7 @@ impl TraderOrder {
         let order_type = rpc_request.order_type;
         let leverage = rpc_request.leverage;
         let initial_margin = rpc_request.initial_margin;
-        let available_margin = rpc_request.available_margin;
+        let available_margin = rpc_request.initial_margin;
         let mut order_status = rpc_request.order_status;
         let mut entryprice = rpc_request.entryprice;
         let execution_price = rpc_request.execution_price;
