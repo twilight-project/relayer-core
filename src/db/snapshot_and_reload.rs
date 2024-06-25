@@ -19,9 +19,9 @@ use std::thread;
 use std::time::SystemTime;
 use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
-lazy_static! {
-    pub static ref SNAPSHOT_DATA: Arc<Mutex<SnapshotDB>> = Arc::new(Mutex::new(SnapshotDB::new()));
-}
+// lazy_static! {
+//     // pub static ref SNAPSHOT_DATA: Arc<Mutex<SnapshotDB>> = Arc::new(Mutex::new(SnapshotDB::new()));
+// }
 pub fn load_backup_data() -> (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) {
     // fn load_data() -> (bool, Self) {
     let mut orderdb_traderorder: OrderDB<TraderOrder> = LocalDB::<TraderOrder>::new();
@@ -746,7 +746,13 @@ impl SnapshotDB {
     }
 }
 
-pub fn snapshot() -> Result<(), std::io::Error> {
+pub fn snapshot() -> Result<
+    (
+        SnapshotDB,
+        utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    ),
+    std::io::Error,
+> {
     // let read_snapshot = fs::read("snapshot").expect("Could not read file");
     // snapshot renaming on success
     // encryption on snapshot data
@@ -758,14 +764,14 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     ));
     let decoded_snapshot: SnapshotDB;
     let mut is_file_exist = false;
-    let last_snapshot_time: String;
+    // let last_snapshot_time: String;
     let fetchoffset: FetchOffset;
     match read_snapshot {
         Ok(snapshot_data_from_file) => {
             decoded_snapshot =
                 bincode::deserialize(&snapshot_data_from_file).expect("Could not decode vector");
             is_file_exist = true;
-            last_snapshot_time = decoded_snapshot.event_timestamp.clone();
+            // last_snapshot_time = decoded_snapshot.event_timestamp.clone();
             fetchoffset = FetchOffset::Earliest;
         }
         Err(arg) => {
@@ -775,20 +781,26 @@ pub fn snapshot() -> Result<(), std::io::Error> {
                 format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
             );
             decoded_snapshot = SnapshotDB::new();
-            last_snapshot_time = decoded_snapshot.event_timestamp.clone();
+            // last_snapshot_time = decoded_snapshot.event_timestamp.clone();
             fetchoffset = FetchOffset::Earliest;
         }
     }
-    let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
-    *snapshot_data = decoded_snapshot.clone();
-    drop(snapshot_data);
-    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-    let _ = output_hex_storage.load_from_snapshot();
-    drop(output_hex_storage);
-    let snapshot_db_updated = create_snapshot_data(fetchoffset);
 
-    let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
-    *snapshot_data = snapshot_db_updated.clone();
+    // let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+    // *snapshot_data = decoded_snapshot.clone();
+    // drop(snapshot_data);
+
+    // let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+    let mut output_hex_storage =
+        utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1);
+    let _ = output_hex_storage.load_from_snapshot();
+    // drop(output_hex_storage);
+
+    let snapshot_db_updated =
+        create_snapshot_data(fetchoffset, decoded_snapshot, &mut output_hex_storage);
+
+    // let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+    // *snapshot_data = snapshot_db_updated.clone();
 
     let encoded_v = bincode::serialize(&snapshot_db_updated).expect("Could not encode vector");
     match fs::write(
@@ -831,11 +843,15 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     }
     // println!("Snapshot:{:#?}", snapshot_db_updated);
 
-    Ok(())
+    Ok((snapshot_db_updated, output_hex_storage))
 }
 
-pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
-    let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
+pub fn create_snapshot_data(
+    fetchoffset: FetchOffset,
+    snapshot_db: SnapshotDB,
+    output_hex_storage: &mut utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+) -> SnapshotDB {
+    // let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
     let SnapshotDB {
         mut orderdb_traderorder,
         mut orderdb_lendorder,
@@ -852,7 +868,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         event_timestamp: _,
     } = snapshot_db;
 
-    let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+    // let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
     // let mut event_offset: i64 = 0;
     let time = ServerTime::now().epoch;
     let event_timestamp = time.clone();
@@ -1420,7 +1436,7 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
         }
     }
     let _ = output_hex_storage.take_snapshot();
-    drop(output_hex_storage);
+    // drop(output_hex_storage);
 
     if lendpool_database.aggrigate_log_sequence > 0 {
     } else {
@@ -1446,8 +1462,8 @@ pub fn create_snapshot_data(fetchoffset: FetchOffset) -> SnapshotDB {
 
 pub fn load_from_snapshot() {
     match snapshot() {
-        Ok(_) => {
-            let snapshot_data = SNAPSHOT_DATA.lock().unwrap();
+        Ok((snapshot_data, output_hex_storage_new)) => {
+            // let snapshot_data = SNAPSHOT_DATA.lock().unwrap();
             let mut liquidation_long_sortedset_db = TRADER_LP_LONG.lock().unwrap();
             let mut liquidation_short_sortedset_db = TRADER_LP_SHORT.lock().unwrap();
             let mut open_long_sortedset_db = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
@@ -1459,7 +1475,9 @@ pub fn load_from_snapshot() {
             let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
             let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
             snapshot_data.print_status();
-
+            let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+            *output_hex_storage = output_hex_storage_new;
+            drop(output_hex_storage);
             // add field of Trader order db
             load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();
             load_trader_data.nonce = snapshot_data.orderdb_traderorder.nonce.clone();
@@ -1526,7 +1544,7 @@ pub fn load_from_snapshot() {
                 "CurrentPrice",
                 match current_price {
                     Some(value) => value.clone(),
-                    None => 18000.0,
+                    None => 60000.0,
                 },
             );
             let funding_rate = snapshot_data.localdb_hashmap.get("FundingRate").clone();

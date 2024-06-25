@@ -2256,20 +2256,20 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
                         chain_attempt += 1;
                         sleep(Duration::from_secs(2));
                         if chain_attempt == 10 {
-                            flag_chain_update = false;
+                            // flag_chain_update = false;
                             return Err("Tx Failed due to missing latest state update".to_string());
                         }
                     }
                 }
                 if nonce == latest_nonce {
-                    flag_chain_update = false;
+                    // flag_chain_update = false;
                     return Ok(tx_hash);
                 } else {
                     flag_chain_update = true;
                     chain_attempt += 1;
                     sleep(Duration::from_secs(2));
                     if chain_attempt == 10 {
-                        flag_chain_update = false;
+                        // flag_chain_update = false;
                         return Err("Tx Failed due to missing latest state update".to_string());
                     }
                 }
