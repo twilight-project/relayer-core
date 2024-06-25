@@ -800,14 +800,21 @@ pub fn snapshot() -> Result<(), std::io::Error> {
     ) {
         Ok(_) => {
             if is_file_exist {
-                fs::rename(
-                    format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
-                    format!(
-                        "{}-{}-{}",
-                        *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION, last_snapshot_time
-                    ),
-                )
-                .unwrap();
+                // fs::rename(
+                //     format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
+                //     format!(
+                //         "{}-{}-{}",
+                //         *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION, last_snapshot_time
+                //     ),
+                // )
+                // .unwrap();
+
+                if let Err(e) = fs::remove_file(format!(
+                    "{}-{}",
+                    *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+                )) {
+                    println!("Can not delete snapshot file, \n Error: {:?}", e);
+                }
             }
             fs::rename(
                 format!(
