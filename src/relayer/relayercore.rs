@@ -579,7 +579,7 @@ pub fn rpc_event_handler(command: RpcCommand) {
                 match order_detail_wraped {
                     Ok(order_detail) => {
                         let mut order = order_detail.write().unwrap();
-                        println!("FILLED order:{:#?}", order);
+                        // println!("FILLED order:{:#?}", order);
                         match order.order_status {
                             OrderStatus::PENDING => {
                                 let (cancel_status, order_status) = order.cancelorder_localdb();
@@ -753,7 +753,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
 
                                                     *order_mut_ref = order.clone();
                                                     drop(order_mut_ref);
-                                                    println!("locking mutex LEND_POOL_DB");
+                                                    // println!("locking mutex LEND_POOL_DB");
 
                                                     lendpool.add_transaction(
                                                         LendPoolCommand::AddTraderOrderLiquidation(
@@ -767,7 +767,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             next_output_state,
                                                         ),
                                                     );
-                                                    println!("dropping mutex LEND_POOL_DB");
+                                                    // println!("dropping mutex LEND_POOL_DB");
                                                 }
                                                 Err(verification_error) => {
                                                     println!(

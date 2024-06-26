@@ -706,6 +706,7 @@ pub struct SnapshotDB {
     // pub output_memo_hashmap: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
     pub event_offset: i64,
     pub event_timestamp: String,
+    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
 }
 impl SnapshotDB {
     fn new() -> Self {
@@ -725,6 +726,8 @@ impl SnapshotDB {
             //     utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
             event_offset: 0,
             event_timestamp: ServerTime::now().epoch,
+            output_hex_storage:
+                utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
         }
     }
     fn print_status(&self) {
@@ -746,18 +749,13 @@ impl SnapshotDB {
     }
 }
 
-pub fn snapshot() -> Result<
-    (
-        SnapshotDB,
-        utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    ),
-    std::io::Error,
-> {
+pub fn snapshot() -> Result<SnapshotDB, std::io::Error> {
     // let read_snapshot = fs::read("snapshot").expect("Could not read file");
     // snapshot renaming on success
     // encryption on snapshot data
     // snapshot version
     // delete old snapshot data deleted by cron job
+    println!("started taking snapshot");
     let read_snapshot = fs::read(format!(
         "{}-{}",
         *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
@@ -791,13 +789,12 @@ pub fn snapshot() -> Result<
     // drop(snapshot_data);
 
     // let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-    let mut output_hex_storage =
-        utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1);
-    let _ = output_hex_storage.load_from_snapshot();
+    // let mut output_hex_storage =
+    //     utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1);
+    // let _ = output_hex_storage.load_from_snapshot();
     // drop(output_hex_storage);
 
-    let snapshot_db_updated =
-        create_snapshot_data(fetchoffset, decoded_snapshot, &mut output_hex_storage);
+    let snapshot_db_updated = create_snapshot_data(fetchoffset, decoded_snapshot);
 
     // let mut snapshot_data = SNAPSHOT_DATA.lock().unwrap();
     // *snapshot_data = snapshot_db_updated.clone();
@@ -842,15 +839,12 @@ pub fn snapshot() -> Result<
         }
     }
     // println!("Snapshot:{:#?}", snapshot_db_updated);
+    println!("Snapshot Done");
 
-    Ok((snapshot_db_updated, output_hex_storage))
+    Ok(snapshot_db_updated)
 }
 
-pub fn create_snapshot_data(
-    fetchoffset: FetchOffset,
-    snapshot_db: SnapshotDB,
-    output_hex_storage: &mut utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-) -> SnapshotDB {
+pub fn create_snapshot_data(fetchoffset: FetchOffset, snapshot_db: SnapshotDB) -> SnapshotDB {
     // let snapshot_db = SNAPSHOT_DATA.lock().unwrap().clone();
     let SnapshotDB {
         mut orderdb_traderorder,
@@ -866,10 +860,9 @@ pub fn create_snapshot_data(
         mut localdb_hashmap,
         mut event_offset,
         event_timestamp: _,
+        mut output_hex_storage,
     } = snapshot_db;
 
-    // let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-    // let mut event_offset: i64 = 0;
     let time = ServerTime::now().epoch;
     let event_timestamp = time.clone();
     let event_stoper_string = format!("snapsot-start-{}", time);
@@ -1435,7 +1428,7 @@ pub fn create_snapshot_data(
             },
         }
     }
-    let _ = output_hex_storage.take_snapshot();
+    // let _ = output_hex_storage.take_snapshot();
     // drop(output_hex_storage);
 
     if lendpool_database.aggrigate_log_sequence > 0 {
@@ -1457,12 +1450,13 @@ pub fn create_snapshot_data(
         localdb_hashmap: localdb_hashmap,
         event_offset: event_offset,
         event_timestamp: event_timestamp,
+        output_hex_storage: output_hex_storage,
     }
 }
 
 pub fn load_from_snapshot() {
     match snapshot() {
-        Ok((snapshot_data, output_hex_storage_new)) => {
+        Ok(snapshot_data) => {
             // let snapshot_data = SNAPSHOT_DATA.lock().unwrap();
             let mut liquidation_long_sortedset_db = TRADER_LP_LONG.lock().unwrap();
             let mut liquidation_short_sortedset_db = TRADER_LP_SHORT.lock().unwrap();
@@ -1476,7 +1470,7 @@ pub fn load_from_snapshot() {
             let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
             snapshot_data.print_status();
             let mut output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-            *output_hex_storage = output_hex_storage_new;
+            *output_hex_storage = snapshot_data.output_hex_storage;
             drop(output_hex_storage);
             // add field of Trader order db
             load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();

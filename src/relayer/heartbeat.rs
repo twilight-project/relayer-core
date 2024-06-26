@@ -183,10 +183,10 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        println!(
-            "long:{:#?},\n Short:{:#?}",
-            orderid_list_long, orderid_list_short
-        );
+        // println!(
+        //     "long:{:#?},\n Short:{:#?}",
+        //     orderid_list_long, orderid_list_short
+        // );
 
         let meta = Meta {
             metadata: {
@@ -249,10 +249,10 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        println!(
-            "long:{:#?},\n Short:{:#?}",
-            orderid_list_long, orderid_list_short
-        );
+        // println!(
+        //     "long:{:#?},\n Short:{:#?}",
+        //     orderid_list_long, orderid_list_short
+        // );
 
         let meta = Meta {
             metadata: {
@@ -314,10 +314,10 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        println!(
-            "long:{:#?},\n Short:{:#?}",
-            orderid_list_long, orderid_list_short
-        );
+        // println!(
+        //     "long:{:#?},\n Short:{:#?}",
+        //     orderid_list_long, orderid_list_short
+        // );
 
         let meta = Meta {
             metadata: {
@@ -438,7 +438,7 @@ pub fn fundingcycle(
                 );
             });
         }
-        println!("funding test 1");
+        // println!("funding test 1");
         for _i in 0..length {
             let (funding_payment, order, (uuid, price, position_type)) = recv.recv().unwrap();
             if funding_payment != 0.0 {
@@ -461,10 +461,10 @@ pub fn fundingcycle(
         let _ = liquidation_list_short.update_bulk(liquidity_update_short);
         drop(liquidation_list_short);
 
-        println!(
-            "funding complete, poolbatch amount: {:#?}",
-            poolbatch.amount
-        );
+        // println!(
+        //     "funding complete, poolbatch amount: {:#?}",
+        //     poolbatch.amount
+        // );
         relayer_event_handler(RelayerCommand::FundingCycle(
             poolbatch,
             metadata,
@@ -599,7 +599,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                             payment,
                             next_output_state,
                         ));
-                        println!("dropping mutex LEND_POOL_DB");
+                        // println!("dropping mutex LEND_POOL_DB");
                     }
                     Err(verification_error) => {
                         println!("Error in line heartbeat.rs 607 : {:?}", verification_error);

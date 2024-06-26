@@ -370,13 +370,13 @@ impl TraderOrder {
             self.entryprice,
             current_price,
         );
-        println!(
-            "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
-            u_pnl,
-            u_pnl.round(),
-            margindifference,
-            margindifference.round()
-        );
+        // println!(
+        //     "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
+        //     u_pnl,
+        //     u_pnl.round(),
+        //     margindifference,
+        //     margindifference.round()
+        // );
         let payment = u_pnl.round() + margindifference.round();
         self.order_status = OrderStatus::SETTLED;
         self.available_margin = self.initial_margin + payment;

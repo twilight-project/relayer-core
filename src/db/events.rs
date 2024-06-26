@@ -292,73 +292,76 @@ impl Event {
     ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
         let (sender, receiver) = mpsc::channel();
         // let _topic_clone = topic.clone();
-        thread::spawn(move || {
-            let broker = vec![std::env::var("BROKER")
-                .expect("missing environment variable BROKER")
-                .to_owned()];
-            let mut con = Consumer::from_hosts(broker)
-                // .with_topic(topic)
-                .with_group(group)
-                .with_topic_partitions(topic.clone(), &[0])
-                .with_fallback_offset(fetchoffset)
-                .with_offset_storage(GroupOffsetStorage::Kafka)
-                .create()
-                .unwrap();
-            let mut connection_status = true;
-            let _partition: i32 = 0;
-            while connection_status {
-                let sender_clone = sender.clone();
-                let mss = con.poll().unwrap();
-                if mss.is_empty() {
-                    // println!("No messages available right now.");
-                    // return Ok(());
-                } else {
-                    for ms in mss.iter() {
-                        for m in ms.messages() {
-                            let mut eventkey = EventKey::from_string_or_deafault(
-                                String::from_utf8_lossy(&m.key).to_string(),
-                            );
-                            let mut value = String::from_utf8_lossy(&m.value).to_string();
-                            while eventkey.is_upcast() {
-                                value = eventkey.event_log_upcast(value);
+        let _handle = thread::Builder::new()
+            .name(String::from("trader_order_handle"))
+            .spawn(move || {
+                let broker = vec![std::env::var("BROKER")
+                    .expect("missing environment variable BROKER")
+                    .to_owned()];
+                let mut con = Consumer::from_hosts(broker)
+                    // .with_topic(topic)
+                    .with_group(group)
+                    .with_topic_partitions(topic.clone(), &[0])
+                    .with_fallback_offset(fetchoffset)
+                    .with_offset_storage(GroupOffsetStorage::Kafka)
+                    .create()
+                    .unwrap();
+                let mut connection_status = true;
+                let _partition: i32 = 0;
+                while connection_status {
+                    let sender_clone = sender.clone();
+                    let mss = con.poll().unwrap();
+                    if mss.is_empty() {
+                        // println!("No messages available right now.");
+                        // return Ok(());
+                    } else {
+                        for ms in mss.iter() {
+                            for m in ms.messages() {
+                                let mut eventkey = EventKey::from_string_or_deafault(
+                                    String::from_utf8_lossy(&m.key).to_string(),
+                                );
+                                let mut value = String::from_utf8_lossy(&m.value).to_string();
+                                while eventkey.is_upcast() {
+                                    value = eventkey.event_log_upcast(value);
+                                }
+                                let value = match serde_json::from_str(&value) {
+                                    Ok(ser_value) => ser_value,
+                                    Err(arg) => {
+                                        eprintln!("Error in event log snapshot : {:?}", arg);
+                                        let _ = con.consume_message(&topic, 0, m.offset);
+                                        continue;
+                                    }
+                                };
+                                let message = EventLog {
+                                    offset: m.offset,
+                                    key: String::from_utf8_lossy(&m.key).to_string(),
+                                    value: value,
+                                };
+                                match sender_clone.send(message) {
+                                    Ok(_) => {
+                                        // let _ = con.consume_message(&topic_clone, partition, m.offset);
+                                        // println!("Im here");
+                                        let _ = con.consume_message(&topic, 0, m.offset);
+                                    }
+                                    Err(_arg) => {
+                                        // println!("Closing Kafka Consumer Connection : {:#?}", arg);
+                                        connection_status = false;
+                                        break;
+                                    }
+                                }
                             }
-                            let value = match serde_json::from_str(&value) {
-                                Ok(ser_value) => ser_value,
-                                Err(arg) => {
-                                    eprintln!("Error in event log snapshot : {:?}", arg);
-                                    let _ = con.consume_message(&topic, 0, m.offset);
-                                    continue;
-                                }
-                            };
-                            let message = EventLog {
-                                offset: m.offset,
-                                key: String::from_utf8_lossy(&m.key).to_string(),
-                                value: value,
-                            };
-                            match sender_clone.send(message) {
-                                Ok(_) => {
-                                    // let _ = con.consume_message(&topic_clone, partition, m.offset);
-                                    // println!("Im here");
-                                    let _ = con.consume_message(&topic, 0, m.offset);
-                                }
-                                Err(_arg) => {
-                                    // println!("Closing Kafka Consumer Connection : {:#?}", arg);
-                                    connection_status = false;
-                                    break;
-                                }
+                            if connection_status == false {
+                                break;
                             }
+                            let _ = con.consume_messageset(ms);
                         }
-                        if connection_status == false {
-                            break;
-                        }
-                        let _ = con.consume_messageset(ms);
+                        con.commit_consumed().unwrap();
                     }
-                    con.commit_consumed().unwrap();
                 }
-            }
-            // con.commit_consumed().unwrap();
-            thread::park();
-        });
+                // con.commit_consumed().unwrap();
+                // thread::park();
+            })
+            .unwrap();
         Ok(Arc::new(Mutex::new(receiver)))
     }
 
