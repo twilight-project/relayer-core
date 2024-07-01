@@ -238,10 +238,11 @@ impl LendPool {
         );
         let mut stop_signal: bool = true;
 
-        let recever = Event::receive_event_for_snapshot_from_kafka_queue(
+        let (recever, tx_consumed) = Event::receive_event_for_snapshot_from_kafka_queue(
             LENDPOOL_EVENT_LOG.clone().to_string(),
             ServerTime::now().epoch,
             FetchOffset::Earliest,
+            "lendpool kafka thread",
         )
         .unwrap();
         let recever1 = recever.lock().unwrap();
@@ -320,6 +321,10 @@ impl LendPool {
                     }
                 }
                 _ => {}
+            }
+            match tx_consumed.send((data.partition, data.offset)) {
+                Ok(_) => {}
+                Err(_) => {}
             }
         }
         if database.total_locked_value > 0.0 {

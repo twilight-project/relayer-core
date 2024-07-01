@@ -771,7 +771,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 }
                                                 Err(verification_error) => {
                                                     println!(
-                                                        "Error in line relayercore.rs 822 : {:?}",
+                                                        "Error in line relayercore.rs 774 : {:?}",
                                                         verification_error
                                                     );
                                                     // settle limit removed from the db, need to place new limit/market settle request
@@ -1068,7 +1068,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         }
                                                         Err(verification_error) => {
                                                             println!(
-                                                                "Error in line relayercore.rs 822 : {:?}",
+                                                                "Error in line relayercore.rs 1071 : {:?}",
                                                                 verification_error
                                                             );
                                                             // settle limit removed from the db, need to place new limit/market settle request
@@ -1077,7 +1077,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 }
                                                 Err(arg) => {
                                                     println!(
-                                                        "Error in line relayercore.rs 827 : {:?}",
+                                                        "Error in line relayercore.rs 1080 : {:?}",
                                                         arg
                                                     );
                                                 }
@@ -1366,7 +1366,7 @@ pub fn zkos_order_handler(
                                                     // relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
                                                     //     tx
                                                     // )
-                                                    transaction_queue_to_confirm_relayer_latest_state(
+                                                    transaction_queue_to_confirm_relayer_latest_state(last_state_output.clone(),
                                                         tx,next_state_output.clone()
                                                     )
                                                 }
@@ -1525,6 +1525,7 @@ pub fn zkos_order_handler(
 
                                 let tx_hash_result = match transaction {
                                     Ok(tx) => transaction_queue_to_confirm_relayer_latest_state(
+                                        last_state_output.clone(),
                                         tx,
                                         next_state_output.clone(),
                                     ),
@@ -1636,7 +1637,7 @@ pub fn zkos_order_handler(
                                         .get_owner_address()
                                         .unwrap()
                                         .clone(),
-                                    last_state_output,
+                                    last_state_output.clone(),
                                     next_state_output.clone(),
                                     lock_error,
                                     contract_owner_sk,
@@ -1645,6 +1646,7 @@ pub fn zkos_order_handler(
 
                                 let tx_hash_result = match transaction {
                                     Ok(tx) => transaction_queue_to_confirm_relayer_latest_state(
+                                        last_state_output.clone(),
                                         tx,
                                         next_state_output.clone(),
                                     ),
@@ -2003,7 +2005,7 @@ pub fn zkos_order_handler(
 
                                     let tx_hash_result = match transaction {
                                         Ok(tx) => {
-                                            transaction_queue_to_confirm_relayer_latest_state(
+                                            transaction_queue_to_confirm_relayer_latest_state(last_state_output.clone(),
                                                 tx,next_state_output.clone()
                                             )
                                         }
@@ -2134,6 +2136,7 @@ pub fn zkos_order_handler(
                         );
                         let tx_hash_result = match transaction {
                             Ok(tx) => transaction_queue_to_confirm_relayer_latest_state(
+                                last_state_output.clone(),
                                 tx,
                                 next_state_output.clone(),
                             ),
@@ -2215,71 +2218,77 @@ pub fn zkos_order_handler(
 }
 
 pub fn transaction_queue_to_confirm_relayer_latest_state(
+    last_output: Output,
     tx: Transaction,
     next_output: Output,
 ) -> Result<String, String> {
     // let tx_hash_result =
     //     relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx);
+    let nonce = match last_output.as_out_state() {
+        Some(state) => state.nonce.clone(),
+        None => 1,
+    };
 
-    match relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx) {
-        Ok(tx_hash) => {
-            let nonce = match next_output.as_out_state() {
-                Some(state) => state.nonce.clone(),
-                None => 1,
-            };
-            let account_id = next_output
-                .clone()
-                .as_output_data()
-                .get_owner_address()
-                .clone()
-                .unwrap()
-                .clone();
-            let mut flag_chain_update = true;
-            let mut latest_nonce: u32 = 0;
-            let mut chain_attempt: i32 = 0;
-            while flag_chain_update {
-                // let updated_output_on_chain =
-                match relayerwalletlib::zkoswalletlib::chain::get_utxo_details_by_address(
-                    account_id.clone(),
-                    IOType::State,
-                ) {
-                    Ok(utxo_detail) => {
-                        match utxo_detail.output.as_out_state() {
-                            Some(state) => {
-                                latest_nonce = state.nonce.clone();
-                                // flag_chain_update = false;
-                            }
-                            None => {}
-                        }
-                    }
-                    Err(arg) => {
-                        chain_attempt += 1;
-                        sleep(Duration::from_secs(2));
-                        if chain_attempt == 10 {
-                            // flag_chain_update = false;
-                            return Err("Tx Failed due to missing latest state update".to_string());
-                        }
-                    }
-                }
-                if nonce == latest_nonce {
-                    // flag_chain_update = false;
-                    return Ok(tx_hash);
-                } else {
-                    flag_chain_update = true;
-                    chain_attempt += 1;
-                    sleep(Duration::from_secs(2));
-                    if chain_attempt == 10 {
+    let account_id = last_output
+        .as_output_data()
+        .get_owner_address()
+        .clone()
+        .unwrap()
+        .clone();
+
+    let mut flag_chain_update = true;
+    let mut latest_nonce: u32 = 0;
+    let mut chain_attempt: i32 = 0;
+    while flag_chain_update {
+        // let updated_output_on_chain =
+        match relayerwalletlib::zkoswalletlib::chain::get_utxo_details_by_address(
+            account_id.clone(),
+            IOType::State,
+        ) {
+            Ok(utxo_detail) => {
+                match utxo_detail.output.as_out_state() {
+                    Some(state) => {
+                        latest_nonce = state.nonce.clone();
                         // flag_chain_update = false;
-                        return Err("Tx Failed due to missing latest state update".to_string());
                     }
+                    None => {}
                 }
             }
-            return Err("Tx Failed due to missing latest state update".to_string());
+            Err(arg) => {
+                chain_attempt += 1;
+                sleep(Duration::from_secs(2));
+                if chain_attempt == 50 {
+                    // flag_chain_update = false;
+                    return Err("Tx Failed due to missing latest state update".to_string());
+                }
+            }
         }
-        Err(arg) => {
-            return Err(arg);
+        if nonce == latest_nonce {
+            // flag_chain_update = false;
+            match relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx) {
+                Ok(tx_hash) => {
+                    Event::new(
+                        Event::AdvanceStateQueue((nonce + 1) as usize, next_output),
+                        format!("Nonce : {:?}", nonce + 1),
+                        RELAYER_STATE_QUEUE.clone().to_string(),
+                    );
+                    return Ok(tx_hash);
+                }
+                Err(arg) => {
+                    return Err(arg);
+                }
+            }
+        } else {
+            flag_chain_update = true;
+            chain_attempt += 1;
+            sleep(Duration::from_secs(2));
+            if chain_attempt == 50 {
+                // flag_chain_update = false;
+                return Err("Tx Failed due to missing latest state update".to_string());
+            }
         }
     }
+    return Err("Tx Failed due to missing latest state update".to_string());
 }
 
 #[cfg(test)]

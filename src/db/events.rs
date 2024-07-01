@@ -4,6 +4,7 @@ use crate::config::EVENTLOG_VERSION;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use jsonrpc::Request;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
@@ -14,13 +15,14 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::{mpsc, Arc, Mutex, RwLock};
-use std::time::Duration;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::SystemTime;
+use std::time::{self, Duration};
 use std::{fmt, thread};
 use uuid::serde::compact::serialize;
 use uuid::Uuid;
-
+pub type OffsetCompletion = (i32, i64);
+pub type Nonce = usize;
 lazy_static! {
     pub static ref GLOBAL_NONCE: Arc<RwLock<usize>> = Arc::new(RwLock::new(0));
     pub static ref KAFKA_EVENT_LOG_THREADPOOL1: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
@@ -48,6 +50,7 @@ pub struct EventLog {
     pub offset: i64,
     pub key: String,
     pub value: Event,
+    pub partition: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -230,6 +233,7 @@ pub enum Event {
         Option<String>,
     ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
+    AdvanceStateQueue(Nonce, zkvm::Output),
 }
 
 // impl fmt::Display for Event {
@@ -289,11 +293,13 @@ impl Event {
         topic: String,
         group: String,
         fetchoffset: FetchOffset,
-    ) -> Result<Arc<Mutex<mpsc::Receiver<EventLog>>>, KafkaError> {
-        let (sender, receiver) = mpsc::channel();
+        thread_name: &str,
+    ) -> Result<(Arc<Mutex<Receiver<EventLog>>>, Sender<OffsetCompletion>), KafkaError> {
+        let (sender, receiver) = unbounded();
+        let (tx_consumed, rx_consumed) = unbounded::<OffsetCompletion>();
         // let _topic_clone = topic.clone();
         let _handle = thread::Builder::new()
-            .name(String::from("trader_order_handle"))
+            .name(String::from(thread_name))
             .spawn(move || {
                 let broker = vec![std::env::var("BROKER")
                     .expect("missing environment variable BROKER")
@@ -336,12 +342,13 @@ impl Event {
                                     offset: m.offset,
                                     key: String::from_utf8_lossy(&m.key).to_string(),
                                     value: value,
+                                    partition: ms.partition(),
                                 };
                                 match sender_clone.send(message) {
                                     Ok(_) => {
                                         // let _ = con.consume_message(&topic_clone, partition, m.offset);
                                         // println!("Im here");
-                                        let _ = con.consume_message(&topic, 0, m.offset);
+                                        // let _ = con.consume_message(&topic, 0, m.offset);
                                     }
                                     Err(_arg) => {
                                         // println!("Closing Kafka Consumer Connection : {:#?}", arg);
@@ -353,16 +360,45 @@ impl Event {
                             if connection_status == false {
                                 break;
                             }
-                            let _ = con.consume_messageset(ms);
+                            // let _ = con.consume_messageset(ms);
                         }
-                        con.commit_consumed().unwrap();
+                        // con.commit_consumed().unwrap();
+                    }
+                    while !rx_consumed.is_empty() || !connection_status {
+                        match rx_consumed.recv() {
+                            Ok((partition, offset)) => {
+                                let e = con.consume_message(&topic, partition, offset);
+
+                                if e.is_err() {
+                                    println!("Kafka connection failed {:?}", e);
+                                    connection_status = false;
+                                    break;
+                                }
+
+                                let e = con.commit_consumed();
+                                if e.is_err() {
+                                    println!("Kafka connection failed {:?}", e);
+                                    connection_status = false;
+                                    break;
+                                }
+                            }
+                            Err(_e) => {
+                                connection_status = false;
+                                println!(
+                                    "The consumed channel is closed: {:?}",
+                                    thread::current().name()
+                                );
+                                break;
+                            }
+                        }
                     }
                 }
+                thread::sleep(time::Duration::from_millis(3000));
                 // con.commit_consumed().unwrap();
                 // thread::park();
             })
             .unwrap();
-        Ok(Arc::new(Mutex::new(receiver)))
+        Ok((Arc::new(Mutex::new(receiver)), tx_consumed))
     }
 
     pub fn get_event_type(&self) -> String {
@@ -380,6 +416,7 @@ impl Event {
             Event::TxHash(..) => "TxHash".to_string(),
             Event::TxHashUpdate(..) => "TxHashUpdate".to_string(),
             Event::Stop(..) => "Stop".to_string(),
+            Event::AdvanceStateQueue(..) => "AdvanceStateQueue".to_string(),
         }
     }
 }

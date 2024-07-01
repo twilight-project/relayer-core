@@ -11,10 +11,19 @@ use std::{thread, time};
 use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 pub fn heartbeat() {
-    dotenv::dotenv().expect("Failed loading dotenv");
+    dotenv::dotenv().ok();
     // init_psql();
     println!("Looking for previous database...");
-    load_from_snapshot();
+    match load_from_snapshot() {
+        Ok(_) => {
+            load_relayer_latest_state();
+        }
+        Err(arg) => {
+            println!("Unable to start Relayer \n :Error:{:?}", arg);
+
+            std::process::exit(0);
+        }
+    }
 
     // init_output_txhash_storage();
 

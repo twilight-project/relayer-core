@@ -147,6 +147,8 @@ lazy_static! {
 
     pub static ref CORE_EVENT_LOG: String = std::env::var("CORE_EVENT_LOG")
     .unwrap_or("CoreEventLogTopic".to_string());
+    pub static ref RELAYER_STATE_QUEUE: String = std::env::var("RELAYER_STATE_QUEUE")
+    .unwrap_or("RelayerStateQueue".to_string());
 
     pub static ref TRADERORDER_EVENT_LOG: String = std::env::var("TRADERORDER_EVENT_LOG")
     .unwrap_or("CoreEventLogTopic".to_string());
