@@ -208,16 +208,16 @@ impl TraderOrder {
             // );
 
             // adding candle data
-            let side = match ordertx.position_type {
-                PositionType::SHORT => Side::SELL,
-                PositionType::LONG => Side::BUY,
-            };
-            update_recent_orders(CloseTrade {
-                side: side,
-                positionsize: ordertx.positionsize,
-                price: ordertx.entryprice,
-                timestamp: std::time::SystemTime::now(),
-            });
+            // let side = match ordertx.position_type {
+            //     PositionType::SHORT => Side::SELL,
+            //     PositionType::LONG => Side::BUY,
+            // };
+            // update_recent_orders(CloseTrade {
+            //     side: side,
+            //     positionsize: ordertx.positionsize,
+            //     price: ordertx.entryprice,
+            //     timestamp: std::time::SystemTime::now(),
+            // });
             //
         } else {
             match ordertx.position_type {
@@ -411,16 +411,16 @@ impl TraderOrder {
         // );
 
         // adding candle data
-        let side = match ordertx.position_type {
-            PositionType::SHORT => Side::BUY,
-            PositionType::LONG => Side::SELL,
-        };
-        update_recent_orders(CloseTrade {
-            side: side,
-            positionsize: ordertx.positionsize,
-            price: ordertx.entryprice,
-            timestamp: std::time::SystemTime::now(),
-        });
+        // let side = match ordertx.position_type {
+        //     PositionType::SHORT => Side::BUY,
+        //     PositionType::LONG => Side::SELL,
+        // };
+        // update_recent_orders(CloseTrade {
+        //     side: side,
+        //     positionsize: ordertx.positionsize,
+        //     price: ordertx.entryprice,
+        //     timestamp: std::time::SystemTime::now(),
+        // });
     }
     pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
@@ -479,16 +479,16 @@ impl TraderOrder {
         // adding candle data
         // PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
 
-        let side = match ordertx.position_type {
-            PositionType::SHORT => Side::BUY,
-            PositionType::LONG => Side::SELL,
-        };
-        update_recent_orders(CloseTrade {
-            side: side,
-            positionsize: ordertx.positionsize,
-            price: ordertx.entryprice,
-            timestamp: std::time::SystemTime::now(),
-        });
+        // let side = match ordertx.position_type {
+        //     PositionType::SHORT => Side::BUY,
+        //     PositionType::LONG => Side::SELL,
+        // };
+        // update_recent_orders(CloseTrade {
+        //     side: side,
+        //     positionsize: ordertx.positionsize,
+        //     price: ordertx.entryprice,
+        //     timestamp: std::time::SystemTime::now(),
+        // });
         -self.initial_margin.clone()
     }
 

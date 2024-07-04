@@ -1,6 +1,6 @@
 use crate::config::*;
 use crate::db::*;
-use crate::ordertest;
+// use crate::ordertest;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
@@ -24,8 +24,6 @@ pub fn heartbeat() {
             std::process::exit(0);
         }
     }
-
-    // init_output_txhash_storage();
 
     thread::sleep(time::Duration::from_millis(100));
 
@@ -71,7 +69,7 @@ pub fn heartbeat() {
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(100));
-    ordertest::initprice();
+    // ordertest::initprice();
     // start_cronjobs();
     // main thread for scheduler
     thread::Builder::new()
@@ -93,7 +91,7 @@ pub fn heartbeat() {
                 let _ = snapshot();
             });
 
-            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(1000));
+            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(60000));
             loop {
                 thread::sleep(time::Duration::from_millis(100000000));
             }
@@ -115,7 +113,7 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    QueueResolver::new(String::from("questdb_queue"));
+    // QueueResolver::new(String::from("questdb_queue"));
     println!("Initialization done..................................");
 }
 

@@ -1,10 +1,10 @@
 pub mod config;
 pub mod db;
 pub mod kafkalib;
-pub mod ordertest;
+// pub mod ordertest;
 pub mod postgresqllib;
 pub mod pricefeederlib;
-pub mod questdb;
+// pub mod questdb;
 pub mod redislib;
 pub mod relayer;
 
