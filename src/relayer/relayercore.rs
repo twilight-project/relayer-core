@@ -49,13 +49,14 @@ pub fn client_cmd_receiver() {
             RPC_CLIENT_REQUEST.clone().to_string(),
             String::from("client_cmd_receiver3"),
         ) {
-            Ok(rpc_cmd_receiver) => {
+            Ok((rpc_cmd_receiver, tx_consumed)) => {
                 let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
+
                 loop {
                     let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap();
                     match rpc_client_cmd_request.recv() {
-                        Ok(rpc_command) => {
-                            rpc_event_handler(rpc_command);
+                        Ok((rpc_command, offset_complition)) => {
+                            rpc_event_handler(rpc_command, tx_consumed.clone(), offset_complition);
                         }
                         Err(arg) => {
                             println!("Relayer turn off command receiver from client-request");
@@ -71,7 +72,11 @@ pub fn client_cmd_receiver() {
     }
 }
 
-pub fn rpc_event_handler(command: RpcCommand) {
+pub fn rpc_event_handler(
+    command: RpcCommand,
+    tx_consumed: crossbeam_channel::Sender<OffsetCompletion>,
+    offset_complition: OffsetCompletion,
+) {
     let command_clone = command.clone();
     let command_clone_for_zkos = command.clone();
     match command {
@@ -125,6 +130,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                         drop(trader_order_db);
                                     }
                                 }
+                                // match tx_consumed.send(offset_complition) {
+                                //     Ok(_) => {}
+                                //     Err(_) => {}
+                                // }
                             });
                             drop(buffer_insert);
                         } else if orderdata_clone.order_status == OrderStatus::PENDING {
@@ -148,6 +157,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 String::from("tx_limit_submit"),
                                 LENDPOOL_EVENT_LOG.clone().to_string(),
                             );
+                            // match tx_consumed.send(offset_complition) {
+                            //     Ok(_) => {}
+                            //     Err(_) => {}
+                            // }
                         }
                     } else {
                         // send event for txhash with error saying order already exist in the relayer
@@ -166,6 +179,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                             String::from("tx_duplicate_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
+                        // match tx_consumed.send(offset_complition) {
+                        //     Ok(_) => {}
+                        //     Err(_) => {}
+                        // }
                     }
                 } else {
                     Event::new(
@@ -182,6 +199,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                         String::from("tx_wrong_parameter_error"),
                         LENDPOOL_EVENT_LOG.clone().to_string(),
                     );
+                    // match tx_consumed.send(offset_complition) {
+                    //     Ok(_) => {}
+                    //     Err(_) => {}
+                    // }
                 }
             });
             drop(buffer);
@@ -319,6 +340,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 );
                             }
                         }
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                     Err(arg) => {
                         println!("Error found:{:#?}", arg);
@@ -337,6 +362,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                             String::from("trader_tx_not_found_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                 }
             });
@@ -410,6 +439,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                             println!("Error in line relayercore.rs 304 : {:?}", arg);
                         }
                     }
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
                 } else {
                     // send event for txhash with error saying order already exist in the relayer
                     Event::new(
@@ -427,6 +460,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                         String::from("tx_duplicate_error"),
                         LENDPOOL_EVENT_LOG.clone().to_string(),
                     );
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
                 }
 
                 drop(lend_pool);
@@ -546,6 +583,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 );
                             }
                         }
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                     Err(arg) => {
                         drop(lend_pool);
@@ -565,6 +606,10 @@ pub fn rpc_event_handler(command: RpcCommand) {
                             String::from("lend_tx_not_found_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                 }
             });
@@ -633,9 +678,17 @@ pub fn rpc_event_handler(command: RpcCommand) {
                                 );
                             }
                         }
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                     Err(arg) => {
                         println!("Error found:{:#?}", arg);
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                 }
             });

@@ -19,7 +19,7 @@ pub use self::directapi::*;
 pub use self::heartbeat::*;
 pub use self::lendorder::LendOrder;
 pub use self::publicapi::*;
-pub use self::queueresolver::QueueResolver;
+// pub use self::queueresolver::QueueResolver;
 pub use self::relayercore::*;
 pub use self::rpc_types::*;
 pub use self::threadpool::ThreadPool;

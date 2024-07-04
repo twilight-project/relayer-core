@@ -2,7 +2,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::config::IS_RELAYER_ACTIVE;
+use crate::db::OffsetCompletion;
 use crate::relayer::*;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use kafka::client::{metadata::Broker, FetchPartition, KafkaClient};
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
@@ -66,8 +68,15 @@ pub fn send_to_kafka_queue(cmd: RpcCommand, topic: String, key: &str) {
 pub fn receive_from_kafka_queue(
     topic: String,
     group: String,
-) -> Result<Arc<Mutex<mpsc::Receiver<RpcCommand>>>, KafkaError> {
-    let (sender, receiver) = mpsc::channel();
+) -> Result<
+    (
+        Arc<Mutex<Receiver<(RpcCommand, OffsetCompletion)>>>,
+        Sender<OffsetCompletion>,
+    ),
+    KafkaError,
+> {
+    let (sender, receiver) = unbounded();
+    let (tx_consumed, rx_consumed) = unbounded::<OffsetCompletion>();
     let _topic_clone = topic.clone();
     let _handle = thread::Builder::new()
         .name(String::from("trader_order_handle"))
@@ -101,11 +110,13 @@ pub fn receive_from_kafka_queue(
                                     value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
                                         .unwrap(),
                                 };
-                                match sender_clone.send(Message::new(message)) {
+                                match sender_clone
+                                    .send((Message::new(message), (ms.partition(), m.offset)))
+                                {
                                     Ok(_) => {
                                         // let _ = con.consume_message(&topic_clone, partition, m.offset);
                                         // println!("Im here");
-                                        let _ = con.consume_message(&topic, 0, m.offset);
+                                        // let _ = con.consume_message(&topic, 0, m.offset);
                                     }
                                     Err(arg) => {
                                         println!("Closing Kafka Consumer Connection : {:#?}", arg);
@@ -117,13 +128,42 @@ pub fn receive_from_kafka_queue(
                             if connection_status == false {
                                 break;
                             }
-                            let _ = con.consume_messageset(ms);
+                            // let _ = con.consume_messageset(ms);
                         }
-                        con.commit_consumed().unwrap();
+                        // con.commit_consumed().unwrap();
                     }
                 } else {
                     println!("Relayer turn off command received at kafka receiver");
                     break;
+                }
+
+                while !rx_consumed.is_empty() {
+                    match rx_consumed.recv() {
+                        Ok((partition, offset)) => {
+                            let e = con.consume_message(&topic, partition, offset);
+
+                            if e.is_err() {
+                                println!("Kafka connection failed {:?}", e);
+                                connection_status = false;
+                                break;
+                            }
+
+                            let e = con.commit_consumed();
+                            if e.is_err() {
+                                println!("Kafka connection failed {:?}", e);
+                                connection_status = false;
+                                break;
+                            }
+                        }
+                        Err(_e) => {
+                            connection_status = false;
+                            println!(
+                                "The consumed channel is closed: {:?}",
+                                thread::current().name()
+                            );
+                            break;
+                        }
+                    }
                 }
             }
             thread::sleep(time::Duration::from_millis(3000));
@@ -131,7 +171,7 @@ pub fn receive_from_kafka_queue(
         })
         .unwrap();
 
-    Ok(Arc::new(Mutex::new(receiver)))
+    Ok((Arc::new(Mutex::new(receiver)), tx_consumed))
 }
 
 #[derive(Debug)]
