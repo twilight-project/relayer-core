@@ -824,8 +824,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 }
                                                 Err(verification_error) => {
                                                     println!(
-                                                        "Error in line relayercore.rs 774 : {:?}",
-                                                        verification_error
+                                                        "Error in line relayercore.rs 774 : {:?}, uuid: {:?}",
+                                                        verification_error,order.uuid
                                                     );
                                                     // settle limit removed from the db, need to place new limit/market settle request
                                                     // Event::new(

@@ -9,6 +9,7 @@ use bincode;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
+use relayerwalletlib::zkoswalletlib::util::get_state_info_from_output_hex;
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
@@ -92,6 +93,17 @@ impl RelayerState {
                 Some(output) => output.clone(),
                 None => return,
             };
+
+            match get_state_info_from_output_hex(hex::encode(
+                bincode::serialize(&lendpool.last_output_state).unwrap(),
+            )) {
+                Ok((nonce, tlv_witness, _tlv_blinding, tps_witness, _tps_blinding)) => {
+                    lendpool.total_locked_value = tlv_witness as f64;
+                    lendpool.total_pool_share = tps_witness as f64;
+                    lendpool.nonce = nonce as usize;
+                }
+                Err(_arg) => return,
+            };
         }
     }
 }
@@ -104,7 +116,7 @@ pub fn create_relayer_state_data() -> Result<
     ),
     String,
 > {
-    let event_offset_partition: OffsetCompletion;
+    let mut event_offset_partition: OffsetCompletion = (0, 0);
     let mut relayer_state_db = RelayerState::new(10);
     let time = ServerTime::now().epoch;
     let event_stoper_string = format!("snapsot-start-{}", time);
@@ -140,12 +152,17 @@ pub fn create_relayer_state_data() -> Result<
                     match recever1.recv() {
                         Ok(data) => match data.value.clone() {
                             Event::Stop(timex) => {
+                                // println!("data:{:?}\n", data);
+                                // println!("timex:{:?}", timex);
+                                // println!("event_stoper_string:{:?}", event_stoper_string);
                                 if timex == event_stoper_string {
-                                    event_offset_partition = (data.partition, data.offset);
+                                    println!("exiting from consumer as received stop cmd");
+                                    // event_offset_partition = (data.partition, data.offset);
                                     break;
                                 }
                             }
                             Event::AdvanceStateQueue(_nonce, output) => {
+                                // println!("data:{:?}\n", data);
                                 let _ = relayer_state_db.insert(
                                     match output.as_out_state() {
                                         Some(state) => state.nonce.clone() as usize,
@@ -153,8 +170,11 @@ pub fn create_relayer_state_data() -> Result<
                                     },
                                     output,
                                 );
+                                event_offset_partition = (data.partition, data.offset);
                             }
-                            _ => {}
+                            _ => {
+                                // println!("data:{:?}\n", data);
+                            }
                         },
                         Err(arg) => println!("Error at kafka log receiver : {:?}", arg),
                     }
