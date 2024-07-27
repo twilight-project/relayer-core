@@ -98,12 +98,14 @@ pub fn rpc_event_handler(
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
                             buffer_insert.execute(move || {
-                                let chain_result_receiver =
-                                    zkos_order_handler(ZkosTxCommand::CreateTraderOrderTX(
+                                let (sender, zkos_receiver) = mpsc::channel();
+                                zkos_order_handler(
+                                    ZkosTxCommand::CreateTraderOrderTX(
                                         orderdata_clone_for_zkos,
                                         command_clone_for_zkos,
-                                    ));
-                                let zkos_receiver = chain_result_receiver.lock().unwrap();
+                                    ),
+                                    sender,
+                                );
                                 match zkos_receiver.recv() {
                                     Ok(chain_message) => match chain_message {
                                         Ok(tx_hash) => {
@@ -257,15 +259,16 @@ pub fn rpc_event_handler(
                                                 lendpool.total_pool_share.round() as u64,
                                                 0,
                                             );
-                                        let chain_result_receiver = zkos_order_handler(
+                                        let (sender, zkos_receiver) = mpsc::channel();
+                                        zkos_order_handler(
                                             ZkosTxCommand::ExecuteTraderOrderTX(
                                                 order_clone.clone(),
                                                 command_clone.clone(),
                                                 lendpool.last_output_state.clone(),
                                                 next_output_state.clone(),
                                             ),
+                                            sender,
                                         );
-                                        let zkos_receiver = chain_result_receiver.lock().unwrap();
 
                                         match zkos_receiver.recv() {
                                             Ok(chain_message) => match chain_message {
@@ -409,14 +412,16 @@ pub fn rpc_event_handler(
                         0,
                     );
 
-                    let chain_result_receiver =
-                        zkos_order_handler(ZkosTxCommand::CreateLendOrderTX(
+                    let (sender, zkos_receiver) = mpsc::channel();
+                    zkos_order_handler(
+                        ZkosTxCommand::CreateLendOrderTX(
                             lendorder.clone(),
                             command_clone.clone(),
                             lend_pool.last_output_state.clone(),
                             next_output_state.clone(),
-                        ));
-                    let zkos_receiver = chain_result_receiver.lock().unwrap();
+                        ),
+                        sender,
+                    );
 
                     match zkos_receiver.recv() {
                         Ok(chain_message) => match chain_message {
@@ -513,14 +518,16 @@ pub fn rpc_event_handler(
                                                 0,
                                             );
 
-                                        let chain_result_receiver =
-                                            zkos_order_handler(ZkosTxCommand::ExecuteLendOrderTX(
+                                        let (sender, zkos_receiver) = mpsc::channel();
+                                        zkos_order_handler(
+                                            ZkosTxCommand::ExecuteLendOrderTX(
                                                 order_clone.clone(),
                                                 command_clone.clone(),
                                                 lend_pool.last_output_state.clone(),
                                                 next_output_state.clone(),
-                                            ));
-                                        let zkos_receiver = chain_result_receiver.lock().unwrap();
+                                            ),
+                                            sender,
+                                        );
 
                                         match zkos_receiver.recv() {
                                             Ok(chain_message) => match chain_message {
@@ -757,7 +764,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                     order.order_status = OrderStatus::LIQUIDATE;
                                     //update batch process
                                     let payment = order.liquidate(current_price_clone);
-
+                                        // println!("order:{:?}",order);
                                     let mut lendpool = LEND_POOL_DB.lock().unwrap();
 
                                     let next_output_state =
@@ -784,16 +791,15 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                             0,
                                         );
 
-                                    let chain_result_receiver = zkos_order_handler(
+                                        let (sender, zkos_receiver) = mpsc::channel(); 
+                                        zkos_order_handler(
                                         ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
                                             order.clone(),
                                             output_option,
                                             lendpool.last_output_state.clone(),
                                             next_output_state.clone(),
-                                        ),
-                                    );
+                                        ), sender);
 
-                                    let zkos_receiver = chain_result_receiver.lock().unwrap();
 
                                     match zkos_receiver.recv() {
                                         Ok(chain_message) => {
@@ -824,8 +830,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 }
                                                 Err(verification_error) => {
                                                     println!(
-                                                        "Error in line relayercore.rs 774 : {:?}, uuid: {:?}",
-                                                        verification_error,order.uuid
+                                                        "Error in line relayercore.rs 774 : {:?}, uuid: {:?}, nonce: {:?}, \n next_output:{:?}",
+                                                        verification_error,order.uuid, lendpool.nonce,next_output_state
                                                     );
                                                     // settle limit removed from the db, need to place new limit/market settle request
                                                     // Event::new(
@@ -905,13 +911,13 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         let (mut update_order_detail, order_status) =
                                             order.pending_order(current_price_clone);
 
-                                        let chain_result_receiver = zkos_order_handler(
+                                            let (sender, zkos_receiver) = mpsc::channel();
+                                             zkos_order_handler(
                                             ZkosTxCommand::CreateTraderOrderLIMITTX(
                                                 update_order_detail.clone(),
                                                 zkos_msg_hex
-                                            )
+                                            ), sender
                                         );
-                                        let zkos_receiver = chain_result_receiver.lock().unwrap();
                                         match zkos_receiver.recv() {
                                             Ok(chain_message) => {
                                                 match chain_message {
@@ -1085,17 +1091,16 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     0
                                                 );
 
-                                            let chain_result_receiver = zkos_order_handler(
+                                                let (sender, zkos_receiver) = mpsc::channel();
+                                                 zkos_order_handler(
                                                 ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
                                                     order_clone.clone(),
                                                     zkos_msg_hex,
                                                     lendpool.last_output_state.clone(),
                                                     next_output_state.clone()
-                                                )
+                                                ),sender
                                             );
-                                            let zkos_receiver = chain_result_receiver
-                                                .lock()
-                                                .unwrap();
+
 
                                             match zkos_receiver.recv() {
                                                 Ok(chain_message) => {
@@ -1176,10 +1181,11 @@ pub fn relayer_event_handler(command: RelayerCommand) {
 
 pub fn zkos_order_handler(
     command: ZkosTxCommand,
-) -> Arc<Mutex<mpsc::Receiver<Result<String, std::string::String>>>> {
+    sender: mpsc::Sender<Result<String, std::string::String>>,
+) {
     let command_clone = command.clone();
-    let (sender, receiver) = mpsc::channel();
-    let receiver_mutex = Arc::new(Mutex::new(receiver));
+    // let (sender, receiver) = mpsc::channel();
+    // let receiver_mutex = Arc::new(Mutex::new(receiver));
     if ENABLE_ZKOS_CHAIN_TRANSACTION.clone() {
         match command {
             ZkosTxCommand::CreateTraderOrderTX(trader_order, rpc_command) => {
@@ -2267,7 +2273,7 @@ pub fn zkos_order_handler(
         let fn_response_tx_hash = Ok("ZKOS CHAIN TRANSACTION IS NOT ACTIVE".to_string());
         sender.send(fn_response_tx_hash).unwrap();
     }
-    return Arc::clone(&receiver_mutex);
+    // return Arc::clone(&receiver_mutex);
 }
 
 pub fn transaction_queue_to_confirm_relayer_latest_state(
@@ -2325,6 +2331,7 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
                         format!("Nonce : {:?}", nonce + 1),
                         RELAYER_STATE_QUEUE.clone().to_string(),
                     );
+                    sleep(Duration::from_secs(5));
                     return Ok(tx_hash);
                 }
                 Err(arg) => {

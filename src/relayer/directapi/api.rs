@@ -175,7 +175,7 @@ pub fn startserver() {
 
     io.add_method_with_meta(
         "CheckVector",
-        move |params: Params, _meta: Meta| async move {
+        move |params: Params, meta: Meta| async move {
             match params.parse::<TestLocaldb>() {
                 Ok(value) => {
                     // let sw = Stopwatch::start_new();
@@ -327,6 +327,16 @@ pub fn startserver() {
                         }
                         19 => {
                             set_relayer_status(value.relayer_status);
+                        }
+                        20 => {
+                            // set_relayer_status(value.relayer_status);
+                            relayer_event_handler(RelayerCommand::PriceTickerLiquidation(
+                                vec![value.orderid],
+                                commands::Meta {
+                                    metadata: meta.metadata,
+                                },
+                                value.price,
+                            ));
                         }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();

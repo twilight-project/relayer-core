@@ -554,16 +554,18 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 lendpool.total_pool_share.round() as u64,
                 0,
             );
-
-            let chain_result_receiver =
-                zkos_order_handler(ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
+            let (sender, zkos_receiver) = mpsc::channel();
+            zkos_order_handler(
+                ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
                     ordertx.clone(),
                     output_option,
                     lendpool.last_output_state.clone(),
                     next_output_state.clone(),
-                ));
+                ),
+                sender,
+            );
 
-            let zkos_receiver = chain_result_receiver.lock().unwrap();
+            // let zkos_receiver = chain_result_receiver.lock().unwrap();
 
             match zkos_receiver.recv() {
                 Ok(chain_message) => match chain_message {

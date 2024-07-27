@@ -381,6 +381,8 @@ impl Event {
                                     connection_status = false;
                                     break;
                                 }
+                                connection_status = false;
+                                break;
                             }
                             Err(_e) => {
                                 connection_status = false;
