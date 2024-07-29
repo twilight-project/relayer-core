@@ -100,6 +100,7 @@ pub struct SnapshotDB {
     pub event_offset_partition: (i32,i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    queue_manager:QueueState
 }
 impl SnapshotDB {
     fn new() -> Self {
@@ -121,6 +122,7 @@ impl SnapshotDB {
             event_timestamp: ServerTime::now().epoch,
             output_hex_storage:
                 utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
+                queue_manager:QueueState::new()
         }
     }
     fn print_status(&self) {
@@ -256,6 +258,7 @@ pub fn create_snapshot_data(
         mut event_offset_partition,
         event_timestamp: _,
         mut output_hex_storage,
+        mut queue_manager
     } = snapshot_db;
 
     let time = ServerTime::now().epoch;
@@ -377,6 +380,7 @@ pub fn create_snapshot_data(
                                         if orderdb_traderorder.aggrigate_log_sequence < seq {
                                             orderdb_traderorder.aggrigate_log_sequence = seq;
                                         }
+                                        queue_manager.remove_fill(&order.uuid);
                                     }
                                     RpcCommand::ExecuteTraderOrder(
                                         _rpc_request,
@@ -415,6 +419,7 @@ pub fn create_snapshot_data(
                                             },
                                             _ => {}
                                         }
+                                        queue_manager.remove_settle(&order.uuid);
                                     }
                                     RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
                                         _rpc_request,
@@ -436,8 +441,12 @@ pub fn create_snapshot_data(
                                         if orderdb_traderorder.aggrigate_log_sequence < seq {
                                             orderdb_traderorder.aggrigate_log_sequence = seq;
                                         }
+                                        queue_manager.remove_fill(&order.uuid);
+                                        queue_manager.remove_settle(&order.uuid);
                                     }
-                                    _ => {}
+                                    RpcCommand::CreateLendOrder(_, _, _, _)=>{}
+                                    RpcCommand::ExecuteLendOrder(_, _, _, _)=>{}
+                                    
                                 },
                                 Event::TraderOrderUpdate(order, _cmd, seq) => {
                                     // let order_clone = order.clone();
@@ -469,6 +478,7 @@ pub fn create_snapshot_data(
                                         },
                                         _ => {}
                                     }
+                                    queue_manager.remove_fill(&order.uuid);
                                 }
                                 Event::TraderOrderFundingUpdate(order, _cmd) => {
                                     orderdb_traderorder
@@ -508,6 +518,7 @@ pub fn create_snapshot_data(
                                     if orderdb_traderorder.aggrigate_log_sequence < seq {
                                         orderdb_traderorder.aggrigate_log_sequence = seq;
                                     }
+                                    queue_manager.remove_liquidate(&order.uuid);
                                 }
                                 Event::Stop(timex) => {
                                     if timex == event_stoper_string {
@@ -574,6 +585,11 @@ pub fn create_snapshot_data(
                                 Event::CurrentPriceUpdate(current_price, _time) => {
                                     // set_localdb("CurrentPrice", current_price);
                                     localdb_hashmap.insert("CurrentPrice".to_string(), current_price);
+
+                                    queue_manager.bulk_insert_to_fill(&mut open_long_sortedset_db, &mut open_short_sortedset_db, current_price);
+                                    queue_manager.bulk_insert_to_liquidate(&mut liquidation_short_sortedset_db, &mut liquidation_long_sortedset_db, current_price);
+                                    queue_manager.bulk_insert_to_settle(&mut close_short_sortedset_db, &mut close_long_sortedset_db, current_price);
+
                                 }
                                 Event::SortedSetDBUpdate(cmd) => match cmd {
                                     SortedSetCommand::AddOpenLimitPrice(
@@ -870,6 +886,7 @@ pub fn create_snapshot_data(
                     event_offset_partition: event_offset_partition,
                     event_timestamp: event_timestamp,
                     output_hex_storage: output_hex_storage,
+                    queue_manager
                 },tx_consumed));
             }
             Err(arg) => {
@@ -995,7 +1012,7 @@ pub fn load_from_snapshot()->Result<(),String> {
 
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
-
+println!("queue_manager:{:?}",snapshot_data.queue_manager);
             return Ok(());
         }
 
