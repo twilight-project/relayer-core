@@ -154,9 +154,9 @@ pub fn rpc_event_handler(
                                     OrderStatus::PENDING,
                                     ServerTime::now().epoch,
                                     None,
-                                    request_id,
+                                    request_id.clone(),
                                 ),
-                                String::from("tx_limit_submit"),
+                                format!("tx_limit_submit-{:?}",request_id),
                                 LENDPOOL_EVENT_LOG.clone().to_string(),
                             );
                             // match tx_consumed.send(offset_complition) {
@@ -309,9 +309,9 @@ pub fn rpc_event_handler(
                                                 OrderStatus::PENDING,
                                                 ServerTime::now().epoch,
                                                 None,
-                                                request_id,
+                                                request_id.clone(),
                                             ),
-                                            String::from("tx_settle_limit_submit"),
+                                            format!("tx_settle_limit_submit-{:?}",request_id),
                                             LENDPOOL_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -654,7 +654,7 @@ pub fn rpc_event_handler(
                                                 None,
                                                 request_id,
                                             ),
-                                            String::from("tx_hash_result"),
+                                            format!("tx_hash_result-{:?}","Order successfully cancelled !!".to_string()),
                                             LENDPOOL_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -1277,14 +1277,14 @@ pub fn zkos_order_handler(
                                                                 Event::TxHash(
                                                                     trader_order.uuid,
                                                                     trader_order.account_id,
-                                                                    tx_hash,
+                                                                    tx_hash.clone(),
                                                                     trader_order.order_type,
                                                                     trader_order.order_status,
                                                                     ServerTime::now().epoch,
                                                                     output_memo_hex,
                                                                     request_id
                                                                 ),
-                                                                String::from("tx_hash_result"),
+                                                                format!("tx_hash_result-{:?}",tx_hash),
                                                                 LENDPOOL_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
@@ -1445,14 +1445,14 @@ pub fn zkos_order_handler(
                                                         Event::TxHash(
                                                             lend_order.uuid,
                                                             lend_order.account_id,
-                                                            tx_hash,
+                                                            tx_hash.clone(),
                                                             lend_order.order_type,
                                                             lend_order.order_status,
                                                             ServerTime::now().epoch,
                                                             output_memo_hex,
                                                             request_id
                                                         ),
-                                                        String::from("tx_hash_result"),
+                                                        format!("tx_hash_result-{:?}",tx_hash),
                                                         LENDPOOL_EVENT_LOG.clone().to_string()
                                                     );
                                                 }
@@ -1604,14 +1604,14 @@ pub fn zkos_order_handler(
                                             Event::TxHash(
                                                 trader_order.uuid,
                                                 trader_order.account_id,
-                                                tx_hash,
+                                                tx_hash.clone(),
                                                 trader_order.order_type,
                                                 trader_order.order_status,
                                                 ServerTime::now().epoch,
                                                 None,
                                                 request_id,
                                             ),
-                                            String::from("tx_hash_result"),
+                                            format!("tx_hash_result-{:?}",tx_hash),
                                             LENDPOOL_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -1725,14 +1725,14 @@ pub fn zkos_order_handler(
                                             Event::TxHash(
                                                 lend_order.uuid,
                                                 lend_order.account_id,
-                                                tx_hash,
+                                                tx_hash.clone(),
                                                 lend_order.order_type,
                                                 lend_order.order_status,
                                                 ServerTime::now().epoch,
                                                 None,
                                                 request_id,
                                             ),
-                                            String::from("tx_hash_result"),
+                                            format!("tx_hash_result-{:?}",tx_hash),
                                             LENDPOOL_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -1918,13 +1918,13 @@ pub fn zkos_order_handler(
                                                                 Event::TxHashUpdate(
                                                                     trader_order.uuid,
                                                                     trader_order.account_id,
-                                                                    tx_hash,
+                                                                    tx_hash.clone(),
                                                                     trader_order.order_type,
                                                                     trader_order.order_status,
                                                                     ServerTime::now().epoch,
                                                                     output_memo_hex,
                                                                 ),
-                                                                String::from("tx_hash_result"),
+                                                                format!("tx_hash_result-{:?}",tx_hash),
                                                                 LENDPOOL_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
@@ -2091,13 +2091,13 @@ pub fn zkos_order_handler(
                                                 Event::TxHashUpdate(
                                                     trader_order.uuid,
                                                     trader_order.account_id,
-                                                    tx_hash,
+                                                    tx_hash.clone(),
                                                     trader_order.order_type,
                                                     trader_order.order_status,
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
-                                                String::from("tx_hash_result"),
+                                                format!("tx_hash_result-{:?}",tx_hash),
                                                 LENDPOOL_EVENT_LOG.clone().to_string()
                                             );
                                         }
@@ -2218,13 +2218,13 @@ pub fn zkos_order_handler(
                                     Event::TxHashUpdate(
                                         trader_order.uuid,
                                         trader_order.account_id,
-                                        tx_hash,
+                                        tx_hash.clone(),
                                         trader_order.order_type,
                                         trader_order.order_status,
                                         ServerTime::now().epoch,
                                         None,
                                     ),
-                                    String::from("tx_hash_result"),
+                                    format!("tx_hash_result-{:?}",tx_hash),
                                     LENDPOOL_EVENT_LOG.clone().to_string(),
                                 );
                             }
