@@ -1012,7 +1012,7 @@ pub fn load_from_snapshot()->Result<QueueState,String> {
 
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
-            println!("queue_manager:{:?}",snapshot_data.queue_manager);
+            // println!("queue_manager:{:?}",snapshot_data.queue_manager);
             return Ok(snapshot_data.queue_manager);
         }
 

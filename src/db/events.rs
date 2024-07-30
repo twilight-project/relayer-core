@@ -38,7 +38,7 @@ lazy_static! {
         let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
         let producer = Producer::from_hosts(vec![broker.to_owned()])
             .with_ack_timeout(Duration::from_secs(3))
-            .with_required_acks(RequiredAcks::None)
+            .with_required_acks(RequiredAcks::One)
             .create()
             .unwrap();
         Mutex::new(producer)
@@ -406,7 +406,7 @@ impl Event {
     pub fn get_event_type(&self) -> String {
         match self {
             Event::TraderOrder(..) => "TraderOrder".to_string(),
-            Event::TraderOrderUpdate(..) => "macOTraderOrderUpdateS".to_string(),
+            Event::TraderOrderUpdate(..) => "TraderOrderUpdate".to_string(),
             Event::TraderOrderFundingUpdate(..) => "TraderOrderFundingUpdate".to_string(),
             Event::TraderOrderLiquidation(..) => "TraderOrderLiquidation".to_string(),
             Event::LendOrder(..) => "LendOrder".to_string(),
