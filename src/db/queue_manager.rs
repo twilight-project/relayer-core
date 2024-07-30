@@ -131,14 +131,15 @@ impl QueueState {
             }
         }
     }
-
-    pub fn process_queue(&mut self) {
-        // let mut to_fill = self.to_fill;
+    pub fn bulk_remove_queue(&mut self) {
         println!(
-            "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_liquidate : {:?}",
+            "Before \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
+            self.to_fill_remove.len(),
             self.to_settle.len(),
+            self.to_settle_remove.len(),
             self.to_liquidate.len(),
+            self.to_liquidate_remove.len()
         );
         for order_id in self.to_fill_remove.clone() {
             self.to_fill.remove(&order_id);
@@ -150,7 +151,7 @@ impl QueueState {
             self.to_settle.remove(&order_id);
         }
         println!(
-            "to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
+            "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
             self.to_settle.len(),
@@ -159,6 +160,19 @@ impl QueueState {
             self.to_liquidate_remove.len()
         );
         self.to_fill_remove = Vec::new();
+        self.to_settle_remove = Vec::new();
+        self.to_liquidate_remove = Vec::new();
+    }
+
+    pub fn process_queue(&mut self) {
+        // let mut to_fill = self.to_fill;
+        println!(
+            "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_liquidate : {:?}",
+            self.to_fill.len(),
+            self.to_settle.len(),
+            self.to_liquidate.len(),
+        );
+
         for (order_id, price) in self.to_fill.clone() {
             let meta = Meta {
                 metadata: {
