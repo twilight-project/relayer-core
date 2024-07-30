@@ -119,4 +119,74 @@ impl QueueState {
             }
         }
     }
+
+    pub fn process_queue(&mut self) {
+        // let mut to_fill = self.to_fill;
+        println!(
+            "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_liquidate : {:?}",
+            self.to_fill.len(),
+            self.to_settle.len(),
+            self.to_liquidate.len(),
+        );
+        for (order_id, price) in self.to_fill.clone() {
+            let meta = Meta {
+                metadata: {
+                    let mut hashmap = HashMap::new();
+                    hashmap.insert(
+                        String::from("request_server_time"),
+                        Some(ServerTime::now().epoch),
+                    );
+                    hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
+                    hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
+                    hashmap
+                },
+            };
+
+            relayer_event_handler(RelayerCommand::PriceTickerOrderFill(
+                vec![order_id],
+                meta,
+                price,
+            ));
+        }
+        for (order_id, price) in self.to_liquidate.clone() {
+            let meta = Meta {
+                metadata: {
+                    let mut hashmap = HashMap::new();
+                    hashmap.insert(
+                        String::from("request_server_time"),
+                        Some(ServerTime::now().epoch),
+                    );
+                    hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
+                    hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
+                    hashmap
+                },
+            };
+
+            relayer_event_handler(RelayerCommand::PriceTickerLiquidation(
+                vec![order_id],
+                meta,
+                price,
+            ));
+        }
+        for (order_id, price) in self.to_settle.clone() {
+            let meta = Meta {
+                metadata: {
+                    let mut hashmap = HashMap::new();
+                    hashmap.insert(
+                        String::from("request_server_time"),
+                        Some(ServerTime::now().epoch),
+                    );
+                    hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
+                    hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
+                    hashmap
+                },
+            };
+
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                vec![order_id],
+                meta,
+                price,
+            ));
+        }
+    }
 }

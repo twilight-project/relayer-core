@@ -586,7 +586,7 @@ pub fn create_snapshot_data(
                                     // set_localdb("CurrentPrice", current_price);
                                     localdb_hashmap.insert("CurrentPrice".to_string(), current_price);
 
-                                    queue_manager.bulk_insert_to_fill(&mut open_long_sortedset_db, &mut open_short_sortedset_db, current_price);
+                                    queue_manager.bulk_insert_to_fill(&mut open_short_sortedset_db, &mut open_long_sortedset_db,  current_price);
                                     queue_manager.bulk_insert_to_liquidate(&mut liquidation_short_sortedset_db, &mut liquidation_long_sortedset_db, current_price);
                                     queue_manager.bulk_insert_to_settle(&mut close_short_sortedset_db, &mut close_long_sortedset_db, current_price);
 
@@ -906,7 +906,7 @@ pub fn create_snapshot_data(
     return Err("Unable to connect to kafka".to_string());
 }
 
-pub fn load_from_snapshot()->Result<(),String> {
+pub fn load_from_snapshot()->Result<QueueState,String> {
     match snapshot() {
         Ok(snapshot_data) => {
             // let snapshot_data = SNAPSHOT_DATA.lock().unwrap();
@@ -1012,8 +1012,8 @@ pub fn load_from_snapshot()->Result<(),String> {
 
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
-println!("queue_manager:{:?}",snapshot_data.queue_manager);
-            return Ok(());
+            println!("queue_manager:{:?}",snapshot_data.queue_manager);
+            return Ok(snapshot_data.queue_manager);
         }
 
         Err(arg) => {

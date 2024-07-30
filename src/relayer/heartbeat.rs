@@ -15,8 +15,9 @@ pub fn heartbeat() {
     // init_psql();
     println!("Looking for previous database...");
     match load_from_snapshot() {
-        Ok(_) => {
+        Ok(mut queue_manager) => {
             load_relayer_latest_state();
+            queue_manager.process_queue();
         }
         Err(arg) => {
             println!("Unable to start Relayer \n :Error:{:?}", arg);
