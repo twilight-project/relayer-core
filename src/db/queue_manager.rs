@@ -22,6 +22,9 @@ pub struct QueueState {
     pub to_settle: HashMap<Uuid, f64>,
     pub to_fill: HashMap<Uuid, f64>,
     pub funding_update: HashMap<Uuid, (f64, f64)>,
+    pub to_fill_remove: Vec<Uuid>,
+    pub to_settle_remove: Vec<Uuid>,
+    pub to_liquidate_remove: Vec<Uuid>,
 }
 impl QueueState {
     pub fn new() -> Self {
@@ -30,6 +33,9 @@ impl QueueState {
             to_settle: HashMap::new(),
             to_fill: HashMap::new(),
             funding_update: HashMap::new(),
+            to_fill_remove: Vec::new(),
+            to_settle_remove: Vec::new(),
+            to_liquidate_remove: Vec::new(),
         }
     }
     pub fn insert_liquidate(&mut self, order_id: Uuid, price: f64) {
@@ -45,22 +51,28 @@ impl QueueState {
         self.funding_update.insert(order_id, (f_rate, price));
     }
     pub fn remove_liquidate(&mut self, order_id: &Uuid) -> bool {
-        match self.to_liquidate.remove(order_id) {
-            Some(_) => true,
-            None => false,
-        }
+        // match self.to_liquidate.remove(order_id) {
+        //     Some(_) => true,
+        //     None => false,
+        // }
+        self.to_liquidate_remove.push(order_id.clone());
+        true
     }
     pub fn remove_settle(&mut self, order_id: &Uuid) -> bool {
-        match self.to_settle.remove(order_id) {
-            Some(_) => true,
-            None => false,
-        }
+        // match self.to_settle.remove(order_id) {
+        //     Some(_) => true,
+        //     None => false,
+        // }
+        self.to_settle_remove.push(order_id.clone());
+        true
     }
     pub fn remove_fill(&mut self, order_id: &Uuid) -> bool {
-        match self.to_fill.remove(order_id) {
-            Some(_) => true,
-            None => false,
-        }
+        // match self.to_fill.remove(order_id) {
+        //     Some(_) => true,
+        //     None => false,
+        // }
+        self.to_fill_remove.push(order_id.clone());
+        true
     }
     pub fn remove_update(&mut self, order_id: &Uuid) -> bool {
         match self.funding_update.remove(order_id) {
@@ -128,6 +140,25 @@ impl QueueState {
             self.to_settle.len(),
             self.to_liquidate.len(),
         );
+        for order_id in self.to_fill_remove.clone() {
+            self.to_fill.remove(&order_id);
+        }
+        for order_id in self.to_liquidate_remove.clone() {
+            self.to_liquidate.remove(&order_id);
+        }
+        for order_id in self.to_settle_remove.clone() {
+            self.to_settle.remove(&order_id);
+        }
+        println!(
+            "to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
+            self.to_fill.len(),
+            self.to_fill_remove.len(),
+            self.to_settle.len(),
+            self.to_settle_remove.len(),
+            self.to_liquidate.len(),
+            self.to_liquidate_remove.len()
+        );
+        self.to_fill_remove = Vec::new();
         for (order_id, price) in self.to_fill.clone() {
             let meta = Meta {
                 metadata: {
