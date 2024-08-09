@@ -92,7 +92,7 @@ pub fn heartbeat() {
                 let _ = snapshot();
             });
 
-            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(60000));
+            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(1000));
             loop {
                 thread::sleep(time::Duration::from_millis(100000000));
             }
