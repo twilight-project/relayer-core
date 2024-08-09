@@ -759,8 +759,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                         Ok(order_detail) => {
                             let mut order_mut_ref = order_detail.write().unwrap();
                             let mut order: TraderOrder = order_mut_ref.clone();
+                            order_mut_ref.order_status=OrderStatus::LIQUIDATE;
+                            drop(order_mut_ref);
                             match order.order_status {
-                                OrderStatus::FILLED => {
+                                OrderStatus::FILLED | OrderStatus::LIQUIDATE=> {
                                     order.order_status = OrderStatus::LIQUIDATE;
                                     //update batch process
                                     let payment = order.liquidate(current_price_clone);
@@ -809,7 +811,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         order.position_type.clone(),
                                                         order.positionsize.clone(),
                                                     );
-
+                                                    let mut order_mut_ref = order_detail.write().unwrap();
                                                     *order_mut_ref = order.clone();
                                                     drop(order_mut_ref);
                                                     // println!("locking mutex LEND_POOL_DB");
@@ -833,23 +835,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         "Error in line relayercore.rs 774 : {:?}, uuid: {:?}, nonce: {:?}, \n next_output:{:?}",
                                                         verification_error,order.uuid, lendpool.nonce,next_output_state
                                                     );
-                                                    // settle limit removed from the db, need to place new limit/market settle request
-                                                    // Event::new(
-                                                    //     Event::TxHashUpdate(
-                                                    //         order.uuid,
-                                                    //         order.account_id,
-                                                    //         format!(
-                                                    //             "Error : {:?}, liquidation failed",
-                                                    //             verification_error
-                                                    //         ),
-                                                    //         order.order_type,
-                                                    //         OrderStatus::FILLED,
-                                                    //         ServerTime::now().epoch,
-                                                    //         None,
-                                                    //     ),
-                                                    //     String::from("tx_hash_error"),
-                                                    //     LENDPOOL_EVENT_LOG.clone().to_string(),
-                                                    // );
+                                                  
                                                 }
                                             }
                                         }
@@ -864,7 +850,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                     drop(lendpool);
                                 }
                                 _ => {
-                                    drop(order_mut_ref);
+                                    // drop(order_mut_ref);
                                     println!("Invalid order status !!\n");
                                 }
                             }
