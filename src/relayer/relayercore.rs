@@ -2246,7 +2246,7 @@ pub fn zkos_order_handler(
                         }
                     }
                     None => {
-                        println!("Output memo not Found");
+                        println!("Output memo not Found : {:?}",trader_order.uuid);
                         let sender_clone = sender.clone();
                         let fn_response_tx_hash = Err("Output memo not Found".to_string());
                         sender_clone.send(fn_response_tx_hash.clone()).unwrap();
