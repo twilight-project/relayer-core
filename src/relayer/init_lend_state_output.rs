@@ -14,48 +14,10 @@ lazy_static! {
         .expect("missing environment variable RELAYER_WALLET_PASSWORD");
 }
 
-pub fn init_relayer_wallet() {
-    dotenv::dotenv().expect("Failed loading dotenv");
-    println!(
-        "RELAYER_WALLET_PASSWORD {:?} \n
-    RELAYER_WALLET_IV {:?} \n
-    RELAYER_WALLET_SEED  {:?} \n
-    RELAYER_WALLET_PATH {:?} ",
-        RELAYER_WALLET_PASSWORD.to_string().as_bytes(),
-        RELAYER_WALLET_IV.to_string(),
-        &RELAYER_WALLET_SEED.to_string().as_bytes(),
-        Some(RELAYER_WALLET_PATH.to_string())
-    );
-
-    let password = b"your_password_he";
-    let iv = b"your_password_he"; // Use a secure way to handle the password
-    let seed =
-        "UTQTkXOhF+D550+JW9A1rEQaXDtX9CYqbDOFqCY44S8ZYMoVzj8tybCB/Okwt+pblM0l3t9/eEJtfBpPcJwfZw==";
-
-    // init_wallet(
-    //     RELAYER_WALLET_PASSWORD.to_string().as_bytes(),
-    //     RELAYER_WALLET_IV.to_string(),
-    //     &RELAYER_WALLET_SEED.to_string().as_bytes(),
-    //     Some(RELAYER_WALLET_PATH.to_string()),
-    // );
-    // init_wallet(
-    //     RELAYER_WALLET_PASSWORD.to_string().as_bytes(),
-    //     RELAYER_WALLET_PATH.to_string(),
-    //     RELAYER_WALLET_IV.to_string().as_bytes(),
-    //     Some(RELAYER_WALLET_SEED.to_string()),
-    // );
-    init_wallet(
-        password,
-        RELAYER_WALLET_PATH.to_string(),
-        iv,
-        Some(seed.to_string().clone()),
-    );
-}
-
 pub fn last_state_output_string() -> String {
-    // // nonce 1 100BTC
+    // // nonce 1 20BTC
     let hex =
-        "0200000002000000010000002a000000000000003138323237323664346265336336623333623166333434633734333263626530343230333861663162388a0000000000000030633436343466396637663435653364373338643732373261376236346233323435383663323165653437653936336237633438343065376231326437346562346534613065383862656662306136656561646336616533663062653234663739366166653330623338643866643435613538366230626130303536643664383136353835666365343601000000000000000094357700000000000000000000000092adb3a879b92082ed3dfb3d4dd6869223733529c8c77661b1bbfb1fc8167809010100000000000000020000000100000000000000400d0300000000000000000000000000260327031822072b9933df0c046a6973244fb91c459ca8f140ce8e10a4cc9c0700000000";
+        "0200000002000000010000002a000000000000003138363065656636336564656531303738313738623361646236336539663836393231636161313662358a00000000000000306365303339623237666236323732376138633465343339646631346562356432316333323637346464373731323961643332656230316433373566353364633439326364356563633835343066626434353566316165646536343161653266313234383665636465636265613966346361333138393632336664333865323434336636656337323338010000000000000000c2eb0b000000000000000000000000c6efe4352f217292b29d15dcf643071915652de75119f2f33a5f92255021570c010100000000000000020000000100000000000000400d0300000000000000000000000000e82fcb55c73fea8e4e3ba481a78a458afdcb702a445885fa6d4c74c8a553130b00000000";
 
     hex.to_string()
 }
@@ -68,8 +30,10 @@ pub fn last_state_output_fixed() -> Output {
 }
 
 pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
+    // let seed =
+    //     "IKnk1r6n8ZxIz5BZRIn6BsU6ozEsz6nM41zeF6+IiSg56CT3GqD17yCLrEtd3vTItP42bKQzwCs/JhnLGZm5LQ==";
     let seed =
-        "8vKfd6kCrttU4n17u5OKUVbJqIXyCqZc/9f7t8a8tEJwm0ATbL96mtPjW79f6cH/8FtF/KrjeMKUfndchD74tg==";
+        "LPf7DBZSdlKYSk7i0qfB+V0dKw7Ul6NxcbuPufKPuUFj/mV0KJL+w1GTUlzHG6vyM1LLEuN+yaPyddveiUC+ag==";
     let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
         quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
 
@@ -96,7 +60,7 @@ mod test {
     use zkvm::zkos_types::Output;
     #[test]
     fn test_create_wallet() {
-        init_relayer_wallet();
+        // init_relayer_wallet();
     }
     use curve25519_dalek::scalar::Scalar;
     use relayerwalletlib::zkoswalletlib::util::get_state_info_from_output_hex;

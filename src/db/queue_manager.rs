@@ -141,14 +141,29 @@ impl QueueState {
             self.to_liquidate.len(),
             self.to_liquidate_remove.len()
         );
-        for order_id in self.to_fill_remove.clone() {
-            self.to_fill.remove(&order_id);
+        let mut to_fill_remove = Vec::new();
+        let mut to_settle_remove = Vec::new();
+        let mut to_liquidate_remove = Vec::new();
+        std::mem::swap(&mut self.to_fill_remove, &mut to_fill_remove);
+        std::mem::swap(&mut self.to_settle_remove, &mut to_settle_remove);
+        std::mem::swap(&mut self.to_liquidate_remove, &mut to_liquidate_remove);
+        for order_id in to_fill_remove {
+            match self.to_fill.remove(&order_id) {
+                Some(_id) => {}
+                None => self.to_fill_remove.push(order_id),
+            }
         }
-        for order_id in self.to_liquidate_remove.clone() {
-            self.to_liquidate.remove(&order_id);
+        for order_id in to_liquidate_remove {
+            match self.to_liquidate.remove(&order_id) {
+                Some(_id) => {}
+                None => self.to_liquidate_remove.push(order_id),
+            }
         }
-        for order_id in self.to_settle_remove.clone() {
-            self.to_settle.remove(&order_id);
+        for order_id in to_settle_remove {
+            match self.to_settle.remove(&order_id) {
+                Some(_id) => {}
+                None => self.to_settle_remove.push(order_id),
+            }
         }
         println!(
             "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
