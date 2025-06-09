@@ -8,6 +8,16 @@ pub fn positionsize(entryvalue: f64, entryprice: f64) -> f64 {
     entryvalue * (entryprice)
 }
 
+// Linear perpetual position size calculation for USDC
+// entryvalue is the notional value in USDC
+pub fn positionsize_linear(entryvalue: f64, entryprice: f64) -> f64 {
+    if entryprice > 0.0 {
+        entryvalue / entryprice
+    } else {
+        0.0
+    }
+}
+
 // execution_price = settle price
 pub fn unrealizedpnl(
     position_type: &PositionType,
@@ -68,6 +78,16 @@ pub fn bankruptcyvalue(positionsize: f64, bankruptcyprice: f64) -> f64 {
         0.0
     }
 }
+
+// Linear perpetual bankruptcy value calculation for USDC
+pub fn bankruptcyvalue_linear(positionsize: f64, bankruptcyprice: f64) -> f64 {
+    if bankruptcyprice > 0.0 {
+        positionsize * bankruptcyprice
+    } else {
+        0.0
+    }
+}
+
 pub fn maintenancemargin(entry_value: f64, bankruptcyvalue: f64, fee: f64, funding: f64) -> f64 {
     (0.4 * entry_value + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
 }
@@ -84,6 +104,24 @@ pub fn liquidationprice(
     }
     entryprice * positionsize / ((positionside as f64) * entryprice * (mm - im) + positionsize)
 }
+
+// Linear perpetual liquidation price calculation for USDC
+pub fn liquidationprice_linear(
+    entryprice: f64,
+    positionsize: f64,
+    positionside: i32,
+    mm: f64,
+    im: f64,
+) -> f64 {
+    if entryprice == 0.0 || positionsize == 0.0 {
+        return 0.0;
+    }
+    // For linear perpetuals:
+    // LONG position (positionside = -1): liquidation_price = entry_price - (margin_difference / position_size)
+    // SHORT position (positionside = 1): liquidation_price = entry_price + (margin_difference / position_size)
+    entryprice + (positionside as f64) * (im - mm) / positionsize
+}
+
 pub fn positionside(position_type: &PositionType) -> i32 {
     match position_type {
         &PositionType::LONG => -1,
@@ -167,4 +205,136 @@ where
     T: DataSize,
 {
     println!("{:#?}MB", data_size(value) / (8 * 1024 * 1024));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_linear_perpetual_order() {
+        // Test parameters
+        let initial_margin = 1000.0; // 1000 USDC margin
+        let leverage = 10.0; // 10x leverage
+        let entry_price = 98000.0; // 98,000 USDC per BTC
+        let position_type = PositionType::LONG;
+
+        // Calculate entry value (notional value)
+        let entry_value = entryvalue(initial_margin, leverage);
+        assert_eq!(entry_value, 10000.0); // Should be 10,000 USDC
+
+        // Calculate position size for linear perpetual
+        let position_size = positionsize_linear(entry_value, entry_price);
+        let expected_position_size = 10000.0 / 98000.0; // ~0.102 BTC
+        assert!((position_size - expected_position_size).abs() < 0.0001);
+        println!("Position size: {} BTC", position_size);
+
+        // Calculate bankruptcy price
+        let bankruptcy_price = bankruptcyprice(&position_type, entry_price, leverage);
+        let expected_bankruptcy_price = 98000.0 * 10.0 / (10.0 + 1.0); // ~89,090.91 USDC
+        assert!((bankruptcy_price - expected_bankruptcy_price).abs() < 0.01);
+        println!("Bankruptcy price: {} USDC", bankruptcy_price);
+
+        // Calculate bankruptcy value for linear
+        let bankruptcy_value = bankruptcyvalue_linear(position_size, bankruptcy_price);
+        let expected_bankruptcy_value = position_size * bankruptcy_price;
+        assert!((bankruptcy_value - expected_bankruptcy_value).abs() < 0.01);
+        println!("Bankruptcy value: {} USDC", bankruptcy_value);
+
+        // Test PnL calculation at different prices
+        let settle_price_profit = 100000.0; // Price goes up to 100k
+        let settle_price_loss = 96000.0; // Price goes down to 96k
+
+        // Test profit scenario
+        let pnl_profit = unrealizedpnl_linear(
+            &position_type,
+            position_size,
+            entry_price,
+            settle_price_profit,
+        );
+        let expected_pnl_profit = position_size * (settle_price_profit - entry_price) / entry_price;
+        assert!((pnl_profit - expected_pnl_profit).abs() < 0.0001);
+        println!("PnL at 100k: {} USDC", pnl_profit);
+
+        // Test loss scenario
+        let pnl_loss = unrealizedpnl_linear(
+            &position_type,
+            position_size,
+            entry_price,
+            settle_price_loss,
+        );
+        let expected_pnl_loss = position_size * (settle_price_loss - entry_price) / entry_price;
+        assert!((pnl_loss - expected_pnl_loss).abs() < 0.0001);
+        println!("PnL at 96k: {} USDC", pnl_loss);
+
+        // Test liquidation price calculation
+        let mm = 50.0; // Maintenance margin
+        let im = initial_margin; // Initial margin
+        let position_side = positionside(&position_type);
+
+        let liquidation_price =
+            liquidationprice_linear(entry_price, position_size, position_side, mm, im);
+        println!("Liquidation price: {} USDC", liquidation_price);
+
+        // For a LONG position, liquidation price should be below entry price
+        assert!(liquidation_price < entry_price);
+
+        println!("\n=== Linear Perpetual Test Results ===");
+        println!("Initial Margin: {} USDC", initial_margin);
+        println!("Leverage: {}x", leverage);
+        println!("Entry Price: {} USDC/BTC", entry_price);
+        println!("Entry Value (Notional): {} USDC", entry_value);
+        println!("Position Size: {} BTC", position_size);
+        println!("Bankruptcy Price: {} USDC", bankruptcy_price);
+        println!("Bankruptcy Value: {} USDC", bankruptcy_value);
+        println!("Liquidation Price: {} USDC", liquidation_price);
+        println!("PnL at 100k: {} USDC", pnl_profit);
+        println!("PnL at 96k: {} USDC", pnl_loss);
+    }
+
+    #[test]
+    fn test_linear_vs_inverse_comparison() {
+        let initial_margin = 1000.0;
+        let leverage = 10.0;
+        let entry_price = 98000.0;
+        let settle_price = 100000.0;
+        let position_type = PositionType::LONG;
+
+        let entry_value = entryvalue(initial_margin, leverage);
+
+        // Linear calculations
+        let position_size_linear = positionsize_linear(entry_value, entry_price);
+        let pnl_linear = unrealizedpnl_linear(
+            &position_type,
+            position_size_linear,
+            entry_price,
+            settle_price,
+        );
+
+        // Inverse calculations
+        let position_size_inverse = positionsize(entry_value, entry_price);
+        let pnl_inverse = unrealizedpnl(
+            &position_type,
+            position_size_inverse,
+            entry_price,
+            settle_price,
+        );
+
+        println!("\n=== Linear vs Inverse Comparison ===");
+        println!("Entry Value: {} USDC", entry_value);
+        println!("Entry Price: {} USDC/BTC", entry_price);
+        println!("Settle Price: {} USDC/BTC", settle_price);
+        println!();
+        println!("Linear Perpetual:");
+        println!("  Position Size: {} BTC", position_size_linear);
+        println!("  PnL: {} USDC", pnl_linear);
+        println!();
+        println!("Inverse Perpetual:");
+        println!("  Position Size: {} (BTC units)", position_size_inverse);
+        println!("  PnL: {} (BTC units)", pnl_inverse);
+
+        // Verify they're different
+        assert!((position_size_linear - position_size_inverse).abs() > 0.001);
+        assert!((pnl_linear - pnl_inverse).abs() > 0.001);
+    }
 }
