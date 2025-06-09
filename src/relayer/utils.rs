@@ -31,6 +31,24 @@ pub fn unrealizedpnl(
     }
 }
 
+// Linear perpetual PnL calculation for USDC
+// positionsize is denominated in quote currency (USDC)
+pub fn unrealizedpnl_linear(
+    position_type: &PositionType,
+    positionsize: f64,
+    entryprice: f64,
+    settleprice: f64,
+) -> f64 {
+    if entryprice > 0.0 && settleprice > 0.0 {
+        match position_type {
+            &PositionType::LONG => positionsize * (settleprice - entryprice) / entryprice,
+            &PositionType::SHORT => positionsize * (entryprice - settleprice) / entryprice,
+        }
+    } else {
+        0.0
+    }
+}
+
 pub fn bankruptcyprice(position_type: &PositionType, entryprice: f64, leverage: f64) -> f64 {
     match position_type {
         &PositionType::LONG => entryprice * leverage / (leverage + 1.0),
