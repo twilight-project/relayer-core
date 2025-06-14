@@ -31,10 +31,13 @@ pub fn last_state_output_fixed() -> Output {
 }
 
 pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
-    // let seed =
-    //     "IKnk1r6n8ZxIz5BZRIn6BsU6ozEsz6nM41zeF6+IiSg56CT3GqD17yCLrEtd3vTItP42bKQzwCs/JhnLGZm5LQ==";
-    let seed =
-        "LPf7DBZSdlKYSk7i0qfB+V0dKw7Ul6NxcbuPufKPuUFj/mV0KJL+w1GTUlzHG6vyM1LLEuN+yaPyddveiUC+ag==";
+    let seed = match std::env::var("RELAYER_WALLET_SEED") {
+        Ok(seed) => seed,
+        Err(_) => {
+            println!("RELAYER_WALLET_SEED is not set, using default seed");
+            "LPf7DBZSdlKYSk7i0qfB+V0dKw7Ul6NxcbuPufKPuUFj/mV0KJL+w1GTUlzHG6vyM1LLEuN+yaPyddveiUC+ag==".to_string()
+        }
+    };
     let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
         quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
 
