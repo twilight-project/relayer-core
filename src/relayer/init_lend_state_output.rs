@@ -201,4 +201,26 @@ mod test {
         // Verify it matches the default value from the function
         assert_eq!(default_result, "0200000002000000010000002a000000000000003138363065656636336564656531303738313738623361646236336539663836393231636161313662358a00000000000000306365303339623237666236323732376138633465343339646631346562356432316333323637346464373731323961643332656230316433373566353364633439326364356563633835343066626434353566316165646536343161653266313234383665636465636265613966346361333138393632336664333865323434336636656337323338010000000000000000c2eb0b000000000000000000000000c6efe4352f217292b29d15dcf643071915652de75119f2f33a5f92255021570c010100000000000000020000000100000000000000400d0300000000000000000000000000e82fcb55c73fea8e4e3ba481a78a458afdcb702a445885fa6d4c74c8a553130b00000000");
     }
+
+    #[test]
+    fn test_last_state_output_fixed() {
+        // Get the output using our function
+        dotenv::from_path(".env").expect("Failed to load .env file");
+        let output = last_state_output_fixed();
+
+        // Verify the output is properly deserialized by checking some key fields
+        let owner_address = output.as_output_data().get_owner_address().unwrap();
+        assert!(!owner_address.is_empty());
+
+        let script_address = output.as_output_data().get_script_address().unwrap();
+        assert!(!script_address.is_empty());
+
+        // Print output for debugging
+        println!("Last state output fixed: {:?}", output);
+
+        // Verify we can serialize it back to hex and get the same result
+        let serialized = bincode::serialize(&output).unwrap();
+        let hex = hex::encode(&serialized);
+        assert_eq!(hex, last_state_output_string());
+    }
 }

@@ -8,88 +8,163 @@ use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_or
 use std::collections::HashMap;
 use std::sync::{mpsc, Arc, RwLock};
 use std::{thread, time};
+use tracing::{error, info, warn};
 use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
-pub fn heartbeat() {
+
+pub struct HealthMonitor {
+    last_heartbeat: Arc<std::sync::atomic::AtomicU64>,
+    is_healthy: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl HealthMonitor {
+    pub fn new() -> Self {
+        Self {
+            last_heartbeat: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            is_healthy: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        }
+    }
+
+    pub fn update_heartbeat(&self) {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        self.last_heartbeat
+            .store(now, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn check_health(&self) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let last = self
+            .last_heartbeat
+            .load(std::sync::atomic::Ordering::SeqCst);
+
+        if now - last > 30 {
+            self.is_healthy
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+            warn!(
+                "Health check failed: no heartbeat for {} seconds",
+                now - last
+            );
+            false
+        } else {
+            self.is_healthy
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            true
+        }
+    }
+}
+
+pub fn heartbeat() -> Result<()> {
     dotenv::dotenv().ok();
-    // init_psql();
-    println!("Looking for previous database...");
+    info!("Starting relayer heartbeat...");
+
+    // Initialize health monitor
+    let health_monitor = Arc::new(HealthMonitor::new());
+    let health_monitor_clone = Arc::clone(&health_monitor);
+
+    // Load previous state
+    info!("Looking for previous database...");
     match load_from_snapshot() {
         Ok(mut queue_manager) => {
-            load_relayer_latest_state();
+            load_relayer_latest_state()?;
             queue_manager.process_queue();
         }
-        Err(arg) => {
-            println!("Unable to start Relayer \n :Error:{:?}", arg);
-
-            std::process::exit(0);
+        Err(e) => {
+            error!("Unable to start Relayer: {}", e);
+            return Err(RelayerError::Database(e));
         }
     }
 
     thread::sleep(time::Duration::from_millis(100));
 
+    // Start price feed
     thread::Builder::new()
         .name(String::from("BTC Binance Websocket Connection"))
         .spawn(move || {
-            // thread::sleep(time::Duration::from_millis(1000));
-            receive_btc_price();
+            if let Err(e) = receive_btc_price() {
+                error!("Price feed error: {}", e);
+            }
         })
-        .unwrap();
-    thread::sleep(time::Duration::from_millis(500));
-    let mut true_price = true;
-    //get_localdb with single mutex unlock
-    while true_price {
-        let mut local_storage = LOCALDB.lock().unwrap();
-        let currentprice = match local_storage.get("Latest_Price") {
-            Some(price) => {
-                true_price = false;
-                price.clone()
-            }
-            None => {
-                thread::sleep(time::Duration::from_millis(50));
-                continue;
-            }
-        };
-        let old_price = match local_storage.get("CurrentPrice") {
-            Some(price) => price.clone(),
-            None => {
-                local_storage.insert("CurrentPrice", currentprice);
-                currentprice.clone()
-            }
-        };
-        drop(local_storage);
-    }
+        .map_err(|e| {
+            RelayerError::ThreadPool(format!("Failed to spawn price feed thread: {}", e))
+        })?;
 
+    // Initialize price
+    initialize_price()?;
+
+    // Start price check thread
+    start_price_check_thread(health_monitor_clone)?;
+
+    // Start scheduler
+    start_scheduler()?;
+
+    // Start RPC server
+    start_rpc_server()?;
+
+    // Start command receiver
+    start_command_receiver()?;
+
+    info!("Initialization complete");
+    Ok(())
+}
+
+fn initialize_price() -> Result<()> {
+    let mut local_storage = LOCALDB
+        .lock()
+        .map_err(|e| RelayerError::ThreadPool(format!("Failed to lock local storage: {}", e)))?;
+
+    let current_price = match local_storage.get("Latest_Price") {
+        Some(price) => *price,
+        None => {
+            warn!("No latest price available, waiting...");
+            return Ok(());
+        }
+    };
+
+    local_storage.insert("CurrentPrice", current_price);
+    Ok(())
+}
+
+fn start_price_check_thread(health_monitor: Arc<HealthMonitor>) -> Result<()> {
     thread::Builder::new()
         .name(String::from("price_check_and_update"))
         .spawn(move || loop {
             thread::sleep(time::Duration::from_millis(1000));
-            thread::spawn(move || {
-                price_check_and_update();
-            });
+            if let Err(e) = price_check_and_update() {
+                error!("Price check error: {}", e);
+            }
+            health_monitor.update_heartbeat();
         })
-        .unwrap();
-    thread::sleep(time::Duration::from_millis(100));
-    // ordertest::initprice();
-    // start_cronjobs();
-    // main thread for scheduler
+        .map_err(|e| {
+            RelayerError::ThreadPool(format!("Failed to spawn price check thread: {}", e))
+        })?;
+
+    Ok(())
+}
+
+fn start_scheduler() -> Result<()> {
     thread::Builder::new()
         .name(String::from("heartbeat scheduler"))
         .spawn(move || {
             let mut scheduler = Scheduler::with_tz(chrono::Utc);
 
-            // funding update every 1 hour //comments for local test
-            // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
                 if get_relayer_status() {
-                    updatefundingrate_localdb(1.0);
+                    if let Err(e) = updatefundingrate_localdb(1.0) {
+                        error!("Failed to update funding rate: {}", e);
+                    }
                 }
             });
-            // scheduler.every(1.seconds()).run(move || {
-            //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
-            // });
+
             scheduler.every(15.minute()).run(move || {
-                let _ = snapshot();
+                if let Err(e) = snapshot() {
+                    error!("Failed to create snapshot: {}", e);
+                }
             });
 
             let thread_handle = scheduler.watch_thread(time::Duration::from_millis(1000));
@@ -97,64 +172,128 @@ pub fn heartbeat() {
                 thread::sleep(time::Duration::from_millis(100000000));
             }
         })
-        .unwrap();
+        .map_err(|e| {
+            RelayerError::ThreadPool(format!("Failed to spawn scheduler thread: {}", e))
+        })?;
 
+    Ok(())
+}
+
+fn start_rpc_server() -> Result<()> {
     thread::Builder::new()
         .name(String::from("json-RPC startserver"))
         .spawn(move || {
-            startserver();
+            if let Err(e) = startserver() {
+                error!("RPC server error: {}", e);
+            }
         })
-        .unwrap();
+        .map_err(|e| {
+            RelayerError::ThreadPool(format!("Failed to spawn RPC server thread: {}", e))
+        })?;
 
+    Ok(())
+}
+
+fn start_command_receiver() -> Result<()> {
     thread::Builder::new()
         .name(String::from("client_cmd_receiver"))
         .spawn(move || {
             thread::sleep(time::Duration::from_millis(10000));
-            client_cmd_receiver();
+            if let Err(e) = client_cmd_receiver() {
+                error!("Command receiver error: {}", e);
+            }
         })
-        .unwrap();
+        .map_err(|e| {
+            RelayerError::ThreadPool(format!("Failed to spawn command receiver thread: {}", e))
+        })?;
 
-    // QueueResolver::new(String::from("questdb_queue"));
-    println!("Initialization done..................................");
+    Ok(())
 }
 
-pub fn price_check_and_update() {
-    let current_time = std::time::SystemTime::now();
+pub fn price_check_and_update() -> Result<()> {
+    let current_time = SystemTime::now();
 
-    //get_localdb with single mutex unlock
-    let local_storage = LOCALDB.lock().unwrap();
-    // let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
-    let mut currentprice = match local_storage.get("Latest_Price") {
-        Some(price) => price.clone(),
-        None => return,
+    let mut local_storage = LOCALDB
+        .lock()
+        .map_err(|e| RelayerError::ThreadPool(format!("Failed to lock local storage: {}", e)))?;
+
+    let current_price = match local_storage.get("Latest_Price") {
+        Some(price) => *price,
+        None => {
+            warn!("No latest price available");
+            return Ok(());
+        }
     };
-    drop(local_storage);
-    if get_relayer_status() {
-        Event::new(
-            Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
-            String::from("insert_CurrentPrice"),
-            TRADERORDER_EVENT_LOG.clone().to_string(),
-        );
 
-        currentprice = currentprice.round();
-        set_localdb("CurrentPrice", currentprice);
-        // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
-        let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
-        treadpool_pending_order.execute(move || {
-            check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
-        treadpool_liquidation_order.execute(move || {
-            check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
-        treadpool_settling_order.execute(move || {
-            check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        drop(treadpool_pending_order);
-        drop(treadpool_liquidation_order);
-        drop(treadpool_settling_order);
+    if !get_relayer_status() {
+        warn!("Relayer is not healthy, skipping price update");
+        return Ok(());
     }
+
+    // Update price
+    update_price(current_price, &current_time)?;
+
+    // Process orders
+    process_pending_orders(current_price)?;
+    process_liquidation_orders(current_price)?;
+    process_settling_orders(current_price)?;
+
+    Ok(())
+}
+
+fn update_price(price: f64, timestamp: &SystemTime) -> Result<()> {
+    let rounded_price = price.round();
+
+    Event::new(
+        Event::CurrentPriceUpdate(price, iso8601(timestamp)),
+        "insert_CurrentPrice".to_string(),
+        TRADERORDER_EVENT_LOG.clone().to_string(),
+    )?;
+
+    set_localdb("CurrentPrice", rounded_price);
+    Ok(())
+}
+
+fn process_pending_orders(current_price: f64) -> Result<()> {
+    let thread_pool = THREADPOOL_PRICE_CHECK_PENDING_ORDER
+        .lock()
+        .map_err(|e| RelayerError::ThreadPool(format!("Failed to lock thread pool: {}", e)))?;
+
+    thread_pool.execute(move || {
+        if let Err(e) = check_pending_limit_order_on_price_ticker_update_localdb(current_price) {
+            error!("Failed to process pending orders: {}", e);
+        }
+    })?;
+
+    Ok(())
+}
+
+fn process_liquidation_orders(current_price: f64) -> Result<()> {
+    let thread_pool = THREADPOOL_PRICE_CHECK_LIQUIDATION
+        .lock()
+        .map_err(|e| RelayerError::ThreadPool(format!("Failed to lock thread pool: {}", e)))?;
+
+    thread_pool.execute(move || {
+        if let Err(e) = check_liquidating_orders_on_price_ticker_update_localdb(current_price) {
+            error!("Failed to process liquidation orders: {}", e);
+        }
+    })?;
+
+    Ok(())
+}
+
+fn process_settling_orders(current_price: f64) -> Result<()> {
+    let thread_pool = THREADPOOL_PRICE_CHECK_SETTLE_PENDING
+        .lock()
+        .map_err(|e| RelayerError::ThreadPool(format!("Failed to lock thread pool: {}", e)))?;
+
+    thread_pool.execute(move || {
+        if let Err(e) = check_settling_limit_order_on_price_ticker_update_localdb(current_price) {
+            error!("Failed to process settling orders: {}", e);
+        }
+    })?;
+
+    Ok(())
 }
 
 pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f64) {
