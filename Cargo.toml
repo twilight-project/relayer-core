@@ -81,7 +81,7 @@ curve25519-dalek = { version = "3", default-features = false }
 
 [dependencies.zkos-relayer-wallet]
 git = "ssh://github.com/twilight-project/zkos-relayer-wallet.git"
-branch = "order-script"
+branch = "develop-rust"
 
 [dependencies.zkvm]
 git = "ssh://github.com/twilight-project/zkos-rust.git"
