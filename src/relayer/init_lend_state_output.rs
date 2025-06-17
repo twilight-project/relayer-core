@@ -32,7 +32,7 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
         Ok(seed) => seed,
         Err(_) => {
             println!("RELAYER_WALLET_SEED is not set, using default seed");
-            "LPf7DBZSdlKYSk7i0qfB+V0dKw7Ul6NxcbuPufKPuUFj/mV0KJL+w1GTUlzHG6vyM1LLEuN+yaPyddveiUC+ag==".to_string()
+            "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
         }
     };
     let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
