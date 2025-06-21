@@ -31,8 +31,13 @@ pub fn heartbeat() {
     thread::Builder::new()
         .name(String::from("BTC Binance Websocket Connection"))
         .spawn(move || {
-            // thread::sleep(time::Duration::from_millis(1000));
-            receive_btc_price();
+            // Create a tokio runtime for the async function
+            let mut rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                if let Err(e) = receive_btc_price().await {
+                    eprintln!("BTC price feeder error: {}", e);
+                }
+            });
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(500));

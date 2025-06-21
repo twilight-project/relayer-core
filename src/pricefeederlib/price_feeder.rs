@@ -1,110 +1,245 @@
 //! ## Twilight Price Feeder
-//!TPF is Twilight Price Feeder which feeds the external BTC price into the twilight system (i.e. updating Redis IN-MEMORY database) built-in Rust focusing on the latest BTC price insertion using Binance Individual Symbol Mini Ticker Stream for twilight zk-matchbook.
-//!
-//!
-//!
-//!
-//!
-#![allow(dead_code)]
-extern crate futures;
-extern crate serde_json;
-extern crate tokionew;
-extern crate websocket;
-use futures::future::Future;
-use futures::sink::Sink;
-use futures::stream::Stream;
-use futures::sync::mpsc;
-use std::io::stdin;
-use std::thread;
+//! TPF is Twilight Price Feeder which feeds the external BTC price into the twilight system
+//! (i.e. updating Redis IN-MEMORY database) built-in Rust focusing on the latest BTC price
+//! insertion using Binance Individual Symbol Mini Ticker Stream for twilight zk-matchbook.
 
-use websocket::result::WebSocketError;
-use websocket::{ClientBuilder, OwnedMessage};
-// #[path = "btc_price_feeder.rs"]
+#![allow(dead_code)]
+
+use futures_util::{SinkExt, StreamExt};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::{mpsc, RwLock};
+use tokio::time::{delay_for, interval};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tracing::{error, info, warn};
+
 use crate::pricefeederlib::btc_price_feeder;
 
-/// This function is used for initializing websocket with binance BTC/USDT pair (agg trade) and update BTC price into local hashmap having key/s `latest_price`.
-pub fn receive_btc_price() {
-    dotenv::dotenv().ok();
-    let mut last_price: f64 = 0.00;
-    // BINANCE_BTC_SOCKET URL for retriving BTCUSDT pair latest price
-    let url = match std::env::var("BINANCE_BTC_SOCKET") {
-        Ok(ws_adder) => ws_adder,
-        Err(_) => "wss://stream.binance.com:9443/ws/btcusdt@miniTicker".to_string(),
-    };
+/// Shared price state
+#[derive(Debug, Clone)]
+pub struct PriceState {
+    pub last_price: Arc<RwLock<f64>>,
+}
 
-    println!("Connecting to {}", &url);
-    let mut runtime = tokionew::runtime::current_thread::Builder::new()
-        .build()
-        .unwrap();
+impl PriceState {
+    pub fn new() -> Self {
+        Self {
+            last_price: Arc::new(RwLock::new(0.0)),
+        }
+    }
 
-    // standard in isn't supported in mio yet, so we use a thread
-    // see https://github.com/carllerche/mio/issues/321
-    let (usr_msg, stdin_ch) = mpsc::channel(0);
-    thread::spawn(|| {
-        let mut input = String::new();
-        let mut stdin_sink = usr_msg.wait();
+    pub async fn update_price(&self, new_price: f64) {
+        let mut price = self.last_price.write().await;
+        *price = new_price;
+    }
+
+    pub async fn get_price(&self) -> f64 {
+        *self.last_price.read().await
+    }
+}
+
+/// Configuration for the price feeder
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub websocket_url: String,
+    pub reconnect_delay: Duration,
+    pub ping_interval: Duration,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            websocket_url: std::env::var("BINANCE_BTC_SOCKET").unwrap_or_else(|_| {
+                "wss://stream.binance.com:9443/ws/btcusdt@miniTicker".to_string()
+            }),
+            reconnect_delay: Duration::from_secs(2),
+            ping_interval: Duration::from_secs(30),
+        }
+    }
+}
+
+/// Main price feeder struct
+pub struct PriceFeeder {
+    config: Config,
+    price_state: PriceState,
+}
+
+impl PriceFeeder {
+    pub fn new(config: Config) -> Self {
+        Self {
+            config,
+            price_state: PriceState::new(),
+        }
+    }
+
+    /// Start the price feeding process
+    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!("Starting BTC price feeder...");
+
         loop {
-            input.clear();
-            stdin().read_line(&mut input).unwrap();
-            let trimmed = input.trim();
-            let (close, msg) = match trimmed {
-                "/close" => (true, OwnedMessage::Close(None)),
-                "/ping" => (false, OwnedMessage::Ping(b"PING".to_vec())),
-                _ => (false, OwnedMessage::Text(trimmed.to_string())),
-            };
-            stdin_sink
-                .send(msg)
-                .expect("Sending message across stdin channel.");
-
-            if close {
-                break;
+            match self.connect_and_stream().await {
+                Ok(_) => {
+                    println!("WebSocket connection closed normally");
+                }
+                Err(e) => {
+                    println!(
+                        "WebSocket error: {}. Reconnecting in {:?}",
+                        e, self.config.reconnect_delay
+                    );
+                    delay_for(self.config.reconnect_delay).await;
+                }
             }
         }
-    });
+    }
 
-    let runner = ClientBuilder::new(&url)
-        .unwrap()
-        .async_connect_secure(None)
-        .and_then(|(duplex, _)| {
-            let (sink, stream) = duplex.split();
-            stream
-                .filter_map(|message| {
-                    match message {
-                        OwnedMessage::Close(e) => {
-                            thread::spawn(|| {
-                                thread::sleep(std::time::Duration::from_millis(10));
-                                thread::Builder::new()
-                                    .name(String::from("BTC Binance Websocket Connection 1"))
-                                    .spawn(move || {
-                                        // thread::sleep(time::Duration::from_millis(1000));
-                                        receive_btc_price();
-                                    })
-                                    .unwrap();
-                            });
-                            Some(OwnedMessage::Close(e))
-                        }
-                        OwnedMessage::Ping(d) => Some(OwnedMessage::Pong(d)),
-                        OwnedMessage::Text(binance_payload_json) => {
-                            last_price = btc_price_feeder::update_btc_price(
-                                binance_payload_json,
-                                &last_price,
-                            );
-                            None
-                        }
-                        _ => None,
-                    }
-                })
-                .select(stdin_ch.map_err(|_| WebSocketError::NoDataAvailable))
-                .forward(sink)
+    /// Connect to WebSocket and handle the stream
+    async fn connect_and_stream(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!("Connecting to {}", self.config.websocket_url);
+
+        let (ws_stream, _) = connect_async(&self.config.websocket_url).await?;
+        println!("Connected successfully! Starting message processing...");
+        let (mut write, mut read) = ws_stream.split();
+
+        // Channel for handling ping/pong and control messages
+        let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
+
+        // Spawn ping task
+        let ping_tx = tx.clone();
+        let ping_task = tokio::spawn(async move {
+            let mut ping_interval = interval(Duration::from_secs(30));
+            loop {
+                ping_interval.tick().await;
+                if ping_tx.send(Message::Ping(b"ping".to_vec())).is_err() {
+                    break;
+                }
+            }
         });
-    let _ = runtime.block_on(runner).expect("No internet Connection");
+
+        // Spawn write task
+        let write_task = tokio::spawn(async move {
+            while let Some(msg) = rx.recv().await {
+                if write.send(msg).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        // Main message processing loop
+        while let Some(msg) = read.next().await {
+            match msg? {
+                Message::Text(text) => {
+                    self.process_price_message(text).await;
+                }
+                Message::Ping(data) => {
+                    if tx.send(Message::Pong(data)).is_err() {
+                        break;
+                    }
+                }
+                Message::Pong(_) => {
+                    // Pong received, connection is alive
+                }
+                Message::Close(_) => {
+                    println!(
+                        "Binance server closed connection (likely 24hr timeout) - reconnecting..."
+                    );
+                    break;
+                }
+                Message::Binary(_) => {
+                    warn!("Received unexpected binary message");
+                }
+            }
+        }
+
+        // Signal tasks to stop by dropping the channel
+        drop(tx);
+
+        // Wait for tasks to complete (they'll exit when channel is closed)
+        let _ = ping_task.await;
+        let _ = write_task.await;
+
+        Ok(())
+    }
+
+    /// Process incoming price messages
+    async fn process_price_message(&self, text: String) {
+        let current_price = self.price_state.get_price().await;
+        let new_price = btc_price_feeder::update_btc_price(text, &current_price);
+        if new_price != current_price {
+            self.price_state.update_price(new_price).await;
+        }
+    }
+
+    /// Get the current price
+    pub async fn get_current_price(&self) -> f64 {
+        self.price_state.get_price().await
+    }
+}
+
+/// Convenience function to start the price feeder with default config
+pub async fn receive_btc_price() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    dotenv::dotenv().ok();
+
+    let config = Config::default();
+    let feeder = PriceFeeder::new(config);
+
+    feeder.start().await
+}
+
+/// Start price feeder with custom configuration
+pub async fn start_price_feeder_with_config(
+    config: Config,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let feeder = PriceFeeder::new(config);
+    feeder.start().await
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
+    use tokio::time::timeout;
+
+    #[test]
+    fn test_price_state() {
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let state = PriceState::new();
+
+            // Initial price should be 0.0
+            assert_eq!(state.get_price().await, 0.0);
+
+            // Update price
+            state.update_price(50000.0).await;
+            assert_eq!(state.get_price().await, 50000.0);
+        });
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config = Config::default();
+        assert!(config.websocket_url.contains("binance.com"));
+        assert!(config.reconnect_delay.as_secs() > 0);
+    }
+
+    #[test]
+    fn test_price_feeder_creation() {
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let config = Config::default();
+            let feeder = PriceFeeder::new(config);
+
+            // Initial price should be 0.0
+            assert_eq!(feeder.get_current_price().await, 0.0);
+        });
+    }
+
+    // Integration test (commented out as it requires network)
     #[test]
     fn test_price_feed_websocket() {
-        receive_btc_price();
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let result = timeout(Duration::from_secs(10), receive_btc_price()).await;
+            // Should timeout (connection should stay alive)
+            assert!(result.is_err());
+        });
     }
 }

@@ -59,6 +59,11 @@ rand = "0.7"
 crossbeam-channel = "0.5.6"
 
 
+# Compatible with tokio 0.2.x with TLS support
+tokio-tungstenite = { version = "0.10", features = ["native-tls", "tls"] }
+futures-util = "0.3"
+tracing = "0.1"
+
 # [dependencies.transaction]
 # path = "../ZkOS/transaction"
 # [dependencies.transactionapi]
