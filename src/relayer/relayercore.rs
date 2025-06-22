@@ -1998,8 +1998,7 @@ pub fn zkos_order_handler(
                     match zkos_string {
                         Some(zkos_settle_msg_result) => {
                             let zkos_settle_msg_result =
-                                ZkosCreateOrder::decode_from_hex_string(zkos_settle_msg_result);
-
+                            ZkosSettleMsg::decode_from_hex_string(zkos_settle_msg_result);
                             match zkos_settle_msg_result {
                                 Ok(zkos_settle_msg) => {
                                     let contract_owner_sk = get_sk_from_fixed_wallet();
