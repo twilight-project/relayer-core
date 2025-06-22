@@ -448,6 +448,23 @@ pub fn create_snapshot_data(
                                     RpcCommand::ExecuteLendOrder(_, _, _, _)=>{}
                                     
                                 },
+                                Event::TraderOrderLimitUpdate(order, cmd, seq) => {
+                                    match cmd {
+                                        RpcCommand::ExecuteTraderOrder(  _rpc_request,
+                                            _metadata,
+                                            zkos_hex_string,
+                                            _request_id,)=>{
+                                            orderdb_traderorder
+                                            .zkos_msg
+                                            .insert(order.uuid, zkos_hex_string);
+                                        if orderdb_traderorder.aggrigate_log_sequence < seq {
+                                            orderdb_traderorder.aggrigate_log_sequence = seq;
+                                        }
+                                      
+                                        }
+                                        _=>{}
+                                    }
+                                }
                                 Event::TraderOrderUpdate(order, _cmd, seq) => {
                                     // let order_clone = order.clone();
                                     orderdb_traderorder

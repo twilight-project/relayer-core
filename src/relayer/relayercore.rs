@@ -295,9 +295,15 @@ pub fn rpc_event_handler(
                                     OrderStatus::FILLED => {
                                         drop(order);
                                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                        trader_order_db.aggrigate_log_sequence += 1;
                                         trader_order_db.set_zkos_string_on_limit_update(
-                                            order_updated_clone.uuid,
+                                            order_updated_clone.uuid.clone(),
                                             zkos_hex_string,
+                                        );
+                                        Event::new(
+                                            Event::TraderOrderLimitUpdate(order_updated_clone.clone(), command_clone.clone(), trader_order_db.aggrigate_log_sequence),
+                                            format!("settle_limit_order-{}", order_updated_clone.uuid),
+                                            TRADERORDER_EVENT_LOG.clone().to_string(),
                                         );
                                         drop(trader_order_db);
                                         Event::new(

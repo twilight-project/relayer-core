@@ -205,6 +205,7 @@ impl EventKey {
 pub enum Event {
     TraderOrder(TraderOrder, RpcCommand, usize),
     TraderOrderUpdate(TraderOrder, RelayerCommand, usize),
+    TraderOrderLimitUpdate(TraderOrder, RpcCommand, usize),
     TraderOrderFundingUpdate(TraderOrder, RelayerCommand),
     TraderOrderLiquidation(TraderOrder, RelayerCommand, usize),
     LendOrder(LendOrder, RpcCommand, usize),
@@ -419,6 +420,7 @@ impl Event {
             Event::TxHashUpdate(..) => "TxHashUpdate".to_string(),
             Event::Stop(..) => "Stop".to_string(),
             Event::AdvanceStateQueue(..) => "AdvanceStateQueue".to_string(),
+            Event::TraderOrderLimitUpdate(..) => "TraderOrderLimitUpdate".to_string(),
         }
     }
 }
