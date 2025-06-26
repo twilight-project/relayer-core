@@ -46,3 +46,4 @@ superveisorfile.txt
 foo.txt
 logs/relayer.err.log
 logs/relayer.out.log
+.env
