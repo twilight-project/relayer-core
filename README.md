@@ -71,8 +71,6 @@ Reference url : [https://mindsers.blog/post/https-using-nginx-certbot-docker/](h
 
 #### 1. Install Supervisor
 
-#### 1. Install Supervisor
-
 To manage the relayer application, we will use Supervisor, a process control system. Follow these steps to install and configure Supervisor:
 
 1. **Update Package Lists:**
