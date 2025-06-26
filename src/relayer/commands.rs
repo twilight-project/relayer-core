@@ -16,6 +16,42 @@ pub struct Meta {
 impl Metadata for Meta {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct FeeUpdate {
+    pub order_filled_on_market: f64,
+    pub order_filled_on_limit: f64,
+    pub order_settled_on_market: f64,
+    pub order_settled_on_limit: f64,
+}
+impl FeeUpdate {
+    pub fn to_relayer_command(&self) -> RelayerCommand {
+        RelayerCommand::UpdateFees(
+            self.order_filled_on_market,
+            self.order_filled_on_limit,
+            self.order_settled_on_market,
+            self.order_settled_on_limit,
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum FeeType {
+    FilledOnMarket,
+    FilledOnLimit,
+    SettledOnMarket,
+    SettledOnLimit,
+}
+impl Into<String> for FeeType {
+    fn into(self) -> String {
+        match self {
+            FeeType::FilledOnMarket => "FilledOnMarket".to_string(),
+            FeeType::FilledOnLimit => "FilledOnLimit".to_string(),
+            FeeType::SettledOnMarket => "SettledOnMarket".to_string(),
+            FeeType::SettledOnLimit => "SettledOnLimit".to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
     FundingCycle(PoolBatchOrder, Meta, f64),
     FundingOrderEventUpdate(TraderOrder, Meta),
@@ -24,6 +60,7 @@ pub enum RelayerCommand {
     PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
     FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
     RpcCommandPoolupdate(),
+    UpdateFees(f64, f64, f64, f64), //order_filled_on_market, order_filled_on_limit, order_settled_on_limit, order_settled_on_market
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

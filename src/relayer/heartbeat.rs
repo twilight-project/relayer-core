@@ -58,7 +58,7 @@ pub fn heartbeat() {
         let old_price = match local_storage.get("CurrentPrice") {
             Some(price) => price.clone(),
             None => {
-                local_storage.insert("CurrentPrice", currentprice);
+                local_storage.insert("CurrentPrice".to_string(), currentprice);
                 currentprice.clone()
             }
         };

@@ -82,7 +82,7 @@ pub fn get_localdb(key: &str) -> f64 {
 
 pub fn set_localdb(key: &'static str, value: f64) {
     let mut local_storage = LOCALDB.lock().unwrap();
-    local_storage.insert(key, value);
+    local_storage.insert(key.to_string(), value);
     drop(local_storage);
 }
 use crate::config::LOCALDBSTRING;
@@ -149,4 +149,21 @@ where
     T: DataSize,
 {
     println!("{:#?}MB", data_size(value) / (8 * 1024 * 1024));
+}
+
+pub fn get_fee(key: FeeType) -> f64 {
+    let local_storage = LOCALDB.lock().unwrap();
+    let price = local_storage.get::<String>(&key.into()).unwrap().clone();
+    drop(local_storage);
+    price.round()
+}
+
+pub fn set_fee(key: FeeType, value: f64) {
+    let mut local_storage = LOCALDB.lock().unwrap();
+    local_storage.insert(key.into(), value);
+    drop(local_storage);
+}
+
+pub fn calculate_fee_on_open_order(fee_persentage: f64, positionsize: f64, price: f64) -> f64 {
+    (fee_persentage / 100.0) * positionsize / price
 }

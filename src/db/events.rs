@@ -235,6 +235,7 @@ pub enum Event {
     ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
     AdvanceStateQueue(Nonce, zkvm::Output),
+    FeeUpdate(RelayerCommand, String), //fee data and time
 }
 
 // impl fmt::Display for Event {
@@ -421,6 +422,7 @@ impl Event {
             Event::Stop(..) => "Stop".to_string(),
             Event::AdvanceStateQueue(..) => "AdvanceStateQueue".to_string(),
             Event::TraderOrderLimitUpdate(..) => "TraderOrderLimitUpdate".to_string(),
+            Event::FeeUpdate(..) => "FeeUpdate".to_string(),
         }
     }
 }

@@ -115,9 +115,28 @@ impl SnapshotDB {
             close_long_sortedset_db: SortedSet::new(),
             close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
-            localdb_hashmap: HashMap::new(),
-            // output_memo_hashmap:
-            //     utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
+            localdb_hashmap: {
+                let mut hashmap = HashMap::new();
+
+                let filled_on_market = std::env::var("FILLED_ON_MARKET").unwrap_or("0.04".to_string()).parse::<f64>().unwrap_or(0.04);
+                let filled_on_limit = std::env::var("FILLED_ON_LIMIT").unwrap_or("0.02".to_string()).parse::<f64>().unwrap_or(0.02);
+                let settled_on_market = std::env::var("SETTLED_ON_MARKET").unwrap_or("0.04".to_string()).parse::<f64>().unwrap_or(0.04);
+                let settled_on_limit = std::env::var("SETTLED_ON_LIMIT").unwrap_or("0.02".to_string()).parse::<f64>().unwrap_or(0.02);
+
+
+
+                hashmap.insert(FeeType::FilledOnMarket.into(), filled_on_market);
+                hashmap.insert(FeeType::FilledOnLimit.into(), filled_on_limit);
+                hashmap.insert(FeeType::SettledOnMarket.into(), settled_on_market);
+                hashmap.insert(FeeType::SettledOnLimit.into(), settled_on_limit);
+                let event_time=systemtime_to_utc();
+                Event::send_event_to_kafka_queue(
+                    Event::FeeUpdate(RelayerCommand::UpdateFees(filled_on_market, filled_on_limit, settled_on_market, settled_on_limit), event_time.clone()),
+                    CORE_EVENT_LOG.clone().to_string(),
+                    format!("FeeUpdate-{}", event_time),
+                );
+                hashmap
+            },
             event_offset_partition: (0,0),
             event_timestamp: ServerTime::now().epoch,
             output_hex_storage:
@@ -599,6 +618,17 @@ pub fn create_snapshot_data(
                                     // set_localdb("FundingRate", funding_rate);
                                     localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
                                 }
+                                Event::FeeUpdate(cmd, _time) => {
+                                    match cmd {
+                                        RelayerCommand::UpdateFees(order_filled_on_market, order_filled_on_limit, order_settled_on_market, order_settled_on_limit) => {
+                                            localdb_hashmap.insert(FeeType::FilledOnMarket.into(), order_filled_on_market);
+                                            localdb_hashmap.insert(FeeType::FilledOnLimit.into(), order_filled_on_limit);
+                                            localdb_hashmap.insert(FeeType::SettledOnMarket.into(), order_settled_on_market);
+                                            localdb_hashmap.insert(FeeType::SettledOnLimit.into(), order_settled_on_limit);
+                                        }
+                                        _ => {}
+                                    }
+                                }
                                 Event::CurrentPriceUpdate(current_price, _time) => {
                                     // set_localdb("CurrentPrice", current_price);
                                     localdb_hashmap.insert("CurrentPrice".to_string(), current_price);
@@ -1020,14 +1050,14 @@ pub fn load_from_snapshot()->Result<QueueState,String> {
                     None => 0.0,
                 },
             );
-            let fee = snapshot_data.localdb_hashmap.get("Fee").clone();
-            set_localdb(
-                "Fee",
-                match fee {
-                    Some(value) => value.clone(),
-                    None => 0.0,
-                },
-            );
+            let order_filled_on_market = snapshot_data.localdb_hashmap.get::<String>(&FeeType::FilledOnMarket.into()).unwrap_or(&0.0).clone();
+            let order_filled_on_limit = snapshot_data.localdb_hashmap.get::<String>(&FeeType::FilledOnLimit.into()).unwrap_or(&0.0).clone();
+            let order_settled_on_market = snapshot_data.localdb_hashmap.get::<String>(&FeeType::SettledOnMarket.into()).unwrap_or(&0.0).clone();
+            let order_settled_on_limit = snapshot_data.localdb_hashmap.get::<String>(&FeeType::SettledOnLimit.into()).unwrap_or(&0.0).clone();
+            set_fee(FeeType::FilledOnMarket, order_filled_on_market);
+            set_fee(FeeType::FilledOnLimit, order_filled_on_limit);
+            set_fee(FeeType::SettledOnMarket, order_settled_on_market);
+            set_fee(FeeType::SettledOnLimit, order_settled_on_limit);
 
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
