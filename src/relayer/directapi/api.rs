@@ -69,9 +69,8 @@ pub fn startserver() {
                             let query_para = query.msg.public_key.clone();
                             // let query_para = hex::encode(query_para1.as_bytes());
                             // println!("i am at 364:{:#?}", query_para);
-                            let order = get_traderorder_details_by_account_id(
-                                serde_json::from_str(&query_para).unwrap(),
-                            );
+                            let account_id = serde_json::from_str(&query_para).unwrap_or_default();
+                            let order = get_traderorder_details_by_account_id(account_id);
                             match order {
                                 Ok(order_data) => Ok(serde_json::to_value(&order_data).unwrap()),
                                 Err(args) => {
