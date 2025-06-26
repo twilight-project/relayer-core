@@ -66,3 +66,68 @@ docker compose run --rm  certbot certonly --webroot --webroot-path /var/www/cert
 ```
 
 Reference url : [https://mindsers.blog/post/https-using-nginx-certbot-docker/](https://mindsers.blog/post/https-using-nginx-certbot-docker/)
+
+### Running Relayer with Supervisor
+
+#### 1. Install Supervisor
+
+#### 1. Install Supervisor
+
+To manage the relayer application, we will use Supervisor, a process control system. Follow these steps to install and configure Supervisor:
+
+1. **Update Package Lists:**
+
+   Begin by updating your package lists to ensure you have the latest information on the newest versions of packages and their dependencies.
+
+   ```bash
+   sudo apt update
+   ```
+
+2. **Install Supervisor:**
+
+   Install Supervisor using the following command:
+
+   ```bash
+   sudo apt install supervisor
+   ```
+
+3. **Configure Supervisor for Relayer:**
+
+   Create a configuration file for the relayer application. This file will tell Supervisor how to manage the relayer process.
+
+   ```bash
+   sudo tee /etc/supervisor/conf.d/relayer.conf > /dev/null <<EOF
+   [program:relayer]
+   command=/home/ubuntu/Relayer-dev/twilight-relayer/target/release/main
+   directory=/home/ubuntu/Relayer-dev/twilight-relayer
+   autostart=true
+   autorestart=true
+   stderr_logfile=/home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer.err.log
+   stdout_logfile=/home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer.out.log
+   user=ubuntu
+   environment=HOME="/home/ubuntu"
+   stderr_logfile_maxbytes=50MB
+   stdout_logfile_maxbytes=50MB
+   stderr_logfile_backups=10
+   stdout_logfile_backups=10
+   EOF
+   ```
+
+4. **Update Supervisor:**
+
+   After creating the configuration file, update Supervisor to recognize the new configuration.
+
+   ```bash
+   sudo supervisorctl reread
+   sudo supervisorctl update
+   ```
+
+5. **Start the Relayer Program:**
+
+   Finally, start the relayer program using Supervisor.
+
+   ```bash
+   sudo supervisorctl start relayer
+   ```
+
+By following these steps, Supervisor will automatically manage the relayer application, ensuring it starts at boot and restarts if it crashes.

@@ -370,6 +370,7 @@ impl TraderOrder {
             self.entryprice,
             current_price,
         );
+        //calculate fee by AM*leverage*fee = fee deducted from payment
         // println!(
         //     "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
         //     u_pnl,
