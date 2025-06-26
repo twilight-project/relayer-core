@@ -2,7 +2,19 @@ use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use uuid::Uuid;
+use zkvm::Output;
 pub type ZkosHexString = String;
+pub type RequestID = String;
+
+use jsonrpc_http_server::jsonrpc_core::Metadata;
+use std::collections::HashMap;
+
+#[derive(Default, Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct Meta {
+    pub metadata: HashMap<String, Option<String>>,
+}
+impl Metadata for Meta {}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RelayerCommand {
     FundingCycle(PoolBatchOrder, Meta, f64),
@@ -16,11 +28,11 @@ pub enum RelayerCommand {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RpcCommand {
-    CreateTraderOrder(CreateTraderOrder, Meta, ZkosHexString),
-    CreateLendOrder(CreateLendOrder, Meta, ZkosHexString),
-    ExecuteTraderOrder(ExecuteTraderOrder, Meta, ZkosHexString),
-    ExecuteLendOrder(ExecuteLendOrder, Meta, ZkosHexString),
-    CancelTraderOrder(CancelTraderOrder, Meta, ZkosHexString),
+    CreateTraderOrder(CreateTraderOrder, Meta, ZkosHexString, RequestID),
+    CreateLendOrder(CreateLendOrder, Meta, ZkosHexString, RequestID),
+    ExecuteTraderOrder(ExecuteTraderOrder, Meta, ZkosHexString, RequestID),
+    ExecuteLendOrder(ExecuteLendOrder, Meta, ZkosHexString, RequestID),
+    CancelTraderOrder(CancelTraderOrder, Meta, ZkosHexString, RequestID),
     RelayerCommandTraderOrderSettleOnLimit(TraderOrder, Meta, f64),
 }
 
@@ -60,32 +72,39 @@ pub enum ZkosTxCommand {
         zkvm::Output,
         zkvm::Output,
     ),
-    RelayerCommandTraderOrderLiquidateTX(
-        TraderOrder,
-        Option<ZkosHexString>,
-        zkvm::Output,
-        zkvm::Output,
-    ),
+    RelayerCommandTraderOrderLiquidateTX(TraderOrder, Option<Output>, zkvm::Output, zkvm::Output),
 }
 
 impl RpcCommand {
     pub fn zkos_msg(&self) -> String {
         match self.clone() {
-            RpcCommand::CreateTraderOrder(create_trader_order, meta, zkos_hex_string) => {
+            RpcCommand::CreateTraderOrder(
+                create_trader_order,
+                meta,
+                zkos_hex_string,
+                _request_id,
+            ) => zkos_hex_string.clone(),
+            RpcCommand::CreateLendOrder(create_lend_order, meta, zkos_hex_string, _request_id) => {
                 zkos_hex_string.clone()
             }
-            RpcCommand::CreateLendOrder(create_lend_order, meta, zkos_hex_string) => {
-                zkos_hex_string.clone()
-            }
-            RpcCommand::ExecuteTraderOrder(execute_trader_order, meta, zkos_hex_string) => {
-                zkos_hex_string.clone()
-            }
-            RpcCommand::ExecuteLendOrder(execute_lend_order, meta, zkos_hex_string) => {
-                zkos_hex_string.clone()
-            }
-            RpcCommand::CancelTraderOrder(cancel_trader_order, meta, zkos_hex_string) => {
-                zkos_hex_string.clone()
-            }
+            RpcCommand::ExecuteTraderOrder(
+                execute_trader_order,
+                meta,
+                zkos_hex_string,
+                _request_id,
+            ) => zkos_hex_string.clone(),
+            RpcCommand::ExecuteLendOrder(
+                execute_lend_order,
+                meta,
+                zkos_hex_string,
+                _request_id,
+            ) => zkos_hex_string.clone(),
+            RpcCommand::CancelTraderOrder(
+                cancel_trader_order,
+                meta,
+                zkos_hex_string,
+                _request_id,
+            ) => zkos_hex_string.clone(),
             _ => "".to_string(),
         }
     }

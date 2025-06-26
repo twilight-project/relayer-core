@@ -61,6 +61,9 @@ pub fn liquidationprice(
     mm: f64,
     im: f64,
 ) -> f64 {
+    if entryprice == 0.0 || positionsize == 0.0 {
+        return 0.0;
+    }
     entryprice * positionsize / ((positionside as f64) * entryprice * (mm - im) + positionsize)
 }
 pub fn positionside(position_type: &PositionType) -> i32 {
@@ -125,6 +128,18 @@ pub fn get_lock_error_for_lend_settle(lend_order: LendOrder) -> i128 {
         as i128)
         - (((lend_order.npoolshare / 10000.0).round() * lend_order.tlv2.round()).round() as i128);
     lock_error
+}
+
+pub fn get_relayer_status() -> bool {
+    let status = IS_RELAYER_ACTIVE.lock().unwrap();
+    let status_result = *status;
+    drop(status);
+    status_result
+}
+pub fn set_relayer_status(new_status: bool) {
+    let mut status = IS_RELAYER_ACTIVE.lock().unwrap();
+    *status = new_status;
+    drop(status);
 }
 
 use datasize::data_size;

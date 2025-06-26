@@ -56,53 +56,45 @@ hex = "*"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 datasize = "0.2.10"
 rand = "0.7"
-# [dependencies.transaction]
-# path = "../ZkOS/transaction"
-# [dependencies.transactionapi]
-# path = "../ZkOS/transactionapi"
-# [dependencies.quisquis-rust]
-# path = "../quisquis-rust"
-# [dependencies.zkvm]
-# path = "../ZkOS/zkvm"
-# [dependencies.utxo-in-memory]
-# path = "../ZkOS/utxo-in-memory"
-# [dependencies.zkschnorr]
-# path = "../ZkSchnorr"
-# [dependencies.address]
-# path = "../ZkOS/address"
-# [dependencies.zkos-relayer-wallet]
-# path = "../zkos-relayer-wallet"
+crossbeam-channel = "0.5.6"
+
+
+# Compatible with tokio 0.2.x with TLS support
+tokio-tungstenite = { version = "0.10", features = ["native-tls", "tls"] }
+futures-util = "0.3"
+tracing = "0.1"
+
 
 curve25519-dalek = { version = "3", default-features = false }
 
 
 [dependencies.zkos-relayer-wallet]
-git = "ssh://github.com/twilight-project/zkos-relayer-wallet.git"
+git = "https://github.com/twilight-project/zkos-relayer-wallet.git"
 branch = "develop"
 
 [dependencies.zkvm]
-git = "ssh://github.com/twilight-project/ZkOS.git"
+git = "https://github.com/twilight-project/zkos-rust.git"
 branch = "develop"
 
 [dependencies.transaction]
-git = "ssh://github.com/twilight-project/ZkOS.git"
+git = "https://github.com/twilight-project/zkos-rust.git"
 branch = "develop"
 
 [dependencies.transactionapi]
-git = "ssh://github.com/twilight-project/ZkOS.git"
+git = "https://github.com/twilight-project/zkos-rust.git"
 branch = "develop"
 
 [dependencies.address]
-git = "ssh://github.com/twilight-project/ZkOS.git"
+git = "https://github.com/twilight-project/zkos-rust.git"
 branch = "develop"
 
 [dependencies.utxo-in-memory]
-git = "ssh://github.com/twilight-project/ZkOS.git"
+git = "https://github.com/twilight-project/zkos-rust.git"
 branch = "develop"
 
 [dependencies.zkschnorr]
-git = "ssh://github.com/twilight-project/ZkSchnorr.git"
+git = "https://github.com/twilight-project/zk-schnorr.git"
 
 [dependencies.quisquis-rust]
-git = "ssh://github.com/twilight-project/quisquis-rust.git"
+git = "https://github.com/twilight-project/quisquis-rust.git"
 branch = "develop"

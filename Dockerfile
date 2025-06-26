@@ -1,29 +1,18 @@
-# FROM rust as build
-FROM neomantra/aeron-cpp-debian:1.28.2
-
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION=1.61.0
+FROM rust 
 RUN USER=root apt-get update && \
     apt-get -y upgrade && \
     apt-get -y install git curl g++ build-essential libssl-dev pkg-config && \
     apt-get -y install software-properties-common && \
     apt-get update 
-# create a new empty shell project
-RUN USER=root curl https://sh.rustup.rs -sSf | sh -s -- -y 
-RUN chmod 600 $RUSTUP_HOME $CARGO_HOME;
+
 RUN USER=root cargo new --bin twilight-relayer-rust
 RUN cd ./twilight-relayer-rust
 WORKDIR /twilight-relayer-rust
 
-# copy over your manifests
-# COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
-COPY ./aeron-rs ./aeron-rs
 
 # this build step will cache your dependencies
-# RUN cargo run
+RUN cargo run
 RUN rm src/*.rs
 
 # copy your source tree
@@ -31,8 +20,10 @@ COPY ./src ./src
 COPY ./.env ./.env
 
 
-RUN cargo build --release
-WORKDIR /twilight-relayer-rust/target/release
+# RUN cargo build --release
+# WORKDIR /twilight-relayer-rust
 EXPOSE 3030
-COPY ./.env ./.env
-ENTRYPOINT ["/twilight-relayer-rust/target/release/twilight-relayer-rust","/usr/local/bin/aeronmd"]
+# COPY ./.env ./.env
+# RUN cargo run
+# ENTRYPOINT ["/usr/local/bin/aeronmd"]
+CMD ["cargo", "run"]

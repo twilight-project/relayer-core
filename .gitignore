@@ -40,3 +40,10 @@ rpckafka/id_ed*
 id_ed*
 certbot
 snapshot_storage
+relayer_snapshot
+src/pricefeederlib_old
+superveisorfile.txt
+foo.txt
+logs/relayer.err.log
+logs/relayer.out.log
+.env

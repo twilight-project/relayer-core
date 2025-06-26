@@ -24,9 +24,11 @@ lazy_static! {
         dotenv::dotenv().expect("Failed loading dotenv");
         // POSTGRESQL_URL
         let postgresql_url =
-            std::env::var("POSTGRESQL_URL").expect("missing environment variable POSTGRESQL_URL");
+            match std::env::var("POSTGRESQL_URL"){
+                Ok(db_connect_url)=>db_connect_url,
+                Err(_)=>"postgresql://postgres:postgres@localhost:5432/postgres".to_string()
+            };
         let manager = PostgresConnectionManager::new(
-            // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
             postgresql_url.parse().unwrap(),
             NoTls,
         );
@@ -36,7 +38,10 @@ lazy_static! {
         dotenv::dotenv().expect("Failed loading dotenv");
         // POSTGRESQL_URL
         let postgresql_url =
-            std::env::var("DATABASE_URL").expect("missing environment variable DATABASE_URL");
+        match std::env::var("DATABASE_URL"){
+            Ok(db_connect_url)=>db_connect_url,
+            Err(_)=>"postgresql://postgres:postgres@localhost:5432/postgres".to_string()
+        };
         let manager = PostgresConnectionManager::new(
             // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
             postgresql_url.parse().unwrap(),
@@ -65,7 +70,7 @@ lazy_static! {
     pub static ref REDIS_POOL_CONNECTION: r2d2::Pool<RedisConnectionManager> = {
         dotenv::dotenv().expect("Failed loading dotenv");
         let redis_host_name =
-        std::env::var("REDIS_HOSTNAME").expect("missing environment variable REDIS_HOSTNAME");
+        std::env::var("REDIS_HOSTNAME").unwrap_or("redis://default:foobared@localhost/0".to_string());
 
         // let config = Default::default();
         let manager = RedisConnectionManager::new(redis_host_name).unwrap();
@@ -90,7 +95,6 @@ lazy_static! {
     // local orderbook
     pub static ref LOCALDBSTRING: Mutex<HashMap<&'static str,String>> = Mutex::new(HashMap::new());
 
-
     // sync sender threadpool with buffer size = 1
     // using in candle data
     pub static ref THREADPOOL:Arc<Mutex<ThreadPool>> = Arc::new(Mutex::new(ThreadPool::new(2,String::from("THREADPOOL"))));
@@ -113,79 +117,72 @@ lazy_static! {
 
     pub static ref THREADPOOL_PRICE_CHECK_SETTLE_PENDING:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(1,String::from("THREADPOOL_PRICE_CHECK_SETTLE_PENDING")));
 
-    // removeorderfromredis
     pub static ref THREADPOOL_REDIS_ORDER_REMOVE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_REDIS_ORDER_REMOVE")));
 
     pub static ref THREADPOOL_EVENT_AND_SORTED_SET_UPDATE:Mutex<ThreadPool> = Mutex::new(ThreadPool::new(10,String::from("THREADPOOL_EVENT_AND_SORTED_SET_UPDATE")));
 
     pub static ref RELAYER_VERSION: String =
-    std::env::var("RelayerVersion").expect("missing environment variable RelayerVersion");
+    std::env::var("RelayerVersion").unwrap_or("1.0.0".to_string());
 
     pub static ref SNAPSHOT_VERSION: String =
-    std::env::var("SnapshotVersion").expect("missing environment variable SnapshotVersion");
+    std::env::var("SnapshotVersion").unwrap_or("1.0.0".to_string());
+    pub static ref EVENTLOG_VERSION: String =
+    std::env::var("EVENTLOG_VERSION").unwrap_or("1.0.0".to_string());
 
     pub static ref RPC_QUEUE_MODE: String =
-    std::env::var("RPC_QUEUE_MODE").expect("missing environment variable RPC_QUEUE_MODE");
-
+    std::env::var("RPC_QUEUE_MODE").unwrap_or("DIRECT".to_string());
 
     pub static ref RPC_SERVER_SOCKETADDR: String = std::env::var("RPC_SERVER_SOCKETADDR")
-    .expect("missing environment variable RPC_SERVER_SOCKETADDR");
+    .unwrap_or("0.0.0.0:3032".to_string());
 
     pub static ref RPC_SERVER_THREAD: usize = std::env::var("RPC_SERVER_THREAD")
-    .expect("missing environment variable RPC_SERVER_THREAD")
+    .unwrap_or("5".to_string())
     .parse::<usize>()
-    .unwrap();
+    .unwrap_or(5);
 
-    pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS")
-    .expect("missing environment variable KAFKA_STATUS");
+    pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS").unwrap_or("Enabled".to_string());
 
     pub static ref RPC_CLIENT_REQUEST: String = std::env::var("RPC_CLIENT_REQUEST")
-    .expect("missing environment variable RPC_CLIENT_REQUEST");
+    .unwrap_or("CLIENT-REQUEST".to_string());
 
     pub static ref CORE_EVENT_LOG: String = std::env::var("CORE_EVENT_LOG")
-    .expect("missing environment variable CORE_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
+    pub static ref RELAYER_STATE_QUEUE: String = std::env::var("RELAYER_STATE_QUEUE")
+    .unwrap_or("RelayerStateQueue".to_string());
 
     pub static ref TRADERORDER_EVENT_LOG: String = std::env::var("TRADERORDER_EVENT_LOG")
-    .expect("missing environment variable TRADERORDER_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
 
     pub static ref LENDORDER_EVENT_LOG: String = std::env::var("LENDORDER_EVENT_LOG")
-    .expect("missing environment variable LENDORDER_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
 
     pub static ref LENDPOOL_EVENT_LOG: String = std::env::var("LENDPOOL_EVENT_LOG")
-    .expect("missing environment variable LENDPOOL_EVENT_LOG");
+    .unwrap_or("CoreEventLogTopic".to_string());
     pub static ref SNAPSHOT_LOG: String = std::env::var("SNAPSHOT_LOG")
-    .expect("missing environment variable SNAPSHOT_LOG");
-    pub static ref ZKOS_TRANSACTION_RPC_ENDPOINT: String = std::env::var("ZKOS_TRANSACTION_RPC_ENDPOINT")
-    .expect("missing environment variable ZKOS_TRANSACTION_RPC_ENDPOINT");
+    .unwrap_or("SnapShotLogTopic".to_string());
 
-
-    pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<zkvm::zkos_types::Output>>> =
+    pub static ref OUTPUT_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>>> =
     Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
-        zkvm::zkos_types::Output,
-    >::new(1)));
-
-    pub static ref TXHASH_STORAGE: Arc<Mutex<utxo_in_memory::db::LocalStorage::<String>>> =
-    Arc::new(Mutex::new(utxo_in_memory::db::LocalStorage::<
-        String
+        Option<zkvm::zkos_types::Output>,
     >::new(1)));
 
     pub static ref WALLET_PROGRAM_PATH: String =
-    std::env::var("WALLET_PROGRAM_PATH").expect("missing environment variable WALLET_PROGRAM_PATH");
+    std::env::var("WALLET_PROGRAM_PATH").unwrap_or("./relayerprogram.json".to_string());
     pub static ref RELAYER_SNAPSHOT_FILE_LOCATION: String =
-    std::env::var("RELAYER_SNAPSHOT_FILE_LOCATION").expect("missing environment variable RELAYER_SNAPSHOT_FILE_LOCATION");
+    std::env::var("RELAYER_SNAPSHOT_FILE_LOCATION").unwrap_or("/usr/bin/relayer_snapshot/snapshot-version".to_string());
 
     // for enabling chain transaction
     pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION")
-    .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION")
+    .unwrap_or("true".to_string())
     .parse::<bool>()
-    .unwrap();
+    .unwrap_or(true);
     // for enabling chain transaction file save
     pub static ref ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE: bool = std::env::var("ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE")
-    .expect("missing environment variable ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE")
+    .unwrap_or("true".to_string())
     .parse::<bool>()
-    .unwrap();
+    .unwrap_or(true);
 
-
+    pub static ref IS_RELAYER_ACTIVE:Mutex<bool> = Mutex::new(true);
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct
@@ -195,9 +192,6 @@ lazy_static! {
 ///  ### BinanceMiniTickerPayload Struct
 /// ```rust,no_run
 ///
-/// use r2d2_postgres::postgres::NoTls;
-/// use r2d2_postgres::PostgresConnectionManager;
-/// use r2d2_redis::RedisConnectionManager;
 /// use serde_derive::Deserialize;
 /// use serde_derive::Serialize;
 /// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -245,11 +239,84 @@ pub struct BinanceMiniTickerPayload {
     pub q: String, // Total traded quote asset volume
 }
 
-pub fn init_output_txhash_storage() {
-    let mut output_storage = OUTPUT_STORAGE.lock().unwrap();
-    let _ = output_storage.load_from_snapshot();
-    drop(output_storage);
-    let mut txhash_storage = TXHASH_STORAGE.lock().unwrap();
-    let _ = txhash_storage.load_from_snapshot();
-    drop(txhash_storage);
+/// Binance Individual Symbol aggTicker Stream Payload Struct
+///
+/// https://binance-docs.github.io/apidocs/spot/en/#individual-symbol-mini-ticker-stream
+/// wss://stream.binance.com/ws/btcusdt@aggTrade
+///  ### BinanceAggTradePayload Struct
+/// ```rust,no_run
+///
+/// use serde_derive::Deserialize;
+/// use serde_derive::Serialize;
+/// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// #[serde(rename_all = "camelCase")]
+/// pub struct BinanceAggTradePayload {
+///     #[serde(rename = "e")]
+///     pub event_type: String,
+///     #[serde(rename = "E")]
+///     pub event_time: i64,
+///     #[serde(rename = "s")]
+///     pub symbol: String,
+///     #[serde(rename = "a")]
+///     pub agg_trade_id: i64,
+///     #[serde(rename = "p")]
+///     pub price: String,
+///     #[serde(rename = "q")]
+///     pub quantity: String,
+///     #[serde(rename = "f")]
+///     pub first_trade_id: i64,
+///     #[serde(rename = "l")]
+///     pub last_trade_id: i64,
+///     #[serde(rename = "t")]
+///     pub trade_time: i64,
+///     #[serde(rename = "m")]
+///     pub is_market_maker: bool,
+///     #[serde(rename = "M")]
+///     pub ignore: bool,
+/// }
+
+/// ```
+///
+/// ### Example Payload
+/// ```json
+/// {
+///     "e": "aggTrade",  // Event type
+///     "E": 1672515782136,   // Event time
+///     "s": "BNBBTC",    // Symbol
+///     "a": 12345,       // Aggregate trade ID
+///     "p": "0.001",     // Price
+///     "q": "100",       // Quantity
+///     "f": 100,         // First trade ID
+///     "l": 105,         // Last trade ID
+///     "T": 1672515782136,   // Trade time
+///     "m": true,        // Is the buyer the market maker?
+///     "M": true         // Ignore
+///   }
+/// ```
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BinanceAggTradePayload {
+    #[serde(rename = "e")]
+    pub event_type: String,
+    #[serde(rename = "E")]
+    pub event_time: i64,
+    #[serde(rename = "s")]
+    pub symbol: String,
+    #[serde(rename = "a")]
+    pub agg_trade_id: i64,
+    #[serde(rename = "p")]
+    pub price: String,
+    #[serde(rename = "q")]
+    pub quantity: String,
+    #[serde(rename = "f")]
+    pub first_trade_id: i64,
+    #[serde(rename = "l")]
+    pub last_trade_id: i64,
+    #[serde(rename = "T")]
+    pub trade_time: i64,
+    #[serde(rename = "m")]
+    pub is_market_maker: bool,
+    #[serde(rename = "M")]
+    pub ignore: bool,
 }

@@ -8,6 +8,7 @@ use curve25519_dalek::scalar::Scalar;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
+use relayerwalletlib::zkoswalletlib::relayer_rpcclient::method::RequestResponse;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
@@ -48,7 +49,7 @@ pub enum LendPoolCommand {
     AddTraderOrderSettlement(RpcCommand, TraderOrder, Payment, Output),
     AddTraderLimitOrderSettlement(RelayerCommand, TraderOrder, Payment, Output),
     AddFundingData(TraderOrder, Payment),
-    AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment),
+    AddTraderOrderLiquidation(RelayerCommand, TraderOrder, Payment, Output),
     LendOrderCreateOrder(RpcCommand, LendOrder, Deposit, Output),
     LendOrderSettleOrder(RpcCommand, LendOrder, Withdraw, Output),
     BatchExecuteTraderOrder(RelayerCommand),
@@ -88,9 +89,9 @@ impl LendPool {
         }
     }
     pub fn new() -> Self {
-        let mut tlv_init: f64 = 20048547734.0;
-        let mut tps_init: f64 = 2000000.0;
-        let mut nonce_init = 8;
+        let mut tlv_init: f64 = 10000000000.0;
+        let mut tps_init: f64 = 1000000.0;
+        let mut nonce_init = 1;
         let (nonce, tlv_witness, _, tps_witness, _) =
             match get_state_info_from_output_hex(last_state_output_string()) {
                 Ok((nonce, tlv_witness, _tlv_blinding, tps_witness, _tps_blinding)) => (
@@ -112,7 +113,7 @@ impl LendPool {
         tps_init = tps_witness as f64;
         tlv_init = (tlv_witness as f64) / 100000000.0;
         let last_output_state = last_state_output_fixed();
-        let aggrigate_log_sequence_init = 9;
+        let aggrigate_log_sequence_init = 1;
         let relayer_initial_lend_order = LendOrder {
             uuid: Uuid::new_v4(),
             account_id: last_output_state
@@ -161,18 +162,23 @@ impl LendPool {
                     );
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(
-                            SystemTime::now()
-                                .duration_since(SystemTime::UNIX_EPOCH)
-                                .unwrap()
-                                .as_micros()
-                                .to_string(),
-                        ),
+                        Some(ServerTime::now().epoch),
                     );
                     hashmap
                 },
             },
             last_state_output_string(),
+            RequestResponse::new(
+                "Relayer_default_pool".to_string(),
+                last_output_state
+                    .clone()
+                    .as_output_data()
+                    .get_owner_address()
+                    .clone()
+                    .unwrap()
+                    .clone(),
+            )
+            .get_id(),
         );
         lendorder_db.add(relayer_initial_lend_order.clone(), rpc_request);
         drop(lendorder_db);
@@ -185,13 +191,7 @@ impl LendPool {
         );
         metadata.insert(
             String::from("Pool_Initiate_time"),
-            Some(
-                SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_micros()
-                    .to_string(),
-            ),
+            Some(ServerTime::now().epoch),
         );
 
         let relayer_command = LendPoolCommand::InitiateNewPool(
@@ -229,11 +229,7 @@ impl LendPool {
         // fn load_data() -> (bool, Self) {
         let mut database: LendPool = LendPool::default();
 
-        let time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_micros()
-            .to_string();
+        let time = ServerTime::now().epoch;
         let eventstop: Event = Event::Stop(time.clone());
         Event::send_event_to_kafka_queue(
             eventstop.clone(),
@@ -242,13 +238,11 @@ impl LendPool {
         );
         let mut stop_signal: bool = true;
 
-        let recever = Event::receive_event_from_kafka_queue(
+        let (recever, tx_consumed) = Event::receive_event_for_snapshot_from_kafka_queue(
             LENDPOOL_EVENT_LOG.clone().to_string(),
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_micros()
-                .to_string(),
+            ServerTime::now().epoch,
+            FetchOffset::Earliest,
+            "lendpool kafka thread",
         )
         .unwrap();
         let recever1 = recever.lock().unwrap();
@@ -327,6 +321,10 @@ impl LendPool {
                     }
                 }
                 _ => {}
+            }
+            match tx_consumed.send((data.partition, data.offset)) {
+                Ok(_) => {}
+                Err(_) => {}
             }
         }
         if database.total_locked_value > 0.0 {
@@ -411,9 +409,14 @@ impl LendPool {
                 ));
             }
 
-            LendPoolCommand::AddTraderOrderLiquidation(_relayer_command, trader_order, payment) => {
+            LendPoolCommand::AddTraderOrderLiquidation(
+                _relayer_command,
+                trader_order,
+                payment,
+                _next_output_state,
+            ) => {
                 self.pending_orders.len += 1;
-                self.pending_orders.amount -= payment;
+                self.pending_orders.amount += payment;
                 self.aggrigate_log_sequence += 1;
                 self.pending_orders
                     .trader_order_data
@@ -534,7 +537,7 @@ impl LendPool {
                         self.nonce += 1;
                         self.aggrigate_log_sequence += 1;
 
-                        self.total_locked_value -= (batch.amount).round();
+                        self.total_locked_value -= batch.amount.round();
 
                         let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                         for cmd in batch.trader_order_data {
@@ -550,15 +553,6 @@ impl LendPool {
                                     order.exit_nonce = self.nonce;
                                     let _ = trader_order_db.remove(order.clone(), rpc_cmd.clone());
 
-                                    println!("I am at lendpool line 568");
-                                    println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
-
-                                    // zkos_order_handler(ZkosTxCommand::ExecuteTraderOrderTX(
-                                    //     order,
-                                    //     rpc_cmd,
-                                    //     self.last_output_state.clone(),
-                                    //     next_output_state.clone(),
-                                    // ));
                                     self.last_output_state = next_output_state.clone();
                                 }
                                 LendPoolCommand::AddTraderLimitOrderSettlement(
@@ -580,9 +574,6 @@ impl LendPool {
                                                 current_price,
                                             );
 
-                                        println!("I am at lendpool line 628");
-                                        println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
-
                                         self.last_output_state = next_output_state.clone();
                                         let _ = trader_order_db
                                             .remove(order.clone(), dummy_rpccommand.clone());
@@ -593,31 +584,30 @@ impl LendPool {
                                     relayer_cmd,
                                     mut order,
                                     _payment,
+                                    next_output_state,
                                 ) => {
                                     order.exit_nonce = self.nonce;
 
-                                    let next_output_state =
-                                        create_output_state_for_trade_lend_order(
-                                            self.nonce as u32,
-                                            self.last_output_state
-                                                .clone()
-                                                .as_output_data()
-                                                .get_script_address()
-                                                .unwrap()
-                                                .clone(),
-                                            self.last_output_state
-                                                .clone()
-                                                .as_output_data()
-                                                .get_owner_address()
-                                                .clone()
-                                                .unwrap()
-                                                .clone(),
-                                            self.total_locked_value.round() as u64,
-                                            self.total_pool_share.round() as u64,
-                                            0,
-                                        );
-                                    println!("I am at lendpool line 671");
-                                    println!("self.total_locked_value :{:?}, \n self.total_locked_value.round() : {:?} \n self.total_pool_share : {:?} \n self.total_pool_share.round() : {:?}",self.total_locked_value,self.total_locked_value.round() as u64,self.total_pool_share,self.total_pool_share.round() as u64);
+                                    // let next_output_state =
+                                    //     create_output_state_for_trade_lend_order(
+                                    //         self.nonce as u32,
+                                    //         self.last_output_state
+                                    //             .clone()
+                                    //             .as_output_data()
+                                    //             .get_script_address()
+                                    //             .unwrap()
+                                    //             .clone(),
+                                    //         self.last_output_state
+                                    //             .clone()
+                                    //             .as_output_data()
+                                    //             .get_owner_address()
+                                    //             .clone()
+                                    //             .unwrap()
+                                    //             .clone(),
+                                    //         self.total_locked_value.round() as u64,
+                                    //         self.total_pool_share.round() as u64,
+                                    //         0,
+                                    //     );
 
                                     self.last_output_state = next_output_state.clone();
                                     let _ = trader_order_db.liquidate(order.clone(), relayer_cmd);
@@ -626,7 +616,8 @@ impl LendPool {
                             }
                         }
                         drop(trader_order_db);
-                        self.pending_orders.trader_order_data = Vec::new();
+                        // self.pending_orders.trader_order_data = Vec::new();
+                        self.pending_orders = PoolBatchOrder::new();
                         Event::new(
                             Event::PoolUpdate(
                                 command_clone,
@@ -636,7 +627,6 @@ impl LendPool {
                             String::from(format!("RpcCommandPoolupdate-nonce-{}", self.nonce)),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
-                        self.pending_orders = PoolBatchOrder::new();
                     }
                 }
                 _ => {}

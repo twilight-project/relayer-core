@@ -43,13 +43,13 @@ pub fn initprice() {
     }
 
     let mut local_storage = LOCALDB.lock().unwrap();
-    if local_storage.contains_key("CurrentPrice") == false {
-        local_storage.insert("CurrentPrice", 18000.0);
-    }
-    if local_storage.contains_key("Latest_Price") == false {
-        let current_price = local_storage.get("CurrentPrice").unwrap().clone();
-        local_storage.insert("Latest_Price", current_price);
-    }
+    // if local_storage.contains_key("CurrentPrice") == false {
+    //     local_storage.insert("CurrentPrice", 18000.0);
+    // }
+    // if local_storage.contains_key("Latest_Price") == false {
+    //     let current_price = local_storage.get("CurrentPrice").unwrap().clone();
+    //     local_storage.insert("Latest_Price", current_price);
+    // }
     if local_storage.contains_key("FundingRate") == false {
         local_storage.insert("FundingRate", 0.0);
     }

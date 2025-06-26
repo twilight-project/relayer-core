@@ -59,7 +59,7 @@ impl TraderOrder {
         let order_type = rpc_request.order_type;
         let leverage = rpc_request.leverage;
         let initial_margin = rpc_request.initial_margin;
-        let available_margin = rpc_request.available_margin;
+        let available_margin = rpc_request.initial_margin;
         let mut order_status = rpc_request.order_status;
         let mut entryprice = rpc_request.entryprice;
         let execution_price = rpc_request.execution_price;
@@ -208,16 +208,16 @@ impl TraderOrder {
             // );
 
             // adding candle data
-            let side = match ordertx.position_type {
-                PositionType::SHORT => Side::SELL,
-                PositionType::LONG => Side::BUY,
-            };
-            update_recent_orders(CloseTrade {
-                side: side,
-                positionsize: ordertx.positionsize,
-                price: ordertx.entryprice,
-                timestamp: std::time::SystemTime::now(),
-            });
+            // let side = match ordertx.position_type {
+            //     PositionType::SHORT => Side::SELL,
+            //     PositionType::LONG => Side::BUY,
+            // };
+            // update_recent_orders(CloseTrade {
+            //     side: side,
+            //     positionsize: ordertx.positionsize,
+            //     price: ordertx.entryprice,
+            //     timestamp: std::time::SystemTime::now(),
+            // });
             //
         } else {
             match ordertx.position_type {
@@ -370,13 +370,14 @@ impl TraderOrder {
             self.entryprice,
             current_price,
         );
-        println!(
-            "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
-            u_pnl,
-            u_pnl.round(),
-            margindifference,
-            margindifference.round()
-        );
+        //calculate fee by AM*leverage*fee = fee deducted from payment
+        // println!(
+        //     "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
+        //     u_pnl,
+        //     u_pnl.round(),
+        //     margindifference,
+        //     margindifference.round()
+        // );
         let payment = u_pnl.round() + margindifference.round();
         self.order_status = OrderStatus::SETTLED;
         self.available_margin = self.initial_margin + payment;
@@ -411,16 +412,16 @@ impl TraderOrder {
         // );
 
         // adding candle data
-        let side = match ordertx.position_type {
-            PositionType::SHORT => Side::BUY,
-            PositionType::LONG => Side::SELL,
-        };
-        update_recent_orders(CloseTrade {
-            side: side,
-            positionsize: ordertx.positionsize,
-            price: ordertx.entryprice,
-            timestamp: std::time::SystemTime::now(),
-        });
+        // let side = match ordertx.position_type {
+        //     PositionType::SHORT => Side::BUY,
+        //     PositionType::LONG => Side::SELL,
+        // };
+        // update_recent_orders(CloseTrade {
+        //     side: side,
+        //     positionsize: ordertx.positionsize,
+        //     price: ordertx.entryprice,
+        //     timestamp: std::time::SystemTime::now(),
+        // });
     }
     pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
@@ -479,16 +480,16 @@ impl TraderOrder {
         // adding candle data
         // PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
 
-        let side = match ordertx.position_type {
-            PositionType::SHORT => Side::BUY,
-            PositionType::LONG => Side::SELL,
-        };
-        update_recent_orders(CloseTrade {
-            side: side,
-            positionsize: ordertx.positionsize,
-            price: ordertx.entryprice,
-            timestamp: std::time::SystemTime::now(),
-        });
+        // let side = match ordertx.position_type {
+        //     PositionType::SHORT => Side::BUY,
+        //     PositionType::LONG => Side::SELL,
+        // };
+        // update_recent_orders(CloseTrade {
+        //     side: side,
+        //     positionsize: ordertx.positionsize,
+        //     price: ordertx.entryprice,
+        //     timestamp: std::time::SystemTime::now(),
+        // });
         -self.initial_margin.clone()
     }
 
@@ -575,5 +576,12 @@ impl TraderOrder {
     pub fn deserialize(json: &String) -> Self {
         let deserialized: TraderOrder = serde_json::from_str(json).unwrap();
         deserialized
+    }
+
+    pub fn uuid_to_byte(&self) -> Vec<u8> {
+        match bincode::serialize(&self.uuid) {
+            Ok(uuid_v_u8) => uuid_v_u8,
+            Err(_) => Vec::new(),
+        }
     }
 }

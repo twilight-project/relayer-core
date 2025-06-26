@@ -143,7 +143,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     "Order not found",
-                ))
+                ));
             }
         }
     }
@@ -174,7 +174,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::NotFound,
                         "Order not found",
-                    ))
+                    ));
                 }
             }
         } else {
@@ -203,7 +203,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     "Order not found",
-                ))
+                ));
             }
         }
     }
@@ -215,7 +215,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     format!("Order {} not found", &id),
-                ))
+                ));
             }
         }
     }
@@ -303,7 +303,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Order not found",
-                ))
+                ));
             }
         }
     }
@@ -315,7 +315,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Order not found",
-                ))
+                ));
             }
         }
     }
@@ -360,7 +360,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::Other,
                     "Order not found",
-                ))
+                ));
             }
         }
     }

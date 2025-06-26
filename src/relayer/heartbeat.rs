@@ -1,37 +1,81 @@
 use crate::config::*;
 use crate::db::*;
-use crate::ordertest;
+// use crate::ordertest;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
-use crate::redislib::redis_db;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
+use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 use std::collections::HashMap;
 use std::sync::{mpsc, Arc, RwLock};
 use std::{thread, time};
+use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
-
 pub fn heartbeat() {
-    dotenv::dotenv().expect("Failed loading dotenv");
-    //load previous database
-
-    // let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
-    // let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
-    // let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-    // let (data1, data2, data3): (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) =
-    //     load_backup_data();
-    // *load_trader_data = data1;
-    // *load_lend_data = data2;
-    // *load_pool_data = data3;
-    // drop(load_trader_data);
-    // drop(load_lend_data);
-    // drop(load_pool_data);
-    init_psql();
+    dotenv::dotenv().ok();
+    // init_psql();
     println!("Looking for previous database...");
-    load_from_snapshot();
-    ordertest::initprice();
-    init_output_txhash_storage();
+    match load_from_snapshot() {
+        Ok(mut queue_manager) => {
+            load_relayer_latest_state();
+            queue_manager.process_queue();
+        }
+        Err(arg) => {
+            println!("Unable to start Relayer \n :Error:{:?}", arg);
+
+            std::process::exit(0);
+        }
+    }
 
     thread::sleep(time::Duration::from_millis(100));
+
+    thread::Builder::new()
+        .name(String::from("BTC Binance Websocket Connection"))
+        .spawn(move || {
+            // Create a tokio runtime for the async function
+            let mut rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                if let Err(e) = receive_btc_price().await {
+                    eprintln!("BTC price feeder error: {}", e);
+                }
+            });
+        })
+        .unwrap();
+    thread::sleep(time::Duration::from_millis(500));
+    let mut true_price = true;
+    //get_localdb with single mutex unlock
+    while true_price {
+        let mut local_storage = LOCALDB.lock().unwrap();
+        let currentprice = match local_storage.get("Latest_Price") {
+            Some(price) => {
+                true_price = false;
+                price.clone()
+            }
+            None => {
+                thread::sleep(time::Duration::from_millis(50));
+                continue;
+            }
+        };
+        let old_price = match local_storage.get("CurrentPrice") {
+            Some(price) => price.clone(),
+            None => {
+                local_storage.insert("CurrentPrice", currentprice);
+                currentprice.clone()
+            }
+        };
+        drop(local_storage);
+    }
+
+    thread::Builder::new()
+        .name(String::from("price_check_and_update"))
+        .spawn(move || loop {
+            thread::sleep(time::Duration::from_millis(1000));
+            thread::spawn(move || {
+                price_check_and_update();
+            });
+        })
+        .unwrap();
+    thread::sleep(time::Duration::from_millis(100));
+    // ordertest::initprice();
     // start_cronjobs();
     // main thread for scheduler
     thread::Builder::new()
@@ -42,29 +86,21 @@ pub fn heartbeat() {
             // funding update every 1 hour //comments for local test
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every(1.hour()).run(move || {
-                updatefundingrate_localdb(1.0);
+                if get_relayer_status() {
+                    updatefundingrate_localdb(1.0);
+                }
             });
             // scheduler.every(1.seconds()).run(move || {
             //     relayer_event_handler(RelayerCommand::RpcCommandPoolupdate());
             // });
-            scheduler.every(75.minute()).run(move || {
-                // let _ = snapshot();
+            scheduler.every(15.minute()).run(move || {
+                let _ = snapshot();
             });
 
-            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(100));
+            let thread_handle = scheduler.watch_thread(time::Duration::from_millis(1000));
             loop {
                 thread::sleep(time::Duration::from_millis(100000000));
             }
-        })
-        .unwrap();
-
-    thread::Builder::new()
-        .name(String::from("price_check_and_update"))
-        .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(250));
-            thread::spawn(move || {
-                price_check_and_update();
-            });
         })
         .unwrap();
 
@@ -76,14 +112,6 @@ pub fn heartbeat() {
         .unwrap();
 
     thread::Builder::new()
-        .name(String::from("BTC Binance Websocket Connection"))
-        .spawn(move || {
-            // thread::sleep(time::Duration::from_millis(1000));
-            receive_btc_price();
-        })
-        .unwrap();
-
-    thread::Builder::new()
         .name(String::from("client_cmd_receiver"))
         .spawn(move || {
             thread::sleep(time::Duration::from_millis(10000));
@@ -91,7 +119,7 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    QueueResolver::new(String::from("questdb_queue"));
+    // QueueResolver::new(String::from("questdb_queue"));
     println!("Initialization done..................................");
 }
 
@@ -100,19 +128,22 @@ pub fn price_check_and_update() {
 
     //get_localdb with single mutex unlock
     let local_storage = LOCALDB.lock().unwrap();
-    let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
-    let old_price = local_storage.get("CurrentPrice").unwrap().clone();
+    // let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
+    let mut currentprice = match local_storage.get("Latest_Price") {
+        Some(price) => price.clone(),
+        None => return,
+    };
     drop(local_storage);
-
-    if currentprice != old_price {
+    if get_relayer_status() {
         Event::new(
             Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
             String::from("insert_CurrentPrice"),
             TRADERORDER_EVENT_LOG.clone().to_string(),
         );
-        set_localdb("CurrentPrice", currentprice);
-        redis_db::set("CurrentPrice", &currentprice.clone().to_string());
+
         currentprice = currentprice.round();
+        set_localdb("CurrentPrice", currentprice);
+        // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
         treadpool_pending_order.execute(move || {
             check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
@@ -165,23 +196,17 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        println!(
-            "long:{:#?},\n Short:{:#?}",
-            orderid_list_long, orderid_list_short
-        );
+        // println!(
+        //     "long:{:#?},\n Short:{:#?}",
+        //     orderid_list_long, orderid_list_short
+        // );
 
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
                 hashmap.insert(
                     String::from("request_server_time"),
-                    Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros()
-                            .to_string(),
-                    ),
+                    Some(ServerTime::now().epoch),
                 );
                 hashmap.insert(
                     String::from("CurrentPrice"),
@@ -237,23 +262,17 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        println!(
-            "long:{:#?},\n Short:{:#?}",
-            orderid_list_long, orderid_list_short
-        );
+        // println!(
+        //     "long:{:#?},\n Short:{:#?}",
+        //     orderid_list_long, orderid_list_short
+        // );
 
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
                 hashmap.insert(
                     String::from("request_server_time"),
-                    Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros()
-                            .to_string(),
-                    ),
+                    Some(ServerTime::now().epoch),
                 );
                 hashmap.insert(
                     String::from("CurrentPrice"),
@@ -308,23 +327,17 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        println!(
-            "long:{:#?},\n Short:{:#?}",
-            orderid_list_long, orderid_list_short
-        );
+        // println!(
+        //     "long:{:#?},\n Short:{:#?}",
+        //     orderid_list_long, orderid_list_short
+        // );
 
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
                 hashmap.insert(
                     String::from("request_server_time"),
-                    Some(
-                        std::time::SystemTime::now()
-                            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_micros()
-                            .to_string(),
-                    ),
+                    Some(ServerTime::now().epoch),
                 );
                 hashmap.insert(
                     String::from("CurrentPrice"),
@@ -438,7 +451,7 @@ pub fn fundingcycle(
                 );
             });
         }
-        println!("funding test 1");
+        // println!("funding test 1");
         for _i in 0..length {
             let (funding_payment, order, (uuid, price, position_type)) = recv.recv().unwrap();
             if funding_payment != 0.0 {
@@ -461,10 +474,10 @@ pub fn fundingcycle(
         let _ = liquidation_list_short.update_bulk(liquidity_update_short);
         drop(liquidation_list_short);
 
-        println!(
-            "funding complete, poolbatch amount: {:#?}",
-            poolbatch.amount
-        );
+        // println!(
+        //     "funding complete, poolbatch amount: {:#?}",
+        //     poolbatch.amount
+        // );
         relayer_event_handler(RelayerCommand::FundingCycle(
             poolbatch,
             metadata,
@@ -511,42 +524,108 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             //call liquidation
             let payment = ordertx.liquidate(current_price);
             ordertx.order_status = OrderStatus::LIQUIDATE;
-            let db_pool = THREADPOOL_EVENT_AND_SORTED_SET_UPDATE.lock().unwrap();
-            let ordertx_clone = ordertx.clone();
-            db_pool.execute(move || {
-                let mut lendpool = LEND_POOL_DB.lock().unwrap();
-                lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
-                    RelayerCommand::FundingCycleLiquidation(
-                        vec![ordertx_clone.uuid.clone()],
-                        meta.clone(),
-                        current_price,
-                    ),
-                    ordertx_clone.clone(),
-                    payment,
-                ));
-                drop(lendpool);
-                match ordertx_clone.position_type {
-                    PositionType::LONG => {
-                        let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
-                        let _ = add_to_liquidation_list.remove(ordertx_clone.uuid);
-                        drop(add_to_liquidation_list);
+
+            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+            let uuid_to_byte = match bincode::serialize(&ordertx.uuid.clone()) {
+                Ok(uuid_v_u8) => uuid_v_u8,
+                Err(_) => Vec::new(),
+            };
+            let output_option = match output_hex_storage.get_utxo_by_id(uuid_to_byte, 0) {
+                Ok(output) => output,
+                Err(_) => None,
+            };
+
+            drop(output_hex_storage);
+
+            let mut lendpool = LEND_POOL_DB.lock().unwrap();
+
+            let next_output_state = create_output_state_for_trade_lend_order(
+                (lendpool.nonce + 1) as u32,
+                lendpool
+                    .last_output_state
+                    .clone()
+                    .as_output_data()
+                    .get_script_address()
+                    .unwrap()
+                    .clone(),
+                lendpool
+                    .last_output_state
+                    .clone()
+                    .as_output_data()
+                    .get_owner_address()
+                    .clone()
+                    .unwrap()
+                    .clone(),
+                (lendpool.total_locked_value.round() - payment.round()) as u64,
+                lendpool.total_pool_share.round() as u64,
+                0,
+            );
+            let (sender, zkos_receiver) = mpsc::channel();
+            zkos_order_handler(
+                ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
+                    ordertx.clone(),
+                    output_option,
+                    lendpool.last_output_state.clone(),
+                    next_output_state.clone(),
+                ),
+                sender,
+            );
+
+            // let zkos_receiver = chain_result_receiver.lock().unwrap();
+
+            match zkos_receiver.recv() {
+                Ok(chain_message) => match chain_message {
+                    Ok(tx_hash) => {
+                        //remove position size
+                        PositionSizeLog::remove_order(
+                            ordertx.position_type.clone(),
+                            ordertx.positionsize.clone(),
+                        );
+                        //remove liquidation price from liqudation set
+                        match ordertx.position_type {
+                            PositionType::LONG => {
+                                let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
+                                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                                drop(add_to_liquidation_list);
+                            }
+                            PositionType::SHORT => {
+                                let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
+                                let _ = add_to_liquidation_list.remove(ordertx.uuid);
+                                drop(add_to_liquidation_list);
+                            }
+                        }
+
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
+                                ordertx.uuid.clone(),
+                                ordertx.position_type.clone(),
+                            )),
+                            format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+
+                        lendpool.add_transaction(LendPoolCommand::AddTraderOrderLiquidation(
+                            RelayerCommand::PriceTickerLiquidation(
+                                vec![ordertx.uuid.clone()],
+                                meta,
+                                current_price,
+                            ),
+                            ordertx.clone(),
+                            payment,
+                            next_output_state,
+                        ));
+                        // println!("dropping mutex LEND_POOL_DB");
                     }
-                    PositionType::SHORT => {
-                        let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
-                        let _ = add_to_liquidation_list.remove(ordertx_clone.uuid);
-                        drop(add_to_liquidation_list);
+                    Err(verification_error) => {
+                        println!("Error in line heartbeat.rs 607 : {:?}", verification_error);
                     }
+                },
+                Err(arg) => {
+                    println!("Error in line heartbeat.rs 612 : {:?}", arg);
                 }
-                Event::new(
-                    Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
-                        ordertx_clone.uuid.clone(),
-                        ordertx_clone.position_type.clone(),
-                    )),
-                    format!("RemoveLiquidationPrice-{}", ordertx_clone.uuid.clone()),
-                    CORE_EVENT_LOG.clone().to_string(),
-                );
-            });
-            drop(db_pool);
+            }
+
+            drop(lendpool);
         } else {
             ordertx.liquidation_price = liquidationprice(
                 ordertx.entryprice,

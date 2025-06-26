@@ -21,6 +21,7 @@ pub struct TestLocaldb {
     pub orderid: Uuid,
     pub price: f64,
     pub key: i64,
+    pub relayer_status: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
