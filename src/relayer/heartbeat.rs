@@ -129,7 +129,7 @@ pub fn price_check_and_update() {
     //get_localdb with single mutex unlock
     let local_storage = LOCALDB.lock().unwrap();
     // let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
-    let mut currentprice = match local_storage.get("Latest_Price") {
+    let mut currentprice = match local_storage.get(&String::from("Latest_Price")) {
         Some(price) => price.clone(),
         None => return,
     };
@@ -361,8 +361,8 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
 
 pub fn updatefundingrate_localdb(psi: f64) {
     let current_time = std::time::SystemTime::now();
-    let current_price = get_localdb("CurrentPrice");
-    let fee = get_localdb("Fee");
+    let current_price = get_localdb(&String::from("CurrentPrice"));
+    let fee = 0.0;
     let position_size_log = POSITION_SIZE_LOG.lock().unwrap();
     let totalshort = position_size_log.total_short_positionsize.clone();
     let totallong = position_size_log.total_long_positionsize.clone();
@@ -407,7 +407,14 @@ pub fn updatefundingrate_localdb(psi: f64) {
                 Some(current_price.to_string()),
             );
             hashmap.insert(String::from("FundingRate"), Some(fundingrate.to_string()));
-            hashmap.insert(String::from("Fee"), Some(fee.to_string()));
+            hashmap.insert(
+                String::from("FilledOnMarket"),
+                Some(get_fee(FeeType::FilledOnMarket).to_string()),
+            );
+            hashmap.insert(
+                String::from("FilledOnLimit"),
+                Some(get_fee(FeeType::FilledOnLimit).to_string()),
+            );
             hashmap
         },
     };
@@ -491,7 +498,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
     order: Arc<RwLock<TraderOrder>>,
     fundingratechange: f64,
     current_price: f64,
-    fee: f64,
+    mut fee: f64,
     meta: Meta,
     sender: mpsc::Sender<(f64, TraderOrder, (Uuid, i64, PositionType))>,
 ) {
@@ -510,6 +517,11 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
 
         if ordertx.available_margin < 0.0 {
             ordertx.available_margin = 0.0;
+        }
+        if ordertx.order_type == OrderType::MARKET {
+            fee = get_fee(FeeType::FilledOnMarket);
+        } else if ordertx.order_type == OrderType::LIMIT {
+            fee = get_fee(FeeType::FilledOnLimit);
         }
         // update maintenancemargin
         ordertx.maintenance_margin = maintenancemargin(

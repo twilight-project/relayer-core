@@ -1244,7 +1244,8 @@ pub fn zkos_order_handler(
                                             let updated_tx_result = update_memo_tx_client_order(
                                                 &tx,
                                                 trader_order.entryprice.round() as u64,
-                                                trader_order.positionsize.round() as u64
+                                                trader_order.positionsize.round() as u64,
+                                                trader_order.fee_filled.round() as u64
                                             );
 
                                             match updated_tx_result {
@@ -1898,7 +1899,8 @@ pub fn zkos_order_handler(
                                             let updated_tx_result = update_memo_tx_client_order(
                                                 &tx,
                                                 trader_order.entryprice.round() as u64,
-                                                trader_order.positionsize.round() as u64
+                                                trader_order.positionsize.round() as u64,
+                                                trader_order.fee_filled.round() as u64
                                             );
                                             match updated_tx_result {
                                                 Ok(tx_and_outputmemo) => {

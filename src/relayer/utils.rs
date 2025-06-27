@@ -165,7 +165,11 @@ pub fn set_fee(key: FeeType, value: f64) {
 }
 
 pub fn calculate_fee_on_open_order(fee_persentage: f64, positionsize: f64, price: f64) -> f64 {
-    (fee_persentage / 100.0) * positionsize / price
+    let fee = (fee_persentage / 100.0) * positionsize / price;
+    if fee < 1.0 {
+        return 1.0;
+    }
+    fee
 }
 
 #[cfg(test)]
