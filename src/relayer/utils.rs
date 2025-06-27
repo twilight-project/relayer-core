@@ -153,9 +153,9 @@ where
 
 pub fn get_fee(key: FeeType) -> f64 {
     let local_storage = LOCALDB.lock().unwrap();
-    let price = local_storage.get::<String>(&key.into()).unwrap().clone();
+    let fee = local_storage.get::<String>(&key.into()).unwrap().clone();
     drop(local_storage);
-    price.round()
+    fee
 }
 
 pub fn set_fee(key: FeeType, value: f64) {
@@ -166,4 +166,49 @@ pub fn set_fee(key: FeeType, value: f64) {
 
 pub fn calculate_fee_on_open_order(fee_persentage: f64, positionsize: f64, price: f64) -> f64 {
     (fee_persentage / 100.0) * positionsize / price
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::env;
+    use std::sync::Mutex;
+
+    lazy_static! {
+        static ref LOCALDB: Mutex<HashMap<String, f64>> = Mutex::new(HashMap::new());
+    }
+
+    #[test]
+    fn test_fee_operations() {
+        // Load environment variables from .env file
+        dotenv::from_path(".env").ok();
+
+        // Retrieve fee values from environment variables
+        let market_fee: f64 = env::var("FILLED_ON_MARKET")
+            .expect("FILLED_ON_MARKET not set in .env")
+            .parse()
+            .expect("Invalid value for FILLED_ON_MARKET");
+        let limit_fee: f64 = env::var("FILLED_ON_LIMIT")
+            .expect("ORDER_FILLED_ON_LIMIT not set in .env")
+            .parse()
+            .expect("Invalid value for ORDER_FILLED_ON_LIMIT");
+        println!("market_fee: {:?}", market_fee);
+        println!("limit_fee: {:?}", limit_fee);
+        // Set the fees in the local storage
+        set_fee(FeeType::FilledOnMarket, market_fee);
+        set_fee(FeeType::FilledOnLimit, limit_fee);
+
+        // Get the fees from the local storage
+        let retrieved_market_fee = get_fee(FeeType::FilledOnMarket);
+        let retrieved_limit_fee = get_fee(FeeType::FilledOnLimit);
+
+        // Print the retrieved fee values
+        println!("Market Fee: {}", retrieved_market_fee);
+        println!("Limit Fee: {}", retrieved_limit_fee);
+
+        // Assert that the set and retrieved values are the same
+        assert_eq!(market_fee, retrieved_market_fee);
+        assert_eq!(limit_fee, retrieved_limit_fee);
+    }
 }
