@@ -94,6 +94,8 @@ To manage the relayer application, we will use Supervisor, a process control sys
    Create a configuration file for the relayer application. This file will tell Supervisor how to manage the relayer process.
 
    ```bash
+   mkdir -p /home/ubuntu/Relayer-dev/twilight-relayer/logs
+
    sudo tee /etc/supervisor/conf.d/relayer.conf > /dev/null <<EOF
    [program:relayer]
    command=/home/ubuntu/Relayer-dev/twilight-relayer/target/release/main
