@@ -1168,6 +1168,34 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                 TRADERORDER_EVENT_LOG.clone().to_string(),
             );
         }
+        RelayerCommand::UpdateFees(order_filled_on_market, order_filled_on_limit, order_settled_on_market, order_settled_on_limit) => {
+            let event_time = systemtime_to_utc();
+            let mut local_storage = LOCALDB.lock().unwrap();
+            let old_order_filled_on_market = local_storage.insert(FeeType::FilledOnMarket.into(), order_filled_on_market);
+            let old_order_filled_on_limit = local_storage.insert(FeeType::FilledOnLimit.into(), order_filled_on_limit);
+            let old_order_settled_on_market = local_storage.insert(FeeType::SettledOnMarket.into(), order_settled_on_market);
+            let old_order_settled_on_limit = local_storage.insert(FeeType::SettledOnLimit.into(), order_settled_on_limit);
+            drop(local_storage);
+            if old_order_filled_on_market.is_some() {
+                println!("OrderFilledOnMarket fee updated from {} to {} at {}", old_order_filled_on_market.unwrap_or(0.0), order_filled_on_market, event_time);
+            }
+            if old_order_filled_on_limit.is_some() {
+                println!("OrderFilledOnLimit fee updated from {} to {} at {}", old_order_filled_on_limit.unwrap_or(0.0), order_filled_on_limit, event_time);
+            }
+            if old_order_settled_on_limit.is_some() {
+                println!("OrderSettledOnLimit fee updated from {} to {} at {}", old_order_settled_on_limit.unwrap_or(0.0), order_settled_on_limit, event_time);
+            }
+            if old_order_settled_on_market.is_some() {
+                println!("OrderSettledOnMarket fee updated from {} to {} at {}", old_order_settled_on_market.unwrap_or(0.0), order_settled_on_market, event_time);
+            }
+            println!("Fee update completed");
+            Event::new(
+                Event::FeeUpdate(RelayerCommand::UpdateFees(order_filled_on_market, order_filled_on_limit, order_settled_on_market, order_settled_on_limit), event_time.clone()),
+                format!("FeeUpdate-{}", event_time),
+                CORE_EVENT_LOG.clone().to_string(),
+            );
+
+        }
     }
 }
 
@@ -1216,7 +1244,8 @@ pub fn zkos_order_handler(
                                             let updated_tx_result = update_memo_tx_client_order(
                                                 &tx,
                                                 trader_order.entryprice.round() as u64,
-                                                trader_order.positionsize.round() as u64
+                                                trader_order.positionsize.round() as u64,
+                                                trader_order.fee_filled.round() as u64
                                             );
 
                                             match updated_tx_result {
@@ -1558,7 +1587,7 @@ pub fn zkos_order_handler(
                                     trader_order.available_margin.clone().round() as u64,
                                     &ContractManager::import_program(&WALLET_PROGRAM_PATH.clone()),
                                     Network::Mainnet,
-                                    1u64,
+                                    trader_order.fee_settled.round() as u64,
                                     last_state_output
                                         .as_output_data()
                                         .get_owner_address()
@@ -1870,7 +1899,8 @@ pub fn zkos_order_handler(
                                             let updated_tx_result = update_memo_tx_client_order(
                                                 &tx,
                                                 trader_order.entryprice.round() as u64,
-                                                trader_order.positionsize.round() as u64
+                                                trader_order.positionsize.round() as u64,
+                                                trader_order.fee_filled.round() as u64
                                             );
                                             match updated_tx_result {
                                                 Ok(tx_and_outputmemo) => {
@@ -2037,7 +2067,7 @@ pub fn zkos_order_handler(
                                             &WALLET_PROGRAM_PATH.clone()
                                         ),
                                         Network::Mainnet,
-                                        1u64,
+                                        trader_order.fee_settled.round() as u64,
                                         last_state_output
                                             .as_output_data()
                                             .get_owner_address()

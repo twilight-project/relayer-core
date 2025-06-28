@@ -90,7 +90,7 @@ lazy_static! {
     pub static ref TRADERPAYMENT:Mutex<i32> = Mutex::new(0);
 
     // local database hashmap
-    pub static ref LOCALDB: Mutex<HashMap<&'static str,f64>> = Mutex::new(HashMap::new());
+    pub static ref LOCALDB: Mutex<HashMap<String,f64>> = Mutex::new(HashMap::new());
 
     // local orderbook
     pub static ref LOCALDBSTRING: Mutex<HashMap<&'static str,String>> = Mutex::new(HashMap::new());
