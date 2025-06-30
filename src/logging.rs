@@ -49,11 +49,16 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
             .add_directive("reqwest=warn".parse().unwrap())
             .add_directive("mio=warn".parse().unwrap())
             .add_directive("want=warn".parse().unwrap())
-            // Reduce zkos transaction noise in console (they go to dedicated file)
+            // Reduce zkos library noise in console (they go to dedicated zkos-tx-log file)
             .add_directive("zkos_relayer_wallet=warn".parse().unwrap())
+            .add_directive("relayerwalletlib=warn".parse().unwrap())
             .add_directive("transaction=warn".parse().unwrap())
             .add_directive("transactionapi=warn".parse().unwrap())
             .add_directive("zkvm=warn".parse().unwrap())
+            .add_directive("utxo_in_memory=warn".parse().unwrap())
+            .add_directive("address=warn".parse().unwrap())
+            .add_directive("zkschnorr=warn".parse().unwrap())
+            .add_directive("quisquis_rust=warn".parse().unwrap())
     });
 
     // Error-only filter - strict ERROR level only for the error log
@@ -138,7 +143,7 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
         .with_line_number(true)
         .with_filter(EnvFilter::new("relayer::database=debug"));
 
-    // ZKOS transaction logs - VERY RESTRICTIVE: Only actual ZKOS transaction modules
+    // ZKOS transaction logs - Capture zkos-relayer-wallet library logs WITHOUT modifying library
     let zkos_tx_layer = fmt::layer()
         .with_writer(zkos_tx_writer)
         .with_ansi(false)
@@ -146,8 +151,28 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
         .with_thread_ids(true)
         .with_line_number(true)
         .with_filter(
-            // Only capture logs specifically targeted for ZKOS transactions
-            EnvFilter::new("relayer::zkos=debug"),
+            EnvFilter::new("off") // Start with everything off
+                // Capture logs from zkos-relayer-wallet library directly
+                .add_directive("zkos_relayer_wallet=debug".parse().unwrap())
+                .add_directive("relayerwalletlib=debug".parse().unwrap())
+                .add_directive("transaction=debug".parse().unwrap())
+                .add_directive("transactionapi=debug".parse().unwrap())
+                .add_directive("zkvm=debug".parse().unwrap())
+                .add_directive("utxo_in_memory=debug".parse().unwrap())
+                .add_directive("address=debug".parse().unwrap())
+                .add_directive("zkschnorr=debug".parse().unwrap())
+                .add_directive("quisquis_rust=debug".parse().unwrap())
+                // Also capture any manual zkos logs from your app
+                .add_directive("relayer::zkos=debug".parse().unwrap())
+                // Block external noise explicitly
+                .add_directive("tungstenite=off".parse().unwrap())
+                .add_directive("tokio_tungstenite=off".parse().unwrap())
+                .add_directive("kafka=off".parse().unwrap())
+                .add_directive("hyper=off".parse().unwrap())
+                .add_directive("reqwest=off".parse().unwrap())
+                .add_directive("mio=off".parse().unwrap())
+                .add_directive("want=off".parse().unwrap())
+                .add_directive("h2=off".parse().unwrap()),
         );
 
     // Initialize the subscriber with all layers

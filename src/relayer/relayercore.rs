@@ -857,7 +857,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 }
                                 _ => {
                                     // drop(order_mut_ref);
-                                    println!("Invalid order status !!\n");
+                                    println!("Invalid order status !!\n, order: {:?}", order);
                                 }
                             }
                         }
@@ -1010,8 +1010,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                     });
                                 }
                                 _ => {
+                                    println!("Invalid order status !!, order: {:?}", order);
                                     drop(order);
-                                    println!("Invalid order status !!\n");
                                 }
                             }
                             drop(order_read_only_ref);
@@ -2345,7 +2345,7 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
         }
         if nonce == latest_nonce {
             // flag_chain_update = false;
-            println!("tx: {:?}", tx);
+            crate::log_zkos_tx!(debug, "tx: {:?}", tx);
             match relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx) {
                 Ok(tx_hash) => {
                     Event::new(
