@@ -13,15 +13,16 @@ use uuid::Uuid;
 pub fn heartbeat() {
     dotenv::dotenv().ok();
     // init_psql();
-    println!("Looking for previous database...");
+    crate::log_database!(info, "Looking for previous database...");
     match load_from_snapshot() {
         Ok(mut queue_manager) => {
+            crate::log_database!(info, "Successfully loaded database snapshot");
             load_relayer_latest_state();
             queue_manager.process_queue();
         }
         Err(arg) => {
-            println!("Unable to start Relayer \n :Error:{:?}", arg);
-
+            crate::log_database!(error, "Unable to start Relayer - Error: {:?}", arg);
+            tracing::error!("Critical startup failure, exiting");
             std::process::exit(0);
         }
     }
@@ -35,7 +36,7 @@ pub fn heartbeat() {
             let mut rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 if let Err(e) = receive_btc_price().await {
-                    eprintln!("BTC price feeder error: {}", e);
+                    crate::log_price!(error, "BTC price feeder error: {}", e);
                 }
             });
         })
@@ -120,7 +121,10 @@ pub fn heartbeat() {
         .unwrap();
 
     // QueueResolver::new(String::from("questdb_queue"));
-    println!("Initialization done..................................");
+    crate::log_heartbeat!(
+        info,
+        "Initialization done.................................."
+    );
 }
 
 pub fn price_check_and_update() {
@@ -135,6 +139,8 @@ pub fn price_check_and_update() {
     };
     drop(local_storage);
     if get_relayer_status() {
+        crate::log_price!(debug, "Updating current price to: {}", currentprice);
+
         Event::new(
             Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
             String::from("insert_CurrentPrice"),
@@ -143,6 +149,7 @@ pub fn price_check_and_update() {
 
         currentprice = currentprice.round();
         set_localdb("CurrentPrice", currentprice);
+        crate::log_price!(debug, "Price updated to: {}", currentprice);
         // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
         treadpool_pending_order.execute(move || {

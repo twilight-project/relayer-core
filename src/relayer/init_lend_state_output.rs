@@ -1,8 +1,8 @@
 use address::{Address, AddressType};
 use quisquislib::ristretto::RistrettoPublicKey;
 use quisquislib::ristretto::RistrettoSecretKey;
-use relayerwalletlib::zkoswalletlib::keys_management::*;
 use zkvm::zkos_types::Output;
+
 lazy_static! {
     pub static ref RELAYER_WALLET_IV: String =
         std::env::var("RELAYER_WALLET_IV").expect("missing environment variable RELAYER_WALLET_IV");

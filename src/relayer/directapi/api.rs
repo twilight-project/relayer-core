@@ -8,7 +8,6 @@ use jsonrpc_http_server::{
     jsonrpc_core::{MetaIoHandler, Metadata, Params},
     ServerBuilder,
 };
-use relayerwalletlib::verify_client_message::*;
 use std::collections::HashMap;
 use stopwatch::Stopwatch;
 #[derive(Default, Clone, Debug)]

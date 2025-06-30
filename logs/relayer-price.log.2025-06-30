@@ -1,0 +1,478 @@
+2025-06-30T13:34:25.959967Z DEBUG ThreadId(53) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:25.960114Z DEBUG ThreadId(53) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:26.960079Z DEBUG ThreadId(58) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:26.960170Z DEBUG ThreadId(58) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:27.960755Z DEBUG ThreadId(59) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:27.960819Z DEBUG ThreadId(59) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:28.960379Z DEBUG ThreadId(60) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:28.960440Z DEBUG ThreadId(60) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:29.960690Z DEBUG ThreadId(61) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:29.960748Z DEBUG ThreadId(61) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:30.960887Z DEBUG ThreadId(62) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:30.960931Z DEBUG ThreadId(62) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:31.961348Z DEBUG ThreadId(63) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:31.961417Z DEBUG ThreadId(63) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:32.961310Z DEBUG ThreadId(64) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:32.961615Z DEBUG ThreadId(64) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:33.961497Z DEBUG ThreadId(65) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:33.961572Z DEBUG ThreadId(65) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:34.961878Z DEBUG ThreadId(66) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:34.961952Z DEBUG ThreadId(66) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:35.962102Z DEBUG ThreadId(68) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:35.962165Z DEBUG ThreadId(68) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:36.962257Z DEBUG ThreadId(69) relayer::price: 142: Updating current price to: 107638.3
+2025-06-30T13:34:36.962307Z DEBUG ThreadId(69) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:37.962471Z DEBUG ThreadId(70) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:37.962530Z DEBUG ThreadId(70) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:38.962592Z DEBUG ThreadId(71) relayer::price: 142: Updating current price to: 107638.29
+2025-06-30T13:34:38.962706Z DEBUG ThreadId(71) relayer::price: 152: Price updated to: 107638
+2025-06-30T13:34:39.962828Z DEBUG ThreadId(72) relayer::price: 142: Updating current price to: 107645.99
+2025-06-30T13:34:39.962875Z DEBUG ThreadId(72) relayer::price: 152: Price updated to: 107646
+2025-06-30T13:34:40.967027Z DEBUG ThreadId(73) relayer::price: 142: Updating current price to: 107647.63
+2025-06-30T13:34:40.967096Z DEBUG ThreadId(73) relayer::price: 152: Price updated to: 107648
+2025-06-30T13:34:41.967204Z DEBUG ThreadId(74) relayer::price: 142: Updating current price to: 107647.62
+2025-06-30T13:34:41.967274Z DEBUG ThreadId(74) relayer::price: 152: Price updated to: 107648
+2025-06-30T13:34:42.967906Z DEBUG ThreadId(75) relayer::price: 142: Updating current price to: 107651.01
+2025-06-30T13:34:42.967971Z DEBUG ThreadId(75) relayer::price: 152: Price updated to: 107651
+2025-06-30T13:34:43.967754Z DEBUG ThreadId(76) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:43.967820Z DEBUG ThreadId(76) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:44.968000Z DEBUG ThreadId(77) relayer::price: 142: Updating current price to: 107659.97
+2025-06-30T13:34:44.968044Z DEBUG ThreadId(77) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:45.968238Z DEBUG ThreadId(78) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:45.968305Z DEBUG ThreadId(78) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:46.968391Z DEBUG ThreadId(79) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:46.968455Z DEBUG ThreadId(79) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:47.968596Z DEBUG ThreadId(80) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:47.968683Z DEBUG ThreadId(80) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:48.969007Z DEBUG ThreadId(81) relayer::price: 142: Updating current price to: 107659.97
+2025-06-30T13:34:48.969073Z DEBUG ThreadId(81) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:49.969310Z DEBUG ThreadId(82) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:49.969355Z DEBUG ThreadId(82) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:50.969801Z DEBUG ThreadId(83) relayer::price: 142: Updating current price to: 107659.97
+2025-06-30T13:34:50.969871Z DEBUG ThreadId(83) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:51.969925Z DEBUG ThreadId(84) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:51.970000Z DEBUG ThreadId(84) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:52.970187Z DEBUG ThreadId(85) relayer::price: 142: Updating current price to: 107659.97
+2025-06-30T13:34:52.970334Z DEBUG ThreadId(85) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:53.970343Z DEBUG ThreadId(86) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:53.970409Z DEBUG ThreadId(86) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:54.970528Z DEBUG ThreadId(87) relayer::price: 142: Updating current price to: 107659.97
+2025-06-30T13:34:54.970600Z DEBUG ThreadId(87) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:55.970768Z DEBUG ThreadId(88) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:55.970827Z DEBUG ThreadId(88) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:56.971008Z DEBUG ThreadId(89) relayer::price: 142: Updating current price to: 107659.98
+2025-06-30T13:34:56.971082Z DEBUG ThreadId(89) relayer::price: 152: Price updated to: 107660
+2025-06-30T13:34:57.971095Z DEBUG ThreadId(90) relayer::price: 142: Updating current price to: 107667.02
+2025-06-30T13:34:57.971140Z DEBUG ThreadId(90) relayer::price: 152: Price updated to: 107667
+2025-06-30T13:34:58.971295Z DEBUG ThreadId(91) relayer::price: 142: Updating current price to: 107669.52
+2025-06-30T13:34:58.971360Z DEBUG ThreadId(91) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:34:59.971494Z DEBUG ThreadId(92) relayer::price: 142: Updating current price to: 107669.53
+2025-06-30T13:34:59.971568Z DEBUG ThreadId(92) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:35:00.971725Z DEBUG ThreadId(93) relayer::price: 142: Updating current price to: 107669.52
+2025-06-30T13:35:00.971810Z DEBUG ThreadId(93) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:35:01.971863Z DEBUG ThreadId(94) relayer::price: 142: Updating current price to: 107669.52
+2025-06-30T13:35:01.971938Z DEBUG ThreadId(94) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:35:02.972047Z DEBUG ThreadId(95) relayer::price: 142: Updating current price to: 107669.52
+2025-06-30T13:35:02.972110Z DEBUG ThreadId(95) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:35:03.972522Z DEBUG ThreadId(96) relayer::price: 142: Updating current price to: 107669.53
+2025-06-30T13:35:03.972877Z DEBUG ThreadId(96) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:35:04.973577Z DEBUG ThreadId(97) relayer::price: 142: Updating current price to: 107669.52
+2025-06-30T13:35:04.973945Z DEBUG ThreadId(97) relayer::price: 152: Price updated to: 107670
+2025-06-30T13:35:05.973795Z DEBUG ThreadId(98) relayer::price: 142: Updating current price to: 107649.2
+2025-06-30T13:35:05.973856Z DEBUG ThreadId(98) relayer::price: 152: Price updated to: 107649
+2025-06-30T13:35:06.974150Z DEBUG ThreadId(99) relayer::price: 142: Updating current price to: 107649.21
+2025-06-30T13:35:06.974220Z DEBUG ThreadId(99) relayer::price: 152: Price updated to: 107649
+2025-06-30T13:35:07.974300Z DEBUG ThreadId(100) relayer::price: 142: Updating current price to: 107649.21
+2025-06-30T13:35:07.974348Z DEBUG ThreadId(100) relayer::price: 152: Price updated to: 107649
+2025-06-30T13:35:08.974503Z DEBUG ThreadId(101) relayer::price: 142: Updating current price to: 107661.07
+2025-06-30T13:35:08.974575Z DEBUG ThreadId(101) relayer::price: 152: Price updated to: 107661
+2025-06-30T13:35:09.974735Z DEBUG ThreadId(102) relayer::price: 142: Updating current price to: 107667.7
+2025-06-30T13:35:09.974791Z DEBUG ThreadId(102) relayer::price: 152: Price updated to: 107668
+2025-06-30T13:35:10.975944Z DEBUG ThreadId(103) relayer::price: 142: Updating current price to: 107668
+2025-06-30T13:35:10.976009Z DEBUG ThreadId(103) relayer::price: 152: Price updated to: 107668
+2025-06-30T13:35:11.975071Z DEBUG ThreadId(104) relayer::price: 142: Updating current price to: 107679.99
+2025-06-30T13:35:11.975137Z DEBUG ThreadId(104) relayer::price: 152: Price updated to: 107680
+2025-06-30T13:35:12.975235Z DEBUG ThreadId(105) relayer::price: 142: Updating current price to: 107679.99
+2025-06-30T13:35:12.975283Z DEBUG ThreadId(105) relayer::price: 152: Price updated to: 107680
+2025-06-30T13:35:13.975413Z DEBUG ThreadId(106) relayer::price: 142: Updating current price to: 107680
+2025-06-30T13:35:13.975469Z DEBUG ThreadId(106) relayer::price: 152: Price updated to: 107680
+2025-06-30T13:35:14.976362Z DEBUG ThreadId(107) relayer::price: 142: Updating current price to: 107679.99
+2025-06-30T13:35:14.976428Z DEBUG ThreadId(107) relayer::price: 152: Price updated to: 107680
+2025-06-30T13:35:15.975832Z DEBUG ThreadId(108) relayer::price: 142: Updating current price to: 107679.99
+2025-06-30T13:35:15.975886Z DEBUG ThreadId(108) relayer::price: 152: Price updated to: 107680
+2025-06-30T13:35:16.975984Z DEBUG ThreadId(109) relayer::price: 142: Updating current price to: 107669.23
+2025-06-30T13:35:16.976042Z DEBUG ThreadId(109) relayer::price: 152: Price updated to: 107669
+2025-06-30T13:35:17.976140Z DEBUG ThreadId(110) relayer::price: 142: Updating current price to: 107669.23
+2025-06-30T13:35:17.976205Z DEBUG ThreadId(110) relayer::price: 152: Price updated to: 107669
+2025-06-30T13:35:18.976298Z DEBUG ThreadId(111) relayer::price: 142: Updating current price to: 107669.22
+2025-06-30T13:35:18.976362Z DEBUG ThreadId(111) relayer::price: 152: Price updated to: 107669
+2025-06-30T13:35:19.976525Z DEBUG ThreadId(112) relayer::price: 142: Updating current price to: 107669.23
+2025-06-30T13:35:19.977020Z DEBUG ThreadId(112) relayer::price: 152: Price updated to: 107669
+2025-06-30T13:35:20.976715Z DEBUG ThreadId(113) relayer::price: 142: Updating current price to: 107669.23
+2025-06-30T13:35:20.976777Z DEBUG ThreadId(113) relayer::price: 152: Price updated to: 107669
+2025-06-30T13:35:21.976992Z DEBUG ThreadId(114) relayer::price: 142: Updating current price to: 107669.23
+2025-06-30T13:35:21.977048Z DEBUG ThreadId(114) relayer::price: 152: Price updated to: 107669
+2025-06-30T13:35:22.977238Z DEBUG ThreadId(115) relayer::price: 142: Updating current price to: 107649.27
+2025-06-30T13:35:22.977536Z DEBUG ThreadId(115) relayer::price: 152: Price updated to: 107649
+2025-06-30T13:35:23.977189Z DEBUG ThreadId(116) relayer::price: 142: Updating current price to: 107649.28
+2025-06-30T13:35:23.977258Z DEBUG ThreadId(116) relayer::price: 152: Price updated to: 107649
+2025-06-30T13:35:24.977346Z DEBUG ThreadId(117) relayer::price: 142: Updating current price to: 107644.21
+2025-06-30T13:35:24.977512Z DEBUG ThreadId(117) relayer::price: 152: Price updated to: 107644
+2025-06-30T13:35:25.977697Z DEBUG ThreadId(118) relayer::price: 142: Updating current price to: 107640.59
+2025-06-30T13:35:25.977771Z DEBUG ThreadId(118) relayer::price: 152: Price updated to: 107641
+2025-06-30T13:35:26.977817Z DEBUG ThreadId(119) relayer::price: 142: Updating current price to: 107624
+2025-06-30T13:35:26.977861Z DEBUG ThreadId(119) relayer::price: 152: Price updated to: 107624
+2025-06-30T13:35:27.978364Z DEBUG ThreadId(120) relayer::price: 142: Updating current price to: 107610.5
+2025-06-30T13:35:27.978423Z DEBUG ThreadId(120) relayer::price: 152: Price updated to: 107611
+2025-06-30T13:35:28.978304Z DEBUG ThreadId(121) relayer::price: 142: Updating current price to: 107605.55
+2025-06-30T13:35:28.978371Z DEBUG ThreadId(121) relayer::price: 152: Price updated to: 107606
+2025-06-30T13:35:29.978506Z DEBUG ThreadId(122) relayer::price: 142: Updating current price to: 107605.56
+2025-06-30T13:35:29.978574Z DEBUG ThreadId(122) relayer::price: 152: Price updated to: 107606
+2025-06-30T13:35:30.978735Z DEBUG ThreadId(123) relayer::price: 142: Updating current price to: 107621.86
+2025-06-30T13:35:30.978858Z DEBUG ThreadId(123) relayer::price: 152: Price updated to: 107622
+2025-06-30T13:35:31.978884Z DEBUG ThreadId(124) relayer::price: 142: Updating current price to: 107621.86
+2025-06-30T13:35:31.978946Z DEBUG ThreadId(124) relayer::price: 152: Price updated to: 107622
+2025-06-30T13:35:32.979044Z DEBUG ThreadId(125) relayer::price: 142: Updating current price to: 107621.86
+2025-06-30T13:35:32.979114Z DEBUG ThreadId(125) relayer::price: 152: Price updated to: 107622
+2025-06-30T13:35:33.979229Z DEBUG ThreadId(126) relayer::price: 142: Updating current price to: 107607.77
+2025-06-30T13:35:33.979302Z DEBUG ThreadId(126) relayer::price: 152: Price updated to: 107608
+2025-06-30T13:35:34.979405Z DEBUG ThreadId(127) relayer::price: 142: Updating current price to: 107607.77
+2025-06-30T13:35:34.979468Z DEBUG ThreadId(127) relayer::price: 152: Price updated to: 107608
+2025-06-30T13:35:35.979563Z DEBUG ThreadId(128) relayer::price: 142: Updating current price to: 107607.77
+2025-06-30T13:35:35.979651Z DEBUG ThreadId(128) relayer::price: 152: Price updated to: 107608
+2025-06-30T13:35:36.979788Z DEBUG ThreadId(129) relayer::price: 142: Updating current price to: 107607.77
+2025-06-30T13:35:36.979846Z DEBUG ThreadId(129) relayer::price: 152: Price updated to: 107608
+2025-06-30T13:35:37.979983Z DEBUG ThreadId(130) relayer::price: 142: Updating current price to: 107607.76
+2025-06-30T13:35:37.980028Z DEBUG ThreadId(130) relayer::price: 152: Price updated to: 107608
+2025-06-30T13:35:38.980292Z DEBUG ThreadId(131) relayer::price: 142: Updating current price to: 107602.5
+2025-06-30T13:35:38.980805Z DEBUG ThreadId(131) relayer::price: 152: Price updated to: 107603
+2025-06-30T13:35:39.980311Z DEBUG ThreadId(132) relayer::price: 142: Updating current price to: 107602.36
+2025-06-30T13:35:39.980372Z DEBUG ThreadId(132) relayer::price: 152: Price updated to: 107602
+2025-06-30T13:35:40.980501Z DEBUG ThreadId(133) relayer::price: 142: Updating current price to: 107591.6
+2025-06-30T13:35:40.980573Z DEBUG ThreadId(133) relayer::price: 152: Price updated to: 107592
+2025-06-30T13:35:41.980729Z DEBUG ThreadId(134) relayer::price: 142: Updating current price to: 107607.31
+2025-06-30T13:35:41.980796Z DEBUG ThreadId(134) relayer::price: 152: Price updated to: 107607
+2025-06-30T13:35:42.980946Z DEBUG ThreadId(135) relayer::price: 142: Updating current price to: 107607.3
+2025-06-30T13:35:42.981010Z DEBUG ThreadId(135) relayer::price: 152: Price updated to: 107607
+2025-06-30T13:35:43.981126Z DEBUG ThreadId(136) relayer::price: 142: Updating current price to: 107607.3
+2025-06-30T13:35:43.981196Z DEBUG ThreadId(136) relayer::price: 152: Price updated to: 107607
+2025-06-30T13:35:44.981249Z DEBUG ThreadId(137) relayer::price: 142: Updating current price to: 107601.92
+2025-06-30T13:35:44.981305Z DEBUG ThreadId(137) relayer::price: 152: Price updated to: 107602
+2025-06-30T13:35:45.981557Z DEBUG ThreadId(138) relayer::price: 142: Updating current price to: 107601.91
+2025-06-30T13:35:45.981692Z DEBUG ThreadId(138) relayer::price: 152: Price updated to: 107602
+2025-06-30T13:35:46.981932Z DEBUG ThreadId(139) relayer::price: 142: Updating current price to: 107593.69
+2025-06-30T13:35:46.981975Z DEBUG ThreadId(139) relayer::price: 152: Price updated to: 107594
+2025-06-30T13:35:47.982076Z DEBUG ThreadId(140) relayer::price: 142: Updating current price to: 107580
+2025-06-30T13:35:47.982139Z DEBUG ThreadId(140) relayer::price: 152: Price updated to: 107580
+2025-06-30T13:35:48.982206Z DEBUG ThreadId(141) relayer::price: 142: Updating current price to: 107571.73
+2025-06-30T13:35:48.982283Z DEBUG ThreadId(141) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:49.982377Z DEBUG ThreadId(142) relayer::price: 142: Updating current price to: 107571.73
+2025-06-30T13:35:49.982448Z DEBUG ThreadId(142) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:50.982583Z DEBUG ThreadId(143) relayer::price: 142: Updating current price to: 107571.74
+2025-06-30T13:35:50.982706Z DEBUG ThreadId(143) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:51.982792Z DEBUG ThreadId(144) relayer::price: 142: Updating current price to: 107571.74
+2025-06-30T13:35:51.982870Z DEBUG ThreadId(144) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:52.982966Z DEBUG ThreadId(145) relayer::price: 142: Updating current price to: 107571.73
+2025-06-30T13:35:52.983029Z DEBUG ThreadId(145) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:53.983121Z DEBUG ThreadId(146) relayer::price: 142: Updating current price to: 107571.73
+2025-06-30T13:35:53.983185Z DEBUG ThreadId(146) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:54.983302Z DEBUG ThreadId(147) relayer::price: 142: Updating current price to: 107571.73
+2025-06-30T13:35:54.983409Z DEBUG ThreadId(147) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:35:55.983479Z DEBUG ThreadId(148) relayer::price: 142: Updating current price to: 107557.95
+2025-06-30T13:35:55.983555Z DEBUG ThreadId(148) relayer::price: 152: Price updated to: 107558
+2025-06-30T13:35:56.984170Z DEBUG ThreadId(149) relayer::price: 142: Updating current price to: 107557.96
+2025-06-30T13:35:56.984256Z DEBUG ThreadId(149) relayer::price: 152: Price updated to: 107558
+2025-06-30T13:35:57.984254Z DEBUG ThreadId(150) relayer::price: 142: Updating current price to: 107557.96
+2025-06-30T13:35:57.984318Z DEBUG ThreadId(150) relayer::price: 152: Price updated to: 107558
+2025-06-30T13:35:58.984441Z DEBUG ThreadId(151) relayer::price: 142: Updating current price to: 107557
+2025-06-30T13:35:58.984505Z DEBUG ThreadId(151) relayer::price: 152: Price updated to: 107557
+2025-06-30T13:35:59.984820Z DEBUG ThreadId(152) relayer::price: 142: Updating current price to: 107555.15
+2025-06-30T13:35:59.984883Z DEBUG ThreadId(152) relayer::price: 152: Price updated to: 107555
+2025-06-30T13:36:00.985093Z DEBUG ThreadId(153) relayer::price: 142: Updating current price to: 107573.84
+2025-06-30T13:36:00.985158Z DEBUG ThreadId(153) relayer::price: 152: Price updated to: 107574
+2025-06-30T13:36:01.985224Z DEBUG ThreadId(154) relayer::price: 142: Updating current price to: 107573.84
+2025-06-30T13:36:01.985289Z DEBUG ThreadId(154) relayer::price: 152: Price updated to: 107574
+2025-06-30T13:36:02.985431Z DEBUG ThreadId(155) relayer::price: 142: Updating current price to: 107573.83
+2025-06-30T13:36:02.985510Z DEBUG ThreadId(155) relayer::price: 152: Price updated to: 107574
+2025-06-30T13:36:03.987116Z DEBUG ThreadId(156) relayer::price: 142: Updating current price to: 107568.17
+2025-06-30T13:36:03.987180Z DEBUG ThreadId(156) relayer::price: 152: Price updated to: 107568
+2025-06-30T13:36:04.987318Z DEBUG ThreadId(157) relayer::price: 142: Updating current price to: 107568.17
+2025-06-30T13:36:04.987389Z DEBUG ThreadId(157) relayer::price: 152: Price updated to: 107568
+2025-06-30T13:36:05.987465Z DEBUG ThreadId(158) relayer::price: 142: Updating current price to: 107568.18
+2025-06-30T13:36:05.987539Z DEBUG ThreadId(158) relayer::price: 152: Price updated to: 107568
+2025-06-30T13:36:06.987694Z DEBUG ThreadId(159) relayer::price: 142: Updating current price to: 107568.18
+2025-06-30T13:36:06.987761Z DEBUG ThreadId(159) relayer::price: 152: Price updated to: 107568
+2025-06-30T13:36:07.988108Z DEBUG ThreadId(160) relayer::price: 142: Updating current price to: 107568.18
+2025-06-30T13:36:07.988173Z DEBUG ThreadId(160) relayer::price: 152: Price updated to: 107568
+2025-06-30T13:36:08.988359Z DEBUG ThreadId(161) relayer::price: 142: Updating current price to: 107568.17
+2025-06-30T13:36:08.988426Z DEBUG ThreadId(161) relayer::price: 152: Price updated to: 107568
+2025-06-30T13:36:09.988355Z DEBUG ThreadId(162) relayer::price: 142: Updating current price to: 107570.96
+2025-06-30T13:36:09.988400Z DEBUG ThreadId(162) relayer::price: 152: Price updated to: 107571
+2025-06-30T13:36:10.988543Z DEBUG ThreadId(163) relayer::price: 142: Updating current price to: 107578.84
+2025-06-30T13:36:10.988614Z DEBUG ThreadId(163) relayer::price: 152: Price updated to: 107579
+2025-06-30T13:36:11.988727Z DEBUG ThreadId(164) relayer::price: 142: Updating current price to: 107594.67
+2025-06-30T13:36:11.988796Z DEBUG ThreadId(164) relayer::price: 152: Price updated to: 107595
+2025-06-30T13:36:12.988917Z DEBUG ThreadId(165) relayer::price: 142: Updating current price to: 107594.67
+2025-06-30T13:36:12.988982Z DEBUG ThreadId(165) relayer::price: 152: Price updated to: 107595
+2025-06-30T13:36:13.989119Z DEBUG ThreadId(166) relayer::price: 142: Updating current price to: 107594.67
+2025-06-30T13:36:13.989182Z DEBUG ThreadId(166) relayer::price: 152: Price updated to: 107595
+2025-06-30T13:36:14.989337Z DEBUG ThreadId(167) relayer::price: 142: Updating current price to: 107594.67
+2025-06-30T13:36:14.989418Z DEBUG ThreadId(167) relayer::price: 152: Price updated to: 107595
+2025-06-30T13:36:15.989560Z DEBUG ThreadId(168) relayer::price: 142: Updating current price to: 107594.67
+2025-06-30T13:36:15.989622Z DEBUG ThreadId(168) relayer::price: 152: Price updated to: 107595
+2025-06-30T13:36:16.989768Z DEBUG ThreadId(169) relayer::price: 142: Updating current price to: 107594.67
+2025-06-30T13:36:16.989828Z DEBUG ThreadId(169) relayer::price: 152: Price updated to: 107595
+2025-06-30T13:36:17.989976Z DEBUG ThreadId(170) relayer::price: 142: Updating current price to: 107591.89
+2025-06-30T13:36:17.990029Z DEBUG ThreadId(170) relayer::price: 152: Price updated to: 107592
+2025-06-30T13:36:18.990451Z DEBUG ThreadId(171) relayer::price: 142: Updating current price to: 107591.9
+2025-06-30T13:36:18.990520Z DEBUG ThreadId(171) relayer::price: 152: Price updated to: 107592
+2025-06-30T13:36:19.990591Z DEBUG ThreadId(172) relayer::price: 142: Updating current price to: 107591.89
+2025-06-30T13:36:19.990697Z DEBUG ThreadId(172) relayer::price: 152: Price updated to: 107592
+2025-06-30T13:36:20.991272Z DEBUG ThreadId(173) relayer::price: 142: Updating current price to: 107582.87
+2025-06-30T13:36:20.991334Z DEBUG ThreadId(173) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:21.991960Z DEBUG ThreadId(174) relayer::price: 142: Updating current price to: 107582.87
+2025-06-30T13:36:21.992205Z DEBUG ThreadId(174) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:22.992460Z DEBUG ThreadId(175) relayer::price: 142: Updating current price to: 107582.87
+2025-06-30T13:36:22.992688Z DEBUG ThreadId(175) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:23.996099Z DEBUG ThreadId(176) relayer::price: 142: Updating current price to: 107582.86
+2025-06-30T13:36:23.997911Z DEBUG ThreadId(176) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:24.992585Z DEBUG ThreadId(177) relayer::price: 142: Updating current price to: 107582.86
+2025-06-30T13:36:24.992661Z DEBUG ThreadId(177) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:25.994331Z DEBUG ThreadId(178) relayer::price: 142: Updating current price to: 107582.87
+2025-06-30T13:36:25.994379Z DEBUG ThreadId(178) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:26.994511Z DEBUG ThreadId(179) relayer::price: 142: Updating current price to: 107582.87
+2025-06-30T13:36:26.994589Z DEBUG ThreadId(179) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:27.994742Z DEBUG ThreadId(180) relayer::price: 142: Updating current price to: 107582.86
+2025-06-30T13:36:27.994922Z DEBUG ThreadId(180) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:28.994867Z DEBUG ThreadId(181) relayer::price: 142: Updating current price to: 107579.15
+2025-06-30T13:36:28.994923Z DEBUG ThreadId(181) relayer::price: 152: Price updated to: 107579
+2025-06-30T13:36:29.995049Z DEBUG ThreadId(182) relayer::price: 142: Updating current price to: 107572.26
+2025-06-30T13:36:29.995109Z DEBUG ThreadId(182) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:36:30.995250Z DEBUG ThreadId(183) relayer::price: 142: Updating current price to: 107572.26
+2025-06-30T13:36:30.995302Z DEBUG ThreadId(183) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:36:31.995691Z DEBUG ThreadId(184) relayer::price: 142: Updating current price to: 107572.26
+2025-06-30T13:36:31.995747Z DEBUG ThreadId(184) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:36:32.996911Z DEBUG ThreadId(185) relayer::price: 142: Updating current price to: 107572.26
+2025-06-30T13:36:32.996978Z DEBUG ThreadId(185) relayer::price: 152: Price updated to: 107572
+2025-06-30T13:36:33.996247Z DEBUG ThreadId(186) relayer::price: 142: Updating current price to: 107579.15
+2025-06-30T13:36:33.996313Z DEBUG ThreadId(186) relayer::price: 152: Price updated to: 107579
+2025-06-30T13:36:34.996333Z DEBUG ThreadId(187) relayer::price: 142: Updating current price to: 107579.16
+2025-06-30T13:36:34.996426Z DEBUG ThreadId(187) relayer::price: 152: Price updated to: 107579
+2025-06-30T13:36:35.996707Z DEBUG ThreadId(188) relayer::price: 142: Updating current price to: 107579.16
+2025-06-30T13:36:35.996776Z DEBUG ThreadId(188) relayer::price: 152: Price updated to: 107579
+2025-06-30T13:36:36.996970Z DEBUG ThreadId(189) relayer::price: 142: Updating current price to: 107582.84
+2025-06-30T13:36:36.997019Z DEBUG ThreadId(189) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:37.997018Z DEBUG ThreadId(190) relayer::price: 142: Updating current price to: 107582.85
+2025-06-30T13:36:37.997075Z DEBUG ThreadId(190) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:38.997176Z DEBUG ThreadId(191) relayer::price: 142: Updating current price to: 107582.84
+2025-06-30T13:36:38.997236Z DEBUG ThreadId(191) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:39.997370Z DEBUG ThreadId(192) relayer::price: 142: Updating current price to: 107582.84
+2025-06-30T13:36:39.997436Z DEBUG ThreadId(192) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:40.997532Z DEBUG ThreadId(193) relayer::price: 142: Updating current price to: 107582.85
+2025-06-30T13:36:40.997580Z DEBUG ThreadId(193) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:41.997863Z DEBUG ThreadId(194) relayer::price: 142: Updating current price to: 107582.85
+2025-06-30T13:36:41.997935Z DEBUG ThreadId(194) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:42.998195Z DEBUG ThreadId(195) relayer::price: 142: Updating current price to: 107582.85
+2025-06-30T13:36:43.000253Z DEBUG ThreadId(195) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:43.998224Z DEBUG ThreadId(196) relayer::price: 142: Updating current price to: 107582.85
+2025-06-30T13:36:43.998292Z DEBUG ThreadId(196) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:44.998403Z DEBUG ThreadId(197) relayer::price: 142: Updating current price to: 107582.85
+2025-06-30T13:36:44.998467Z DEBUG ThreadId(197) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:45.998769Z DEBUG ThreadId(198) relayer::price: 142: Updating current price to: 107582.86
+2025-06-30T13:36:45.998835Z DEBUG ThreadId(198) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:46.998981Z DEBUG ThreadId(199) relayer::price: 142: Updating current price to: 107582.86
+2025-06-30T13:36:46.999026Z DEBUG ThreadId(199) relayer::price: 152: Price updated to: 107583
+2025-06-30T13:36:47.999208Z DEBUG ThreadId(200) relayer::price: 142: Updating current price to: 107593.61
+2025-06-30T13:36:47.999282Z DEBUG ThreadId(200) relayer::price: 152: Price updated to: 107594
+2025-06-30T13:36:48.999678Z DEBUG ThreadId(201) relayer::price: 142: Updating current price to: 107593.61
+2025-06-30T13:36:48.999733Z DEBUG ThreadId(201) relayer::price: 152: Price updated to: 107594
+2025-06-30T13:36:50.000168Z DEBUG ThreadId(202) relayer::price: 142: Updating current price to: 107595.58
+2025-06-30T13:36:50.000251Z DEBUG ThreadId(202) relayer::price: 152: Price updated to: 107596
+2025-06-30T13:36:51.000316Z DEBUG ThreadId(203) relayer::price: 142: Updating current price to: 107595.58
+2025-06-30T13:36:51.000390Z DEBUG ThreadId(203) relayer::price: 152: Price updated to: 107596
+2025-06-30T13:36:52.000479Z DEBUG ThreadId(204) relayer::price: 142: Updating current price to: 107603.67
+2025-06-30T13:36:52.000525Z DEBUG ThreadId(204) relayer::price: 152: Price updated to: 107604
+2025-06-30T13:36:53.000690Z DEBUG ThreadId(205) relayer::price: 142: Updating current price to: 107609.42
+2025-06-30T13:36:53.000753Z DEBUG ThreadId(205) relayer::price: 152: Price updated to: 107609
+2025-06-30T13:36:54.000865Z DEBUG ThreadId(206) relayer::price: 142: Updating current price to: 107609.42
+2025-06-30T13:36:54.000924Z DEBUG ThreadId(206) relayer::price: 152: Price updated to: 107609
+2025-06-30T13:36:55.001200Z DEBUG ThreadId(207) relayer::price: 142: Updating current price to: 107609.43
+2025-06-30T13:36:55.001252Z DEBUG ThreadId(207) relayer::price: 152: Price updated to: 107609
+2025-06-30T13:36:56.001921Z DEBUG ThreadId(208) relayer::price: 142: Updating current price to: 107609.42
+2025-06-30T13:36:56.001980Z DEBUG ThreadId(208) relayer::price: 152: Price updated to: 107609
+2025-06-30T13:36:57.002513Z DEBUG ThreadId(209) relayer::price: 142: Updating current price to: 107609.43
+2025-06-30T13:36:57.002584Z DEBUG ThreadId(209) relayer::price: 152: Price updated to: 107609
+2025-06-30T13:36:58.002749Z DEBUG ThreadId(210) relayer::price: 142: Updating current price to: 107624.23
+2025-06-30T13:36:58.002825Z DEBUG ThreadId(210) relayer::price: 152: Price updated to: 107624
+2025-06-30T13:36:59.002900Z DEBUG ThreadId(211) relayer::price: 142: Updating current price to: 107625.52
+2025-06-30T13:36:59.002977Z DEBUG ThreadId(211) relayer::price: 152: Price updated to: 107626
+2025-06-30T13:37:00.003317Z DEBUG ThreadId(212) relayer::price: 142: Updating current price to: 107625.51
+2025-06-30T13:37:00.003399Z DEBUG ThreadId(212) relayer::price: 152: Price updated to: 107626
+2025-06-30T13:37:01.003699Z DEBUG ThreadId(213) relayer::price: 142: Updating current price to: 107625.52
+2025-06-30T13:37:01.003747Z DEBUG ThreadId(213) relayer::price: 152: Price updated to: 107626
+2025-06-30T13:37:02.008083Z DEBUG ThreadId(214) relayer::price: 142: Updating current price to: 107638.64
+2025-06-30T13:37:02.008161Z DEBUG ThreadId(214) relayer::price: 152: Price updated to: 107639
+2025-06-30T13:37:03.004037Z DEBUG ThreadId(215) relayer::price: 142: Updating current price to: 107639.98
+2025-06-30T13:37:03.004098Z DEBUG ThreadId(215) relayer::price: 152: Price updated to: 107640
+2025-06-30T13:37:04.005317Z DEBUG ThreadId(216) relayer::price: 142: Updating current price to: 107639.98
+2025-06-30T13:37:04.005370Z DEBUG ThreadId(216) relayer::price: 152: Price updated to: 107640
+2025-06-30T13:37:05.004412Z DEBUG ThreadId(217) relayer::price: 142: Updating current price to: 107654.79
+2025-06-30T13:37:05.004495Z DEBUG ThreadId(217) relayer::price: 152: Price updated to: 107655
+2025-06-30T13:37:06.004986Z DEBUG ThreadId(218) relayer::price: 142: Updating current price to: 107656
+2025-06-30T13:37:06.005040Z DEBUG ThreadId(218) relayer::price: 152: Price updated to: 107656
+2025-06-30T13:37:07.005258Z DEBUG ThreadId(219) relayer::price: 142: Updating current price to: 107656
+2025-06-30T13:37:07.005316Z DEBUG ThreadId(219) relayer::price: 152: Price updated to: 107656
+2025-06-30T13:37:08.005544Z DEBUG ThreadId(220) relayer::price: 142: Updating current price to: 107664.18
+2025-06-30T13:37:08.005598Z DEBUG ThreadId(220) relayer::price: 152: Price updated to: 107664
+2025-06-30T13:37:09.008023Z DEBUG ThreadId(221) relayer::price: 142: Updating current price to: 107664.18
+2025-06-30T13:37:09.008075Z DEBUG ThreadId(221) relayer::price: 152: Price updated to: 107664
+2025-06-30T13:37:10.005729Z DEBUG ThreadId(222) relayer::price: 142: Updating current price to: 107664.17
+2025-06-30T13:37:10.005800Z DEBUG ThreadId(222) relayer::price: 152: Price updated to: 107664
+2025-06-30T13:37:11.005961Z DEBUG ThreadId(223) relayer::price: 142: Updating current price to: 107665.5
+2025-06-30T13:37:11.006023Z DEBUG ThreadId(223) relayer::price: 152: Price updated to: 107666
+2025-06-30T13:37:12.006170Z DEBUG ThreadId(224) relayer::price: 142: Updating current price to: 107690
+2025-06-30T13:37:12.007526Z DEBUG ThreadId(224) relayer::price: 152: Price updated to: 107690
+2025-06-30T13:37:13.006445Z DEBUG ThreadId(225) relayer::price: 142: Updating current price to: 107690
+2025-06-30T13:37:13.006508Z DEBUG ThreadId(225) relayer::price: 152: Price updated to: 107690
+2025-06-30T13:37:14.006727Z DEBUG ThreadId(226) relayer::price: 142: Updating current price to: 107689.99
+2025-06-30T13:37:14.006808Z DEBUG ThreadId(226) relayer::price: 152: Price updated to: 107690
+2025-06-30T13:37:15.006922Z DEBUG ThreadId(227) relayer::price: 142: Updating current price to: 107690
+2025-06-30T13:37:15.006979Z DEBUG ThreadId(227) relayer::price: 152: Price updated to: 107690
+2025-06-30T13:37:16.007221Z DEBUG ThreadId(228) relayer::price: 142: Updating current price to: 107689.99
+2025-06-30T13:37:16.007267Z DEBUG ThreadId(228) relayer::price: 152: Price updated to: 107690
+2025-06-30T13:37:17.007413Z DEBUG ThreadId(229) relayer::price: 142: Updating current price to: 107690
+2025-06-30T13:37:17.007484Z DEBUG ThreadId(229) relayer::price: 152: Price updated to: 107690
+2025-06-30T13:37:18.008124Z DEBUG ThreadId(230) relayer::price: 142: Updating current price to: 107715.99
+2025-06-30T13:37:18.008192Z DEBUG ThreadId(230) relayer::price: 152: Price updated to: 107716
+2025-06-30T13:37:19.008297Z DEBUG ThreadId(231) relayer::price: 142: Updating current price to: 107715.99
+2025-06-30T13:37:19.008363Z DEBUG ThreadId(231) relayer::price: 152: Price updated to: 107716
+2025-06-30T13:37:20.008480Z DEBUG ThreadId(232) relayer::price: 142: Updating current price to: 107716
+2025-06-30T13:37:20.008558Z DEBUG ThreadId(232) relayer::price: 152: Price updated to: 107716
+2025-06-30T13:37:21.008608Z DEBUG ThreadId(233) relayer::price: 142: Updating current price to: 107738.41
+2025-06-30T13:37:21.008713Z DEBUG ThreadId(233) relayer::price: 152: Price updated to: 107738
+2025-06-30T13:37:22.008800Z DEBUG ThreadId(234) relayer::price: 142: Updating current price to: 107738.4
+2025-06-30T13:37:22.008863Z DEBUG ThreadId(234) relayer::price: 152: Price updated to: 107738
+2025-06-30T13:37:23.008967Z DEBUG ThreadId(235) relayer::price: 142: Updating current price to: 107738.4
+2025-06-30T13:37:23.009362Z DEBUG ThreadId(235) relayer::price: 152: Price updated to: 107738
+2025-06-30T13:37:24.009118Z DEBUG ThreadId(236) relayer::price: 142: Updating current price to: 107762.64
+2025-06-30T13:37:24.009179Z DEBUG ThreadId(236) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:25.010072Z DEBUG ThreadId(237) relayer::price: 142: Updating current price to: 107762.65
+2025-06-30T13:37:25.010122Z DEBUG ThreadId(237) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:26.009825Z DEBUG ThreadId(238) relayer::price: 142: Updating current price to: 107762.64
+2025-06-30T13:37:26.009896Z DEBUG ThreadId(238) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:27.010136Z DEBUG ThreadId(239) relayer::price: 142: Updating current price to: 107762.64
+2025-06-30T13:37:27.010206Z DEBUG ThreadId(239) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:28.010186Z DEBUG ThreadId(240) relayer::price: 142: Updating current price to: 107762.64
+2025-06-30T13:37:28.010228Z DEBUG ThreadId(240) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:29.010332Z DEBUG ThreadId(241) relayer::price: 142: Updating current price to: 107762.64
+2025-06-30T13:37:29.010379Z DEBUG ThreadId(241) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:30.010545Z DEBUG ThreadId(242) relayer::price: 142: Updating current price to: 107762.65
+2025-06-30T13:37:30.010624Z DEBUG ThreadId(242) relayer::price: 152: Price updated to: 107763
+2025-06-30T13:37:31.010773Z DEBUG ThreadId(243) relayer::price: 142: Updating current price to: 107754.05
+2025-06-30T13:37:31.010845Z DEBUG ThreadId(243) relayer::price: 152: Price updated to: 107754
+2025-06-30T13:37:32.014603Z DEBUG ThreadId(244) relayer::price: 142: Updating current price to: 107754.05
+2025-06-30T13:37:32.015218Z DEBUG ThreadId(244) relayer::price: 152: Price updated to: 107754
+2025-06-30T13:37:33.012115Z DEBUG ThreadId(245) relayer::price: 142: Updating current price to: 107754.05
+2025-06-30T13:37:33.012187Z DEBUG ThreadId(245) relayer::price: 152: Price updated to: 107754
+2025-06-30T13:37:34.012328Z DEBUG ThreadId(246) relayer::price: 142: Updating current price to: 107754.06
+2025-06-30T13:37:34.012411Z DEBUG ThreadId(246) relayer::price: 152: Price updated to: 107754
+2025-06-30T13:37:35.012660Z DEBUG ThreadId(247) relayer::price: 142: Updating current price to: 107754.05
+2025-06-30T13:37:35.012726Z DEBUG ThreadId(247) relayer::price: 152: Price updated to: 107754
+2025-06-30T13:37:36.012886Z DEBUG ThreadId(248) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:36.012953Z DEBUG ThreadId(248) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:37.013197Z DEBUG ThreadId(249) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:37.013255Z DEBUG ThreadId(249) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:38.013782Z DEBUG ThreadId(250) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:38.013828Z DEBUG ThreadId(250) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:39.013931Z DEBUG ThreadId(251) relayer::price: 142: Updating current price to: 107736.75
+2025-06-30T13:37:39.014004Z DEBUG ThreadId(251) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:40.013952Z DEBUG ThreadId(252) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:40.014251Z DEBUG ThreadId(252) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:41.014012Z DEBUG ThreadId(253) relayer::price: 142: Updating current price to: 107736.75
+2025-06-30T13:37:41.014084Z DEBUG ThreadId(253) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:42.014321Z DEBUG ThreadId(254) relayer::price: 142: Updating current price to: 107736.75
+2025-06-30T13:37:42.014393Z DEBUG ThreadId(254) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:43.014492Z DEBUG ThreadId(255) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:43.014553Z DEBUG ThreadId(255) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:44.014713Z DEBUG ThreadId(256) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:44.014781Z DEBUG ThreadId(256) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:45.014886Z DEBUG ThreadId(257) relayer::price: 142: Updating current price to: 107736.76
+2025-06-30T13:37:45.014947Z DEBUG ThreadId(257) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:46.016729Z DEBUG ThreadId(258) relayer::price: 142: Updating current price to: 107736.75
+2025-06-30T13:37:46.017160Z DEBUG ThreadId(258) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:47.017263Z DEBUG ThreadId(259) relayer::price: 142: Updating current price to: 107736.75
+2025-06-30T13:37:47.017330Z DEBUG ThreadId(259) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:48.017146Z DEBUG ThreadId(260) relayer::price: 142: Updating current price to: 107736.75
+2025-06-30T13:37:48.017219Z DEBUG ThreadId(260) relayer::price: 152: Price updated to: 107737
+2025-06-30T13:37:49.017326Z DEBUG ThreadId(261) relayer::price: 142: Updating current price to: 107728.68
+2025-06-30T13:37:49.017387Z DEBUG ThreadId(261) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:37:50.019860Z DEBUG ThreadId(262) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:37:50.019930Z DEBUG ThreadId(262) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:37:51.019981Z DEBUG ThreadId(263) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:51.020052Z DEBUG ThreadId(263) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:52.020186Z DEBUG ThreadId(264) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:52.020247Z DEBUG ThreadId(264) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:53.020580Z DEBUG ThreadId(265) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:53.020673Z DEBUG ThreadId(265) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:54.020801Z DEBUG ThreadId(266) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:54.020859Z DEBUG ThreadId(266) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:55.023740Z DEBUG ThreadId(267) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:55.023822Z DEBUG ThreadId(267) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:56.022026Z DEBUG ThreadId(268) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:56.022088Z DEBUG ThreadId(268) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:57.022324Z DEBUG ThreadId(269) relayer::price: 142: Updating current price to: 107723.65
+2025-06-30T13:37:57.022388Z DEBUG ThreadId(269) relayer::price: 152: Price updated to: 107724
+2025-06-30T13:37:58.022419Z DEBUG ThreadId(270) relayer::price: 142: Updating current price to: 107728.68
+2025-06-30T13:37:58.022481Z DEBUG ThreadId(270) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:37:59.022556Z DEBUG ThreadId(271) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:37:59.022792Z DEBUG ThreadId(271) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:38:00.023689Z DEBUG ThreadId(272) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:38:00.026336Z DEBUG ThreadId(272) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:38:01.022978Z DEBUG ThreadId(273) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:38:01.023036Z DEBUG ThreadId(273) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:38:02.023182Z DEBUG ThreadId(274) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:38:02.023231Z DEBUG ThreadId(274) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:38:03.023372Z DEBUG ThreadId(275) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:38:03.023423Z DEBUG ThreadId(275) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:38:04.023779Z DEBUG ThreadId(276) relayer::price: 142: Updating current price to: 107728.67
+2025-06-30T13:38:04.023858Z DEBUG ThreadId(276) relayer::price: 152: Price updated to: 107729
+2025-06-30T13:38:05.023880Z DEBUG ThreadId(277) relayer::price: 142: Updating current price to: 107730.8
+2025-06-30T13:38:05.023956Z DEBUG ThreadId(277) relayer::price: 152: Price updated to: 107731
+2025-06-30T13:38:06.024027Z DEBUG ThreadId(278) relayer::price: 142: Updating current price to: 107730.8
+2025-06-30T13:38:06.024095Z DEBUG ThreadId(278) relayer::price: 152: Price updated to: 107731
+2025-06-30T13:38:07.024219Z DEBUG ThreadId(279) relayer::price: 142: Updating current price to: 107730.79
+2025-06-30T13:38:07.024267Z DEBUG ThreadId(279) relayer::price: 152: Price updated to: 107731
+2025-06-30T13:38:08.024518Z DEBUG ThreadId(280) relayer::price: 142: Updating current price to: 107702.42
+2025-06-30T13:38:08.024584Z DEBUG ThreadId(280) relayer::price: 152: Price updated to: 107702
+2025-06-30T13:38:09.024745Z DEBUG ThreadId(281) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:09.024803Z DEBUG ThreadId(281) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:10.025310Z DEBUG ThreadId(282) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:10.025376Z DEBUG ThreadId(282) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:11.025509Z DEBUG ThreadId(283) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:11.025901Z DEBUG ThreadId(283) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:12.025614Z DEBUG ThreadId(284) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:12.025849Z DEBUG ThreadId(284) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:13.025738Z DEBUG ThreadId(285) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:13.025790Z DEBUG ThreadId(285) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:14.026055Z DEBUG ThreadId(286) relayer::price: 142: Updating current price to: 107687.51
+2025-06-30T13:38:14.026116Z DEBUG ThreadId(286) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:15.027059Z DEBUG ThreadId(287) relayer::price: 142: Updating current price to: 107687.51
+2025-06-30T13:38:15.027157Z DEBUG ThreadId(287) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:16.027201Z DEBUG ThreadId(288) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:16.027272Z DEBUG ThreadId(288) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:17.029103Z DEBUG ThreadId(289) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:17.029165Z DEBUG ThreadId(289) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:18.029259Z DEBUG ThreadId(290) relayer::price: 142: Updating current price to: 107687.51
+2025-06-30T13:38:18.029333Z DEBUG ThreadId(290) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:19.029445Z DEBUG ThreadId(291) relayer::price: 142: Updating current price to: 107687.51
+2025-06-30T13:38:19.029511Z DEBUG ThreadId(291) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:20.029717Z DEBUG ThreadId(292) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:20.029790Z DEBUG ThreadId(292) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:21.029935Z DEBUG ThreadId(293) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:21.029992Z DEBUG ThreadId(293) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:22.030898Z DEBUG ThreadId(294) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:22.030965Z DEBUG ThreadId(294) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:23.031055Z DEBUG ThreadId(295) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:23.031111Z DEBUG ThreadId(295) relayer::price: 152: Price updated to: 107688
+2025-06-30T13:38:24.031239Z DEBUG ThreadId(296) relayer::price: 142: Updating current price to: 107687.5
+2025-06-30T13:38:24.031299Z DEBUG ThreadId(296) relayer::price: 152: Price updated to: 107688
