@@ -43,7 +43,7 @@ pub fn produce_main(payload: &String, topic: &str) {
     let data = &payload.as_bytes();
 
     if let Err(e) = produce_message(data, topic, vec![broker.to_owned()]) {
-        println!("Failed producing messages: {}", e);
+        crate::log_heartbeat!(error, "Failed producing messages: {}", e);
     }
 }
 

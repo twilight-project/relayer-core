@@ -146,19 +146,19 @@ impl SnapshotDB {
     }
     fn print_status(&self) {
         if self.orderdb_traderorder.sequence > 0 {
-            println!("TraderOrder Database Loaded ....");
+            crate::log_heartbeat!(debug, "TraderOrder Database Loaded ....");
         } else {
-            println!("No old TraderOrder Database found ....\nCreating new TraderOrder_database");
+            crate::log_heartbeat!(debug, "No old TraderOrder Database found ....\nCreating new TraderOrder_database");
         }
         if self.orderdb_lendorder.sequence > 0 {
-            println!("LendOrder Database Loaded ....");
+            crate::log_heartbeat!(debug, "LendOrder Database Loaded ....");
         } else {
-            println!("No old LendOrder Database found ....\nCreating new LendOrder_database");
+            crate::log_heartbeat!(debug, "No old LendOrder Database found ....\nCreating new LendOrder_database");
         }
         if self.lendpool_database.aggrigate_log_sequence > 0 {
-            println!("LendPool Database Loaded ....");
+            crate::log_heartbeat!(debug, "LendPool Database Loaded ....");
         } else {
-            println!("No old LendPool Database found ....\nCreating new LendPool_database");
+            crate::log_heartbeat!(debug, "No old LendPool Database found ....\nCreating new LendPool_database");
         }
     }
 }
@@ -169,7 +169,7 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
     // encryption on snapshot data
     // snapshot version
     // delete old snapshot data deleted by cron job
-    println!("started taking snapshot");
+    crate::log_heartbeat!(info, "started taking snapshot");
     let read_snapshot = fs::read(format!(
         "{}-{}",
         *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
@@ -189,20 +189,24 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
                 }
                 Err(arg) => {
                     // .expect("Could not decode vector");
-                    println!(
+                    crate::log_heartbeat!(info,
                         "No previous Snapshot Found- Error:{:#?} \n path: {:?}",
                         arg,
                         format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
                     );
                     // last_snapshot_time = decoded_snapshot.event_timestamp.clone();
                     fetchoffset = FetchOffset::Earliest;
+                    crate::log_heartbeat!(info, "No previous Snapshot Found- Error:{:#?} \n path: {:?} \n Creating new Snapshot",
+                        arg,
+                        format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
+                    );
                     SnapshotDB::new()
                 }
             }
         }
         Err(arg) => {
-            println!(
-                "No previous Snapshot Found- Error:{:#?} \n path: {:?}",
+            crate::log_heartbeat!(info,
+                "No previous Snapshot Found- Error:{:#?} \n path: {:?} \n Creating new Snapshot",
                 arg,
                 format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
             );
@@ -233,7 +237,7 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
                     "{}-{}",
                     *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
                 )) {
-                    println!("Can not delete snapshot file, \n Error: {:?}", e);
+                    crate::log_heartbeat!(error, "Can not delete snapshot file, \n Error: {:?}", e);
                 }
             }
             fs::rename(
@@ -250,10 +254,10 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
         }
         }
         Err(arg) => {
-            println!("Could not write snapshot file - Error:{:#?}", arg);
+            crate::log_heartbeat!(error, "Could not write snapshot file - Error:{:#?}", arg);
         }
     }
-    println!("Snapshot Done");
+    crate::log_heartbeat!(info, "Snapshot Done");
 
     Ok(snapshot_db_updated)
 }
@@ -304,7 +308,7 @@ pub fn create_snapshot_data(
                 Ok(rec_lock)=>{rec_lock}
                 Err(arg)=>{
                     retry_attempt+=1;
-                    println!("unable to lock the kafka log receiver :{:?}",arg);
+                    crate::log_heartbeat!(error, "unable to lock the kafka log receiver :{:?}",arg);
                     continue;
                 }
                };
@@ -908,7 +912,7 @@ pub fn create_snapshot_data(
                             }
                         
                         }
-                        Err(arg)=>println!("Error at kafka log receiver : {:?}",arg)
+                        Err(arg)=>crate::log_heartbeat!(error, "Error at kafka log receiver : {:?}",arg)
                     }
               
                 }
@@ -939,7 +943,7 @@ pub fn create_snapshot_data(
                 },tx_consumed));
             }
             Err(arg) => {
-                println!(
+                crate::log_heartbeat!(error,
                     "Failed to connect to kafka with error :{:?}\n attempt:{}",
                     arg, retry_attempt
                 );
@@ -1061,25 +1065,12 @@ pub fn load_from_snapshot()->Result<QueueState,String> {
 
             trader_order_handle.join().unwrap();
             lend_order_handle.join().unwrap();
-            // println!("queue_manager:{:?}",snapshot_data.queue_manager);
             return Ok(snapshot_data.queue_manager);
         }
 
         Err(arg) => {
-            println!("unable to load data from snapshot \n error: {:?}", arg);
-            // let mut load_trader_data = TRADER_ORDER_DB.lock().unwrap();
-            // let mut load_lend_data = LEND_ORDER_DB.lock().unwrap();
-            // let mut load_pool_data = LEND_POOL_DB.lock().unwrap();
-            // let (data1, data2, data3): (OrderDB<TraderOrder>, OrderDB<LendOrder>, LendPool) =
-            //     load_backup_data();
-            // *load_trader_data = data1;
-            // *load_lend_data = data2;
-            // *load_pool_data = data3;
-            // drop(load_trader_data);
-            // drop(load_lend_data);
-            // drop(load_pool_data);
-return Err(arg.to_string());
-
+            crate::log_heartbeat!(error, "unable to load data from snapshot \n error: {:?}", arg);
+            return Err(arg.to_string());
         }
     }
 }

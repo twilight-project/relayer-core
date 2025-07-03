@@ -21,7 +21,7 @@ pub fn consume_main() {
     let group = "BTC_payload_postgreSQL".to_owned();
 
     if let Err(e) = consume_messages(group, topic, vec![broker]) {
-        println!("Failed consuming messages: {}", e);
+        crate::log_heartbeat!(error, "Failed consuming messages: {}", e);
     }
 }
 
@@ -36,8 +36,6 @@ fn consume_messages(group: String, topic: String, brokers: Vec<String>) -> Resul
     loop {
         let mss = con.poll()?;
         if mss.is_empty() {
-            // println!("No messages available right now.");
-            // return Ok(());
         } else {
             for ms in mss.iter() {
                 for m in ms.messages() {
@@ -63,7 +61,7 @@ pub fn consume_kafka(topic: String, group: String) {
     // let group = "BTC_payload_postgreSQL".to_owned();
 
     if let Err(e) = consume_messages_kafka(group, topic, vec![broker]) {
-        println!("Failed consuming messages: {}", e);
+        crate::log_heartbeat!(error, "Failed consuming messages: {}", e);
     }
 }
 
@@ -82,15 +80,12 @@ fn consume_messages_kafka(
     loop {
         let mss = con.poll()?;
         if mss.is_empty() {
-            // println!("No messages available right now.");
-            // return Ok(());
         } else {
             for ms in mss.iter() {
                 for m in ms.messages() {
                     let ordertx: CreateTraderOrder =
                         serde_json::from_str(&String::from_utf8_lossy(m.value)).unwrap();
-                    // kafka_sink(&ms.topic(), &ms.partition(), &m.offset, binance_payload);
-                    println!("order msg: {:#?}, Offset:{}", ordertx, &m.offset);
+                    crate::log_heartbeat!(info, "order msg: {:#?}, Offset:{}", ordertx, &m.offset);
                 }
                 let _ = con.consume_messageset(ms);
             }

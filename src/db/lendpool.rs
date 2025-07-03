@@ -335,13 +335,16 @@ impl LendPool {
     }
 
     pub fn check_backup() -> Self {
-        println!("Loading LendPool Database ....");
+        crate::log_heartbeat!(info, "Loading LendPool Database ....");
         let (old_data, database): (bool, LendPool) = LendPool::load_data();
         if old_data {
-            println!("LendPool Database Loaded ....");
+            crate::log_heartbeat!(info, "LendPool Database Loaded ....");
             database
         } else {
-            println!("No old LendPool Database found ....\nCreating new database");
+            crate::log_heartbeat!(
+                info,
+                "No old LendPool Database found ....\nCreating new database"
+            );
             LendPool::new()
         }
     }
@@ -549,7 +552,6 @@ impl LendPool {
                                     _payment,
                                     next_output_state,
                                 ) => {
-                                    // println!("hey, im here");
                                     order.exit_nonce = self.nonce;
                                     let _ = trader_order_db.remove(order.clone(), rpc_cmd.clone());
 

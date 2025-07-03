@@ -148,7 +148,7 @@ pub fn get_size_in_mb<T>(value: &T)
 where
     T: DataSize,
 {
-    println!("{:#?}MB", data_size(value) / (8 * 1024 * 1024));
+    crate::log_heartbeat!(warn, "{:#?}MB", data_size(value) / (8 * 1024 * 1024));
 }
 
 pub fn get_fee(key: FeeType) -> f64 {

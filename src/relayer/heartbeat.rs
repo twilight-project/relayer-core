@@ -76,8 +76,7 @@ pub fn heartbeat() {
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(100));
-    // ordertest::initprice();
-    // start_cronjobs();
+
     // main thread for scheduler
     thread::Builder::new()
         .name(String::from("heartbeat scheduler"))
@@ -120,7 +119,6 @@ pub fn heartbeat() {
         })
         .unwrap();
 
-    // QueueResolver::new(String::from("questdb_queue"));
     crate::log_heartbeat!(
         info,
         "Initialization done.................................."
@@ -132,7 +130,6 @@ pub fn price_check_and_update() {
 
     //get_localdb with single mutex unlock
     let local_storage = LOCALDB.lock().unwrap();
-    // let mut currentprice = local_storage.get("Latest_Price").unwrap().clone();
     let mut currentprice = match local_storage.get(&String::from("Latest_Price")) {
         Some(price) => price.clone(),
         None => return,
@@ -150,7 +147,6 @@ pub fn price_check_and_update() {
         currentprice = currentprice.round();
         set_localdb("CurrentPrice", currentprice);
         crate::log_price!(debug, "Price updated to: {}", currentprice);
-        // redis_db::set("CurrentPrice", &currentprice.clone().to_string());
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
         treadpool_pending_order.execute(move || {
             check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
@@ -203,11 +199,6 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        // println!(
-        //     "long:{:#?},\n Short:{:#?}",
-        //     orderid_list_long, orderid_list_short
-        // );
-
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
@@ -269,11 +260,6 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        // println!(
-        //     "long:{:#?},\n Short:{:#?}",
-        //     orderid_list_long, orderid_list_short
-        // );
-
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
@@ -334,11 +320,6 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     }
     let total_order_count = orderid_list_short_len + orderid_list_long_len;
     if total_order_count > 0 {
-        // println!(
-        //     "long:{:#?},\n Short:{:#?}",
-        //     orderid_list_long, orderid_list_short
-        // );
-
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
@@ -375,9 +356,12 @@ pub fn updatefundingrate_localdb(psi: f64) {
     let totallong = position_size_log.total_long_positionsize.clone();
     let allpositionsize = position_size_log.totalpositionsize.clone();
     drop(position_size_log);
-    println!(
+    crate::log_heartbeat!(
+        info,
         "totalshort:{}, totallong:{}, allpositionsize:{}",
-        totalshort, totallong, allpositionsize
+        totalshort,
+        totallong,
+        allpositionsize
     );
     //powi is faster then powf
     //psi = 8.0 or  ψ = 8.0
@@ -393,9 +377,8 @@ pub fn updatefundingrate_localdb(psi: f64) {
     } else {
         fundingrate = fundingrate * (-1.0);
     }
-    // comment below code and add kafka msg producer for fl=unding rate
     // updatefundingrateindb(fundingrate.clone(), current_price, current_time);
-    println!("funding cycle processing...");
+    crate::log_heartbeat!(info, "funding cycle processing...");
     let meta = Meta {
         metadata: {
             let mut hashmap = HashMap::new();
@@ -427,7 +410,7 @@ pub fn updatefundingrate_localdb(psi: f64) {
     };
     // get_and_update_all_orders_on_funding_cycle(current_price, fundingrate.clone());
     fundingcycle(current_price, fundingrate, fee, current_time, meta);
-    println!("fundingrate:{}", fundingrate);
+    crate::log_heartbeat!(info, "fundingrate:{}", fundingrate);
 }
 use stopwatch::Stopwatch;
 pub fn fundingcycle(
@@ -437,13 +420,15 @@ pub fn fundingcycle(
     current_time: std::time::SystemTime,
     metadata: Meta,
 ) {
-    // let mut orderdetails_array: Vec<Arc<RwLock<TraderOrder>>> = Vec::new();
     let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
     let orderdetails_array = trader_order_db.getall_mut();
     drop(trader_order_db);
-
+    crate::log_heartbeat!(
+        info,
+        "applying funding rate to orders: {:#?}",
+        orderdetails_array.len()
+    );
     let length = orderdetails_array.len();
-    println!("length : {}", length);
     let sw = Stopwatch::start_new();
     if length > 0 {
         let threadpool = ThreadPool::new(10, String::from("Funding cycle pool"));
@@ -465,7 +450,7 @@ pub fn fundingcycle(
                 );
             });
         }
-        // println!("funding test 1");
+
         for _i in 0..length {
             let (funding_payment, order, (uuid, price, position_type)) = recv.recv().unwrap();
             if funding_payment != 0.0 {
@@ -498,7 +483,7 @@ pub fn fundingcycle(
             fundingrate,
         ));
     }
-    println!("funding cycle took {:#?}", sw.elapsed());
+    crate::log_heartbeat!(info, "funding cycle took {:#?}", sw.elapsed());
 }
 
 pub fn updatechangesineachordertxonfundingratechange_localdb(
@@ -580,6 +565,11 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                 0,
             );
             let (sender, zkos_receiver) = mpsc::channel();
+            crate::log_trading!(
+                debug,
+                "applying liquidation for order_id:{} due to low maintenance margin",
+                ordertx.uuid
+            );
             zkos_order_handler(
                 ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
                     ordertx.clone(),
@@ -636,11 +626,21 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                         // println!("dropping mutex LEND_POOL_DB");
                     }
                     Err(verification_error) => {
-                        println!("Error in line heartbeat.rs 607 : {:?}", verification_error);
+                        crate::log_trading!(
+                            error,
+                            "Error in line heartbeat.rs 631 for order_id:{} : {:?}",
+                            ordertx.uuid,
+                            verification_error
+                        );
                     }
                 },
                 Err(arg) => {
-                    println!("Error in line heartbeat.rs 612 : {:?}", arg);
+                    crate::log_trading!(
+                        error,
+                        "Error in line heartbeat.rs 640 for order_id:{} : {:?}",
+                        ordertx.uuid,
+                        arg
+                    );
                 }
             }
 

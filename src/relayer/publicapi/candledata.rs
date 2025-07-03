@@ -98,7 +98,6 @@ pub fn get_candle(
         }
     });
 
-    // println!("{:#?}", receiver.recv().unwrap());
     match receiver.recv().unwrap() {
         Ok(value) => {
             return Ok(Candles { candles: value });
@@ -162,7 +161,6 @@ pub fn get_candle_advance(
         }
     });
     drop(public_threadpool);
-    // println!("{:#?}", receiver.recv().unwrap());
     match receiver.recv().unwrap() {
         Ok(value) => {
             return Ok(CandlesAdvance { candles: value });

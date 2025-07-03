@@ -23,14 +23,11 @@ pub fn get_traderorder_details_by_account_id(
 	FROM public.trader_order where account_id='{}' Order By  timestamp desc Limit 1 ;",
             account
         );
-        // println!("query:{}", query);
         let mut client = POSTGRESQL_POOL_CONNECTION_API.get().unwrap();
         let mut is_raw = true;
         for row in client.query(&query, &[]).unwrap() {
-            // println!("is it coming here");
             let uuid_string: String = row.get("uuid");
             let uuid = Uuid::parse_str(&uuid_string).unwrap();
-            // println!("raw data:{:#?}", uuid);
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             let trader_order = trader_order_db.get(uuid);
             drop(trader_order_db);
@@ -47,11 +44,9 @@ pub fn get_traderorder_details_by_account_id(
 
     match receiver.recv().unwrap() {
         Ok(value) => {
-            // println!("is it coming here3");
             return Ok(value);
         }
         Err(arg) => {
-            // println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("order not found for key:{}", account_id),
@@ -77,7 +72,6 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
         for row in client.query(&query, &[]).unwrap() {
             let uuid_string: String = row.get("uuid");
             let uuid = Uuid::parse_str(&uuid_string).unwrap();
-            // println!("raw data:{:#?}", uuid);
             let mut lend_order_db = LEND_ORDER_DB.lock().unwrap();
             let lend_order = lend_order_db.get(uuid);
             drop(lend_order_db);
@@ -94,11 +88,9 @@ pub fn get_lendorder_details_by_account_id(account: String) -> Result<LendOrder,
 
     match receiver.recv().unwrap() {
         Ok(value) => {
-            // println!("is it coming here3");
             return Ok(value);
         }
         Err(arg) => {
-            // println!("is it coming here4");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("order not found for key:{}", account_id),
