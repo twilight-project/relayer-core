@@ -232,7 +232,7 @@ pub fn startserver() {
     },
     );
 
-    println!("Starting jsonRPC server @ 127.0.0.1:3030");
+    crate::log_heartbeat!(info, "Starting jsonRPC server @ 127.0.0.1:3030");
     let server = ServerBuilder::new(io)
         .threads(*RPC_SERVER_THREAD)
         .meta_extractor(|req: &hyper::Request<hyper::Body>| {
