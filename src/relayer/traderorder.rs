@@ -160,7 +160,7 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
-        let available_margin = self.available_margin - fee_value;
+        let available_margin = self.initial_margin - fee_value;
         (
             TraderOrder {
                 uuid: self.uuid,
