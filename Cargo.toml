@@ -11,7 +11,6 @@ path = "src/main.rs"
 serde = "1.0.131"
 serde_derive = "1.0.131"
 serde_json = "1.0.68"
-# uuid = { version = "0.8.2", features = ["v4", "serde"] } #https://github.com/serde-rs/serde/issues/324
 uuid = { version = "1.6.1", features = ["v4", "serde"] }
 stopwatch = "0.0.7"
 dotenv = "0.15.0"
@@ -23,7 +22,6 @@ serde_with = { version = "1.4.0", features = ["json"] }
 futures = "0.1.31"
 kafka = "0.8"
 amiquip = "0.4.0"
-# postgres = "0.19.2"
 postgres = { version = "0.19.2", features = ["with-serde_json-1"] }
 postgres-types = { version = "0.1.0", features = [
     "derive",
@@ -41,10 +39,6 @@ jsonrpc-http-server = "18.0"
 jsonrpc-core = "18.0.0"
 ctrlc = "3.1"
 nix = "0.17"
-# aeron-rs = "0.1.5"
-# dashmap = "5.1.0"  // use dashmap::DashMap;
-# [dependencies.tpf]
-# path = "./tpf"
 bincode = "1.3.3"
 pretty_env_logger = "0.4"
 strum = "0.24"
@@ -52,7 +46,6 @@ strum_macros = "0.24"
 rust_decimal = { version = "1.23", features = ["db-postgres"] }
 rust_decimal_macros = "1.23"
 hex = "*"
-# cqrs-es = "0.4.4"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 datasize = "0.2.10"
 rand = "0.7"
@@ -67,9 +60,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
 log = "0.4"
 
-
 curve25519-dalek = { version = "3", default-features = false }
-
 
 [dependencies.zkos-relayer-wallet]
 git = "https://github.com/twilight-project/zkos-relayer-wallet.git"
@@ -101,3 +92,31 @@ git = "https://github.com/twilight-project/zk-schnorr.git"
 [dependencies.quisquis-rust]
 git = "https://github.com/twilight-project/quisquis-rust.git"
 branch = "develop"
+
+
+# Benchmarks
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tokio-test = "0.4"
+proptest = "1.0"
+once_cell = "1.19"
+[[bench]]
+name = "relayer_core"
+harness = false
+
+# name = "relayer_benchmarks"
+# [[bench]]
+# name = "zkos_benchmarks"
+# harness = false
+
+# [[bench]]
+# name = "db_benchmarks"
+# harness = false
+
+# [[bench]]
+# name = "order_processing_benchmarks"
+# harness = false
+
+# [[bench]]
+# name = "crypto_benchmarks"
+# harness = false

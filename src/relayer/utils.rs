@@ -75,7 +75,7 @@ pub fn positionside(position_type: &PositionType) -> i32 {
 
 pub fn get_localdb(key: &str) -> f64 {
     let local_storage = LOCALDB.lock().unwrap();
-    let price = local_storage.get(key).unwrap().clone();
+    let price = local_storage.get(key).unwrap_or(&100000.0).clone();
     drop(local_storage);
     price.round()
 }
@@ -89,7 +89,7 @@ use crate::config::LOCALDBSTRING;
 
 pub fn get_localdb_string(key: &str) -> String {
     let local_storage = LOCALDBSTRING.lock().unwrap();
-    let data = local_storage.get(key).unwrap().clone();
+    let data = local_storage.get(key).unwrap_or(&"".to_string()).clone();
     drop(local_storage);
     data
 }
@@ -153,7 +153,10 @@ where
 
 pub fn get_fee(key: FeeType) -> f64 {
     let local_storage = LOCALDB.lock().unwrap();
-    let fee = local_storage.get::<String>(&key.into()).unwrap().clone();
+    let fee = local_storage
+        .get::<String>(&key.into())
+        .unwrap_or(&0.0)
+        .clone();
     drop(local_storage);
     fee
 }

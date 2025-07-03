@@ -81,8 +81,8 @@ pub fn rpc_event_handler(
     let command_clone_for_zkos = command.clone();
     match command {
         RpcCommand::CreateTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
-            let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
-            buffer.execute(move || {
+            // let buffer = THREADPOOL_NORMAL_ORDER.lock().unwrap();
+            // buffer.execute(move || {
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
@@ -206,8 +206,8 @@ pub fn rpc_event_handler(
                     //     Err(_) => {}
                     // }
                 }
-            });
-            drop(buffer);
+            // });
+            // drop(buffer);
         }
         RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
@@ -1209,8 +1209,8 @@ pub fn zkos_order_handler(
     if ENABLE_ZKOS_CHAIN_TRANSACTION.clone() {
         match command {
             ZkosTxCommand::CreateTraderOrderTX(trader_order, rpc_command) => {
-                let buffer = THREADPOOL_ZKOS_TRADER_ORDER.lock().unwrap();
-                buffer.execute(move || {
+                // let buffer = THREADPOOL_ZKOS_TRADER_ORDER.lock().unwrap();
+                // buffer.execute(move || {
                     match trader_order.order_status {
                         OrderStatus::FILLED => {
                             match rpc_command {
@@ -1372,8 +1372,8 @@ pub fn zkos_order_handler(
                         }
                         _ => {}
                     }
-                });
-                drop(buffer);
+                // });
+                // drop(buffer);
             }
 
             ZkosTxCommand::CreateLendOrderTX(
