@@ -44,6 +44,5 @@ relayer_snapshot
 src/pricefeederlib_old
 superveisorfile.txt
 foo.txt
-logs/relayer.err.log
-logs/relayer.out.log
+logs
 .env

@@ -27,6 +27,8 @@ pub struct TraderOrder {
     pub entry_nonce: usize,
     pub exit_nonce: usize,
     pub entry_sequence: usize,
+    pub fee_filled: f64,
+    pub fee_settled: f64,
 }
 impl TraderOrder {
     pub fn new_order(mut rpc_request: CreateTraderOrder) -> (Self, bool) {
@@ -59,33 +61,35 @@ impl TraderOrder {
         let order_type = rpc_request.order_type;
         let leverage = rpc_request.leverage;
         let initial_margin = rpc_request.initial_margin;
-        let available_margin = rpc_request.initial_margin;
+        let mut available_margin = rpc_request.initial_margin;
         let mut order_status = rpc_request.order_status;
         let mut entryprice = rpc_request.entryprice;
         let execution_price = rpc_request.execution_price;
-        let mut fee: f64 = 0.0;
-
+        let mut fee_percentage: f64 = 0.0;
+        let fee_value: f64;
         match order_type {
             OrderType::MARKET => {
                 // entryprice = get_localdb("CurrentPrice");
                 entryprice = current_price;
                 order_status = OrderStatus::FILLED;
-                fee = get_localdb("Fee"); //different fee for market order
+                fee_percentage = get_fee(FeeType::FilledOnMarket); //different fee for market order
             }
             OrderType::LIMIT => {
                 order_status = OrderStatus::PENDING;
-                fee = get_localdb("Fee"); //different fee for limit order
+                fee_percentage = get_fee(FeeType::FilledOnLimit); //different fee for limit order
             }
             _ => {}
         }
+        let entry_value = entryvalue(initial_margin, leverage);
 
         let position_side = positionside(&position_type);
-        let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
+        fee_value = calculate_fee_on_open_order(fee_percentage, positionsize, entryprice);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let fundingrate = get_localdb("FundingRate");
-        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
+        let maintenance_margin =
+            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -93,6 +97,7 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
+        available_margin = available_margin - fee_value;
         let uuid_key = Uuid::new_v4();
         let new_account_id;
         if String::from(account_id.clone()) == String::from("account_id") {
@@ -123,6 +128,8 @@ impl TraderOrder {
                 entry_nonce: 0,
                 exit_nonce: 0,
                 entry_sequence: 0,
+                fee_filled: fee_value,
+                fee_settled: 0.0,
             },
             order_entry_status,
         )
@@ -134,14 +141,18 @@ impl TraderOrder {
         let leverage = self.leverage;
         let initial_margin = self.initial_margin.clone();
         let entryprice = current_price;
-        let fee: f64 = get_localdb("Fee"); //different fee for market order
+        let fee_percentage: f64 = get_fee(FeeType::FilledOnLimit); //different fee for market order
+
         let fundingrate = get_localdb("FundingRate");
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
+        let fee_value: f64 =
+            calculate_fee_on_open_order(fee_percentage, positionsize, current_price);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let maintenance_margin = maintenancemargin(entry_value, bankruptcy_value, fee, fundingrate);
+        let maintenance_margin =
+            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -149,6 +160,7 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
+        let available_margin = self.initial_margin - fee_value;
         (
             TraderOrder {
                 uuid: self.uuid,
@@ -161,7 +173,7 @@ impl TraderOrder {
                 positionsize,
                 leverage,
                 initial_margin,
-                available_margin: self.available_margin,
+                available_margin,
                 timestamp: systemtime_to_utc(),
                 bankruptcy_price,
                 bankruptcy_value,
@@ -172,6 +184,8 @@ impl TraderOrder {
                 entry_nonce: self.entry_nonce.clone(),
                 exit_nonce: 0,
                 entry_sequence: self.entry_sequence.clone(),
+                fee_filled: fee_value,
+                fee_settled: 0.0,
             },
             order_entry_status,
         )
@@ -197,28 +211,6 @@ impl TraderOrder {
                     drop(add_to_liquidation_list);
                 }
             }
-            // Event::new(
-            //     Event::SortedSetDBUpdate(SortedSetCommand::AddLiquidationPrice(
-            //         ordertx.uuid.clone(),
-            //         ordertx.liquidation_price.clone(),
-            //         ordertx.position_type.clone(),
-            //     )),
-            //     format!("AddLiquidationPrice-{}", ordertx.uuid.clone()),
-            //     CORE_EVENT_LOG.clone().to_string(),
-            // );
-
-            // adding candle data
-            // let side = match ordertx.position_type {
-            //     PositionType::SHORT => Side::SELL,
-            //     PositionType::LONG => Side::BUY,
-            // };
-            // update_recent_orders(CloseTrade {
-            //     side: side,
-            //     positionsize: ordertx.positionsize,
-            //     price: ordertx.entryprice,
-            //     timestamp: std::time::SystemTime::now(),
-            // });
-            //
         } else {
             match ordertx.position_type {
                 PositionType::LONG => {
@@ -234,15 +226,6 @@ impl TraderOrder {
                     drop(add_to_open_order_list);
                 }
             }
-            // Event::new(
-            //     Event::SortedSetDBUpdate(SortedSetCommand::AddOpenLimitPrice(
-            //         ordertx.uuid.clone(),
-            //         ordertx.entryprice.clone(),
-            //         ordertx.position_type.clone(),
-            //     )),
-            //     format!("AddOpenLimitPrice-{}", ordertx.uuid.clone()),
-            //     CORE_EVENT_LOG.clone().to_string(),
-            // );
         }
         ordertx
     }
@@ -257,13 +240,17 @@ impl TraderOrder {
         let mut orderstatus: OrderStatus = OrderStatus::FILLED;
         match cmd_order_type {
             OrderType::MARKET => {
-                payment = self.calculatepayment_localdb(current_price);
+                payment =
+                    self.calculatepayment_localdb(current_price, get_fee(FeeType::FilledOnMarket));
                 orderstatus = OrderStatus::SETTLED;
             }
             OrderType::LIMIT => match self.position_type {
                 PositionType::LONG => {
                     if execution_price <= current_price {
-                        payment = self.calculatepayment_localdb(current_price);
+                        payment = self.calculatepayment_localdb(
+                            current_price,
+                            get_fee(FeeType::FilledOnLimit),
+                        );
                         orderstatus = OrderStatus::SETTLED;
                     } else {
                         let order_caluculated =
@@ -272,7 +259,10 @@ impl TraderOrder {
                 }
                 PositionType::SHORT => {
                     if execution_price >= current_price {
-                        payment = self.calculatepayment_localdb(current_price);
+                        payment = self.calculatepayment_localdb(
+                            current_price,
+                            get_fee(FeeType::FilledOnLimit),
+                        );
                         orderstatus = OrderStatus::SETTLED;
                     } else {
                         let order_caluculated =
@@ -360,7 +350,7 @@ impl TraderOrder {
         }
     }
 
-    pub fn calculatepayment_localdb(&mut self, current_price: f64) -> f64 // returns payment
+    pub fn calculatepayment_localdb(&mut self, current_price: f64, fee: f64) -> f64 // returns payment
     {
         let ordertx = self.clone();
         let margindifference = self.available_margin - self.initial_margin;
@@ -371,6 +361,7 @@ impl TraderOrder {
             current_price,
         );
         //calculate fee by AM*leverage*fee = fee deducted from payment
+        let fee_value: f64 = calculate_fee_on_open_order(fee, self.positionsize, current_price);
         // println!(
         //     "unrealizedpnl: {:?} \n round {:?} \n margindifference :{:?} \n round  {:?}",
         //     u_pnl,
@@ -378,12 +369,12 @@ impl TraderOrder {
         //     margindifference,
         //     margindifference.round()
         // );
-        let payment = u_pnl.round() + margindifference.round();
+        let payment = u_pnl.round() + margindifference.round() - fee_value;
         self.order_status = OrderStatus::SETTLED;
         self.available_margin = self.initial_margin + payment;
         self.settlement_price = current_price;
         self.unrealized_pnl = u_pnl;
-
+        self.fee_settled = fee_value;
         payment
     }
 
@@ -402,26 +393,6 @@ impl TraderOrder {
                 drop(add_to_liquidation_list);
             }
         }
-        // Event::new(
-        //     Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
-        //         ordertx.uuid.clone(),
-        //         ordertx.position_type.clone(),
-        //     )),
-        //     format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
-        //     CORE_EVENT_LOG.clone().to_string(),
-        // );
-
-        // adding candle data
-        // let side = match ordertx.position_type {
-        //     PositionType::SHORT => Side::BUY,
-        //     PositionType::LONG => Side::SELL,
-        // };
-        // update_recent_orders(CloseTrade {
-        //     side: side,
-        //     positionsize: ordertx.positionsize,
-        //     price: ordertx.entryprice,
-        //     timestamp: std::time::SystemTime::now(),
-        // });
     }
     pub fn cancelorder_localdb(&mut self) -> (bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
@@ -538,6 +509,10 @@ impl TraderOrder {
         result_vec.push(self.exit_nonce.to_string());
         result_vec.push("entry_sequence".to_string());
         result_vec.push(self.entry_sequence.to_string());
+        result_vec.push("fee_filled".to_string());
+        result_vec.push(self.fee_filled.to_string());
+        result_vec.push("fee_settled".to_string());
+        result_vec.push(self.fee_settled.to_string());
 
         return result_vec;
     }
@@ -565,6 +540,8 @@ impl TraderOrder {
             entry_nonce: serde_json::from_str(&json_str[37]).unwrap(),
             exit_nonce: serde_json::from_str(&json_str[39]).unwrap(),
             entry_sequence: serde_json::from_str(&json_str[41]).unwrap(),
+            fee_filled: serde_json::from_str(&json_str[43]).unwrap(),
+            fee_settled: serde_json::from_str(&json_str[45]).unwrap(),
         })
     }
 
