@@ -1,8 +1,8 @@
-# twilight-relayer
+# Twilight Relayer
 
 ## Introduction
 
-Relayer is an extremely high performance matching engine written in Rust.
+Twilight Relayer is an extremely high performance matching engine written in Rust.
 
 Relayer uses Event Sourcing pattern with CQRS framework to handle tens of thousands of orders per second or even better, depending on the performance of persistence. Basic architecture is shown below.
 
