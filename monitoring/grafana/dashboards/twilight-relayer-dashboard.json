@@ -1,0 +1,510 @@
+{
+    "dashboard": {
+        "id": null,
+        "title": "Twilight Relayer Dashboard",
+        "tags": [
+            "relayer",
+            "twilight",
+            "trading"
+        ],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+            {
+                "id": 1,
+                "title": "System Overview",
+                "type": "row",
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 0
+                },
+                "collapsed": false
+            },
+            {
+                "id": 2,
+                "title": "CPU Usage",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 0,
+                    "y": 1
+                },
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ],
+                        "fields": ""
+                    },
+                    "orientation": "auto",
+                    "textMode": "auto",
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto"
+                },
+                "pluginVersion": "8.0.0",
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "mappings": [],
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "green",
+                                    "value": null
+                                },
+                                {
+                                    "color": "red",
+                                    "value": 80
+                                }
+                            ]
+                        },
+                        "unit": "percent"
+                    }
+                }
+            },
+            {
+                "id": 3,
+                "title": "Memory Usage",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 6,
+                    "y": 1
+                },
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ],
+                        "fields": ""
+                    },
+                    "orientation": "auto",
+                    "textMode": "auto",
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "mappings": [],
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "green",
+                                    "value": null
+                                },
+                                {
+                                    "color": "red",
+                                    "value": 80
+                                }
+                            ]
+                        },
+                        "unit": "percent"
+                    }
+                }
+            },
+            {
+                "id": 4,
+                "title": "Disk Usage",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "100 - ((node_filesystem_avail_bytes{mountpoint=\"/\"} * 100) / node_filesystem_size_bytes{mountpoint=\"/\"})",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 12,
+                    "y": 1
+                },
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ],
+                        "fields": ""
+                    },
+                    "orientation": "auto",
+                    "textMode": "auto",
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "thresholds"
+                        },
+                        "mappings": [],
+                        "thresholds": {
+                            "steps": [
+                                {
+                                    "color": "green",
+                                    "value": null
+                                },
+                                {
+                                    "color": "red",
+                                    "value": 80
+                                }
+                            ]
+                        },
+                        "unit": "percent"
+                    }
+                }
+            },
+            {
+                "id": 5,
+                "title": "Network I/O",
+                "type": "stat",
+                "targets": [
+                    {
+                        "expr": "rate(node_network_receive_bytes_total[5m])",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 6,
+                    "x": 18,
+                    "y": 1
+                },
+                "options": {
+                    "reduceOptions": {
+                        "values": false,
+                        "calcs": [
+                            "lastNotNull"
+                        ],
+                        "fields": ""
+                    },
+                    "orientation": "auto",
+                    "textMode": "auto",
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "palette-classic"
+                        },
+                        "mappings": [],
+                        "unit": "binBps"
+                    }
+                }
+            },
+            {
+                "id": 6,
+                "title": "Application Logs",
+                "type": "row",
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 9
+                },
+                "collapsed": false
+            },
+            {
+                "id": 7,
+                "title": "Recent Error Logs",
+                "type": "logs",
+                "targets": [
+                    {
+                        "expr": "{job=\"relayer\", category=\"errors\"}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 10
+                },
+                "options": {
+                    "showTime": true,
+                    "showLabels": false,
+                    "showCommonLabels": false,
+                    "wrapLogMessage": false,
+                    "prettifyLogMessage": false,
+                    "enableLogDetails": true,
+                    "dedupStrategy": "none",
+                    "sortOrder": "Descending"
+                }
+            },
+            {
+                "id": 8,
+                "title": "Trading Logs",
+                "type": "logs",
+                "targets": [
+                    {
+                        "expr": "{job=\"relayer\", category=\"trading\"}",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 10
+                },
+                "options": {
+                    "showTime": true,
+                    "showLabels": false,
+                    "showCommonLabels": false,
+                    "wrapLogMessage": false,
+                    "prettifyLogMessage": false,
+                    "enableLogDetails": true,
+                    "dedupStrategy": "none",
+                    "sortOrder": "Descending"
+                }
+            },
+            {
+                "id": 9,
+                "title": "Log Volume by Category",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "sum by (category) (rate({job=\"relayer\"}[5m]))",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 24,
+                    "x": 0,
+                    "y": 18
+                },
+                "options": {
+                    "tooltip": {
+                        "mode": "single"
+                    },
+                    "legend": {
+                        "displayMode": "table",
+                        "placement": "bottom"
+                    },
+                    "displayMode": "stacked"
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "palette-classic"
+                        },
+                        "custom": {
+                            "drawStyle": "line",
+                            "lineInterpolation": "linear",
+                            "barAlignment": 0,
+                            "lineWidth": 1,
+                            "fillOpacity": 0,
+                            "gradientMode": "none",
+                            "spanNulls": false,
+                            "insertNulls": false,
+                            "showPoints": "auto",
+                            "pointSize": 5,
+                            "stacking": {
+                                "mode": "none",
+                                "group": "A"
+                            },
+                            "axisPlacement": "auto",
+                            "axisLabel": "",
+                            "scaleDistribution": {
+                                "type": "linear"
+                            },
+                            "hideFrom": {
+                                "legend": false,
+                                "tooltip": false,
+                                "vis": false
+                            },
+                            "thresholdsStyle": {
+                                "mode": "off"
+                            }
+                        },
+                        "mappings": [],
+                        "unit": "logs/sec"
+                    }
+                }
+            },
+            {
+                "id": 10,
+                "title": "Container Metrics",
+                "type": "row",
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 26
+                },
+                "collapsed": false
+            },
+            {
+                "id": 11,
+                "title": "Container CPU Usage",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "rate(container_cpu_usage_seconds_total{name=~\"relayer.*|postgres.*|redis.*|kafka.*\"}[5m]) * 100",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 0,
+                    "y": 27
+                },
+                "options": {
+                    "tooltip": {
+                        "mode": "single"
+                    },
+                    "legend": {
+                        "displayMode": "table",
+                        "placement": "bottom"
+                    }
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "palette-classic"
+                        },
+                        "custom": {
+                            "drawStyle": "line",
+                            "lineInterpolation": "linear",
+                            "barAlignment": 0,
+                            "lineWidth": 1,
+                            "fillOpacity": 10,
+                            "gradientMode": "none",
+                            "spanNulls": false,
+                            "insertNulls": false,
+                            "showPoints": "auto",
+                            "pointSize": 5,
+                            "stacking": {
+                                "mode": "none",
+                                "group": "A"
+                            },
+                            "axisPlacement": "auto",
+                            "axisLabel": "",
+                            "scaleDistribution": {
+                                "type": "linear"
+                            },
+                            "hideFrom": {
+                                "legend": false,
+                                "tooltip": false,
+                                "vis": false
+                            },
+                            "thresholdsStyle": {
+                                "mode": "off"
+                            }
+                        },
+                        "mappings": [],
+                        "unit": "percent"
+                    }
+                }
+            },
+            {
+                "id": 12,
+                "title": "Container Memory Usage",
+                "type": "timeseries",
+                "targets": [
+                    {
+                        "expr": "container_memory_usage_bytes{name=~\"relayer.*|postgres.*|redis.*|kafka.*\"} / 1024 / 1024",
+                        "refId": "A"
+                    }
+                ],
+                "gridPos": {
+                    "h": 8,
+                    "w": 12,
+                    "x": 12,
+                    "y": 27
+                },
+                "options": {
+                    "tooltip": {
+                        "mode": "single"
+                    },
+                    "legend": {
+                        "displayMode": "table",
+                        "placement": "bottom"
+                    }
+                },
+                "fieldConfig": {
+                    "defaults": {
+                        "color": {
+                            "mode": "palette-classic"
+                        },
+                        "custom": {
+                            "drawStyle": "line",
+                            "lineInterpolation": "linear",
+                            "barAlignment": 0,
+                            "lineWidth": 1,
+                            "fillOpacity": 10,
+                            "gradientMode": "none",
+                            "spanNulls": false,
+                            "insertNulls": false,
+                            "showPoints": "auto",
+                            "pointSize": 5,
+                            "stacking": {
+                                "mode": "none",
+                                "group": "A"
+                            },
+                            "axisPlacement": "auto",
+                            "axisLabel": "",
+                            "scaleDistribution": {
+                                "type": "linear"
+                            },
+                            "hideFrom": {
+                                "legend": false,
+                                "tooltip": false,
+                                "vis": false
+                            },
+                            "thresholdsStyle": {
+                                "mode": "off"
+                            }
+                        },
+                        "mappings": [],
+                        "unit": "decbytes"
+                    }
+                }
+            }
+        ],
+        "time": {
+            "from": "now-1h",
+            "to": "now"
+        },
+        "timepicker": {},
+        "templating": {
+            "list": []
+        },
+        "annotations": {
+            "list": []
+        },
+        "refresh": "10s",
+        "schemaVersion": 27,
+        "version": 0,
+        "links": []
+    }
+}

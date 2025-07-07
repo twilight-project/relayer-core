@@ -1,0 +1,80 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # General relayer logs
+  - job_name: relayer-general
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: general
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer-general.log*
+
+  # Error logs
+  - job_name: relayer-errors
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: errors
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer-errors.log*
+
+  # Trading logs
+  - job_name: relayer-trading
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: trading
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer-trading.log*
+
+  # Price logs
+  - job_name: relayer-price
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: price
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer-price.log*
+
+  # Heartbeat logs
+  - job_name: relayer-heartbeat
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: heartbeat
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer-heartbeat.log*
+
+  # Database logs
+  - job_name: relayer-database
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: database
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer-database.log*
+
+  # ZKOS transaction logs
+  - job_name: relayer-zkos
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: relayer
+          category: zkos
+          __path__: /home/ubuntu/Relayer-dev/twilight-relayer/logs/zkos-tx-log*

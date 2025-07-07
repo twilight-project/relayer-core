@@ -252,7 +252,7 @@ If you see unwanted logs from external libraries:
    ```rust
    let span = tracing::info_span!("user_action", user_id = 123);
    let _guard = span.enter();
-   // All logs within this scope will include the span context
+   // All logs within this scope will include the span context9
    ```
 
 4. **Choose the Right Category**: Use specific logging macros for better organization

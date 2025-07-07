@@ -3,6 +3,7 @@ pub mod db;
 pub mod kafkalib;
 pub mod logging;
 pub mod logging_examples;
+pub mod metrics;
 pub mod postgresqllib;
 pub mod pricefeederlib;
 pub mod redislib;

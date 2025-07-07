@@ -86,7 +86,20 @@ pub fn rpc_event_handler(
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
-
+                tracing::info!(
+                    uuid = orderdata.uuid.to_string(),
+                    account_id = orderdata.account_id,
+                    request_id = request_id,
+                    order_type = {match orderdata.order_type {
+                        OrderType::LIMIT => "LIMIT",
+                        OrderType::MARKET => "MARKET",
+                        OrderType::DARK => "DARK",
+                        OrderType::LEND => "LEND",
+                    }},
+                    "User placed a new order"
+                );
+                let span = tracing::info_span!("order_processing", order_id = orderdata.uuid.to_string());
+                let _enter = span.enter();
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let is_order_duplicate = trader_order_db
                     .set_order_check(orderdata.account_id.clone())
@@ -97,8 +110,11 @@ pub fn rpc_event_handler(
                     if is_order_duplicate {
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
+                            let span_clone = span.clone();
                             buffer_insert.execute(move || {
+                                let _enter = span_clone.enter();
                                 let (sender, zkos_receiver) = mpsc::channel();
+                                tracing::info!("Starting order validation");
                                 zkos_order_handler(
                                     ZkosTxCommand::CreateTraderOrderTX(
                                         orderdata_clone_for_zkos,
@@ -132,6 +148,7 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                     }
                                 }
+                                tracing::info!("Order validation completed");
 
                             });
                             drop(buffer_insert);
