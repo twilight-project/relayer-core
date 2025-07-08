@@ -1,8 +1,8 @@
-# twilight-relayer
+# Twilight Relayer Core
 
 ## Introduction
 
-Relayer is an extremely high performance matching engine written in Rust.
+Twilight Relayer Core is an extremely high performance matching engine written in Rust.
 
 Relayer uses Event Sourcing pattern with CQRS framework to handle tens of thousands of orders per second or even better, depending on the performance of persistence. Basic architecture is shown below.
 
@@ -18,7 +18,6 @@ Client Request Queue  >>  |  Relayer |  >> Event Logs
 
 - Kafka/Zookeeper: to make client request queue and persist the events logs
 - PostgreSQL: persist the events and output the match result
-- QuestDB: To store and query historical candle data
 - nginx/envoy: for proxy and loadbalancing
 - Redis: for fast read and auth management
 
