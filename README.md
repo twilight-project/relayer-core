@@ -92,34 +92,36 @@ To manage the relayer application, we will use Supervisor, a process control sys
 
    Create a configuration file for the relayer application. This file will tell Supervisor how to manage the relayer process.
 
-   ```bash
-   mkdir -p /home/ubuntu/Relayer-dev/twilight-relayer/logs
+```bash
+mkdir -p /home/ubuntu/Relayer-dev/relayer-core/logs
 
-   sudo tee /etc/supervisor/conf.d/relayer.conf > /dev/null <<EOF
-   [program:relayer]
-   command=/home/ubuntu/Relayer-dev/twilight-relayer/target/release/main
-   directory=/home/ubuntu/Relayer-dev/twilight-relayer
-   autostart=true
-   autorestart=true
-   stderr_logfile=/home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer.err.log
-   stdout_logfile=/home/ubuntu/Relayer-dev/twilight-relayer/logs/relayer.out.log
-   user=ubuntu
-   environment=HOME="/home/ubuntu"
-   stderr_logfile_maxbytes=50MB
-   stdout_logfile_maxbytes=50MB
-   stderr_logfile_backups=10
-   stdout_logfile_backups=10
-   EOF
-   ```
+
+sudo tee /etc/supervisor/conf.d/relayer.conf > /dev/null <<EOF
+[program:relayer]
+command=/home/ubuntu/Relayer-dev/relayer-core/target/release/main
+directory=/home/ubuntu/Relayer-dev/relayer-core
+autostart=true
+autorestart=true
+stderr_logfile=/home/ubuntu/Relayer-dev/relayer-core/logs/relayer.err.log
+stdout_logfile=/home/ubuntu/Relayer-dev/relayer-core/logs/relayer.out.log
+user=ubuntu
+environment=HOME="/home/ubuntu"
+stderr_logfile_maxbytes=50MB
+stdout_logfile_maxbytes=50MB
+stderr_logfile_backups=10
+stdout_logfile_backups=10
+EOF
+
+```
 
 4. **Update Supervisor:**
 
-   After creating the configuration file, update Supervisor to recognize the new configuration.
+After creating the configuration file, update Supervisor to recognize the new configuration.
 
-   ```bash
-   sudo supervisorctl reread
-   sudo supervisorctl update
-   ```
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+```
 
 5. **Start the Relayer Program:**
 

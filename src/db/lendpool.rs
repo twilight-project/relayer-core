@@ -8,12 +8,12 @@ use curve25519_dalek::scalar::Scalar;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
-use relayerwalletlib::zkoswalletlib::relayer_rpcclient::method::RequestResponse;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
+use twilight_relayer_sdk::twilight_client_sdk::relayer_rpcclient::method::RequestResponse;
 use uuid::Uuid;
 use zkvm::Output;
 type Payment = f64;
@@ -21,7 +21,7 @@ type Deposit = f64;
 type Withdraw = f64;
 type PoolLockError = i128;
 type Nonce = usize;
-use relayerwalletlib::zkoswalletlib::util::{
+use twilight_relayer_sdk::twilight_client_sdk::util::{
     create_output_state_for_trade_lend_order, get_state_info_from_output_hex,
 };
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{delay_for, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tracing::{error, info, warn};
+use tracing::warn;
 
 use crate::pricefeederlib::btc_price_feeder;
 

@@ -3,7 +3,6 @@ mod db;
 mod kafkalib;
 mod postgresqllib;
 mod pricefeederlib;
-mod questdb;
 mod redislib;
 mod relayer;
 use db::snapshot;

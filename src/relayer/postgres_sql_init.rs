@@ -1,4 +1,4 @@
-use crate::config::{POSTGRESQL_POOL_CONNECTION, QUESTDB_POOL_CONNECTION};
+use crate::config::POSTGRESQL_POOL_CONNECTION;
 
 pub fn init_psql() {
     match create_schema_api_questdb() {
@@ -274,23 +274,6 @@ fn create_insert_fundingrate_procedure() -> Result<(), r2d2_postgres::postgres::
     }
 }
 
-fn create_trades_history_questdb() -> Result<(), r2d2_postgres::postgres::Error> {
-    let query = format!(
-        "CREATE TABLE IF NOT EXISTS 'recentorders' (
-            side INT,
-            price DOUBLE,
-            amount DOUBLE,
-            timestamp TIMESTAMP
-          ) timestamp (timestamp) PARTITION BY DAY;
-          "
-    );
-    let mut client = QUESTDB_POOL_CONNECTION.get().unwrap();
-
-    match client.execute(&query, &[]) {
-        Ok(_) => Ok(()),
-        Err(arg) => Err(arg),
-    }
-}
 fn create_schema_api_questdb() -> Result<(), r2d2_postgres::postgres::Error> {
     let query = format!(
         "CREATE SCHEMA IF NOT EXISTS api

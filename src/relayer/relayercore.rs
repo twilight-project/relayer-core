@@ -3,10 +3,10 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
 use address::Network;
-use relayerwalletlib::lend::*;
-use relayerwalletlib::order::*;
-use relayerwalletlib::zkoswalletlib::programcontroller::ContractManager;
-use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
+use twilight_relayer_sdk::lend::*;
+use twilight_relayer_sdk::order::*;
+use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
+use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread::sleep;
 use std::time::Duration;
@@ -1231,23 +1231,16 @@ pub fn zkos_order_handler(
                                         Err(arg) => Err(arg.to_string()),
                                     };
 
-                                    // let zkos_create_order_result =
-                                    //     ZkosCreateOrder::decode_from_hex_string(zkos_hex_string);
+                                    
                                     // create transaction
                                     match tx_result {
                                         Ok(tx) => {
-                                            // let result_output = update_trader_output_memo(
-                                            //     zkos_create_order.output,
-                                            //     trader_order.entryprice.round() as u64,
-                                            //     trader_order.positionsize.round() as u64
-                                            // );
                                             let updated_tx_result = update_memo_tx_client_order(
                                                 &tx,
                                                 trader_order.entryprice.round() as u64,
                                                 trader_order.positionsize.round() as u64,
                                                 trader_order.fee_filled.round() as u64
                                             );
-
                                             match updated_tx_result {
                                                 Ok(tx_and_outputmemo) => {
                                                     let output = tx_and_outputmemo.get_output();
@@ -1259,23 +1252,14 @@ pub fn zkos_order_handler(
                                                         }
                                                         Err(_) => None,
                                                     };
-                                                    // let transaction = create_trade_order(
-                                                    //     zkos_create_order.input,
-                                                    //     output.clone(),
-                                                    //     zkos_create_order.signature,
-                                                    //     zkos_create_order.proof,
-                                                    //     &ContractManager::import_program(
-                                                    //         &WALLET_PROGRAM_PATH.clone()
-                                                    //     ),
-                                                    //     Network::Mainnet,
-                                                    //     5u64
-                                                    // );
+                                                    
                                                     let transaction = tx_and_outputmemo.get_tx();
+                                               
                                                     let tx_hash_result =
-                                                        relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
+                                                        twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(
                                                             transaction
                                                         );
-
+                                                   
                                                     let sender_clone = sender.clone();
                                                     match sender_clone.send(tx_hash_result.clone()) {
                                                         Ok(_) => {}
@@ -1443,9 +1427,7 @@ pub fn zkos_order_handler(
 
                                             let tx_hash_result = match transaction {
                                                 Ok(tx) => {
-                                                    // relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
-                                                    //     tx
-                                                    // )
+                                                    
                                                     transaction_queue_to_confirm_relayer_latest_state(last_state_output.clone(),
                                                         tx,next_state_output.clone()
                                                     )
@@ -1831,7 +1813,7 @@ pub fn zkos_order_handler(
                                     );
                                     let tx_hash_result = match transaction {
                                         Ok(tx) => {
-                                            relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
+                                            twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(
                                                 tx
                                             )
                                         }
@@ -1915,7 +1897,7 @@ pub fn zkos_order_handler(
                                                     };
                                                     let transaction = tx_and_outputmemo.get_tx();
                                                     let tx_hash_result =
-                                                        relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(
+                                                        twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(
                                                             transaction
                                                         );
 
@@ -2302,8 +2284,7 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
     tx: Transaction,
     next_output: Output,
 ) -> Result<String, String> {
-    // let tx_hash_result =
-    //     relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx);
+
     let nonce = match last_output.as_out_state() {
         Some(state) => state.nonce.clone(),
         None => 1,
@@ -2321,7 +2302,7 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
     let mut chain_attempt: i32 = 0;
     while flag_chain_update {
         // let updated_output_on_chain =
-        match relayerwalletlib::zkoswalletlib::chain::get_utxo_details_by_address(
+        match twilight_relayer_sdk::twilight_client_sdk::chain::get_utxo_details_by_address(
             account_id.clone(),
             IOType::State,
         ) {
@@ -2346,7 +2327,7 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
         if nonce == latest_nonce {
             // flag_chain_update = false;
             println!("tx: {:?}", tx);
-            match relayerwalletlib::zkoswalletlib::chain::tx_commit_broadcast_transaction(tx) {
+            match twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(tx) {
                 Ok(tx_hash) => {
                     Event::new(
                         Event::AdvanceStateQueue((nonce + 1) as usize, next_output),
@@ -2373,3 +2354,24 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
     return Err("Tx Failed due to missing latest state update".to_string());
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use twilight_relayer_sdk::twilight_client_sdk::transaction;
+
+    #[test]
+    fn test_tx_commit_broadcast() {
+
+        // use std::env;
+        dotenv::dotenv().ok();
+        // let zkos_server_url = env::var("ZKOS_SERVER_URL").expect("ZKOS_SERVER_URL must be set");
+
+        let tx_hex = "010000000100000000000000000000001800000000000000000000000000000001010101000000000000000000000000000000f6a5e681e48137f0834d95ca0b098eb9c1d362c4afc393200d93dc2e5266ccbe006a25d2b02197a68969629d43005e28c0fc213472efb0b8f929534c429ade860a80da17a6d5e50fd4989ab9b4e9310613c70e623f361a4eb0a8509e417038cb218a0000000000000030633032333165303531643231336239626335373631643765336662383663613436376264383937663866393232336536613336383337356539343664313036373563363464333332363966643662336565386539303765646430313732366363663233663630383066303338366635393365396434303366336230643465613763633062656162643700010000000000000001000000010000002a000000000000003138323237323664346265336336623333623166333434633734333263626530343230333861663162388a000000000000003063303233316530353164323133623962633537363164376533666238366361343637626438393766386639323233653661333638333735653934366431303637356336346433333236396664366233656538653930376564643031373236636366323366363038306630333836663539336539643430336633623064346561376363306265616264370000000016eacb0d167fd36cfbf76e26357fb49aee9bac76ecf08957be7cd7c3c1e2204801040000000000000003000000010000006065248d0100000000000000000000000000000000000000000000000000000002000000000000005453d47db383cebcc81d4a355ab3cee0d6aae97fbd2960291c0e0a8788fcb03c0300000001000000c9b10100000000000000000000000000000000000000000000000000000000000300000001000000ecd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010010000001600000000000000060a0403000000060a0405000000060a0d0e1302020200000000010000000000000003000000000000003d107ff89a1f0387ca226522f82bca1fbf43059a200c49bdae998400bfe89ea52c92d3c5e02c98dc6b6f1f91cfd42e136d1d4f1de6bdb351b12be20f9535960c7c1b7c42e22f98283d98314b914cdbfc380ef2bb1c3e3a91685a05614fc4cf6da10100000000000000721c0ca0d6119987df3a91d9bc1396e7ccbec1e87e26ebb6ef1d40d83d74c95dde9a975689eb20c6b3a3b5e22b5442c0a90dbd02aed4197645cb2c9d50d9b5409649551fecbbfb0468e5324761bfc3672bb3b33a551533c2f6408e1128402e11a272535c8e43e528e5c818e5da5802e063793f4a3f56d8b335cabbe7a284db6f40b0f8ba6105c9022e561dc8bad81fdccf2b2d78a1b9cc71ccc964851520452a5c04300f7905e318f69b8665458bbf837673dc0233a36ae34a9bb813c3c2a41c8691e1372af302ec8400bb7c68ab0847af6e3ce6dadd0918e2034e33641aa73188cb7c1255ff9f47340a4c3cf2388e1c1c173d2e395f2d2efe05512d6c4b2b31486658c7ec583abd58ec7ca9c6b4390978268202e4d724504abe8e3060c5490eb64cdd0af58503fe47812af928b1cb7ad96eddac2f82e8699738dccc5427470494fe872642696383fbcc3bfc168742ba4b5649afe00de617e030aa47058c8302d4f2a784a71e40c0cae4f128d7d0ee2aa36cb5221cf4e631e78ada031225260efc3b3e7a5e9a48d11e7e0ea6d013cbd76c425c6442afd93268e796c8227d97030100000000000000020000004000000000000000105fd4af09a1875d1ab963cb976a5f2ab8c2598f8a04e008054b224566297a3dcd76da0cbd27382141b663be233604953b2a60e4c8bfee2f351c70244069f10f0100000001000000000000002fed6454c9ecdc97138568a1cf9b0f5410d6df39d3442b36a99ca2b5ffc76b0a0100000000000000887037ade1700358bc93a5921675dddd982f75ab9cd22b9b45a2620b0b0f070f0000000000000000e9be99376af0194a05ab8ce828db16d7df2909273c6d404238e912077bf27f090102000000000000001e5442c4bf59d8355ad529687ef843fcbce3f4fbace3d4a38ba0b334d95af37d";
+
+        let tx_bytes = hex::decode(tx_hex).expect("Failed to decode hex");
+        let tx: transaction::Transaction = bincode::deserialize(&tx_bytes).expect("Failed to deserialize transaction");
+
+        let result = twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(tx);
+        println!("Transaction broadcast result: {:?}", result);
+    }
+}

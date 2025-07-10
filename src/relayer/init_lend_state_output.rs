@@ -1,7 +1,7 @@
 use address::{Address, AddressType};
 use quisquislib::ristretto::RistrettoPublicKey;
 use quisquislib::ristretto::RistrettoSecretKey;
-use relayerwalletlib::zkoswalletlib::keys_management::*;
+// use twilight_relayer_sdk::twilight_client_sdk::keys_management::*;
 use zkvm::zkos_types::Output;
 lazy_static! {
     pub static ref RELAYER_WALLET_IV: String =
@@ -57,14 +57,11 @@ pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
+    use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
     use zkvm::zkos_types::Output;
-    #[test]
-    fn test_create_wallet() {
-        // init_relayer_wallet();
-    }
+
     use curve25519_dalek::scalar::Scalar;
-    use relayerwalletlib::zkoswalletlib::util::get_state_info_from_output_hex;
+    use twilight_relayer_sdk::twilight_client_sdk::util::get_state_info_from_output_hex;
     #[test]
     fn test_get_outputhex_to_output() {
         let tlv_init: f64 = 20048621560.0 / 100000000.0;

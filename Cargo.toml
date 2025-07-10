@@ -68,8 +68,8 @@ tracing = "0.1"
 curve25519-dalek = { version = "3", default-features = false }
 
 
-[dependencies.zkos-relayer-wallet]
-git = "https://github.com/twilight-project/zkos-relayer-wallet.git"
+[dependencies.twilight-relayer-sdk]
+git = "https://github.com/twilight-project/twilight-relayer-sdk.git"
 branch = "develop"
 
 [dependencies.zkvm]

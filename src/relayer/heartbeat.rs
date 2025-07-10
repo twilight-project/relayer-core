@@ -4,10 +4,10 @@ use crate::db::*;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
-use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
 use std::collections::HashMap;
 use std::sync::{mpsc, Arc, RwLock};
 use std::{thread, time};
+use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
 use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 pub fn heartbeat() {

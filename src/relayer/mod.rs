@@ -30,6 +30,6 @@ pub use self::init_lend_state_output::{
     last_state_output_string,
 };
 // pub use self::types::*;
-pub use relayerwalletlib::zkoswalletlib::relayer_types::*;
+pub use twilight_relayer_sdk::twilight_client_sdk::relayer_types::*;
 
 pub use self::utils::*;

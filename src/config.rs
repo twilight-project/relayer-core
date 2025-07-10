@@ -8,12 +8,12 @@ use parking_lot::ReentrantMutex;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
 use r2d2_redis::RedisConnectionManager;
-use relayerwalletlib::zkoswalletlib::programcontroller::ContractManager;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
+use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
 use utxo_in_memory::db::LocalDBtrait;
 lazy_static! {
     /// Static Globle PostgreSQL Pool connection
@@ -50,18 +50,7 @@ lazy_static! {
         r2d2::Pool::new(manager).unwrap()
     };
 
-    pub static ref QUESTDB_POOL_CONNECTION: r2d2::Pool<PostgresConnectionManager<NoTls>> = {
-        dotenv::dotenv().expect("Failed loading dotenv");
-        // POSTGRESQL_URL
-        let postgresql_url =
-            std::env::var("QUESTDB_URL").expect("missing environment variable POSTGRESQL_URL");
-        let manager = PostgresConnectionManager::new(
-            // TODO: PLEASE MAKE SURE NOT TO USE HARD CODED CREDENTIALS!!!
-            postgresql_url.parse().unwrap(),
-            NoTls,
-        );
-        r2d2::Pool::new(manager).unwrap()
-    };
+
 
     /// Static Globle REDIS Pool connection
     ///
@@ -139,6 +128,13 @@ lazy_static! {
     .unwrap_or("5".to_string())
     .parse::<usize>()
     .unwrap_or(5);
+    pub static ref RELAYER_SERVER_SOCKETADDR: String = std::env::var("RELAYER_SERVER_SOCKETADDR")
+    .unwrap_or("0.0.0.0:3031".to_string());
+
+    pub static ref RELAYER_SERVER_THREAD: usize = std::env::var("RELAYER_SERVER_THREAD")
+    .unwrap_or("2".to_string())
+    .parse::<usize>()
+    .unwrap_or(2);
 
     pub static ref KAFKA_STATUS: String = std::env::var("KAFKA_STATUS").unwrap_or("Enabled".to_string());
 

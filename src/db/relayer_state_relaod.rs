@@ -9,7 +9,6 @@ use bincode;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
-use relayerwalletlib::zkoswalletlib::util::get_state_info_from_output_hex;
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
@@ -19,6 +18,7 @@ use std::fs;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
+use twilight_relayer_sdk::twilight_client_sdk::util::get_state_info_from_output_hex;
 use utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 
@@ -67,7 +67,7 @@ impl RelayerState {
         let nonce = lendpool.nonce;
         let mut latest_nonce = 0;
 
-        match relayerwalletlib::zkoswalletlib::chain::get_utxo_details_by_address(
+        match twilight_relayer_sdk::twilight_client_sdk::chain::get_utxo_details_by_address(
             account_id.clone(),
             zkvm::IOType::State,
         ) {

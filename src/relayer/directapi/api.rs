@@ -8,7 +8,6 @@ use jsonrpc_http_server::{
     jsonrpc_core::{MetaIoHandler, Metadata, Params},
     ServerBuilder,
 };
-use relayerwalletlib::verify_client_message::*;
 use std::collections::HashMap;
 use stopwatch::Stopwatch;
 #[derive(Default, Clone, Debug)]
@@ -233,9 +232,9 @@ pub fn startserver() {
     },
     );
 
-    println!("Starting jsonRPC server @ 127.0.0.1:3030");
+    println!("Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
     let server = ServerBuilder::new(io)
-        .threads(*RPC_SERVER_THREAD)
+        .threads(*RELAYER_SERVER_THREAD)
         .meta_extractor(|req: &hyper::Request<hyper::Body>| {
             let auth = req
                 .headers()
@@ -256,7 +255,7 @@ pub fn startserver() {
                 },
             }
         })
-        .start_http(&"0.0.0.0:3030".parse().unwrap())
+        .start_http(&(*RELAYER_SERVER_SOCKETADDR).parse().unwrap())
         .unwrap();
     server.wait();
 }
