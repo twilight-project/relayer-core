@@ -1,5 +1,5 @@
 [package]
-name = "twilight-relayer-rust"
+name = "relayer-core"
 version = "0.1.0"
 edition = "2021"
 
@@ -70,31 +70,4 @@ curve25519-dalek = { version = "3", default-features = false }
 
 [dependencies.twilight-relayer-sdk]
 git = "https://github.com/twilight-project/twilight-relayer-sdk.git"
-branch = "develop"
-
-[dependencies.zkvm]
-git = "https://github.com/twilight-project/zkos-rust.git"
-branch = "develop"
-
-[dependencies.transaction]
-git = "https://github.com/twilight-project/zkos-rust.git"
-branch = "develop"
-
-[dependencies.transactionapi]
-git = "https://github.com/twilight-project/zkos-rust.git"
-branch = "develop"
-
-[dependencies.address]
-git = "https://github.com/twilight-project/zkos-rust.git"
-branch = "develop"
-
-[dependencies.utxo-in-memory]
-git = "https://github.com/twilight-project/zkos-rust.git"
-branch = "develop"
-
-[dependencies.zkschnorr]
-git = "https://github.com/twilight-project/zk-schnorr.git"
-
-[dependencies.quisquis-rust]
-git = "https://github.com/twilight-project/quisquis-rust.git"
 branch = "develop"

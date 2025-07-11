@@ -14,7 +14,10 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
-use utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::utxo_in_memory;
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::zkvm;
+
 lazy_static! {
     /// Static Globle PostgreSQL Pool connection
     ///

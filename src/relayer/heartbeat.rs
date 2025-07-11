@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc, RwLock};
 use std::{thread, time};
 use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
-use utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 pub fn heartbeat() {
     dotenv::dotenv().ok();

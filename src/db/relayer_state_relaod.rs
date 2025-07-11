@@ -19,7 +19,8 @@ use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
 use twilight_relayer_sdk::twilight_client_sdk::util::get_state_info_from_output_hex;
-use utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::zkvm;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

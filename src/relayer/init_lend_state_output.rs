@@ -1,8 +1,9 @@
-use address::{Address, AddressType};
-use quisquislib::ristretto::RistrettoPublicKey;
-use quisquislib::ristretto::RistrettoSecretKey;
-// use twilight_relayer_sdk::twilight_client_sdk::keys_management::*;
-use zkvm::zkos_types::Output;
+use twilight_relayer_sdk::address::{Address, AddressType};
+use twilight_relayer_sdk::quisquislib;
+use twilight_relayer_sdk::quisquislib::ristretto::RistrettoPublicKey;
+use twilight_relayer_sdk::quisquislib::ristretto::RistrettoSecretKey;
+// use twilight_relayer_sdk::zkvm;
+use twilight_relayer_sdk::zkvm::zkos_types::Output;
 lazy_static! {
     pub static ref RELAYER_WALLET_IV: String =
         std::env::var("RELAYER_WALLET_IV").expect("missing environment variable RELAYER_WALLET_IV");
@@ -58,7 +59,7 @@ pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
 mod test {
     use super::*;
     use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
-    use zkvm::zkos_types::Output;
+    use twilight_relayer_sdk::zkvm::zkos_types::Output;
 
     use curve25519_dalek::scalar::Scalar;
     use twilight_relayer_sdk::twilight_client_sdk::util::get_state_info_from_output_hex;

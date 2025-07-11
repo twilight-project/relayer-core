@@ -8,3 +8,4 @@ pub mod relayer;
 
 #[macro_use]
 extern crate lazy_static;
+extern crate twilight_relayer_sdk;

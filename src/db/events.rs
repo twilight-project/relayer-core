@@ -234,7 +234,7 @@ pub enum Event {
         Option<String>,
     ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
-    AdvanceStateQueue(Nonce, zkvm::Output),
+    AdvanceStateQueue(Nonce, twilight_relayer_sdk::zkvm::Output),
     FeeUpdate(RelayerCommand, String), //fee data and time
 }
 
