@@ -918,7 +918,7 @@ pub fn create_snapshot_data(
                     lendpool_database = LendPool::new();
                 }
                 
-                queue_manager.bulk_remove_queue();
+                queue_manager.bulk_remove_queue(&orderdb_traderorder);
 
                 return Ok((SnapshotDB {
                     orderdb_traderorder: orderdb_traderorder.clone(),

@@ -3,8 +3,10 @@
 #![allow(unused_imports)]
 use crate::config::IS_RELAYER_ACTIVE;
 use crate::db::OffsetCompletion;
+use crate::kafkalib::offset_manager::OffsetManager;
 use crate::relayer::*;
 use crossbeam_channel::{unbounded, Receiver, Sender};
+
 use kafka::client::{metadata::Broker, FetchPartition, KafkaClient};
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
@@ -81,19 +83,33 @@ pub fn receive_from_kafka_queue(
     let _handle = thread::Builder::new()
         .name(String::from("trader_order_handle"))
         .spawn(move || {
+
+            // get the last offset from kafka
+            let last_offset = get_offset_from_kafka(topic.clone(), group.clone());
+            println!("last_offset: {:#?}", last_offset);
+
+            // create an offset tracker
+            let offset_tracker = Arc::new(OffsetManager::new(last_offset-1));
+
+            let worker_tracker = offset_tracker.clone();
+            let commit_tracker = offset_tracker.clone();
+
+
             let broker = vec![std::env::var("BROKER")
                 .expect("missing environment variable BROKER")
                 .to_owned()];
-            let mut con = Consumer::from_hosts(broker)
+            let mut con = Consumer::from_hosts(broker.clone())
                 // .with_topic(topic)
-                .with_group(group)
+                .with_group(group.clone())
                 .with_topic_partitions(topic.clone(), &[0])
                 .with_fallback_offset(FetchOffset::Earliest)
                 .with_offset_storage(GroupOffsetStorage::Kafka)
                 .create()
                 .unwrap();
+            
+
             let mut connection_status = true;
-            let _partition: i32 = 0;
+            let mut topic_partition: i32 = 0;
             while connection_status {
                 if get_relayer_status() {
                     let sender_clone = sender.clone();
@@ -104,24 +120,38 @@ pub fn receive_from_kafka_queue(
                     } else {
                         for ms in mss.iter() {
                             for m in ms.messages() {
-                                let message = Message {
-                                    offset: m.offset,
-                                    key: String::from_utf8_lossy(&m.key).to_string(),
-                                    value: serde_json::from_str(&String::from_utf8_lossy(&m.value))
-                                        .unwrap(),
-                                };
-                                match sender_clone
-                                    .send((Message::new(message), (ms.partition(), m.offset)))
-                                {
-                                    Ok(_) => {
-                                        // let _ = con.consume_message(&topic_clone, partition, m.offset);
-                                        // println!("Im here");
-                                        // let _ = con.consume_message(&topic, 0, m.offset);
+                                match serde_json::from_str(&String::from_utf8_lossy(&m.value)) {
+                                    Ok(value) => {
+                                        let message = Message {
+                                            offset: m.offset,
+                                            key: String::from_utf8_lossy(&m.key).to_string(),
+                                            value: value,
+                                        };
+                                        match sender_clone.send((
+                                            Message::new(message),
+                                            (ms.partition(), m.offset),
+                                        )) {
+                                            Ok(_) => {
+                                                // let _ = con.consume_message(&topic_clone, partition, m.offset);
+                                                // println!("Im here");
+                                                // let _ = con.consume_message(&topic, 0, m.offset);
+                                            }
+                                            Err(arg) => {
+                                                eprintln!(
+                                                    "Closing Kafka Consumer Connection on kafka rpc client: {:#?}",
+                                                    arg
+                                                );
+                                                connection_status = false;
+                                                break;
+                                            }
+                                        }
                                     }
-                                    Err(arg) => {
-                                        println!("Closing Kafka Consumer Connection : {:#?}", arg);
-                                        connection_status = false;
-                                        break;
+                                    Err(e) => {
+                                        eprintln!(
+                                            "Error parsing message on kafka rpc client: {:?}",
+                                            e
+                                        );
+                                        continue;
                                     }
                                 }
                             }
@@ -140,30 +170,37 @@ pub fn receive_from_kafka_queue(
                 while !rx_consumed.is_empty() {
                     match rx_consumed.recv() {
                         Ok((partition, offset)) => {
-                            let e = con.consume_message(&topic, partition, offset);
-
-                            if e.is_err() {
-                                println!("Kafka connection failed {:?}", e);
-                                connection_status = false;
-                                break;
-                            }
-
-                            let e = con.commit_consumed();
-                            if e.is_err() {
-                                println!("Kafka connection failed {:?}", e);
-                                connection_status = false;
-                                break;
-                            }
+                            worker_tracker.mark_done(offset);
+                            topic_partition = partition;
+                          
                         }
                         Err(_e) => {
                             connection_status = false;
-                            println!(
+                            eprintln!(
                                 "The consumed channel is closed: {:?}",
                                 thread::current().name()
                             );
                             break;
                         }
                     }
+                }
+
+                if let Some(offset) = commit_tracker.next_commit_offset() {
+                    let e = con.consume_message(&topic, topic_partition, offset);
+
+                            if e.is_err() {
+                                eprintln!("Kafka connection failed {:?}", e);
+                                break;
+                            }
+
+                            let e = con.commit_consumed();
+                            if e.is_err() {
+                                eprintln!("Kafka connection failed {:?}", e);
+                                break;
+                            }
+                }
+                if connection_status == false {
+                    break;
                 }
             }
             thread::sleep(time::Duration::from_millis(3000));
@@ -212,3 +249,40 @@ impl Message {
 }
 use crate::relayer::CreateTraderOrder;
 use crate::relayer::Meta;
+use kafka::client::FetchGroupOffset;
+use std::collections::HashMap;
+use kafka::client::PartitionOffset;
+use kafka::error::KafkaCode;
+
+
+pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
+    let broker = vec![std::env::var("BROKER")
+                .expect("missing environment variable BROKER")
+                .to_owned()];
+    let mut con = Consumer::from_hosts(broker)
+        // .with_topic(topic)
+        .with_group(group)
+        .with_topic_partitions(topic.clone(), &[0])
+        .with_fallback_offset(FetchOffset::Earliest)
+        .with_offset_storage(GroupOffsetStorage::Kafka)
+        .create()
+        .unwrap();
+
+        let connection_status = true;
+        while connection_status {
+        let mss = con.poll().unwrap();
+        if mss.is_empty() {
+            // println!("No messages available right now.");
+            // return Ok(());
+            thread::sleep(time::Duration::from_millis(100));
+        } else {
+            for ms in mss.iter() {
+                for m in ms.messages() {
+                    return m.offset;
+                }
+            }
+        }
+    }
+    return -1;
+    
+}

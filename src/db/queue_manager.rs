@@ -131,7 +131,7 @@ impl QueueState {
             }
         }
     }
-    pub fn bulk_remove_queue(&mut self) {
+    pub fn bulk_remove_queue(&mut self, orderdb_traderorder: &OrderDBSnapShotTO) {
         println!(
             "Before \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
@@ -165,6 +165,56 @@ impl QueueState {
                 None => self.to_settle_remove.push(order_id),
             }
         }
+        let to_fill = self.to_fill.clone();
+        let to_settle = self.to_settle.clone();
+        let to_liquidate = self.to_liquidate.clone();
+
+        for (order_id, _) in to_fill {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::PENDING {
+                    } else {
+                        self.to_fill_remove.push(order_id);
+                        self.to_fill.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_fill_remove.push(order_id);
+                    self.to_fill.remove(&order_id);
+                }
+            }
+        }
+        for (order_id, _) in to_settle {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::FILLED {
+                    } else {
+                        self.to_settle_remove.push(order_id);
+                        self.to_settle.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_settle_remove.push(order_id);
+                    self.to_settle.remove(&order_id);
+                }
+            }
+        }
+        for (order_id, _) in to_liquidate {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::FILLED {
+                    } else {
+                        self.to_liquidate_remove.push(order_id);
+                        self.to_liquidate.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_liquidate_remove.push(order_id);
+                    self.to_liquidate.remove(&order_id);
+                }
+            }
+        }
+
         println!(
             "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
@@ -248,5 +298,28 @@ impl QueueState {
                 price,
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hashmap_get() {
+        let mut hashmap = HashMap::new();
+        hashmap.insert(String::from("key1"), Some("value1".to_string()));
+        hashmap.insert(String::from("key2"), Some("value2".to_string()));
+
+        // Test getting existing key
+        assert_eq!(hashmap.get("key1"), Some(&Some("value1".to_string())));
+        assert_eq!(hashmap.get("key1"), Some(&Some("value1".to_string())));
+        println!("hashmap.get(\"key1\") = {:?}", hashmap.get("key1"));
+        // Test getting non-existent key
+        assert_eq!(hashmap.get("key3"), None);
+
+        // Test getting after removing key
+        hashmap.remove("key1");
+        assert_eq!(hashmap.get("key1"), None);
     }
 }

@@ -28,15 +28,15 @@ lazy_static! {
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_FIFO_ORDER")));
+        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_BULK_PENDING_ORDER")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER_INSERT: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
+        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_BULK_PENDING_ORDER_INSERT")));
     pub static ref THREADPOOL_BULK_PENDING_ORDER_REMOVE: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_FIFO_ORDER")));
+        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_BULK_PENDING_ORDER_REMOVE")));
     pub static ref THREADPOOL_ZKOS_TRADER_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_ZKOS")));
+        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_ZKOS_TRADER_ORDER")));
     pub static ref THREADPOOL_ZKOS_FIFO: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_ZKOS")));
+        Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_ZKOS_FIFO")));
     pub static ref CONTRACTMANAGER: Arc<Mutex<ContractManager>> = {
         dotenv::dotenv().expect("Failed loading dotenv");
         let contract_manager = ContractManager::import_program(&WALLET_PROGRAM_PATH.clone());
@@ -93,7 +93,7 @@ pub fn rpc_event_handler(
                     .clone();
                 drop(trader_order_db);
 
-                if rpc_request.initial_margin > 0.0 {
+                if rpc_request.initial_margin > 0.0 || rpc_request.leverage <= 50.0 {
                     if is_order_duplicate {
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
@@ -132,10 +132,10 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                     }
                                 }
-                                // match tx_consumed.send(offset_complition) {
-                                //     Ok(_) => {}
-                                //     Err(_) => {}
-                                // }
+                                match tx_consumed.send(offset_complition) {
+                                    Ok(_) => {}
+                                    Err(_) => {}
+                                }
                             });
                             drop(buffer_insert);
                         } else if orderdata_clone.order_status == OrderStatus::PENDING {
@@ -159,10 +159,10 @@ pub fn rpc_event_handler(
                                 format!("tx_limit_submit-{:?}",request_id),
                                 LENDPOOL_EVENT_LOG.clone().to_string(),
                             );
-                            // match tx_consumed.send(offset_complition) {
-                            //     Ok(_) => {}
-                            //     Err(_) => {}
-                            // }
+                            match tx_consumed.send(offset_complition) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
                         }
                     } else {
                         // send event for txhash with error saying order already exist in the relayer
@@ -181,17 +181,17 @@ pub fn rpc_event_handler(
                             String::from("tx_duplicate_error"),
                             LENDPOOL_EVENT_LOG.clone().to_string(),
                         );
-                        // match tx_consumed.send(offset_complition) {
-                        //     Ok(_) => {}
-                        //     Err(_) => {}
-                        // }
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
                     }
                 } else {
                     Event::new(
                         Event::TxHash(
                             orderdata.uuid,
                             orderdata.account_id,
-                            "Invalid Initial margin should be greater that Zero".to_string(),
+                            "Invalid Initial margin>0 or Leverage<=50".to_string(),
                             orderdata.order_type,
                             OrderStatus::CANCELLED,
                             ServerTime::now().epoch,
@@ -201,10 +201,10 @@ pub fn rpc_event_handler(
                         String::from("tx_wrong_parameter_error"),
                         LENDPOOL_EVENT_LOG.clone().to_string(),
                     );
-                    // match tx_consumed.send(offset_complition) {
-                    //     Ok(_) => {}
-                    //     Err(_) => {}
-                    // }
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
                 }
             });
             drop(buffer);
