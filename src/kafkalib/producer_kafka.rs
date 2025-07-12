@@ -22,7 +22,7 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 /// Basic usage:
 ///
 /// ```rust,no_run
-///  use crate::twilight_relayer_rust::kafkalib;
+///  use crate::relayer_core::kafkalib;
 ///
 /// fn main() {
 /// 	let message_data: String = String::from("{\"name\": \"Some name\", \"age\": \"30\", }");

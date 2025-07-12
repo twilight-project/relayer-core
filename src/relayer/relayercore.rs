@@ -2354,7 +2354,6 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use twilight_relayer_sdk::twilight_client_sdk::transaction;
 
     #[test]

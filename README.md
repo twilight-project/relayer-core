@@ -32,7 +32,7 @@ The relayer core implements:
 
 Before running the relayer core, ensure you have the following installed:
 
-- **Rust** (1.70+) - [Install Rust](https://rustup.rs/)
+- **Rust** (1.87.0+) - [Install Rust](https://rustup.rs/)
 - **Docker & Docker Compose** - [Install Docker](https://docs.docker.com/get-docker/)
 - **PostgreSQL** (13+)
 - **Redis** (6+)
@@ -52,7 +52,7 @@ cd relayer-core
 Create your environment configuration file:
 
 ```bash
-cp env.example_old2 .env
+cp .env.example .env
 ```
 
 Edit the `.env` file with your specific configuration:
@@ -118,39 +118,24 @@ docker-compose up --build
 
 The relayer core uses environment variables for configuration. Here are the key categories:
 
-#### Database Configuration
-
-```bash
-# PostgreSQL connection
-POSTGRESQL_URL=postgresql://postgres:password@localhost:5432/database
-DATABASE_URL=postgresql://postgres:password@localhost:5432/database
-
-# Redis connection
-REDIS_HOSTNAME=redis://default:password@localhost:6379/0
-```
-
 #### Kafka Configuration
 
 ```bash
 # Kafka broker
 BROKER=localhost:9092
-KAFKA_STATUS=Enabled
 
 # Kafka topics
 RPC_CLIENT_REQUEST=CLIENT-REQUEST
 CORE_EVENT_LOG=CoreEventLogTopic
 SNAPSHOT_LOG=SnapShotLogTopic
+RELAYER_STATE_QUEUE=RelayerStateQueue
+
 ```
 
 #### Server Configuration
 
 ```bash
-# RPC server settings
-RPC_SERVER_SOCKETADDR=0.0.0.0:3032
-RPC_SERVER_THREAD=15
-RPC_QUEUE_MODE=DIRECT
-
-# Relayer server settings
+# Relayer admin server settings
 RELAYER_SERVER_SOCKETADDR=0.0.0.0:3031
 RELAYER_SERVER_THREAD=2
 ```
@@ -176,7 +161,6 @@ RELAYER_WALLET_PASSWORD=your_wallet_password_here
 
 # Blockchain transactions
 ENABLE_ZKOS_CHAIN_TRANSACTION=true
-ENABLE_ZKOS_CHAIN_TRANSACTION_FILES_WRITE_FOR_TX_RESPONSE=true
 ```
 
 ### Creating .env.example
@@ -205,36 +189,47 @@ cargo build
 cargo build --release
 ```
 
-### Build with Specific Features
-
-```bash
-# Build with all features
-cargo build --all-features
-
-# Build with specific features
-cargo build --features "feature1,feature2"
-```
-
 ## 🏃 Running the Application
 
 ### Local Development
 
 1. **Start Dependencies**:
 
-   ```bash
-   docker-compose up -d postgres redis kafka zookeeper
-   ```
+```bash
+docker compose build
+```
 
-2. **Run Database Migrations** (if applicable):
+```bash
+docker compose up --build kafka zookeeper
+```
 
-   ```bash
-   # Add database setup commands here
-   ```
+```bash
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CLIENT-REQUEST --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic SnapShotLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CoreEventLogTopic --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic RelayerStateQueue --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime" && \
+docker exec -it zookeeper sh -c "cd usr/bin && kafka-topics --topic CLIENT-FAILED-REQUEST --create --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 --config retention.ms=-1 --config cleanup.policy=compact --config message.timestamp.type=LogAppendTime"
+```
 
-3. **Start the Relayer**:
-   ```bash
-   RUST_LOG=info cargo run --bin main
-   ```
+```bash
+chmod -R 777 dockerize/redisDB/log/
+```
+
+```bash
+docker compose up --build postgresql-master redis-server database
+```
+
+```bash
+docker compose up --build rpckafka querykafkapsql
+```
+
+```bash
+docker compose up --build auth api archiver frontend
+```
+
+```bash
+docker compose up --build relayer-dev
+```
 
 ### Production with Supervisor
 
@@ -246,17 +241,17 @@ sudo apt update
 sudo apt install supervisor
 
 # Create log directory
-mkdir -p /home/ubuntu/Relayer-dev/relayer-core/logs
+mkdir -p /home/ubuntu/relayer-core/logs
 
 # Configure Supervisor
 sudo tee /etc/supervisor/conf.d/relayer.conf > /dev/null <<EOF
 [program:relayer]
-command=/home/ubuntu/Relayer-dev/relayer-core/target/release/main
-directory=/home/ubuntu/Relayer-dev/relayer-core
+command=/home/ubuntu/relayer-core/target/release/main
+directory=/home/ubuntu/relayer-core
 autostart=true
 autorestart=true
-stderr_logfile=/home/ubuntu/Relayer-dev/relayer-core/logs/relayer.err.log
-stdout_logfile=/home/ubuntu/Relayer-dev/relayer-core/logs/relayer.out.log
+stderr_logfile=/home/ubuntu/relayer-core/logs/relayer.err.log
+stdout_logfile=/home/ubuntu/relayer-core/logs/relayer.out.log
 user=ubuntu
 environment=HOME="/home/ubuntu"
 stderr_logfile_maxbytes=50MB
@@ -275,23 +270,12 @@ sudo supervisorctl start relayer
 
 The relayer core provides several API endpoints:
 
-### RPC Server (Port 3032)
-
-- Main RPC interface for order processing
-- Handles client requests and responses
-- Supports both direct and queued modes
-
-### Relayer Server (Port 3031)
+### Relayer Admin Server (Port 3031)
 
 - Internal relayer communication
 - State synchronization
 - Event broadcasting
-
-### WebSocket Connections
-
-- Real-time price feeds from Binance
-- Live order book updates
-- Event streaming
+- Fee Management
 
 For detailed API documentation, refer to the [Postman Collection](./postman-requests/Twilight%20RelayerAPI%20HMAC.postman_collection.json).
 
@@ -311,18 +295,15 @@ docker-compose up -d
 docker-compose up -d relayer-core
 
 # Start only dependencies
-docker-compose up -d postgres redis kafka zookeeper
+docker-compose up -d kafka zookeeper
 ```
 
 ### Docker Build Options
 
-```bash
+````bash
 # Build with standard Dockerfile
 docker build -t relayer-core .
 
-# Build with SSH support
-docker build -f Dockerfile_with_ssh -t relayer-core-ssh .
-```
 
 ## 🔍 Monitoring and Logging
 
@@ -338,7 +319,7 @@ docker build -f Dockerfile_with_ssh -t relayer-core-ssh .
 # Set log level
 export RUST_LOG=info          # info, debug, warn, error, trace
 export RUST_BACKTRACE=full    # Enable full backtraces
-```
+````
 
 ### Health Checks
 
@@ -450,19 +431,6 @@ src/
 4. Add tests for new functionality
 5. Ensure all tests pass
 6. Submit a pull request
-
-### Code Style
-
-```bash
-# Format code
-cargo fmt
-
-# Check for linting issues
-cargo clippy
-
-# Run all checks
-cargo fmt && cargo clippy && cargo test
-```
 
 ## 📚 Additional Resources
 
