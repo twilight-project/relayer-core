@@ -16,8 +16,6 @@ pub fn update_btc_price(payload: String, last_price: &f64) -> f64 {
     let current_price: f64;
     //checking if received msg is payload or ping/pong texts
     if payload.contains("aggTrade") {
-        // let psql_pool = THREADPOOL_PSQL_SEQ_QUEUE.lock().unwrap();
-
         //btc price update on redis DB
         let binance_payload: BinanceAggTradePayload =
             serde_json::from_str(&payload.clone()).unwrap();

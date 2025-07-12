@@ -6,7 +6,6 @@ mod directapi; //without aeron
 mod heartbeat;
 mod init_lend_state_output;
 mod lendorder;
-mod postgres_sql_init;
 mod publicapi;
 mod queueresolver;
 mod relayercore;
@@ -19,7 +18,6 @@ pub use self::directapi::*;
 pub use self::heartbeat::*;
 pub use self::lendorder::LendOrder;
 pub use self::publicapi::*;
-// pub use self::queueresolver::QueueResolver;
 pub use self::relayercore::*;
 pub use self::rpc_types::*;
 pub use self::threadpool::ThreadPool;

@@ -220,7 +220,7 @@ impl LendPool {
         let _pool_event_execute = Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
-            LENDPOOL_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
         );
         lendpool
     }
@@ -233,13 +233,13 @@ impl LendPool {
         let eventstop: Event = Event::Stop(time.clone());
         Event::send_event_to_kafka_queue(
             eventstop.clone(),
-            LENDPOOL_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
             String::from("StopLoadMSG"),
         );
         let mut stop_signal: bool = true;
 
         let (recever, tx_consumed) = Event::receive_event_for_snapshot_from_kafka_queue(
-            LENDPOOL_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
             ServerTime::now().epoch,
             FetchOffset::Earliest,
             "lendpool kafka thread",
@@ -376,7 +376,7 @@ impl LendPool {
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from("AddTraderOrderSettlement"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
                 //skip batch process code
@@ -400,7 +400,7 @@ impl LendPool {
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from("AddTraderLimitOrderSettlement"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
                 //skip batch process code
@@ -424,7 +424,7 @@ impl LendPool {
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from(format!("AddTraderOrderLiquidation-{}", trader_order.uuid)),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
                 //skip batch process code
@@ -470,7 +470,7 @@ impl LendPool {
                         self.aggrigate_log_sequence,
                     ),
                     String::from("LendOrderCreateOrder"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 lendorder_db.add(lend_order.clone(), rpc_request.clone());
@@ -511,7 +511,7 @@ impl LendPool {
                         self.aggrigate_log_sequence,
                     ),
                     String::from("LendOrderSettleOrder"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 let _ = lendorder_db.remove(lend_order.clone(), rpc_request.clone());
@@ -528,7 +528,7 @@ impl LendPool {
                     // // self.event_log.push(Event::new(
                     // //     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     // //     String::from("FundingCycleDataUpdate"),
-                    // //     LENDPOOL_EVENT_LOG.clone().to_string(),
+                    // //     CORE_EVENT_LOG.clone().to_string(),
                     // // ));
                 }
                 RelayerCommand::RpcCommandPoolupdate() => {
@@ -625,7 +625,7 @@ impl LendPool {
                                 self.aggrigate_log_sequence,
                             ),
                             String::from(format!("RpcCommandPoolupdate-nonce-{}", self.nonce)),
-                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                     }
                 }

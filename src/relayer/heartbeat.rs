@@ -1,6 +1,5 @@
 use crate::config::*;
 use crate::db::*;
-// use crate::ordertest;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::relayer::*;
 use clokwerk::{Scheduler, TimeUnits};
@@ -75,8 +74,6 @@ pub fn heartbeat() {
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(100));
-    // ordertest::initprice();
-    // start_cronjobs();
     // main thread for scheduler
     thread::Builder::new()
         .name(String::from("heartbeat scheduler"))
@@ -138,7 +135,7 @@ pub fn price_check_and_update() {
         Event::new(
             Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
             String::from("insert_CurrentPrice"),
-            TRADERORDER_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
         );
 
         currentprice = currentprice.round();

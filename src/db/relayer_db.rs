@@ -78,7 +78,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
         Event::new(
             Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             String::from(format!("add_order-{}", order.uuid)),
-            TRADERORDER_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
         );
 
         order.clone()
@@ -97,7 +97,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
             Event::new(
                 Event::TraderOrderUpdate(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                 format!("update_order-{}", order.uuid),
-                TRADERORDER_EVENT_LOG.clone().to_string(),
+                CORE_EVENT_LOG.clone().to_string(),
             );
             // if order.order_status == OrderStatus::FILLED {
             //     let zkos_msg_hex = match self.zkos_msg.get(&order.uuid) {
@@ -134,7 +134,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                 Event::new(
                     Event::TraderOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                     format!("remove_order-{}", order.uuid),
-                    TRADERORDER_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 let _ = self.remove_order_check(order.account_id.clone());
                 Ok(order)
@@ -166,7 +166,7 @@ impl LocalDB<TraderOrder> for OrderDB<TraderOrder> {
                             self.aggrigate_log_sequence,
                         ),
                         format!("remove_order-{}", order.uuid),
-                        TRADERORDER_EVENT_LOG.clone().to_string(),
+                        CORE_EVENT_LOG.clone().to_string(),
                     );
                     Ok(order)
                 }
@@ -279,7 +279,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
         Event::new(
             Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
             format!("add_order-{}", order.uuid),
-            LENDORDER_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
         );
 
         order.clone()
@@ -351,7 +351,7 @@ impl LocalDB<LendOrder> for OrderDB<LendOrder> {
                 Event::new(
                     Event::LendOrder(order.clone(), cmd.clone(), self.aggrigate_log_sequence),
                     format!("remove_order-{}", order.uuid),
-                    LENDORDER_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 let _ = self.remove_order_check(order.account_id.clone());
                 Ok(order)

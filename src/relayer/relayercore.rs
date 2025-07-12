@@ -44,10 +44,9 @@ lazy_static! {
     };
 }
 pub fn client_cmd_receiver() {
-    if *KAFKA_STATUS == "Enabled" {
         match receive_from_kafka_queue(
-            RPC_CLIENT_REQUEST.clone().to_string(),
-            String::from("client_cmd_receiver3"),
+            RPC_CLIENT_REQUEST.clone(),
+            RELAYER_CORE_GROUP_CLIENT_REQUEST.clone(),
         ) {
             Ok((rpc_cmd_receiver, tx_consumed)) => {
                 let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
@@ -69,7 +68,6 @@ pub fn client_cmd_receiver() {
                 println!("error in client_cmd_receiver: {:#?}", arg);
             }
         }
-    }
 }
 
 pub fn rpc_event_handler(
@@ -157,7 +155,7 @@ pub fn rpc_event_handler(
                                     request_id.clone(),
                                 ),
                                 format!("tx_limit_submit-{:?}",request_id),
-                                LENDPOOL_EVENT_LOG.clone().to_string(),
+                                CORE_EVENT_LOG.clone().to_string(),
                             );
                             match tx_consumed.send(offset_complition) {
                                 Ok(_) => {}
@@ -179,7 +177,7 @@ pub fn rpc_event_handler(
                                 request_id,
                             ),
                             String::from("tx_duplicate_error"),
-                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
@@ -199,7 +197,7 @@ pub fn rpc_event_handler(
                             request_id,
                         ),
                         String::from("tx_wrong_parameter_error"),
-                        LENDPOOL_EVENT_LOG.clone().to_string(),
+                        CORE_EVENT_LOG.clone().to_string(),
                     );
                     match tx_consumed.send(offset_complition) {
                         Ok(_) => {}
@@ -303,7 +301,7 @@ pub fn rpc_event_handler(
                                         Event::new(
                                             Event::TraderOrderLimitUpdate(order_updated_clone.clone(), command_clone.clone(), trader_order_db.aggrigate_log_sequence),
                                             format!("settle_limit_order-{}", order_updated_clone.uuid),
-                                            TRADERORDER_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                         drop(trader_order_db);
                                         Event::new(
@@ -318,7 +316,7 @@ pub fn rpc_event_handler(
                                                 request_id.clone(),
                                             ),
                                             format!("tx_settle_limit_submit-{:?}",request_id),
-                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                     _ => {
@@ -345,7 +343,7 @@ pub fn rpc_event_handler(
                                         request_id,
                                     ),
                                     String::from("trader_tx_not_found_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -369,7 +367,7 @@ pub fn rpc_event_handler(
                                 request_id,
                             ),
                             String::from("trader_tx_not_found_error"),
-                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
@@ -469,7 +467,7 @@ pub fn rpc_event_handler(
                             request_id,
                         ),
                         String::from("tx_duplicate_error"),
-                        LENDPOOL_EVENT_LOG.clone().to_string(),
+                        CORE_EVENT_LOG.clone().to_string(),
                     );
                     match tx_consumed.send(offset_complition) {
                         Ok(_) => {}
@@ -592,7 +590,7 @@ pub fn rpc_event_handler(
                                         request_id,
                                     ),
                                     String::from("lend_tx_not_found_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -617,7 +615,7 @@ pub fn rpc_event_handler(
                                 request_id,
                             ),
                             String::from("lend_tx_not_found_error"),
-                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
@@ -661,7 +659,7 @@ pub fn rpc_event_handler(
                                                 request_id,
                                             ),
                                             format!("tx_hash_result-{:?}","Order successfully cancelled !!".to_string()),
-                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                     _ => {
@@ -687,7 +685,7 @@ pub fn rpc_event_handler(
                                         request_id,
                                     ),
                                     String::from("trader_order_not_found_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -729,7 +727,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                     iso8601(&std::time::SystemTime::now()),
                 ),
                 format!("insert_fundingrate-{}", ServerTime::now().epoch),
-                TRADERORDER_EVENT_LOG.clone().to_string(),
+                CORE_EVENT_LOG.clone().to_string(),
             );
             let mut lendpool = LEND_POOL_DB.lock().unwrap();
             lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
@@ -967,7 +965,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         //         None
                                                         //     ),
                                                         //     String::from("tx_hash_error"),
-                                                        //     LENDPOOL_EVENT_LOG.clone().to_string()
+                                                        //     CORE_EVENT_LOG.clone().to_string()
                                                         // );
                                                     }
                                                 }
@@ -1003,7 +1001,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 //         None
                                                 //     ),
                                                 //     String::from("Receiver_error_limit"),
-                                                //     LENDPOOL_EVENT_LOG.clone().to_string()
+                                                //     CORE_EVENT_LOG.clone().to_string()
                                                 // );
                                             }
                                         }
@@ -1165,7 +1163,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             Event::new(
                 Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),
                 format!("update_order_funding-{}", trader_order.uuid.clone()),
-                TRADERORDER_EVENT_LOG.clone().to_string(),
+                CORE_EVENT_LOG.clone().to_string(),
             );
         }
         RelayerCommand::UpdateFees(order_filled_on_market, order_filled_on_limit, order_settled_on_market, order_settled_on_limit) => {
@@ -1290,7 +1288,7 @@ pub fn zkos_order_handler(
                                                                     request_id
                                                                 ),
                                                                 format!("tx_hash_result-{:?}",tx_hash),
-                                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                                CORE_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
                                                         Err(arg) => {
@@ -1306,7 +1304,7 @@ pub fn zkos_order_handler(
                                                                     request_id
                                                                 ),
                                                                 String::from("tx_hash_error"),
-                                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                                CORE_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
                                                     }
@@ -1324,7 +1322,7 @@ pub fn zkos_order_handler(
                                                             request_id
                                                         ),
                                                         String::from("tx_hash_error"),
-                                                        LENDPOOL_EVENT_LOG.clone().to_string()
+                                                        CORE_EVENT_LOG.clone().to_string()
                                                     );
                                                 }
                                             }
@@ -1346,7 +1344,7 @@ pub fn zkos_order_handler(
                                                     request_id
                                                 ),
                                                 String::from("tx_hash_error"),
-                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                CORE_EVENT_LOG.clone().to_string()
                                             );
                                         }
                                     }
@@ -1456,7 +1454,7 @@ pub fn zkos_order_handler(
                                                             request_id
                                                         ),
                                                         format!("tx_hash_result-{:?}",tx_hash),
-                                                        LENDPOOL_EVENT_LOG.clone().to_string()
+                                                        CORE_EVENT_LOG.clone().to_string()
                                                     );
                                                 }
                                                 Err(arg) => {
@@ -1472,7 +1470,7 @@ pub fn zkos_order_handler(
                                                             request_id
                                                         ),
                                                         String::from("tx_hash_error"),
-                                                        LENDPOOL_EVENT_LOG.clone().to_string()
+                                                        CORE_EVENT_LOG.clone().to_string()
                                                     );
                                                 }
                                             }
@@ -1490,7 +1488,7 @@ pub fn zkos_order_handler(
                                                     request_id
                                                 ),
                                                 String::from("tx_hash_error"),
-                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                CORE_EVENT_LOG.clone().to_string()
                                             );
                                         }
                                     }
@@ -1512,7 +1510,7 @@ pub fn zkos_order_handler(
                                             request_id
                                         ),
                                         String::from("tx_hash_error"),
-                                        LENDPOOL_EVENT_LOG.clone().to_string()
+                                        CORE_EVENT_LOG.clone().to_string()
                                     );
                                 }
                             }
@@ -1615,7 +1613,7 @@ pub fn zkos_order_handler(
                                                 request_id,
                                             ),
                                             format!("tx_hash_result-{:?}",tx_hash),
-                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                     Err(arg) => {
@@ -1631,7 +1629,7 @@ pub fn zkos_order_handler(
                                                 request_id,
                                             ),
                                             String::from("tx_hash_error"),
-                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                 }
@@ -1653,7 +1651,7 @@ pub fn zkos_order_handler(
                                         request_id,
                                     ),
                                     String::from("tx_hash_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -1736,7 +1734,7 @@ pub fn zkos_order_handler(
                                                 request_id,
                                             ),
                                             format!("tx_hash_result-{:?}",tx_hash),
-                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                     Err(arg) => {
@@ -1752,7 +1750,7 @@ pub fn zkos_order_handler(
                                                 request_id,
                                             ),
                                             String::from("tx_hash_error"),
-                                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                 }
@@ -1774,7 +1772,7 @@ pub fn zkos_order_handler(
                                         request_id,
                                     ),
                                     String::from("tx_hash_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -1929,7 +1927,7 @@ pub fn zkos_order_handler(
                                                                     output_memo_hex,
                                                                 ),
                                                                 format!("tx_hash_result-{:?}",tx_hash),
-                                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                                CORE_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
                                                         Err(arg) => {
@@ -1944,7 +1942,7 @@ pub fn zkos_order_handler(
                                                                     None
                                                                 ),
                                                                 String::from("tx_hash_error"),
-                                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                                CORE_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
                                                     }
@@ -1961,7 +1959,7 @@ pub fn zkos_order_handler(
                                                             None
                                                         ),
                                                         String::from("tx_hash_error"),
-                                                        LENDPOOL_EVENT_LOG.clone().to_string()
+                                                        CORE_EVENT_LOG.clone().to_string()
                                                     );
                                                 }
                                             }
@@ -1982,7 +1980,7 @@ pub fn zkos_order_handler(
                                                     None
                                                 ),
                                                 String::from("tx_hash_error"),
-                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                CORE_EVENT_LOG.clone().to_string()
                                             );
                                         }
                                     }
@@ -2101,7 +2099,7 @@ pub fn zkos_order_handler(
                                                     None
                                                 ),
                                                 format!("tx_hash_result-{:?}",tx_hash),
-                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                CORE_EVENT_LOG.clone().to_string()
                                             );
                                         }
                                         Err(arg) => {
@@ -2119,7 +2117,7 @@ pub fn zkos_order_handler(
                                                     None
                                                 ),
                                                 String::from("tx_hash_error"),
-                                                LENDPOOL_EVENT_LOG.clone().to_string()
+                                                CORE_EVENT_LOG.clone().to_string()
                                             );
                                         }
                                     }
@@ -2143,7 +2141,7 @@ pub fn zkos_order_handler(
                                             None
                                         ),
                                         String::from("tx_hash_error"),
-                                        LENDPOOL_EVENT_LOG.clone().to_string()
+                                        CORE_EVENT_LOG.clone().to_string()
                                     );
                                 }
                             }
@@ -2228,7 +2226,7 @@ pub fn zkos_order_handler(
                                         None,
                                     ),
                                     format!("tx_hash_result-{:?}",tx_hash),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                             Err(arg) => {
@@ -2243,7 +2241,7 @@ pub fn zkos_order_handler(
                                         None,
                                     ),
                                     String::from("tx_hash_error"),
-                                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -2264,7 +2262,7 @@ pub fn zkos_order_handler(
                                 None,
                             ),
                             String::from("tx_hash_error"),
-                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                     }
                 });

@@ -85,19 +85,6 @@ pub fn set_localdb(key: &'static str, value: f64) {
     local_storage.insert(key.to_string(), value);
     drop(local_storage);
 }
-use crate::config::LOCALDBSTRING;
-
-pub fn get_localdb_string(key: &str) -> String {
-    let local_storage = LOCALDBSTRING.lock().unwrap();
-    let data = local_storage.get(key).unwrap().clone();
-    drop(local_storage);
-    data
-}
-pub fn set_localdb_string(key: &'static str, value: String) {
-    let mut local_storage = LOCALDBSTRING.lock().unwrap();
-    local_storage.insert(key, value);
-    drop(local_storage);
-}
 
 pub fn get_lock_error_for_trader_settle(trader_order: TraderOrder) -> i128 {
     let lock_error = ((trader_order.unrealized_pnl.round() as i128)

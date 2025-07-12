@@ -1,9 +1,7 @@
 mod config;
 mod db;
 mod kafkalib;
-mod postgresqllib;
 mod pricefeederlib;
-mod redislib;
 mod relayer;
 use db::snapshot;
 use relayer::*;

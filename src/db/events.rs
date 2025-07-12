@@ -127,16 +127,11 @@ impl EventKey {
             true
         }
     }
+    // event type casting for load any order kafka logs for different version of event log
     pub fn event_log_upcast(&mut self, log: String) -> String {
-        // println!("evet {:?}", &*self.event_version);
-        // println!("&*self.event_type  {:?}", &*self.event_type);
         match &*self.event_version {
-            "0.0.0" => match &*self.event_type {
-                _ => {
-                    self.event_version = "1.0.0".to_string();
-                }
-            },
-            "1.0.0" => match &*self.event_type {
+            // v0.1.0 is the current version of the event log code example to upgrade the event log version for any struct change in commands
+            "v0.0.0" => match &*self.event_type {
                 // "CurrentPriceUpdate" => {
                 //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
                 //     pub enum Eventold {
@@ -148,51 +143,51 @@ impl EventKey {
                 //     let Eventold::CurrentPriceUpdate(price, time) = log_der;
                 //     let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
                 //     // println!("log:{:?}", log);
-                //     self.event_version = "1.0.1".to_string();
+                //     self.event_version = "v0.1.0".to_string();
                 //     // println!("self:{:?}", self);
                 //     return serde_json::to_string(&new_log).unwrap();
                 // }
-                "TxHash" => {
-                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                    pub enum Eventold {
-                        TxHash(
-                            Uuid,
-                            String,
-                            String,
-                            OrderType,
-                            OrderStatus,
-                            String,
-                            Option<String>,
-                        ),
-                    }
-                    // check for enum replacment with vec of value
-                    let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                    let Eventold::TxHash(
-                        order_id,
-                        string1,
-                        string2,
-                        order_type,
-                        order_status,
-                        string3,
-                        option_string,
-                    ) = log_der;
-                    let new_log = Event::TxHash(
-                        order_id,
-                        string1.clone(),
-                        string2,
-                        order_type,
-                        order_status,
-                        string3,
-                        option_string,
-                        string1,
-                    );
-                    // println!("log:{:?}", log);
-                    self.event_version = "1.0.1".to_string();
-                    // println!("self:{:?}", self);
-                    return serde_json::to_string(&new_log).unwrap();
-                }
+                // "TxHash" => {
+                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                //     pub enum Eventold {
+                //         TxHash(
+                //             Uuid,
+                //             String,
+                //             String,
+                //             OrderType,
+                //             OrderStatus,
+                //             String,
+                //             Option<String>,
+                //         ),
+                //     }
+                //     // check for enum replacment with vec of value
+                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
+                //     let Eventold::TxHash(
+                //         order_id,
+                //         string1,
+                //         string2,
+                //         order_type,
+                //         order_status,
+                //         string3,
+                //         option_string,
+                //     ) = log_der;
+                //     let new_log = Event::TxHash(
+                //         order_id,
+                //         string1.clone(),
+                //         string2,
+                //         order_type,
+                //         order_status,
+                //         string3,
+                //         option_string,
+                //         string1,
+                //     );
+                //     // println!("log:{:?}", log);
+                //     self.event_version = "v0.1.0".to_string();
+                //     // println!("self:{:?}", self);
+                //     return serde_json::to_string(&new_log).unwrap();
+                // }
                 _ => {
-                    self.event_version = "1.0.1".to_string();
+                    self.event_version = "v0.1.0".to_string();
                 }
             },
             _ => {}
@@ -238,37 +233,11 @@ pub enum Event {
     FeeUpdate(RelayerCommand, String), //fee data and time
 }
 
-// impl fmt::Display for Event {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Event::TraderOrder(..) => write!(f, "TraderOrder"),
-//             Event::TraderOrderUpdate(..) => write!(f, "macOTraderOrderUpdateS"),
-//             Event::TraderOrderFundingUpdate(..) => write!(f, "TraderOrderFundingUpdate"),
-//             Event::TraderOrderLiquidation(..) => write!(f, "TraderOrderLiquidation"),
-//             Event::LendOrder(..) => write!(f, "LendOrder"),
-//             Event::PoolUpdate(..) => write!(f, "PoolUpdate"),
-//             Event::FundingRateUpdate(..) => write!(f, "FundingRateUpdate"),
-//             Event::CurrentPriceUpdate(..) => write!(f, "CurrentPriceUpdate"),
-//             Event::SortedSetDBUpdate(..) => write!(f, "SortedSetDBUpdate"),
-//             Event::PositionSizeLogDBUpdate(..) => write!(f, "PositionSizeLogDBUpdate"),
-//             Event::TxHash(..) => write!(f, "TxHash"),
-//             Event::Stop(..) => write!(f, "Stop"),
-//         }
-//     }
-// }
-
-use stopwatch::Stopwatch;
 impl Event {
     pub fn new(event: Event, key: String, topic: String) -> Self {
         let event_clone = event.clone();
         let pool = KAFKA_EVENT_LOG_THREADPOOL1.lock().unwrap();
         pool.execute(move || {
-            // match event_clone {
-            //     Event::CurrentPriceUpdate(..) => {}
-            //     _ => {
-            //         println!("{:#?}", event_clone);
-            //     }
-            // }
             Event::send_event_to_kafka_queue(event_clone, topic, key);
         });
         drop(pool);
@@ -287,8 +256,6 @@ impl Event {
             drop(kafka_producer);
         });
         drop(pool);
-        // let time1 = sw.elapsed();
-        // println!("kafka msg send time: {:#?}", time1);
     }
 
     pub fn receive_event_for_snapshot_from_kafka_queue(

@@ -2,6 +2,21 @@
 name = "relayer-core"
 version = "0.1.0"
 edition = "2021"
+authors = ["Twilight Project"]
+description = "A high-performance matching engine written in Rust using Event Sourcing pattern with CQRS framework to handle tens of thousands of orders per second"
+license = "Apache-2.0"
+repository = "https://github.com/twilight-project/relayer-core"
+readme = "README.md"
+keywords = [
+    "relayer",
+    "matching-engine",
+    "cqrs",
+    "event-sourcing",
+    "twilight",
+    "trading",
+    "orders",
+]
+categories = ["algorithms", "database", "web-programming", "asynchronous"]
 
 [[bin]]
 name = "main"

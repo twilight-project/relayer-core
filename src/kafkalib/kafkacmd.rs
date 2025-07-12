@@ -1,7 +1,6 @@
 //https://docs.rs/kafka/0.4.1/kafka/client/struct.KafkaClient.html
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::IS_RELAYER_ACTIVE;
 use crate::db::OffsetCompletion;
 use crate::kafkalib::offset_manager::OffsetManager;
 use crate::relayer::*;
