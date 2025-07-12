@@ -46,3 +46,4 @@ superveisorfile.txt
 foo.txt
 logs
 .env
+.env_old
