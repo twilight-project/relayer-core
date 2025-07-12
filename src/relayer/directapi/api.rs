@@ -218,7 +218,7 @@ pub fn startserver() {
                 Ok(value) => {
                     let relayer_command = value.to_relayer_command();
                     relayer_event_handler(relayer_command);
-                    println!("Fee update in progress...");
+                    crate::log_heartbeat!(info, "Fee update in progress...");
                     Ok(serde_json::to_value("Fee update in progress, check logs for status").unwrap())
                 }
                 Err(args) => {
@@ -232,7 +232,7 @@ pub fn startserver() {
     },
     );
 
-    println!("Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
+    crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
     let server = ServerBuilder::new(io)
         .threads(*RELAYER_SERVER_THREAD)
         .meta_extractor(|req: &hyper::Request<hyper::Body>| {

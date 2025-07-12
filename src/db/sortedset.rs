@@ -102,25 +102,12 @@ impl SortedSet {
                 .unwrap();
             self.sorted_order[key_index].1 = price;
             Ok(())
-        }
-        // if self.hash.insert(uuid) {
-        //     self.hash.remove(&uuid);
-        else {
+        } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::AlreadyExists,
                 "Key does not exist",
             ))
         }
-        // else {
-        //     let key_index = self
-        //         .sorted_order
-        //         .iter()
-        //         .position(|&(x, _y)| x == uuid)
-        //         .unwrap();
-
-        //     self.sorted_order[key_index].1 = price;
-        //     Ok(())
-        // }
     }
 
     pub fn update_bulk(&mut self, mut value: Vec<(Uuid, i64)>) -> Result<(), std::io::Error> {
@@ -133,7 +120,6 @@ impl SortedSet {
                 let key_index = db_iter.position(|&(x, _y)| x == uuid).unwrap();
                 self.sorted_order[key_index].1 = price;
             }
-            // self.update(uuid, price);
         }
         Ok(())
     }
@@ -148,7 +134,6 @@ impl SortedSet {
                 let result_vec: Vec<(Uuid, i64)> =
                     self.sorted_order.drain(0..key_index.unwrap() + 1).collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
-                // self.hash.retain(|&x| left.contains(&x) == false);
                 for x in left.clone() {
                     self.hash.remove(&x);
                 }
@@ -169,7 +154,6 @@ impl SortedSet {
                     .drain(key_index.unwrap()..self.len)
                     .collect();
                 let (left, _): (Vec<Uuid>, Vec<i64>) = result_vec.iter().cloned().unzip();
-                // self.hash.retain(|&x| left.contains(&x) == false);
                 for x in left.clone() {
                     self.hash.remove(&x);
                 }

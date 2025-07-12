@@ -132,7 +132,7 @@ impl QueueState {
         }
     }
     pub fn bulk_remove_queue(&mut self, orderdb_traderorder: &OrderDBSnapShotTO) {
-        println!(
+        crate::log_heartbeat!(debug,
             "Before \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
@@ -215,7 +215,7 @@ impl QueueState {
             }
         }
 
-        println!(
+        crate::log_heartbeat!(debug,
             "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
@@ -231,7 +231,8 @@ impl QueueState {
 
     pub fn process_queue(&mut self) {
         // let mut to_fill = self.to_fill;
-        println!(
+        crate::log_heartbeat!(
+            debug,
             "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_liquidate : {:?}",
             self.to_fill.len(),
             self.to_settle.len(),
