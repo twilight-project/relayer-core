@@ -32,7 +32,7 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
     let seed = match std::env::var("RELAYER_WALLET_SEED") {
         Ok(seed) => seed,
         Err(_) => {
-            println!("RELAYER_WALLET_SEED is not set, using default seed");
+            crate::log_heartbeat!(error, "RELAYER_WALLET_SEED is not set, using default seed");
             "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
         }
     };

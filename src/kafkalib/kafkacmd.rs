@@ -38,7 +38,7 @@ pub fn check_kafka_topics() -> Vec<String> {
     let mut kafka_client = KAFKA_CLIENT.lock().unwrap();
     kafka_client.load_metadata_all().unwrap();
     let mut result: Vec<String> = Vec::new();
-    println!("{:#?}", kafka_client);
+    crate::log_heartbeat!(info, "{:#?}", kafka_client);
     for topic in kafka_client.topics() {
         for _partition in topic.partitions() {
             // println!(
@@ -56,11 +56,6 @@ pub fn check_kafka_topics() -> Vec<String> {
 pub fn send_to_kafka_queue(cmd: RpcCommand, topic: String, key: &str) {
     let mut kafka_producer = KAFKA_PRODUCER.lock().unwrap();
     let data = serde_json::to_vec(&cmd).unwrap();
-    // let data = serde_json::to_string(&cmd).unwrap();
-    // let data = data.as_bytes();
-    // kafka_producer
-    //     .send(&Record::from_value(&topic, data))
-    //     .unwrap();
     kafka_producer
         .send(&Record::from_key_value(&topic, key, data))
         .unwrap();
@@ -114,8 +109,6 @@ pub fn receive_from_kafka_queue(
                     let sender_clone = sender.clone();
                     let mss = con.poll().unwrap();
                     if mss.is_empty() {
-                        // println!("No messages available right now.");
-                        // return Ok(());
                     } else {
                         for ms in mss.iter() {
                             for m in ms.messages() {
@@ -131,9 +124,7 @@ pub fn receive_from_kafka_queue(
                                             (ms.partition(), m.offset),
                                         )) {
                                             Ok(_) => {
-                                                // let _ = con.consume_message(&topic_clone, partition, m.offset);
-                                                // println!("Im here");
-                                                // let _ = con.consume_message(&topic, 0, m.offset);
+
                                             }
                                             Err(arg) => {
                                                 eprintln!(
@@ -151,6 +142,7 @@ pub fn receive_from_kafka_queue(
                                             e
                                         );
                                         continue;
+                               
                                     }
                                 }
                             }
@@ -162,7 +154,10 @@ pub fn receive_from_kafka_queue(
                         // con.commit_consumed().unwrap();
                     }
                 } else {
-                    println!("Relayer turn off command received at kafka receiver");
+                    crate::log_heartbeat!(
+                        info,
+                        "Relayer turn off command received at kafka receiver"
+                    );
                     break;
                 }
 
@@ -175,7 +170,8 @@ pub fn receive_from_kafka_queue(
                         }
                         Err(_e) => {
                             connection_status = false;
-                            eprintln!(
+                            crate::log_heartbeat!(
+                                error,
                                 "The consumed channel is closed: {:?}",
                                 thread::current().name()
                             );

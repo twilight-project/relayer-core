@@ -302,7 +302,11 @@ impl Event {
                                 let value = match serde_json::from_str(&value) {
                                     Ok(ser_value) => ser_value,
                                     Err(arg) => {
-                                        eprintln!("Error in event log snapshot : {:?}", arg);
+                                        crate::log_heartbeat!(
+                                            error,
+                                            "Error in event log snapshot for upcasting event: {:?}",
+                                            arg
+                                        );
                                         let _ = con.consume_message(&topic, 0, m.offset);
                                         continue;
                                     }
@@ -339,14 +343,14 @@ impl Event {
                                 let e = con.consume_message(&topic, partition, offset);
 
                                 if e.is_err() {
-                                    println!("Kafka connection failed {:?}", e);
+                                    crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
                                     connection_status = false;
                                     break;
                                 }
 
                                 let e = con.commit_consumed();
                                 if e.is_err() {
-                                    println!("Kafka connection failed {:?}", e);
+                                    crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
                                     connection_status = false;
                                     break;
                                 }
@@ -355,7 +359,8 @@ impl Event {
                             }
                             Err(_e) => {
                                 connection_status = false;
-                                println!(
+                                crate::log_heartbeat!(
+                                    error,
                                     "The consumed channel is closed: {:?}",
                                     thread::current().name()
                                 );
