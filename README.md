@@ -66,8 +66,8 @@ nano .env
 Start the required services using Docker Compose:
 
 ```bash
-# Start Kafka, Zookeeper, PostgreSQL, and Redis
-docker-compose up -d kafka zookeeper postgres redis
+# Start Kafka, Zookeeper
+docker compose up --build kafka zookeeper
 ```
 
 ### 4. Create Kafka Topics
