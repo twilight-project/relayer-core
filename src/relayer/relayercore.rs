@@ -2,19 +2,19 @@ use crate::config::*;
 use crate::db::*;
 use crate::kafkalib::kafkacmd::receive_from_kafka_queue;
 use crate::relayer::*;
-use twilight_relayer_sdk::address::Network;
-use twilight_relayer_sdk::lend::*;
-use twilight_relayer_sdk::order::*;
-use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
-use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread::sleep;
 use std::time::Duration;
+use twilight_relayer_sdk::address::Network;
+use twilight_relayer_sdk::lend::*;
+use twilight_relayer_sdk::order::*;
 use twilight_relayer_sdk::transaction::Transaction;
+use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
+use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
 use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
-use uuid::Uuid;
 use twilight_relayer_sdk::zkvm::IOType;
 use twilight_relayer_sdk::zkvm::Output;
+use uuid::Uuid;
 // use stopwatch::Stopwatch;
 lazy_static! {
     pub static ref THREADPOOL_NORMAL_ORDER: Mutex<ThreadPool> =
@@ -27,14 +27,20 @@ lazy_static! {
         Mutex::new(ThreadPool::new(2, String::from("THREADPOOL_URGENT_ORDER")));
     pub static ref THREADPOOL_FIFO_ORDER: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_FIFO_ORDER")));
-    pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_BULK_PENDING_ORDER")));
-    pub static ref THREADPOOL_BULK_PENDING_ORDER_INSERT: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_BULK_PENDING_ORDER_INSERT")));
-    pub static ref THREADPOOL_BULK_PENDING_ORDER_REMOVE: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(12, String::from("THREADPOOL_BULK_PENDING_ORDER_REMOVE")));
-    pub static ref THREADPOOL_ZKOS_TRADER_ORDER: Mutex<ThreadPool> =
-        Mutex::new(ThreadPool::new(5, String::from("THREADPOOL_ZKOS_TRADER_ORDER")));
+    pub static ref THREADPOOL_BULK_PENDING_ORDER: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
+        5,
+        String::from("THREADPOOL_BULK_PENDING_ORDER")
+    ));
+    pub static ref THREADPOOL_BULK_PENDING_ORDER_INSERT: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(12, String::from("THREADPOOL_BULK_PENDING_ORDER_INSERT"))
+    );
+    pub static ref THREADPOOL_BULK_PENDING_ORDER_REMOVE: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(12, String::from("THREADPOOL_BULK_PENDING_ORDER_REMOVE"))
+    );
+    pub static ref THREADPOOL_ZKOS_TRADER_ORDER: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
+        5,
+        String::from("THREADPOOL_ZKOS_TRADER_ORDER")
+    ));
     pub static ref THREADPOOL_ZKOS_FIFO: Mutex<ThreadPool> =
         Mutex::new(ThreadPool::new(1, String::from("THREADPOOL_ZKOS_FIFO")));
     pub static ref CONTRACTMANAGER: Arc<Mutex<ContractManager>> = {
@@ -44,32 +50,34 @@ lazy_static! {
     };
 }
 pub fn client_cmd_receiver() {
-        match receive_from_kafka_queue(
-            RPC_CLIENT_REQUEST.clone(),
-            RELAYER_CORE_GROUP_CLIENT_REQUEST.clone(),
-        ) {
-            Ok((rpc_cmd_receiver, tx_consumed)) => {
-                let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
+    match receive_from_kafka_queue(
+        RPC_CLIENT_REQUEST.clone(),
+        RELAYER_CORE_GROUP_CLIENT_REQUEST.clone(),
+    ) {
+        Ok((rpc_cmd_receiver, tx_consumed)) => {
+            let rpc_cmd_receiver1 = Arc::clone(&rpc_cmd_receiver);
 
-                loop {
-                    let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap();
-                    match rpc_client_cmd_request.recv() {
-                        Ok((rpc_command, offset_complition)) => {
-                            rpc_event_handler(rpc_command, tx_consumed.clone(), offset_complition);
-                        }
-                        Err(arg) => {
-                            crate::log_heartbeat!(info,"Relayer turn off command receiver from client-request");
-                            break;
-                        }
+            loop {
+                let rpc_client_cmd_request = rpc_cmd_receiver1.lock().unwrap();
+                match rpc_client_cmd_request.recv() {
+                    Ok((rpc_command, offset_complition)) => {
+                        rpc_event_handler(rpc_command, tx_consumed.clone(), offset_complition);
+                    }
+                    Err(arg) => {
+                        crate::log_heartbeat!(
+                            info,
+                            "Relayer turn off command receiver from client-request"
+                        );
+                        break;
                     }
                 }
             }
-            Err(arg) => {
-                crate::log_heartbeat!(info,"error in client_cmd_receiver: {:#?}", arg);
-            }
+        }
+        Err(arg) => {
+            crate::log_heartbeat!(info, "error in client_cmd_receiver: {:#?}", arg);
         }
     }
-
+}
 
 pub fn rpc_event_handler(
     command: RpcCommand,
@@ -155,7 +163,7 @@ pub fn rpc_event_handler(
                                     None,
                                     request_id.clone(),
                                 ),
-                                format!("tx_limit_submit-{:?}",request_id),
+                                format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             match tx_consumed.send(offset_complition) {
@@ -300,8 +308,15 @@ pub fn rpc_event_handler(
                                             zkos_hex_string,
                                         );
                                         Event::new(
-                                            Event::TraderOrderLimitUpdate(order_updated_clone.clone(), command_clone.clone(), trader_order_db.aggrigate_log_sequence),
-                                            format!("settle_limit_order-{}", order_updated_clone.uuid),
+                                            Event::TraderOrderLimitUpdate(
+                                                order_updated_clone.clone(),
+                                                command_clone.clone(),
+                                                trader_order_db.aggrigate_log_sequence,
+                                            ),
+                                            format!(
+                                                "settle_limit_order-{}",
+                                                order_updated_clone.uuid
+                                            ),
                                             CORE_EVENT_LOG.clone().to_string(),
                                         );
                                         drop(trader_order_db);
@@ -316,7 +331,7 @@ pub fn rpc_event_handler(
                                                 None,
                                                 request_id.clone(),
                                             ),
-                                            format!("tx_settle_limit_submit-{:?}",request_id),
+                                            format!("tx_settle_limit_submit-{:?}", request_id),
                                             CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -327,7 +342,9 @@ pub fn rpc_event_handler(
                             }
                             _ => {
                                 drop(order);
-                                crate::log_trading!(debug,"Order {} not found or invalid order status !!",
+                                crate::log_trading!(
+                                    debug,
+                                    "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
                                 // send event for txhash with error saying order already exist in the relayer
@@ -353,7 +370,12 @@ pub fn rpc_event_handler(
                         }
                     }
                     Err(arg) => {
-                        crate::log_trading!(debug,"Error found for order_id {}:{:#?}",rpc_request.uuid, arg);
+                        crate::log_trading!(
+                            debug,
+                            "Error found for order_id {}:{:#?}",
+                            rpc_request.uuid,
+                            arg
+                        );
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
@@ -390,7 +412,8 @@ pub fn rpc_event_handler(
 
                 if is_order_exist {
                     let (tlv0, tps0) = lend_pool.get_lendpool();
-                    let mut lendorder: LendOrder = LendOrder::new_order(rpc_request.clone(), tlv0, tps0);
+                    let mut lendorder: LendOrder =
+                        LendOrder::new_order(rpc_request.clone(), tlv0, tps0);
                     lendorder.order_status = OrderStatus::FILLED;
                     // let mut lendorder: LendOrder = LendOrder::new_order(rpc_request, 20048615383.0, 2000000.0);
 
@@ -438,13 +461,21 @@ pub fn rpc_event_handler(
                                 ));
                             }
                             Err(verification_error) => {
-                                crate::log_trading!(error,"Error in line relayercore.rs 443 for account_id:{} : {:?}",rpc_request.account_id,
+                                crate::log_trading!(
+                                    error,
+                                    "Error in line relayercore.rs 443 for account_id:{} : {:?}",
+                                    rpc_request.account_id,
                                     verification_error
                                 );
                             }
                         },
                         Err(arg) => {
-                            crate::log_trading!(error,"Error in line relayercore.rs 449 for account_id:{} : {:?}",rpc_request.account_id, arg);
+                            crate::log_trading!(
+                                error,
+                                "Error in line relayercore.rs 449 for account_id:{} : {:?}",
+                                rpc_request.account_id,
+                                arg
+                            );
                         }
                     }
                     match tx_consumed.send(offset_complition) {
@@ -501,15 +532,13 @@ pub fn rpc_event_handler(
                                         let next_output_state =
                                             create_output_state_for_trade_lend_order(
                                                 (lend_pool.nonce + 1) as u32,
-                                                lend_pool
-                                                    .last_output_state
+                                                lend_pool.last_output_state
                                                     .clone()
                                                     .as_output_data()
                                                     .get_script_address()
                                                     .unwrap()
                                                     .clone(),
-                                                lend_pool
-                                                    .last_output_state
+                                                lend_pool.last_output_state
                                                     .clone()
                                                     .as_output_data()
                                                     .get_owner_address()
@@ -518,7 +547,7 @@ pub fn rpc_event_handler(
                                                     .clone(),
                                                 order_clone.tlv3.round() as u64,
                                                 order_clone.tps3.round() as u64,
-                                                0,
+                                                0
                                             );
 
                                         let (sender, zkos_receiver) = mpsc::channel();
@@ -527,33 +556,40 @@ pub fn rpc_event_handler(
                                                 order_clone.clone(),
                                                 command_clone.clone(),
                                                 lend_pool.last_output_state.clone(),
-                                                next_output_state.clone(),
+                                                next_output_state.clone()
                                             ),
-                                            sender,
+                                            sender
                                         );
 
                                         match zkos_receiver.recv() {
-                                            Ok(chain_message) => match chain_message {
-                                                Ok(tx_hash) => {
-                                                    *order = order_clone.clone();
-                                                    drop(order);
-                                                    lend_pool.add_transaction(
-                                                        LendPoolCommand::LendOrderSettleOrder(
-                                                            command_clone,
-                                                            order_clone.clone(),
-                                                            order_clone.nwithdraw,
-                                                            next_output_state,
-                                                        ),
-                                                    );
+                                            Ok(chain_message) =>
+                                                match chain_message {
+                                                    Ok(tx_hash) => {
+                                                        *order = order_clone.clone();
+                                                        drop(order);
+                                                        lend_pool.add_transaction(
+                                                            LendPoolCommand::LendOrderSettleOrder(
+                                                                command_clone,
+                                                                order_clone.clone(),
+                                                                order_clone.nwithdraw,
+                                                                next_output_state
+                                                            )
+                                                        );
+                                                    }
+                                                    Err(verification_error) => {
+                                                        crate::log_trading!(
+                                                            error,
+                                                            "Error in line relayercore.rs 552 for order_id:{} : {:?}",
+                                                            rpc_request.uuid,
+                                                            verification_error
+                                                        );
+                                                    }
                                                 }
-                                                Err(verification_error) => {
-                                                   crate::log_trading!(error,"Error in line relayercore.rs 552 for order_id:{} : {:?}",rpc_request.uuid,
-                                                        verification_error
-                                                    );
-                                                }
-                                            },
                                             Err(arg) => {
-                                                crate::log_trading!(error,"Error in line relayercore.rs 559 for order_id:{} : {:?}",rpc_request.uuid,
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Error in line relayercore.rs 559 for order_id:{} : {:?}",
+                                                    rpc_request.uuid,
                                                     arg
                                                 );
                                             }
@@ -561,7 +597,12 @@ pub fn rpc_event_handler(
                                         drop(lend_pool);
                                     }
                                     Err(arg) => {
-                                        crate::log_trading!(error,"Error found for lend pool info :{:#?}, Error:{:#?}",lend_pool.clone(), arg);
+                                        crate::log_trading!(
+                                            error,
+                                            "Error found for lend pool info :{:#?}, Error:{:#?}",
+                                            lend_pool.clone(),
+                                            arg
+                                        );
                                         drop(order);
                                         drop(lend_pool);
                                     }
@@ -570,7 +611,9 @@ pub fn rpc_event_handler(
                             _ => {
                                 drop(order);
                                 drop(lend_pool);
-                                crate::log_trading!(debug,"Order {} not found or invalid order status !!",
+                                crate::log_trading!(
+                                    debug,
+                                    "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
                                 // send event for txhash with error saying order already exist in the relayer
@@ -583,10 +626,10 @@ pub fn rpc_event_handler(
                                         OrderStatus::OrderNotFound,
                                         ServerTime::now().epoch,
                                         None,
-                                        request_id,
+                                        request_id
                                     ),
                                     String::from("lend_tx_not_found_error"),
-                                    CORE_EVENT_LOG.clone().to_string(),
+                                    CORE_EVENT_LOG.clone().to_string()
                                 );
                             }
                         }
@@ -597,7 +640,12 @@ pub fn rpc_event_handler(
                     }
                     Err(arg) => {
                         drop(lend_pool);
-                        crate::log_trading!(debug,"Error found for order_id:{:#?}, Error:{:#?}",rpc_request.uuid, arg);
+                        crate::log_trading!(
+                            debug,
+                            "Error found for order_id:{:#?}, Error:{:#?}",
+                            rpc_request.uuid,
+                            arg
+                        );
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
@@ -608,10 +656,10 @@ pub fn rpc_event_handler(
                                 OrderStatus::Error,
                                 ServerTime::now().epoch,
                                 None,
-                                request_id,
+                                request_id
                             ),
                             String::from("lend_tx_not_found_error"),
-                            CORE_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string()
                         );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
@@ -654,7 +702,10 @@ pub fn rpc_event_handler(
                                                 None,
                                                 request_id,
                                             ),
-                                            format!("tx_hash_result-{:?}","Order successfully cancelled !!".to_string()),
+                                            format!(
+                                                "tx_hash_result-{:?}",
+                                                "Order successfully cancelled !!".to_string()
+                                            ),
                                             CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
@@ -665,7 +716,9 @@ pub fn rpc_event_handler(
                             }
                             _ => {
                                 drop(order);
-                                crate::log_trading!(debug,"Order {} not found or invalid order status !!",
+                                crate::log_trading!(
+                                    debug,
+                                    "Order {} not found or invalid order status !!",
                                     rpc_request.uuid
                                 );
                                 Event::new(
@@ -690,7 +743,12 @@ pub fn rpc_event_handler(
                         }
                     }
                     Err(arg) => {
-                        crate::log_trading!(debug,"Error found for order_id:{:#?}, Error:{:#?}",rpc_request.uuid, arg);
+                        crate::log_trading!(
+                            debug,
+                            "Error found for order_id:{:#?}, Error:{:#?}",
+                            rpc_request.uuid,
+                            arg
+                        );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
                             Err(_) => {}
@@ -758,49 +816,48 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                         Ok(order_detail) => {
                             let mut order_mut_ref = order_detail.write().unwrap();
                             let mut order: TraderOrder = order_mut_ref.clone();
-                            order_mut_ref.order_status=OrderStatus::LIQUIDATE;
+                            order_mut_ref.order_status = OrderStatus::LIQUIDATE;
                             drop(order_mut_ref);
                             match order.order_status {
-                                OrderStatus::FILLED | OrderStatus::LIQUIDATE=> {
+                                OrderStatus::FILLED | OrderStatus::LIQUIDATE => {
                                     order.order_status = OrderStatus::LIQUIDATE;
                                     //update batch process
                                     let payment = order.liquidate(current_price_clone);
-                                        // println!("order:{:?}",order);
+                                    // println!("order:{:?}",order);
                                     let mut lendpool = LEND_POOL_DB.lock().unwrap();
 
                                     let next_output_state =
                                         create_output_state_for_trade_lend_order(
                                             (lendpool.nonce + 1) as u32,
-                                            lendpool
-                                                .last_output_state
+                                            lendpool.last_output_state
                                                 .clone()
                                                 .as_output_data()
                                                 .get_script_address()
                                                 .unwrap()
                                                 .clone(),
-                                            lendpool
-                                                .last_output_state
+                                            lendpool.last_output_state
                                                 .clone()
                                                 .as_output_data()
                                                 .get_owner_address()
                                                 .clone()
                                                 .unwrap()
                                                 .clone(),
-                                            (lendpool.total_locked_value.round() - payment.round())
-                                                as u64,
+                                            (lendpool.total_locked_value.round() -
+                                                payment.round()) as u64,
                                             lendpool.total_pool_share.round() as u64,
-                                            0,
+                                            0
                                         );
 
-                                        let (sender, zkos_receiver) = mpsc::channel(); 
-                                        zkos_order_handler(
+                                    let (sender, zkos_receiver) = mpsc::channel();
+                                    zkos_order_handler(
                                         ZkosTxCommand::RelayerCommandTraderOrderLiquidateTX(
                                             order.clone(),
                                             output_option,
                                             lendpool.last_output_state.clone(),
-                                            next_output_state.clone(),
-                                        ), sender);
-
+                                            next_output_state.clone()
+                                        ),
+                                        sender
+                                    );
 
                                     match zkos_receiver.recv() {
                                         Ok(chain_message) => {
@@ -808,9 +865,11 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                 Ok(tx_hash) => {
                                                     PositionSizeLog::remove_order(
                                                         order.position_type.clone(),
-                                                        order.positionsize.clone(),
+                                                        order.positionsize.clone()
                                                     );
-                                                    let mut order_mut_ref = order_detail.write().unwrap();
+                                                    let mut order_mut_ref = order_detail
+                                                        .write()
+                                                        .unwrap();
                                                     *order_mut_ref = order.clone();
                                                     drop(order_mut_ref);
                                                     // println!("locking mutex LEND_POOL_DB");
@@ -820,25 +879,31 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             RelayerCommand::PriceTickerLiquidation(
                                                                 vec![order.uuid.clone()],
                                                                 metadata_clone,
-                                                                current_price_clone,
+                                                                current_price_clone
                                                             ),
                                                             order.clone(),
                                                             payment,
-                                                            next_output_state,
-                                                        ),
+                                                            next_output_state
+                                                        )
                                                     );
                                                     // println!("dropping mutex LEND_POOL_DB");
                                                 }
                                                 Err(verification_error) => {
-                                                    crate::log_trading!(error,"Error in line relayercore.rs 835 : {:?}, uuid: {:?}, nonce: {:?}, \n next_output:{:?}",
-                                                        verification_error,order.uuid, lendpool.nonce,next_output_state
+                                                    crate::log_trading!(
+                                                        error,
+                                                        "Error in line relayercore.rs 835 : {:?}, uuid: {:?}, nonce: {:?}, \n next_output:{:?}",
+                                                        verification_error,
+                                                        order.uuid,
+                                                        lendpool.nonce,
+                                                        next_output_state
                                                     );
-                                                  
                                                 }
                                             }
                                         }
                                         Err(arg) => {
-                                            crate::log_trading!(error,"Error in line relayercore.rs 842 : {:?}",
+                                            crate::log_trading!(
+                                                error,
+                                                "Error in line relayercore.rs 842 : {:?}",
                                                 arg
                                             );
                                         }
@@ -848,12 +913,16 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 }
                                 _ => {
                                     // drop(order_mut_ref);
-                                    crate::log_trading!(debug,"Invalid order status !!\n, order: {:?}", order);
+                                    crate::log_trading!(
+                                        debug,
+                                        "Invalid order status !!\n, order: {:?}",
+                                        order
+                                    );
                                 }
                             }
                         }
                         Err(arg) => {
-                            crate::log_trading!(debug,"Error found:{:#?}", arg);
+                            crate::log_trading!(debug, "Error found:{:#?}", arg);
                         }
                     }
                 });
@@ -894,12 +963,13 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         let (mut update_order_detail, order_status) =
                                             order.pending_order(current_price_clone);
 
-                                            let (sender, zkos_receiver) = mpsc::channel();
-                                             zkos_order_handler(
+                                        let (sender, zkos_receiver) = mpsc::channel();
+                                        zkos_order_handler(
                                             ZkosTxCommand::CreateTraderOrderLIMITTX(
                                                 update_order_detail.clone(),
                                                 zkos_msg_hex
-                                            ), sender
+                                            ),
+                                            sender
                                         );
                                         match zkos_receiver.recv() {
                                             Ok(chain_message) => {
@@ -946,7 +1016,6 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             dummy_rpccommand.clone()
                                                         );
                                                         drop(trader_order_db);
-
                                                     }
                                                 }
                                             }
@@ -969,21 +1038,23 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     dummy_rpccommand.clone()
                                                 );
                                                 drop(trader_order_db);
-
-
                                             }
                                         }
                                     });
                                 }
                                 _ => {
-                                    crate::log_trading!(debug,"Invalid order status !!, order: {:?}", order);
+                                    crate::log_trading!(
+                                        debug,
+                                        "Invalid order status !!, order: {:?}",
+                                        order
+                                    );
                                     drop(order);
                                 }
                             }
                             drop(order_read_only_ref);
                         }
                         Err(arg) => {
-                            crate::log_trading!(debug,"Error found:{:#?}", arg);
+                            crate::log_trading!(debug, "Error found:{:#?}", arg);
                         }
                     }
                 });
@@ -1049,16 +1120,16 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     0
                                                 );
 
-                                                let (sender, zkos_receiver) = mpsc::channel();
-                                                 zkos_order_handler(
+                                            let (sender, zkos_receiver) = mpsc::channel();
+                                            zkos_order_handler(
                                                 ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX(
                                                     order_clone.clone(),
                                                     zkos_msg_hex,
                                                     lendpool.last_output_state.clone(),
                                                     next_output_state.clone()
-                                                ),sender
+                                                ),
+                                                sender
                                             );
-
 
                                             match zkos_receiver.recv() {
                                                 Ok(chain_message) => {
@@ -1083,7 +1154,9 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             );
                                                         }
                                                         Err(verification_error) => {
-                                                            crate::log_trading!(debug,"Error in line relayercore.rs 1086 : {:?}",
+                                                            crate::log_trading!(
+                                                                debug,
+                                                                "Error in line relayercore.rs 1086 : {:?}",
                                                                 verification_error
                                                             );
                                                             // settle limit removed from the db, need to place new limit/market settle request
@@ -1091,7 +1164,9 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     }
                                                 }
                                                 Err(arg) => {
-                                                    crate::log_trading!(debug,"Error in line relayercore.rs 1094 : {:?}",
+                                                    crate::log_trading!(
+                                                        debug,
+                                                        "Error in line relayercore.rs 1094 : {:?}",
                                                         arg
                                                     );
                                                 }
@@ -1105,13 +1180,18 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                     }
                                 }
                                 _ => {
-                                    crate::log_trading!(debug,"Invalid order status for order_id:{} and order_status:{:#?} !!\n",order.uuid,order.order_status);
+                                    crate::log_trading!(
+                                        debug,
+                                        "Invalid order status for order_id:{} and order_status:{:#?} !!\n",
+                                        order.uuid,
+                                        order.order_status
+                                    );
                                     drop(order);
                                 }
                             }
                         }
                         Err(arg) => {
-                           crate::log_trading!(debug,"Error found:{:#?}", arg);
+                            crate::log_trading!(debug, "Error found:{:#?}", arg);
                         }
                     }
                 });
@@ -1132,33 +1212,73 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                 CORE_EVENT_LOG.clone().to_string(),
             );
         }
-        RelayerCommand::UpdateFees(order_filled_on_market, order_filled_on_limit, order_settled_on_market, order_settled_on_limit) => {
+        RelayerCommand::UpdateFees(
+            order_filled_on_market,
+            order_filled_on_limit,
+            order_settled_on_market,
+            order_settled_on_limit,
+        ) => {
             let event_time = systemtime_to_utc();
             let mut local_storage = LOCALDB.lock().unwrap();
-            let old_order_filled_on_market = local_storage.insert(FeeType::FilledOnMarket.into(), order_filled_on_market);
-            let old_order_filled_on_limit = local_storage.insert(FeeType::FilledOnLimit.into(), order_filled_on_limit);
-            let old_order_settled_on_market = local_storage.insert(FeeType::SettledOnMarket.into(), order_settled_on_market);
-            let old_order_settled_on_limit = local_storage.insert(FeeType::SettledOnLimit.into(), order_settled_on_limit);
+            let old_order_filled_on_market =
+                local_storage.insert(FeeType::FilledOnMarket.into(), order_filled_on_market);
+            let old_order_filled_on_limit =
+                local_storage.insert(FeeType::FilledOnLimit.into(), order_filled_on_limit);
+            let old_order_settled_on_market =
+                local_storage.insert(FeeType::SettledOnMarket.into(), order_settled_on_market);
+            let old_order_settled_on_limit =
+                local_storage.insert(FeeType::SettledOnLimit.into(), order_settled_on_limit);
             drop(local_storage);
             if old_order_filled_on_market.is_some() {
-               crate::log_heartbeat!(info,"OrderFilledOnMarket fee updated from {} to {} at {}", old_order_filled_on_market.unwrap_or(0.0), order_filled_on_market, event_time);
+                crate::log_heartbeat!(
+                    info,
+                    "OrderFilledOnMarket fee updated from {} to {} at {}",
+                    old_order_filled_on_market.unwrap_or(0.0),
+                    order_filled_on_market,
+                    event_time
+                );
             }
             if old_order_filled_on_limit.is_some() {
-               crate::log_heartbeat!(info,"OrderFilledOnLimit fee updated from {} to {} at {}", old_order_filled_on_limit.unwrap_or(0.0), order_filled_on_limit, event_time);
+                crate::log_heartbeat!(
+                    info,
+                    "OrderFilledOnLimit fee updated from {} to {} at {}",
+                    old_order_filled_on_limit.unwrap_or(0.0),
+                    order_filled_on_limit,
+                    event_time
+                );
             }
             if old_order_settled_on_limit.is_some() {
-               crate::log_heartbeat!(info,"OrderSettledOnLimit fee updated from {} to {} at {}", old_order_settled_on_limit.unwrap_or(0.0), order_settled_on_limit, event_time);
+                crate::log_heartbeat!(
+                    info,
+                    "OrderSettledOnLimit fee updated from {} to {} at {}",
+                    old_order_settled_on_limit.unwrap_or(0.0),
+                    order_settled_on_limit,
+                    event_time
+                );
             }
             if old_order_settled_on_market.is_some() {
-               crate::log_heartbeat!(info,"OrderSettledOnMarket fee updated from {} to {} at {}", old_order_settled_on_market.unwrap_or(0.0), order_settled_on_market, event_time);
+                crate::log_heartbeat!(
+                    info,
+                    "OrderSettledOnMarket fee updated from {} to {} at {}",
+                    old_order_settled_on_market.unwrap_or(0.0),
+                    order_settled_on_market,
+                    event_time
+                );
             }
-           crate::log_heartbeat!(info,"Fee update completed");
+            crate::log_heartbeat!(info, "Fee update completed");
             Event::new(
-                Event::FeeUpdate(RelayerCommand::UpdateFees(order_filled_on_market, order_filled_on_limit, order_settled_on_market, order_settled_on_limit), event_time.clone()),
+                Event::FeeUpdate(
+                    RelayerCommand::UpdateFees(
+                        order_filled_on_market,
+                        order_filled_on_limit,
+                        order_settled_on_market,
+                        order_settled_on_limit,
+                    ),
+                    event_time.clone(),
+                ),
                 format!("FeeUpdate-{}", event_time),
                 CORE_EVENT_LOG.clone().to_string(),
             );
-
         }
     }
 }
@@ -1195,11 +1315,9 @@ pub fn zkos_order_handler(
                                         Err(arg) => Err(arg.to_string()),
                                     };
 
-                                    
                                     // create transaction
                                     match tx_result {
                                         Ok(tx) => {
-
                                             let updated_tx_result = update_memo_tx_client_order(
                                                 &tx,
                                                 trader_order.entryprice.round() as u64,
@@ -1219,17 +1337,20 @@ pub fn zkos_order_handler(
                                                     };
 
                                                     let transaction = tx_and_outputmemo.get_tx();
-                                               
+
                                                     let tx_hash_result =
                                                         twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(
                                                             transaction
                                                         );
-                                                   
+
                                                     let sender_clone = sender.clone();
                                                     match sender_clone.send(tx_hash_result.clone()) {
                                                         Ok(_) => {}
                                                         Err(_) => {
-                                                            crate::log_trading!(error,"error in sender at line 1231");
+                                                            crate::log_trading!(
+                                                                error,
+                                                                "error in sender at line 1231"
+                                                            );
                                                         }
                                                     }
 
@@ -1254,7 +1375,10 @@ pub fn zkos_order_handler(
                                                                     output_memo_hex,
                                                                     request_id
                                                                 ),
-                                                                format!("tx_hash_result-{:?}",tx_hash),
+                                                                format!(
+                                                                    "tx_hash_result-{:?}",
+                                                                    tx_hash
+                                                                ),
                                                                 CORE_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
@@ -1295,8 +1419,11 @@ pub fn zkos_order_handler(
                                             }
                                         }
                                         Err(arg) => {
-                                            crate::log_trading!(error,"Error:ZkosTxCommand::CreateTraderOrderTX : arg:{:#?} for account_id:{}",
-                                                arg,order_request.account_id
+                                            crate::log_trading!(
+                                                error,
+                                                "Error:ZkosTxCommand::CreateTraderOrderTX : arg:{:#?} for account_id:{}",
+                                                arg,
+                                                order_request.account_id
                                             );
                                             Event::new(
                                                 Event::TxHash(
@@ -1391,9 +1518,10 @@ pub fn zkos_order_handler(
 
                                             let tx_hash_result = match transaction {
                                                 Ok(tx) => {
-                                                    
-                                                    transaction_queue_to_confirm_relayer_latest_state(last_state_output.clone(),
-                                                        tx,next_state_output.clone()
+                                                    transaction_queue_to_confirm_relayer_latest_state(
+                                                        last_state_output.clone(),
+                                                        tx,
+                                                        next_state_output.clone()
                                                     )
                                                 }
                                                 Err(arg) => { Err(arg.to_string()) }
@@ -1419,7 +1547,7 @@ pub fn zkos_order_handler(
                                                             output_memo_hex,
                                                             request_id
                                                         ),
-                                                        format!("tx_hash_result-{:?}",tx_hash),
+                                                        format!("tx_hash_result-{:?}", tx_hash),
                                                         CORE_EVENT_LOG.clone().to_string()
                                                     );
                                                 }
@@ -1460,8 +1588,11 @@ pub fn zkos_order_handler(
                                     }
                                 }
                                 Err(arg) => {
-                                    crate::log_trading!(error,"Error:ZkosTxCommand::CreateLendOrderTX : arg:{:#?} for account_id:{}",
-                                        arg,lend_order.account_id
+                                    crate::log_trading!(
+                                        error,
+                                        "Error:ZkosTxCommand::CreateLendOrderTX : arg:{:#?} for account_id:{}",
+                                        arg,
+                                        lend_order.account_id
                                     );
                                     Event::new(
                                         Event::TxHash(
@@ -1493,134 +1624,171 @@ pub fn zkos_order_handler(
                 next_state_output,
             ) => {
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
-                buffer.execute(move || match rpc_command {
-                    RpcCommand::ExecuteTraderOrder(
-                        order_request,
-                        meta,
-                        zkos_hex_string,
-                        request_id,
-                    ) => {
-                        let zkos_settle_msg_result =
-                            ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
+                buffer.execute(move || {
+                    match rpc_command {
+                        RpcCommand::ExecuteTraderOrder(
+                            order_request,
+                            meta,
+                            zkos_hex_string,
+                            request_id,
+                        ) => {
+                            let zkos_settle_msg_result =
+                                ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
 
-                        match zkos_settle_msg_result {
-                            Ok(zkos_settle_msg) => {
-                                let contract_owner_sk = get_sk_from_fixed_wallet();
+                            match zkos_settle_msg_result {
+                                Ok(zkos_settle_msg) => {
+                                    let contract_owner_sk = get_sk_from_fixed_wallet();
 
-                                let contract_owner_pk = get_pk_from_fixed_wallet();
+                                    let contract_owner_pk = get_pk_from_fixed_wallet();
 
-                                let lock_error =
-                                    get_lock_error_for_trader_settle(trader_order.clone());
+                                    let lock_error = get_lock_error_for_trader_settle(
+                                        trader_order.clone()
+                                    );
 
-                                let mut margin_dif = (trader_order.available_margin.round()
-                                    - trader_order.initial_margin.round())
-                                .clone()
-                                    - trader_order.unrealized_pnl.round();
+                                    let mut margin_dif =
+                                        (
+                                            trader_order.available_margin.round() -
+                                            trader_order.initial_margin.round()
+                                        ).clone() - trader_order.unrealized_pnl.round();
 
-                                let mut program_tag = "SettleTraderOrder".to_string();
+                                    let mut program_tag = "SettleTraderOrder".to_string();
 
-                                if margin_dif < 0.0 {
-                                    margin_dif = margin_dif * -1.0;
-                                    program_tag =
-                                        "SettleTraderOrderNegativeMarginDifference".to_string();
-                                }
+                                    if margin_dif < 0.0 {
+                                        margin_dif = margin_dif * -1.0;
+                                        program_tag =
+                                            "SettleTraderOrderNegativeMarginDifference".to_string();
+                                    }
 
-                                let margin_dif_u64 = margin_dif.round() as u64;
-
-                                let transaction = settle_trader_order(
-                                    zkos_settle_msg.output.clone(),
-                                    trader_order.available_margin.clone().round() as u64,
-                                    &ContractManager::import_program(&WALLET_PROGRAM_PATH.clone()),
-                                    Network::Mainnet,
-                                    trader_order.fee_settled.round() as u64,
-                                    last_state_output
-                                        .as_output_data()
-                                        .get_owner_address()
-                                        .unwrap()
-                                        .clone(),
-                                    last_state_output.clone(),
-                                    next_state_output.clone(),
-                                    lock_error,
-                                    margin_dif_u64,
-                                    trader_order.settlement_price.round() as u64,
-                                    contract_owner_sk,
-                                    contract_owner_pk,
-                                    program_tag,
-                                );
-
-                                let tx_hash_result = match transaction {
-                                    Ok(tx) => transaction_queue_to_confirm_relayer_latest_state(
+                                    let margin_dif_u64 = margin_dif.round() as u64;
+                                    let is_state_updated = is_state_updated(&last_state_output);
+                                    if !is_state_updated {
+                                        let sender_clone = sender.clone();
+                                        match
+                                            sender_clone.send(
+                                                Err(
+                                                    "Tx Failed due to missing latest state update".to_string()
+                                                )
+                                            )
+                                        {
+                                            Ok(_) => {
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Tx Failed due to missing latest state update"
+                                                );
+                                            }
+                                            Err(_) => {
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Tx Failed due to missing latest state update"
+                                                );
+                                            }
+                                        }
+                                        return;
+                                    }
+                                    let transaction = settle_trader_order(
+                                        zkos_settle_msg.output.clone(),
+                                        trader_order.available_margin.clone().round() as u64,
+                                        &ContractManager::import_program(
+                                            &WALLET_PROGRAM_PATH.clone()
+                                        ),
+                                        Network::Mainnet,
+                                        trader_order.fee_settled.round() as u64,
+                                        last_state_output
+                                            .as_output_data()
+                                            .get_owner_address()
+                                            .unwrap()
+                                            .clone(),
                                         last_state_output.clone(),
-                                        tx,
                                         next_state_output.clone(),
-                                    ),
-                                    Err(arg) => Err(arg.to_string()),
-                                };
-                                let sender_clone = sender.clone();
-                                match sender_clone.send(tx_hash_result.clone()) {
-                                    Ok(_) => {}
-                                    Err(_) => {
-                                        crate::log_trading!(error,"error in sender at line 1564");
-                                    }
-                                }
+                                        lock_error,
+                                        margin_dif_u64,
+                                        trader_order.settlement_price.round() as u64,
+                                        contract_owner_sk,
+                                        contract_owner_pk,
+                                        program_tag
+                                    );
 
-                                match tx_hash_result {
-                                    Ok(tx_hash) => {
-                                        Event::new(
-                                            Event::TxHash(
-                                                trader_order.uuid,
-                                                trader_order.account_id,
-                                                tx_hash.clone(),
-                                                trader_order.order_type,
-                                                trader_order.order_status,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id,
+                                    let tx_hash_result = match transaction {
+                                        Ok(tx) =>
+                                            transaction_queue_to_confirm_relayer_latest_state(
+                                                last_state_output.clone(),
+                                                tx,
+                                                next_state_output.clone()
                                             ),
-                                            format!("tx_hash_result-{:?}",tx_hash),
-                                            CORE_EVENT_LOG.clone().to_string(),
-                                        );
+                                        Err(arg) => Err(arg.to_string()),
+                                    };
+                                    let sender_clone = sender.clone();
+                                    match sender_clone.send(tx_hash_result.clone()) {
+                                        Ok(_) => {}
+                                        Err(_) => {
+                                            crate::log_trading!(
+                                                error,
+                                                "error in sender at line 1564"
+                                            );
+                                        }
                                     }
-                                    Err(arg) => {
-                                        Event::new(
-                                            Event::TxHash(
-                                                trader_order.uuid,
-                                                trader_order.account_id,
-                                                arg,
-                                                trader_order.order_type,
-                                                OrderStatus::RejectedFromChain,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id,
-                                            ),
-                                            String::from("tx_hash_error"),
-                                            CORE_EVENT_LOG.clone().to_string(),
-                                        );
+
+                                    match tx_hash_result {
+                                        Ok(tx_hash) => {
+                                            Event::new(
+                                                Event::TxHash(
+                                                    trader_order.uuid,
+                                                    trader_order.account_id,
+                                                    tx_hash.clone(),
+                                                    trader_order.order_type,
+                                                    trader_order.order_status,
+                                                    ServerTime::now().epoch,
+                                                    None,
+                                                    request_id
+                                                ),
+                                                format!("tx_hash_result-{:?}", tx_hash),
+                                                CORE_EVENT_LOG.clone().to_string()
+                                            );
+                                        }
+                                        Err(arg) => {
+                                            Event::new(
+                                                Event::TxHash(
+                                                    trader_order.uuid,
+                                                    trader_order.account_id,
+                                                    arg,
+                                                    trader_order.order_type,
+                                                    OrderStatus::RejectedFromChain,
+                                                    ServerTime::now().epoch,
+                                                    None,
+                                                    request_id
+                                                ),
+                                                String::from("tx_hash_error"),
+                                                CORE_EVENT_LOG.clone().to_string()
+                                            );
+                                        }
                                     }
                                 }
-                            }
-                            Err(arg) => {
-                                crate::log_trading!(error,"Error:ZkosTxCommand::ExecuteTraderOrderTX : arg:{:#?} for order_id:{}",
-                                    arg,order_request.uuid
-                                );
-                                Event::new(
-                                    Event::TxHash(
-                                        trader_order.uuid,
-                                        trader_order.account_id,
+                                Err(arg) => {
+                                    crate::log_trading!(
+                                        error,
+                                        "Error:ZkosTxCommand::ExecuteTraderOrderTX : arg:{:#?} for order_id:{}",
                                         arg,
-                                        trader_order.order_type,
-                                        OrderStatus::SerializationError,
-                                        ServerTime::now().epoch,
-                                        None,
-                                        request_id,
-                                    ),
-                                    String::from("tx_hash_error"),
-                                    CORE_EVENT_LOG.clone().to_string(),
-                                );
+                                        order_request.uuid
+                                    );
+                                    Event::new(
+                                        Event::TxHash(
+                                            trader_order.uuid,
+                                            trader_order.account_id,
+                                            arg,
+                                            trader_order.order_type,
+                                            OrderStatus::SerializationError,
+                                            ServerTime::now().epoch,
+                                            None,
+                                            request_id
+                                        ),
+                                        String::from("tx_hash_error"),
+                                        CORE_EVENT_LOG.clone().to_string()
+                                    );
+                                }
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 });
 
                 drop(buffer);
@@ -1633,114 +1801,127 @@ pub fn zkos_order_handler(
                 next_state_output,
             ) => {
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
-                buffer.execute(move || match rpc_command {
-                    RpcCommand::ExecuteLendOrder(
-                        order_request,
-                        meta,
-                        zkos_hex_string,
-                        request_id,
-                    ) => {
-                        let zkos_settle_msg_result =
-                            ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
+                buffer.execute(move || {
+                    match rpc_command {
+                        RpcCommand::ExecuteLendOrder(
+                            order_request,
+                            meta,
+                            zkos_hex_string,
+                            request_id,
+                        ) => {
+                            let zkos_settle_msg_result =
+                                ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
 
-                        match zkos_settle_msg_result {
-                            Ok(zkos_settle_msg) => {
-                                let contract_owner_sk = get_sk_from_fixed_wallet();
-                                let contract_owner_pk = get_pk_from_fixed_wallet();
+                            match zkos_settle_msg_result {
+                                Ok(zkos_settle_msg) => {
+                                    let contract_owner_sk = get_sk_from_fixed_wallet();
+                                    let contract_owner_pk = get_pk_from_fixed_wallet();
 
-                                let lock_error = get_lock_error_for_lend_settle(lend_order.clone());
+                                    let lock_error = get_lock_error_for_lend_settle(
+                                        lend_order.clone()
+                                    );
 
-                                let transaction = create_lend_order_settlement_transaction(
-                                    zkos_settle_msg.output,
-                                    lend_order.new_lend_state_amount.round() as u64,
-                                    &ContractManager::import_program(&WALLET_PROGRAM_PATH.clone()),
-                                    Network::Mainnet,
-                                    1u64,
-                                    last_state_output
-                                        .as_output_data()
-                                        .get_owner_address()
-                                        .unwrap()
-                                        .clone(),
-                                    last_state_output.clone(),
-                                    next_state_output.clone(),
-                                    lock_error,
-                                    contract_owner_sk,
-                                    contract_owner_pk,
-                                );
-
-                                let tx_hash_result = match transaction {
-                                    Ok(tx) => transaction_queue_to_confirm_relayer_latest_state(
+                                    let transaction = create_lend_order_settlement_transaction(
+                                        zkos_settle_msg.output,
+                                        lend_order.new_lend_state_amount.round() as u64,
+                                        &ContractManager::import_program(
+                                            &WALLET_PROGRAM_PATH.clone()
+                                        ),
+                                        Network::Mainnet,
+                                        1u64,
+                                        last_state_output
+                                            .as_output_data()
+                                            .get_owner_address()
+                                            .unwrap()
+                                            .clone(),
                                         last_state_output.clone(),
-                                        tx,
                                         next_state_output.clone(),
-                                    ),
-                                    Err(arg) => Err(arg.to_string()),
-                                };
-                                let sender_clone = sender.clone();
-                                match sender_clone.send(tx_hash_result.clone()) {
-                                    Ok(_) => {}
-                                    Err(_) => {
-                                        crate::log_trading!(error,"error in sender at line 1684");
-                                    }
-                                }
+                                        lock_error,
+                                        contract_owner_sk,
+                                        contract_owner_pk
+                                    );
 
-                                match tx_hash_result {
-                                    Ok(tx_hash) => {
-                                        Event::new(
-                                            Event::TxHash(
-                                                lend_order.uuid,
-                                                lend_order.account_id,
-                                                tx_hash.clone(),
-                                                lend_order.order_type,
-                                                lend_order.order_status,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id,
+                                    let tx_hash_result = match transaction {
+                                        Ok(tx) =>
+                                            transaction_queue_to_confirm_relayer_latest_state(
+                                                last_state_output.clone(),
+                                                tx,
+                                                next_state_output.clone()
                                             ),
-                                            format!("tx_hash_result-{:?}",tx_hash),
-                                            CORE_EVENT_LOG.clone().to_string(),
-                                        );
+                                        Err(arg) => Err(arg.to_string()),
+                                    };
+                                    let sender_clone = sender.clone();
+                                    match sender_clone.send(tx_hash_result.clone()) {
+                                        Ok(_) => {}
+                                        Err(_) => {
+                                            crate::log_trading!(
+                                                error,
+                                                "error in sender at line 1684"
+                                            );
+                                        }
                                     }
-                                    Err(arg) => {
-                                        Event::new(
-                                            Event::TxHash(
-                                                lend_order.uuid,
-                                                lend_order.account_id,
-                                                arg,
-                                                lend_order.order_type,
-                                                OrderStatus::RejectedFromChain,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id,
-                                            ),
-                                            String::from("tx_hash_error"),
-                                            CORE_EVENT_LOG.clone().to_string(),
-                                        );
+
+                                    match tx_hash_result {
+                                        Ok(tx_hash) => {
+                                            Event::new(
+                                                Event::TxHash(
+                                                    lend_order.uuid,
+                                                    lend_order.account_id,
+                                                    tx_hash.clone(),
+                                                    lend_order.order_type,
+                                                    lend_order.order_status,
+                                                    ServerTime::now().epoch,
+                                                    None,
+                                                    request_id
+                                                ),
+                                                format!("tx_hash_result-{:?}", tx_hash),
+                                                CORE_EVENT_LOG.clone().to_string()
+                                            );
+                                        }
+                                        Err(arg) => {
+                                            Event::new(
+                                                Event::TxHash(
+                                                    lend_order.uuid,
+                                                    lend_order.account_id,
+                                                    arg,
+                                                    lend_order.order_type,
+                                                    OrderStatus::RejectedFromChain,
+                                                    ServerTime::now().epoch,
+                                                    None,
+                                                    request_id
+                                                ),
+                                                String::from("tx_hash_error"),
+                                                CORE_EVENT_LOG.clone().to_string()
+                                            );
+                                        }
                                     }
                                 }
-                            }
-                            Err(arg) => {
-                                crate::log_trading!(error,"Error:ZkosTxCommand::ExecuteLendOrderTX : arg:{:#?} for order_id:{}",
-                                    arg,order_request.uuid
-                                );
-                                Event::new(
-                                    Event::TxHash(
-                                        lend_order.uuid,
-                                        lend_order.account_id,
+                                Err(arg) => {
+                                    crate::log_trading!(
+                                        error,
+                                        "Error:ZkosTxCommand::ExecuteLendOrderTX : arg:{:#?} for order_id:{}",
                                         arg,
-                                        lend_order.order_type,
-                                        OrderStatus::SerializationError,
-                                        ServerTime::now().epoch,
-                                        None,
-                                        request_id,
-                                    ),
-                                    String::from("tx_hash_error"),
-                                    CORE_EVENT_LOG.clone().to_string(),
-                                );
+                                        order_request.uuid
+                                    );
+                                    Event::new(
+                                        Event::TxHash(
+                                            lend_order.uuid,
+                                            lend_order.account_id,
+                                            arg,
+                                            lend_order.order_type,
+                                            OrderStatus::SerializationError,
+                                            ServerTime::now().epoch,
+                                            None,
+                                            request_id
+                                        ),
+                                        String::from("tx_hash_error"),
+                                        CORE_EVENT_LOG.clone().to_string()
+                                    );
+                                }
                             }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 });
 
                 drop(buffer);
@@ -1785,7 +1966,10 @@ pub fn zkos_order_handler(
                                     match sender_clone.send(tx_hash_result.clone()) {
                                         Ok(_) => {}
                                         Err(_) => {
-                                            crate::log_trading!(error,"error in sender at line 1789");
+                                            crate::log_trading!(
+                                                error,
+                                                "error in sender at line 1789"
+                                            );
                                         }
                                     }
                                     match tx_hash_result {
@@ -1802,8 +1986,11 @@ pub fn zkos_order_handler(
                                     }
                                 }
                                 Err(arg) => {
-                                    crate::log_trading!(error,"Error:ZkosTxCommand::CancelTraderOrderTX : arg:{:#?} for order_id:{}",
-                                        arg,order_request.uuid
+                                    crate::log_trading!(
+                                        error,
+                                        "Error:ZkosTxCommand::CancelTraderOrderTX : arg:{:#?} for order_id:{}",
+                                        arg,
+                                        order_request.uuid
                                     );
                                 }
                             }
@@ -1821,8 +2008,7 @@ pub fn zkos_order_handler(
                         OrderStatus::FILLED => {
                             match zkos_string {
                                 Some(zkos_create_order_result) => {
-                                    
-                                        let tx_result: Result<Transaction, String> = match
+                                    let tx_result: Result<Transaction, String> = match
                                         hex::decode(zkos_create_order_result)
                                     {
                                         Ok(bytes) =>
@@ -1862,7 +2048,10 @@ pub fn zkos_order_handler(
                                                     match sender_clone.send(tx_hash_result.clone()) {
                                                         Ok(_) => {}
                                                         Err(_) => {
-                                                            crate::log_trading!(error,"error in sender at line 1866");
+                                                            crate::log_trading!(
+                                                                error,
+                                                                "error in sender at line 1866"
+                                                            );
                                                         }
                                                     }
                                                     match tx_hash_result {
@@ -1883,9 +2072,12 @@ pub fn zkos_order_handler(
                                                                     trader_order.order_type,
                                                                     trader_order.order_status,
                                                                     ServerTime::now().epoch,
-                                                                    output_memo_hex,
+                                                                    output_memo_hex
                                                                 ),
-                                                                format!("tx_hash_result-{:?}",tx_hash),
+                                                                format!(
+                                                                    "tx_hash_result-{:?}",
+                                                                    tx_hash
+                                                                ),
                                                                 CORE_EVENT_LOG.clone().to_string()
                                                             );
                                                         }
@@ -1924,8 +2116,11 @@ pub fn zkos_order_handler(
                                             }
                                         }
                                         Err(arg) => {
-                                            crate::log_trading!(error,"Error:ZkosTxCommand::CreateTraderOrderLIMITTX : arg:{:#?} for order_id:{}",
-                                                arg,trader_order.uuid
+                                            crate::log_trading!(
+                                                error,
+                                                "Error:ZkosTxCommand::CreateTraderOrderLIMITTX : arg:{:#?} for order_id:{}",
+                                                arg,
+                                                trader_order.uuid
                                             );
                                             Event::new(
                                                 Event::TxHashUpdate(
@@ -1946,10 +2141,17 @@ pub fn zkos_order_handler(
                                 // chain tx link for multiple order in one block
                                 // batch and seperate orde rby if in trader settle
                                 None => {
-                                    crate::log_trading!(error,"Zkos Order string not found for order_id:{}",trader_order.uuid);
+                                    crate::log_trading!(
+                                        error,
+                                        "Zkos Order string not found for order_id:{}",
+                                        trader_order.uuid
+                                    );
                                     let sender_clone = sender.clone();
                                     let fn_response_tx_hash = Err(
-                                       format!("Zkos Order String Not Found for order_id:{}",trader_order.uuid)
+                                        format!(
+                                            "Zkos Order String Not Found for order_id:{}",
+                                            trader_order.uuid
+                                        )
                                     );
                                     sender_clone.send(fn_response_tx_hash.clone()).unwrap();
                                 }
@@ -1972,7 +2174,7 @@ pub fn zkos_order_handler(
                     match zkos_string {
                         Some(zkos_settle_msg_result) => {
                             let zkos_settle_msg_result =
-                            ZkosSettleMsg::decode_from_hex_string(zkos_settle_msg_result);
+                                ZkosSettleMsg::decode_from_hex_string(zkos_settle_msg_result);
                             match zkos_settle_msg_result {
                                 Ok(zkos_settle_msg) => {
                                     let contract_owner_sk = get_sk_from_fixed_wallet();
@@ -1997,7 +2199,31 @@ pub fn zkos_order_handler(
                                             "SettleTraderOrderNegativeMarginDifference".to_string();
                                     }
                                     let margin_dif_u64 = margin_dif.round() as u64;
-
+                                    let is_state_updated = is_state_updated(&last_state_output);
+                                    if !is_state_updated {
+                                        let sender_clone = sender.clone();
+                                        match
+                                            sender_clone.send(
+                                                Err(
+                                                    "Tx Failed due to missing latest state update".to_string()
+                                                )
+                                            )
+                                        {
+                                            Ok(_) => {
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Tx Failed due to missing latest state update"
+                                                );
+                                            }
+                                            Err(_) => {
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Tx Failed due to missing latest state update"
+                                                );
+                                            }
+                                        }
+                                        return;
+                                    }
                                     let transaction = settle_trader_order(
                                         zkos_settle_msg.output.clone(),
                                         trader_order.available_margin.clone().round() as u64,
@@ -2023,8 +2249,10 @@ pub fn zkos_order_handler(
 
                                     let tx_hash_result = match transaction {
                                         Ok(tx) => {
-                                            transaction_queue_to_confirm_relayer_latest_state(last_state_output.clone(),
-                                                tx,next_state_output.clone()
+                                            transaction_queue_to_confirm_relayer_latest_state(
+                                                last_state_output.clone(),
+                                                tx,
+                                                next_state_output.clone()
                                             )
                                         }
                                         Err(arg) => { Err(arg.to_string()) }
@@ -2033,7 +2261,10 @@ pub fn zkos_order_handler(
                                     match sender_clone.send(tx_hash_result.clone()) {
                                         Ok(_) => {}
                                         Err(_) => {
-                                            crate::log_trading!(error,"error in sender at line 2037");
+                                            crate::log_trading!(
+                                                error,
+                                                "error in sender at line 2037"
+                                            );
                                         }
                                     }
 
@@ -2056,7 +2287,7 @@ pub fn zkos_order_handler(
                                                     ServerTime::now().epoch,
                                                     None
                                                 ),
-                                                format!("tx_hash_result-{:?}",tx_hash),
+                                                format!("tx_hash_result-{:?}", tx_hash),
                                                 CORE_EVENT_LOG.clone().to_string()
                                             );
                                         }
@@ -2081,8 +2312,11 @@ pub fn zkos_order_handler(
                                     }
                                 }
                                 Err(arg) => {
-                                    crate::log_trading!(error,"Error:ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX : arg:{:#?} for order_id:{}",
-                                        arg,trader_order.uuid
+                                    crate::log_trading!(
+                                        error,
+                                        "Error:ZkosTxCommand::RelayerCommandTraderOrderSettleOnLimitTX : arg:{:#?} for order_id:{}",
+                                        arg,
+                                        trader_order.uuid
                                     );
                                     Event::new(
                                         Event::TxHashUpdate(
@@ -2104,10 +2338,17 @@ pub fn zkos_order_handler(
                             }
                         }
                         None => {
-                            crate::log_trading!(error,"Zkos Order string not found for order_id:{}",trader_order.uuid);
+                            crate::log_trading!(
+                                error,
+                                "Zkos Order string not found for order_id:{}",
+                                trader_order.uuid
+                            );
                             let sender_clone = sender.clone();
                             let fn_response_tx_hash = Err(
-                                format!("Zkos Order String Not Found for order_id:{}",trader_order.uuid)
+                                format!(
+                                    "Zkos Order String Not Found for order_id:{}",
+                                    trader_order.uuid
+                                )
                             );
                             sender_clone.send(fn_response_tx_hash.clone()).unwrap();
                         }
@@ -2130,7 +2371,27 @@ pub fn zkos_order_handler(
                         let contract_owner_pk = get_pk_from_fixed_wallet();
 
                         let program_tag = "LiquidateOrder".to_string();
-
+                        let is_state_updated = is_state_updated(&last_state_output);
+                        if !is_state_updated {
+                            let sender_clone = sender.clone();
+                            match sender_clone.send(Err(
+                                "Tx Failed due to missing latest state update".to_string(),
+                            )) {
+                                Ok(_) => {
+                                    crate::log_trading!(
+                                        error,
+                                        "Tx Failed due to missing latest state update"
+                                    );
+                                }
+                                Err(_) => {
+                                    crate::log_trading!(
+                                        error,
+                                        "Tx Failed due to missing latest state update"
+                                    );
+                                }
+                            }
+                            return;
+                        }
                         let transaction = settle_trader_order(
                             output_memo.clone(),
                             trader_order.available_margin.clone().round() as u64,
@@ -2164,7 +2425,7 @@ pub fn zkos_order_handler(
                         match sender_clone.send(tx_hash_result.clone()) {
                             Ok(_) => {}
                             Err(_) => {
-                                crate::log_trading!(error,"error in sender at line 2168");
+                                crate::log_trading!(error, "error in sender at line 2168");
                             }
                         }
                         match tx_hash_result {
@@ -2182,7 +2443,7 @@ pub fn zkos_order_handler(
                                         ServerTime::now().epoch,
                                         None,
                                     ),
-                                    format!("tx_hash_result-{:?}",tx_hash),
+                                    format!("tx_hash_result-{:?}", tx_hash),
                                     CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
@@ -2204,7 +2465,11 @@ pub fn zkos_order_handler(
                         }
                     }
                     None => {
-                        crate::log_trading!(error,"Output memo not Found for order_id:{}",trader_order.uuid);
+                        crate::log_trading!(
+                            error,
+                            "Output memo not Found for order_id:{}",
+                            trader_order.uuid
+                        );
                         let sender_clone: mpsc::Sender<Result<String, String>> = sender.clone();
                         let fn_response_tx_hash = Err("Output memo not Found".to_string());
                         sender_clone.send(fn_response_tx_hash.clone()).unwrap();
@@ -2239,7 +2504,6 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
     tx: Transaction,
     next_output: Output,
 ) -> Result<String, String> {
-
     let nonce = match last_output.as_out_state() {
         Some(state) => state.nonce.clone(),
         None => 1,
@@ -2272,8 +2536,8 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
             }
             Err(arg) => {
                 chain_attempt += 1;
-                sleep(Duration::from_secs(2));
-                if chain_attempt == 50 {
+                sleep(Duration::from_millis(200));
+                if chain_attempt == 100 {
                     // flag_chain_update = false;
                     return Err("Tx Failed due to missing latest state update".to_string());
                 }
@@ -2282,25 +2546,75 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
         if nonce == latest_nonce {
             // flag_chain_update = false;
             crate::log_zkos_tx!(debug, "tx: {:?}", tx);
-            match twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(tx) {
+            match twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(
+                tx.clone(),
+            ) {
                 Ok(tx_hash) => {
                     Event::new(
                         Event::AdvanceStateQueue((nonce + 1) as usize, next_output),
                         format!("Nonce : {:?}", nonce + 1),
                         RELAYER_STATE_QUEUE.clone().to_string(),
                     );
-                    sleep(Duration::from_secs(5));
+                    crate::log_zkos_tx!(
+                        debug,
+                        "transaction broadcasted successfully, tx_hash: {:?}",
+                        tx_hash
+                    );
                     return Ok(tx_hash);
                 }
                 Err(arg) => {
+                    if arg.contains("Failed to verify the Input Utxo") {
+                        crate::log_zkos_tx!(debug, "Error: Failed to verify the Input Utxo");
+                        crate::log_zkos_tx!(debug, "retrying tx after 2 seconds");
+                        sleep(Duration::from_secs(2));
+                        let check_verify = tx.verify();
+                        if check_verify.is_ok() {
+                            crate::log_zkos_tx!(debug, "tx verified successfully");
+                        } else {
+                            crate::log_zkos_tx!(
+                                debug,
+                                "tx not verified, error: {:?}",
+                                check_verify
+                            );
+                        }
+                        match
+                            twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(
+                                tx
+                            )
+                        {
+                            Ok(tx_hash) => {
+                                Event::new(
+                                    Event::AdvanceStateQueue((nonce + 1) as usize, next_output),
+                                    format!("Nonce : {:?}", nonce + 1),
+                                    RELAYER_STATE_QUEUE.clone().to_string()
+                                );
+                                crate::log_zkos_tx!(
+                                    debug,
+                                    "transaction broadcasted successfully after 2 seconds, tx_hash: {:?}",
+                                    tx_hash
+                                );
+                                // sleep(Duration::from_secs(1));
+                                return Ok(tx_hash);
+                            }
+                            Err(arg) => {
+                                crate::log_zkos_tx!(
+                                    debug,
+                                    "Failed to broadcast retried tx after 2 seconds, error: {:?}",
+                                    arg
+                                );
+                                return Err(arg);
+                            }
+                        }
+                    }
+                    crate::log_zkos_tx!(debug, "Failed to broadcast tx, error: {:?}", arg);
                     return Err(arg);
                 }
             }
         } else {
             flag_chain_update = true;
             chain_attempt += 1;
-            sleep(Duration::from_secs(2));
-            if chain_attempt == 50 {
+            sleep(Duration::from_millis(200));
+            if chain_attempt == 100 {
                 // flag_chain_update = false;
                 return Err("Tx Failed due to missing latest state update".to_string());
             }
@@ -2309,23 +2623,79 @@ pub fn transaction_queue_to_confirm_relayer_latest_state(
     return Err("Tx Failed due to missing latest state update".to_string());
 }
 
+pub fn is_state_updated(last_output: &Output) -> bool {
+    let nonce = match last_output.as_out_state() {
+        Some(state) => state.nonce,
+        None => 1,
+    };
+
+    let account_id = match last_output.as_output_data().get_owner_address() {
+        Some(owner) => owner.clone(),
+        None => {
+            return false;
+        }
+    };
+
+    let mut latest_nonce: u32 = 0;
+    let mut chain_attempt: i32 = 0;
+    loop {
+        // let updated_output_on_chain =
+        match twilight_relayer_sdk::twilight_client_sdk::chain::get_utxo_details_by_address(
+            account_id.clone(),
+            IOType::State,
+        ) {
+            Ok(utxo_detail) => {
+                match utxo_detail.output.as_out_state() {
+                    Some(state) => {
+                        latest_nonce = state.nonce.clone();
+                        // flag_chain_update = false;
+                    }
+                    None => {}
+                }
+            }
+            Err(arg) => {
+                chain_attempt += 1;
+
+                if chain_attempt == 100 {
+                    // flag_chain_update = false;
+                    return false;
+                }
+                sleep(Duration::from_millis(200));
+            }
+        }
+        if nonce == latest_nonce {
+            return true;
+        } else {
+            chain_attempt += 1;
+
+            if chain_attempt == 100 {
+                // flag_chain_update = false;
+                return false;
+            }
+            sleep(Duration::from_millis(200));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use twilight_relayer_sdk::twilight_client_sdk::transaction;
 
     #[test]
     fn test_tx_commit_broadcast() {
-
         // use std::env;
         dotenv::dotenv().ok();
         // let zkos_server_url = env::var("ZKOS_SERVER_URL").expect("ZKOS_SERVER_URL must be set");
 
-        let tx_hex = "010000000100000000000000000000001800000000000000000000000000000001010101000000000000000000000000000000f6a5e681e48137f0834d95ca0b098eb9c1d362c4afc393200d93dc2e5266ccbe006a25d2b02197a68969629d43005e28c0fc213472efb0b8f929534c429ade860a80da17a6d5e50fd4989ab9b4e9310613c70e623f361a4eb0a8509e417038cb218a0000000000000030633032333165303531643231336239626335373631643765336662383663613436376264383937663866393232336536613336383337356539343664313036373563363464333332363966643662336565386539303765646430313732366363663233663630383066303338366635393365396434303366336230643465613763633062656162643700010000000000000001000000010000002a000000000000003138323237323664346265336336623333623166333434633734333263626530343230333861663162388a000000000000003063303233316530353164323133623962633537363164376533666238366361343637626438393766386639323233653661333638333735653934366431303637356336346433333236396664366233656538653930376564643031373236636366323366363038306630333836663539336539643430336633623064346561376363306265616264370000000016eacb0d167fd36cfbf76e26357fb49aee9bac76ecf08957be7cd7c3c1e2204801040000000000000003000000010000006065248d0100000000000000000000000000000000000000000000000000000002000000000000005453d47db383cebcc81d4a355ab3cee0d6aae97fbd2960291c0e0a8788fcb03c0300000001000000c9b10100000000000000000000000000000000000000000000000000000000000300000001000000ecd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010010000001600000000000000060a0403000000060a0405000000060a0d0e1302020200000000010000000000000003000000000000003d107ff89a1f0387ca226522f82bca1fbf43059a200c49bdae998400bfe89ea52c92d3c5e02c98dc6b6f1f91cfd42e136d1d4f1de6bdb351b12be20f9535960c7c1b7c42e22f98283d98314b914cdbfc380ef2bb1c3e3a91685a05614fc4cf6da10100000000000000721c0ca0d6119987df3a91d9bc1396e7ccbec1e87e26ebb6ef1d40d83d74c95dde9a975689eb20c6b3a3b5e22b5442c0a90dbd02aed4197645cb2c9d50d9b5409649551fecbbfb0468e5324761bfc3672bb3b33a551533c2f6408e1128402e11a272535c8e43e528e5c818e5da5802e063793f4a3f56d8b335cabbe7a284db6f40b0f8ba6105c9022e561dc8bad81fdccf2b2d78a1b9cc71ccc964851520452a5c04300f7905e318f69b8665458bbf837673dc0233a36ae34a9bb813c3c2a41c8691e1372af302ec8400bb7c68ab0847af6e3ce6dadd0918e2034e33641aa73188cb7c1255ff9f47340a4c3cf2388e1c1c173d2e395f2d2efe05512d6c4b2b31486658c7ec583abd58ec7ca9c6b4390978268202e4d724504abe8e3060c5490eb64cdd0af58503fe47812af928b1cb7ad96eddac2f82e8699738dccc5427470494fe872642696383fbcc3bfc168742ba4b5649afe00de617e030aa47058c8302d4f2a784a71e40c0cae4f128d7d0ee2aa36cb5221cf4e631e78ada031225260efc3b3e7a5e9a48d11e7e0ea6d013cbd76c425c6442afd93268e796c8227d97030100000000000000020000004000000000000000105fd4af09a1875d1ab963cb976a5f2ab8c2598f8a04e008054b224566297a3dcd76da0cbd27382141b663be233604953b2a60e4c8bfee2f351c70244069f10f0100000001000000000000002fed6454c9ecdc97138568a1cf9b0f5410d6df39d3442b36a99ca2b5ffc76b0a0100000000000000887037ade1700358bc93a5921675dddd982f75ab9cd22b9b45a2620b0b0f070f0000000000000000e9be99376af0194a05ab8ce828db16d7df2909273c6d404238e912077bf27f090102000000000000001e5442c4bf59d8355ad529687ef843fcbce3f4fbace3d4a38ba0b334d95af37d";
+        let tx_hex =
+            "010000000100000000000000000000001800000000000000000000000000000001010101000000000000000000000000000000f6a5e681e48137f0834d95ca0b098eb9c1d362c4afc393200d93dc2e5266ccbe006a25d2b02197a68969629d43005e28c0fc213472efb0b8f929534c429ade860a80da17a6d5e50fd4989ab9b4e9310613c70e623f361a4eb0a8509e417038cb218a0000000000000030633032333165303531643231336239626335373631643765336662383663613436376264383937663866393232336536613336383337356539343664313036373563363464333332363966643662336565386539303765646430313732366363663233663630383066303338366635393365396434303366336230643465613763633062656162643700010000000000000001000000010000002a000000000000003138323237323664346265336336623333623166333434633734333263626530343230333861663162388a000000000000003063303233316530353164323133623962633537363164376533666238366361343637626438393766386639323233653661333638333735653934366431303637356336346433333236396664366233656538653930376564643031373236636366323366363038306630333836663539336539643430336633623064346561376363306265616264370000000016eacb0d167fd36cfbf76e26357fb49aee9bac76ecf08957be7cd7c3c1e2204801040000000000000003000000010000006065248d0100000000000000000000000000000000000000000000000000000002000000000000005453d47db383cebcc81d4a355ab3cee0d6aae97fbd2960291c0e0a8788fcb03c0300000001000000c9b10100000000000000000000000000000000000000000000000000000000000300000001000000ecd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010010000001600000000000000060a0403000000060a0405000000060a0d0e1302020200000000010000000000000003000000000000003d107ff89a1f0387ca226522f82bca1fbf43059a200c49bdae998400bfe89ea52c92d3c5e02c98dc6b6f1f91cfd42e136d1d4f1de6bdb351b12be20f9535960c7c1b7c42e22f98283d98314b914cdbfc380ef2bb1c3e3a91685a05614fc4cf6da10100000000000000721c0ca0d6119987df3a91d9bc1396e7ccbec1e87e26ebb6ef1d40d83d74c95dde9a975689eb20c6b3a3b5e22b5442c0a90dbd02aed4197645cb2c9d50d9b5409649551fecbbfb0468e5324761bfc3672bb3b33a551533c2f6408e1128402e11a272535c8e43e528e5c818e5da5802e063793f4a3f56d8b335cabbe7a284db6f40b0f8ba6105c9022e561dc8bad81fdccf2b2d78a1b9cc71ccc964851520452a5c04300f7905e318f69b8665458bbf837673dc0233a36ae34a9bb813c3c2a41c8691e1372af302ec8400bb7c68ab0847af6e3ce6dadd0918e2034e33641aa73188cb7c1255ff9f47340a4c3cf2388e1c1c173d2e395f2d2efe05512d6c4b2b31486658c7ec583abd58ec7ca9c6b4390978268202e4d724504abe8e3060c5490eb64cdd0af58503fe47812af928b1cb7ad96eddac2f82e8699738dccc5427470494fe872642696383fbcc3bfc168742ba4b5649afe00de617e030aa47058c8302d4f2a784a71e40c0cae4f128d7d0ee2aa36cb5221cf4e631e78ada031225260efc3b3e7a5e9a48d11e7e0ea6d013cbd76c425c6442afd93268e796c8227d97030100000000000000020000004000000000000000105fd4af09a1875d1ab963cb976a5f2ab8c2598f8a04e008054b224566297a3dcd76da0cbd27382141b663be233604953b2a60e4c8bfee2f351c70244069f10f0100000001000000000000002fed6454c9ecdc97138568a1cf9b0f5410d6df39d3442b36a99ca2b5ffc76b0a0100000000000000887037ade1700358bc93a5921675dddd982f75ab9cd22b9b45a2620b0b0f070f0000000000000000e9be99376af0194a05ab8ce828db16d7df2909273c6d404238e912077bf27f090102000000000000001e5442c4bf59d8355ad529687ef843fcbce3f4fbace3d4a38ba0b334d95af37d";
 
         let tx_bytes = hex::decode(tx_hex).expect("Failed to decode hex");
-        let tx: transaction::Transaction = bincode::deserialize(&tx_bytes).expect("Failed to deserialize transaction");
+        let tx: transaction::Transaction =
+            bincode::deserialize(&tx_bytes).expect("Failed to deserialize transaction");
 
-        let result = twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(tx);
+        let result =
+            twilight_relayer_sdk::twilight_client_sdk::chain::tx_commit_broadcast_transaction(tx);
         println!("Transaction broadcast result: {:?}", result);
     }
 }

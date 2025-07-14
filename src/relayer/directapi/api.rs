@@ -8,6 +8,7 @@ use jsonrpc_http_server::{
     jsonrpc_core::{MetaIoHandler, Metadata, Params},
     ServerBuilder,
 };
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use std::collections::HashMap;
 use stopwatch::Stopwatch;
 #[derive(Default, Clone, Debug)]
@@ -191,6 +192,24 @@ pub fn startserver() {
                                 },
                                 value.price,
                             ));
+                        }
+                        21 => {
+                            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+                            println!("\n OUTPUT_STORAGE : {:#?}", output_hex_storage);
+                            drop(output_hex_storage);
+                        }
+                        22 => {
+                            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+                            let uuid_to_byte = match bincode::serialize(&value.orderid) {
+                                Ok(uuid_v_u8) => uuid_v_u8,
+                                Err(_) => Vec::new(),
+                            };
+                            let output_option = match output_hex_storage.get_utxo_by_id(uuid_to_byte, 0) {
+                                Ok(output) => output,
+                                Err(_) => None,
+                            };
+                            println!("\n output_option : {:#?}", output_option);
+                            drop(output_hex_storage);
                         }
                         _ => {
                             let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
