@@ -55,6 +55,8 @@ lazy_static! {
     pub static ref RPC_CLIENT_REQUEST: String = std::env::var("RPC_CLIENT_REQUEST")
     .unwrap_or("CLIENT-REQUEST".to_string());
 
+    pub static ref BROKER: String = std::env::var("BROKER").unwrap_or("localhost:9092".to_string());
+
     pub static ref RELAYER_CORE_GROUP_CLIENT_REQUEST: String = std::env::var("RELAYER_CORE_GROUP_CLIENT_REQUEST")
     .unwrap_or("RELAYER_CORE_GROUP_CLIENT_REQUEST".to_string());
 

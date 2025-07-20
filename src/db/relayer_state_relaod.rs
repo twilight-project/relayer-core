@@ -126,7 +126,7 @@ pub fn create_relayer_state_data() -> Result<
     let time = ServerTime::now().epoch;
     let event_stoper_string = format!("snapsot-start-{}", time);
     let eventstop: Event = Event::Stop(event_stoper_string.clone());
-    Event::send_event_to_kafka_queue(
+    let _ = Event::send_event_to_kafka_queue(
         eventstop.clone(),
         RELAYER_STATE_QUEUE.clone().to_string(),
         String::from("StopLoadMSG"),

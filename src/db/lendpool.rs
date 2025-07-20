@@ -217,7 +217,7 @@ impl LendPool {
             lendpool.clone(),
             nonce_init as usize,
         );
-        let _pool_event_execute = Event::new(
+        Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
             CORE_EVENT_LOG.clone().to_string(),
@@ -231,7 +231,7 @@ impl LendPool {
 
         let time = ServerTime::now().epoch;
         let eventstop: Event = Event::Stop(time.clone());
-        Event::send_event_to_kafka_queue(
+        let _ = Event::send_event_to_kafka_queue(
             eventstop.clone(),
             CORE_EVENT_LOG.clone().to_string(),
             String::from("StopLoadMSG"),

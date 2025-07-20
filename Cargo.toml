@@ -88,4 +88,4 @@ curve25519-dalek = { version = "3", default-features = false }
 
 [dependencies.twilight-relayer-sdk]
 git = "https://github.com/twilight-project/twilight-relayer-sdk.git"
-branch = "develop"
+tag = "v0.0.1"
