@@ -66,7 +66,7 @@ impl TraderOrder {
         let mut entryprice = rpc_request.entryprice;
         let execution_price = rpc_request.execution_price;
         let mut fee_percentage: f64 = 0.0;
-        let fee_value: f64;
+        let mut fee_value: f64;
         match order_type {
             OrderType::MARKET => {
                 // entryprice = get_localdb("CurrentPrice");
@@ -97,9 +97,13 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
+        if order_status == OrderStatus::PENDING {
+            fee_value = 0.0;
+        }
         available_margin = available_margin - fee_value;
         let uuid_key = Uuid::new_v4();
         let new_account_id;
+
         if String::from(account_id.clone()) == String::from("account_id") {
             new_account_id = uuid_key.to_string();
         } else {
