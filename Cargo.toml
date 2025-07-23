@@ -89,3 +89,6 @@ curve25519-dalek = { version = "3", default-features = false }
 [dependencies.twilight-relayer-sdk]
 git = "https://github.com/twilight-project/twilight-relayer-sdk.git"
 tag = "v0.0.1"
+[dependencies.nyks-wallet]
+git = "https://github.com/twilight-project/nyks-wallet.git"
+tag = "v0.0.3-relayer-deployer"

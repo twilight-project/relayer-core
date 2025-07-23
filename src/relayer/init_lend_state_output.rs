@@ -1,3 +1,4 @@
+use nyks_wallet::zkos_accounts::encrypted_account::KeyManager;
 use twilight_relayer_sdk::address::{Address, AddressType};
 use twilight_relayer_sdk::quisquislib;
 use twilight_relayer_sdk::quisquislib::ristretto::RistrettoPublicKey;
@@ -36,10 +37,16 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
             "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
         }
     };
-    let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
-        quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+    let index: u64 = std::env::var("RELAYER_WALLET_SEED_INDEX")
+        .unwrap_or("0".to_string())
+        .parse()
+        .unwrap();
+    // let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
+    //     quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+    let key_manager = KeyManager::from_cosmos_signature(seed.as_bytes());
 
-    contract_owner_sk
+    let secret_key = key_manager.derive_child_key(index);
+    secret_key
 }
 pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
     let contract_owner_address = last_state_output_fixed()
