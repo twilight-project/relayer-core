@@ -47,3 +47,4 @@ foo.txt
 logs
 .env
 .env_old
+deployment-scripts

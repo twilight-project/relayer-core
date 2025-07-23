@@ -5,23 +5,23 @@ use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 use bincode;
-use kafka::consumer::{ Consumer, FetchOffset, GroupOffsetStorage };
+use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
-use serde_derive::{ Deserialize, Serialize };
-use std::collections::{ HashMap, HashSet };
-use std::sync::{ mpsc, Arc, Mutex, RwLock };
+use serde_derive::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Write};
+use std::path::PathBuf;
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
 use twilight_relayer_sdk::utxo_in_memory;
 use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use twilight_relayer_sdk::zkvm;
 use uuid::Uuid;
-use std::fs::{ self, File, OpenOptions };
-use std::io::{ self, Write };
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderDBSnapShotTO {
@@ -118,23 +118,19 @@ impl SnapshotDB {
             localdb_hashmap: {
                 let mut hashmap = HashMap::new();
 
-                let filled_on_market = std::env
-                    ::var("FILLED_ON_MARKET")
+                let filled_on_market = std::env::var("FILLED_ON_MARKET")
                     .unwrap_or("0.04".to_string())
                     .parse::<f64>()
                     .unwrap_or(0.04);
-                let filled_on_limit = std::env
-                    ::var("FILLED_ON_LIMIT")
+                let filled_on_limit = std::env::var("FILLED_ON_LIMIT")
                     .unwrap_or("0.02".to_string())
                     .parse::<f64>()
                     .unwrap_or(0.02);
-                let settled_on_market = std::env
-                    ::var("SETTLED_ON_MARKET")
+                let settled_on_market = std::env::var("SETTLED_ON_MARKET")
                     .unwrap_or("0.04".to_string())
                     .parse::<f64>()
                     .unwrap_or(0.04);
-                let settled_on_limit = std::env
-                    ::var("SETTLED_ON_LIMIT")
+                let settled_on_limit = std::env::var("SETTLED_ON_LIMIT")
                     .unwrap_or("0.02".to_string())
                     .parse::<f64>()
                     .unwrap_or(0.02);
@@ -150,20 +146,19 @@ impl SnapshotDB {
                             filled_on_market,
                             filled_on_limit,
                             settled_on_market,
-                            settled_on_limit
+                            settled_on_limit,
                         ),
-                        event_time.clone()
+                        event_time.clone(),
                     ),
                     CORE_EVENT_LOG.clone().to_string(),
-                    format!("FeeUpdate-{}", event_time)
+                    format!("FeeUpdate-{}", event_time),
                 );
                 hashmap
             },
             event_offset_partition: (0, 0),
             event_timestamp: ServerTime::now().epoch,
-            output_hex_storage: utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(
-                1
-            ),
+            output_hex_storage:
+                utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
             queue_manager: QueueState::new(),
         }
     }
@@ -202,9 +197,10 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
     // snapshot version
     // delete old snapshot data deleted by cron job
     crate::log_heartbeat!(info, "started taking snapshot");
-    let read_snapshot = fs::read(
-        format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
-    );
+    let read_snapshot = fs::read(format!(
+        "{}-{}",
+        *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+    ));
     let decoded_snapshot: SnapshotDB;
     // let mut is_file_exist = false;
     // let last_snapshot_time: String;
@@ -251,14 +247,13 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
         }
     }
 
-    let (snapshot_db_updated, tx_consumed) = match
-        create_snapshot_data(fetchoffset, decoded_snapshot)
-    {
-        Ok(snap_data) => snap_data,
-        Err(arg) => {
-            return Err(arg.to_string());
-        }
-    };
+    let (snapshot_db_updated, tx_consumed) =
+        match create_snapshot_data(fetchoffset, decoded_snapshot) {
+            Ok(snap_data) => snap_data,
+            Err(arg) => {
+                return Err(arg.to_string());
+            }
+        };
 
     let encoded_v = match bincode::serialize(&snapshot_db_updated) {
         Ok(v) => v,
@@ -270,10 +265,14 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
 
     write_snapshot_atomically(
         &encoded_v,
-        &PathBuf::from(format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)),
+        &PathBuf::from(format!(
+            "{}-{}",
+            *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION
+        )),
         &tx_consumed,
-        snapshot_db_updated.event_offset_partition
-    ).map_err(|e| {
+        snapshot_db_updated.event_offset_partition,
+    )
+    .map_err(|e| {
         crate::log_heartbeat!(error, "snapshot write failed: {:?}", e);
         e.to_string()
     })?;
@@ -285,7 +284,7 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
 
 pub fn create_snapshot_data(
     fetchoffset: FetchOffset,
-    snapshot_db: SnapshotDB
+    snapshot_db: SnapshotDB,
 ) -> Result<(SnapshotDB, crossbeam_channel::Sender<(i32, i64)>), String> {
     let SnapshotDB {
         mut orderdb_traderorder,
@@ -312,19 +311,17 @@ pub fn create_snapshot_data(
     let _ = Event::send_event_to_kafka_queue(
         eventstop.clone(),
         CORE_EVENT_LOG.clone().to_string(),
-        String::from("StopLoadMSG")
+        String::from("StopLoadMSG"),
     );
     let mut stop_signal: bool = true;
     let mut retry_attempt = 0;
     while retry_attempt < 10 {
-        match
-            Event::receive_event_for_snapshot_from_kafka_queue(
-                CORE_EVENT_LOG.clone().to_string(),
-                format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
-                fetchoffset,
-                "snapshot handle"
-            )
-        {
+        match Event::receive_event_for_snapshot_from_kafka_queue(
+            CORE_EVENT_LOG.clone().to_string(),
+            format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
+            fetchoffset,
+            "snapshot handle",
+        ) {
             Ok((receiver_lock, tx_consumed)) => {
                 let recever1 = match receiver_lock.lock() {
                     Ok(rec_lock) => rec_lock,
@@ -339,229 +336,190 @@ pub fn create_snapshot_data(
                     }
                 };
                 let mut last_offset = 0;
+                let mut kafka_reconnect_attempt = 0;
                 while stop_signal {
                     match recever1.recv() {
                         Ok(data) => {
                             match data.value.clone() {
-                                Event::TraderOrder(order, cmd, seq) =>
-                                    match cmd {
-                                        RpcCommand::CreateTraderOrder(
-                                            _rpc_request,
-                                            _metadata,
-                                            zkos_hex_string,
-                                            _request_id,
-                                        ) => {
-                                            // let order_clone = order.clone();
-                                            orderdb_traderorder.ordertable.insert(
-                                                order.uuid,
-                                                order.clone()
-                                            );
-                                            // orderdb_traderorder.event.push(data.value);
-                                            if
-                                                orderdb_traderorder.sequence <
-                                                order.entry_sequence.clone()
-                                            {
-                                                orderdb_traderorder.sequence =
-                                                    order.entry_sequence.clone();
-                                            }
-                                            if orderdb_traderorder.aggrigate_log_sequence < seq {
-                                                orderdb_traderorder.aggrigate_log_sequence = seq;
-                                            }
+                                Event::TraderOrder(order, cmd, seq) => match cmd {
+                                    RpcCommand::CreateTraderOrder(
+                                        _rpc_request,
+                                        _metadata,
+                                        zkos_hex_string,
+                                        _request_id,
+                                    ) => {
+                                        // let order_clone = order.clone();
+                                        orderdb_traderorder
+                                            .ordertable
+                                            .insert(order.uuid, order.clone());
+                                        // orderdb_traderorder.event.push(data.value);
+                                        if orderdb_traderorder.sequence
+                                            < order.entry_sequence.clone()
+                                        {
+                                            orderdb_traderorder.sequence =
+                                                order.entry_sequence.clone();
+                                        }
+                                        if orderdb_traderorder.aggrigate_log_sequence < seq {
+                                            orderdb_traderorder.aggrigate_log_sequence = seq;
+                                        }
 
-                                            match order.order_status {
-                                                OrderStatus::FILLED =>
-                                                    match order.position_type {
-                                                        PositionType::LONG => {
-                                                            let _ =
-                                                                liquidation_long_sortedset_db.add(
-                                                                    order.uuid,
-                                                                    (order.liquidation_price *
-                                                                        10000.0) as i64
-                                                                );
-                                                        }
-                                                        PositionType::SHORT => {
-                                                            let _ =
-                                                                liquidation_short_sortedset_db.add(
-                                                                    order.uuid,
-                                                                    (order.liquidation_price *
-                                                                        10000.0) as i64
-                                                                );
-                                                        }
-                                                    }
-                                                OrderStatus::PENDING =>
-                                                    match order.position_type {
-                                                        PositionType::LONG => {
-                                                            let _ = open_long_sortedset_db.add(
-                                                                order.uuid,
-                                                                (order.entryprice * 10000.0) as i64
-                                                            );
-                                                        }
-                                                        PositionType::SHORT => {
-                                                            let _ = open_short_sortedset_db.add(
-                                                                order.uuid,
-                                                                (order.entryprice * 10000.0) as i64
-                                                            );
-                                                        }
-                                                    }
-                                                _ => {}
-                                            }
-                                            orderdb_traderorder.zkos_msg.insert(
-                                                order.uuid,
-                                                zkos_hex_string
-                                            );
-                                            let _ = orderdb_traderorder.set_order_check(
-                                                order.account_id
-                                            );
-                                        }
-                                        RpcCommand::CancelTraderOrder(
-                                            _rpc_request,
-                                            _metadata,
-                                            _zkos_hex_string,
-                                            _request_id,
-                                        ) => {
-                                            let order_clone = order.clone();
-                                            if
-                                                orderdb_traderorder.ordertable.contains_key(
-                                                    &order.uuid
-                                                )
-                                            {
-                                                orderdb_traderorder.ordertable.remove(&order.uuid);
-                                                let _removed_zkos_msg =
-                                                    orderdb_traderorder.zkos_msg.remove(
-                                                        &order.uuid
+                                        match order.order_status {
+                                            OrderStatus::FILLED => match order.position_type {
+                                                PositionType::LONG => {
+                                                    let _ = liquidation_long_sortedset_db.add(
+                                                        order.uuid,
+                                                        (order.liquidation_price * 10000.0) as i64,
                                                     );
-                                                let _ = orderdb_traderorder.remove_order_check(
-                                                    order.account_id
-                                                );
-                                            }
-                                            // orderdb_traderorder.event.push(data.value);
-                                            if
-                                                orderdb_traderorder.sequence <
-                                                order_clone.entry_sequence
-                                            {
-                                                orderdb_traderorder.sequence =
-                                                    order_clone.entry_sequence;
-                                            }
-                                            if orderdb_traderorder.aggrigate_log_sequence < seq {
-                                                orderdb_traderorder.aggrigate_log_sequence = seq;
-                                            }
-                                            queue_manager.remove_fill(&order.uuid);
-                                        }
-                                        RpcCommand::ExecuteTraderOrder(
-                                            _rpc_request,
-                                            _metadata,
-                                            _zkos_hex_string,
-                                            _request_id,
-                                        ) => {
-                                            // let order_clone = order.clone();
-                                            if
-                                                orderdb_traderorder.ordertable.contains_key(
-                                                    &order.uuid.clone()
-                                                )
-                                            {
-                                                orderdb_traderorder.ordertable.remove(
-                                                    &order.uuid.clone()
-                                                );
-                                                let _removed_zkos_msg =
-                                                    orderdb_traderorder.zkos_msg.remove(
-                                                        &order.uuid
+                                                }
+                                                PositionType::SHORT => {
+                                                    let _ = liquidation_short_sortedset_db.add(
+                                                        order.uuid,
+                                                        (order.liquidation_price * 10000.0) as i64,
                                                     );
-                                                let _ = orderdb_traderorder.remove_order_check(
-                                                    order.account_id
-                                                );
-                                            }
-                                            // orderdb_traderorder.event.push(data.value);
-                                            if
-                                                orderdb_traderorder.sequence <
-                                                order.entry_sequence.clone()
-                                            {
-                                                orderdb_traderorder.sequence =
-                                                    order.entry_sequence.clone();
-                                            }
-                                            if orderdb_traderorder.aggrigate_log_sequence < seq {
-                                                orderdb_traderorder.aggrigate_log_sequence = seq;
-                                            }
-                                            match order.order_status {
-                                                OrderStatus::SETTLED =>
-                                                    match order.position_type {
-                                                        PositionType::LONG => {
-                                                            let _ =
-                                                                liquidation_long_sortedset_db.remove(
-                                                                    order.uuid
-                                                                );
-                                                        }
-                                                        PositionType::SHORT => {
-                                                            let _ =
-                                                                liquidation_short_sortedset_db.remove(
-                                                                    order.uuid
-                                                                );
-                                                        }
-                                                    }
-                                                _ => {}
-                                            }
-                                            queue_manager.remove_settle(&order.uuid);
-                                        }
-                                        RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
-                                            _rpc_request,
-                                            _metadata,
-                                            _payment,
-                                        ) => {
-                                            let order_clone = order.clone();
-                                            if
-                                                orderdb_traderorder.ordertable.contains_key(
-                                                    &order.uuid
-                                                )
-                                            {
-                                                orderdb_traderorder.ordertable.remove(&order.uuid);
-                                                let _removed_zkos_msg =
-                                                    orderdb_traderorder.zkos_msg.remove(
-                                                        &order.uuid
+                                                }
+                                            },
+                                            OrderStatus::PENDING => match order.position_type {
+                                                PositionType::LONG => {
+                                                    let _ = open_long_sortedset_db.add(
+                                                        order.uuid,
+                                                        (order.entryprice * 10000.0) as i64,
                                                     );
-                                                let _ = orderdb_traderorder.remove_order_check(
-                                                    order.account_id
-                                                );
-                                            }
-                                            // orderdb_traderorder.event.push(data.value);
-                                            if
-                                                orderdb_traderorder.sequence <
-                                                order_clone.entry_sequence
-                                            {
-                                                orderdb_traderorder.sequence =
-                                                    order_clone.entry_sequence;
-                                            }
-                                            if orderdb_traderorder.aggrigate_log_sequence < seq {
-                                                orderdb_traderorder.aggrigate_log_sequence = seq;
-                                            }
-                                            queue_manager.remove_fill(&order.uuid);
-                                            queue_manager.remove_settle(&order.uuid);
+                                                }
+                                                PositionType::SHORT => {
+                                                    let _ = open_short_sortedset_db.add(
+                                                        order.uuid,
+                                                        (order.entryprice * 10000.0) as i64,
+                                                    );
+                                                }
+                                            },
+                                            _ => {}
                                         }
-                                        RpcCommand::CreateLendOrder(_, _, _, _) => {}
-                                        RpcCommand::ExecuteLendOrder(_, _, _, _) => {}
+                                        orderdb_traderorder
+                                            .zkos_msg
+                                            .insert(order.uuid, zkos_hex_string);
+                                        let _ =
+                                            orderdb_traderorder.set_order_check(order.account_id);
                                     }
-                                Event::TraderOrderLimitUpdate(order, cmd, seq) =>
-                                    match cmd {
-                                        RpcCommand::ExecuteTraderOrder(
-                                            _rpc_request,
-                                            _metadata,
-                                            zkos_hex_string,
-                                            _request_id,
-                                        ) => {
-                                            orderdb_traderorder.zkos_msg.insert(
-                                                order.uuid,
-                                                zkos_hex_string
-                                            );
-                                            if orderdb_traderorder.aggrigate_log_sequence < seq {
-                                                orderdb_traderorder.aggrigate_log_sequence = seq;
-                                            }
+                                    RpcCommand::CancelTraderOrder(
+                                        _rpc_request,
+                                        _metadata,
+                                        _zkos_hex_string,
+                                        _request_id,
+                                    ) => {
+                                        let order_clone = order.clone();
+                                        if orderdb_traderorder.ordertable.contains_key(&order.uuid)
+                                        {
+                                            orderdb_traderorder.ordertable.remove(&order.uuid);
+                                            let _removed_zkos_msg =
+                                                orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                                            let _ = orderdb_traderorder
+                                                .remove_order_check(order.account_id);
                                         }
-                                        _ => {}
+                                        // orderdb_traderorder.event.push(data.value);
+                                        if orderdb_traderorder.sequence < order_clone.entry_sequence
+                                        {
+                                            orderdb_traderorder.sequence =
+                                                order_clone.entry_sequence;
+                                        }
+                                        if orderdb_traderorder.aggrigate_log_sequence < seq {
+                                            orderdb_traderorder.aggrigate_log_sequence = seq;
+                                        }
+                                        queue_manager.remove_fill(&order.uuid);
                                     }
+                                    RpcCommand::ExecuteTraderOrder(
+                                        _rpc_request,
+                                        _metadata,
+                                        _zkos_hex_string,
+                                        _request_id,
+                                    ) => {
+                                        // let order_clone = order.clone();
+                                        if orderdb_traderorder
+                                            .ordertable
+                                            .contains_key(&order.uuid.clone())
+                                        {
+                                            orderdb_traderorder
+                                                .ordertable
+                                                .remove(&order.uuid.clone());
+                                            let _removed_zkos_msg =
+                                                orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                                            let _ = orderdb_traderorder
+                                                .remove_order_check(order.account_id);
+                                        }
+                                        // orderdb_traderorder.event.push(data.value);
+                                        if orderdb_traderorder.sequence
+                                            < order.entry_sequence.clone()
+                                        {
+                                            orderdb_traderorder.sequence =
+                                                order.entry_sequence.clone();
+                                        }
+                                        if orderdb_traderorder.aggrigate_log_sequence < seq {
+                                            orderdb_traderorder.aggrigate_log_sequence = seq;
+                                        }
+                                        match order.order_status {
+                                            OrderStatus::SETTLED => match order.position_type {
+                                                PositionType::LONG => {
+                                                    let _ = liquidation_long_sortedset_db
+                                                        .remove(order.uuid);
+                                                }
+                                                PositionType::SHORT => {
+                                                    let _ = liquidation_short_sortedset_db
+                                                        .remove(order.uuid);
+                                                }
+                                            },
+                                            _ => {}
+                                        }
+                                        queue_manager.remove_settle(&order.uuid);
+                                    }
+                                    RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
+                                        _rpc_request,
+                                        _metadata,
+                                        _payment,
+                                    ) => {
+                                        let order_clone = order.clone();
+                                        if orderdb_traderorder.ordertable.contains_key(&order.uuid)
+                                        {
+                                            orderdb_traderorder.ordertable.remove(&order.uuid);
+                                            let _removed_zkos_msg =
+                                                orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                                            let _ = orderdb_traderorder
+                                                .remove_order_check(order.account_id);
+                                        }
+                                        // orderdb_traderorder.event.push(data.value);
+                                        if orderdb_traderorder.sequence < order_clone.entry_sequence
+                                        {
+                                            orderdb_traderorder.sequence =
+                                                order_clone.entry_sequence;
+                                        }
+                                        if orderdb_traderorder.aggrigate_log_sequence < seq {
+                                            orderdb_traderorder.aggrigate_log_sequence = seq;
+                                        }
+                                        queue_manager.remove_fill(&order.uuid);
+                                        queue_manager.remove_settle(&order.uuid);
+                                    }
+                                    RpcCommand::CreateLendOrder(_, _, _, _) => {}
+                                    RpcCommand::ExecuteLendOrder(_, _, _, _) => {}
+                                },
+                                Event::TraderOrderLimitUpdate(order, cmd, seq) => match cmd {
+                                    RpcCommand::ExecuteTraderOrder(
+                                        _rpc_request,
+                                        _metadata,
+                                        zkos_hex_string,
+                                        _request_id,
+                                    ) => {
+                                        orderdb_traderorder
+                                            .zkos_msg
+                                            .insert(order.uuid, zkos_hex_string);
+                                        if orderdb_traderorder.aggrigate_log_sequence < seq {
+                                            orderdb_traderorder.aggrigate_log_sequence = seq;
+                                        }
+                                    }
+                                    _ => {}
+                                },
                                 Event::TraderOrderUpdate(order, _cmd, seq) => {
                                     // let order_clone = order.clone();
-                                    orderdb_traderorder.ordertable.insert(
-                                        order.uuid,
-                                        order.clone()
-                                    );
+                                    orderdb_traderorder
+                                        .ordertable
+                                        .insert(order.uuid, order.clone());
                                     // orderdb_traderorder.event.push(data.value);
                                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
                                         orderdb_traderorder.sequence = order.entry_sequence.clone();
@@ -571,60 +529,55 @@ pub fn create_snapshot_data(
                                     }
 
                                     match order.order_status {
-                                        OrderStatus::FILLED =>
-                                            match order.position_type {
-                                                PositionType::LONG => {
-                                                    let _ = liquidation_long_sortedset_db.add(
-                                                        order.uuid,
-                                                        (order.liquidation_price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = liquidation_short_sortedset_db.add(
-                                                        order.uuid,
-                                                        (order.liquidation_price * 10000.0) as i64
-                                                    );
-                                                }
+                                        OrderStatus::FILLED => match order.position_type {
+                                            PositionType::LONG => {
+                                                let _ = liquidation_long_sortedset_db.add(
+                                                    order.uuid,
+                                                    (order.liquidation_price * 10000.0) as i64,
+                                                );
                                             }
+                                            PositionType::SHORT => {
+                                                let _ = liquidation_short_sortedset_db.add(
+                                                    order.uuid,
+                                                    (order.liquidation_price * 10000.0) as i64,
+                                                );
+                                            }
+                                        },
                                         _ => {}
                                     }
                                     queue_manager.remove_fill(&order.uuid);
                                 }
                                 Event::TraderOrderFundingUpdate(order, _cmd) => {
-                                    orderdb_traderorder.ordertable.insert(
-                                        order.uuid,
-                                        order.clone()
-                                    );
+                                    orderdb_traderorder
+                                        .ordertable
+                                        .insert(order.uuid, order.clone());
 
                                     match order.position_type {
                                         PositionType::LONG => {
                                             let _ = liquidation_long_sortedset_db.update(
                                                 order.uuid,
-                                                (order.liquidation_price * 10000.0) as i64
+                                                (order.liquidation_price * 10000.0) as i64,
                                             );
                                         }
                                         PositionType::SHORT => {
                                             let _ = liquidation_short_sortedset_db.update(
                                                 order.uuid,
-                                                (order.liquidation_price * 10000.0) as i64
+                                                (order.liquidation_price * 10000.0) as i64,
                                             );
                                         }
                                     }
                                 }
                                 Event::TraderOrderLiquidation(order, _cmd, seq) => {
                                     // let order_clone = order.clone();
-                                    if
-                                        orderdb_traderorder.ordertable.contains_key(
-                                            &order.uuid.clone()
-                                        )
+                                    if orderdb_traderorder
+                                        .ordertable
+                                        .contains_key(&order.uuid.clone())
                                     {
                                         orderdb_traderorder.ordertable.remove(&order.uuid.clone());
-                                        let _removed_zkos_msg = orderdb_traderorder.zkos_msg.remove(
-                                            &order.uuid
-                                        );
-                                        let _ = orderdb_traderorder.remove_order_check(
-                                            order.account_id
-                                        );
+                                        let _removed_zkos_msg =
+                                            orderdb_traderorder.zkos_msg.remove(&order.uuid);
+                                        let _ = orderdb_traderorder
+                                            .remove_order_check(order.account_id);
                                     }
                                     // orderdb_traderorder.event.push(data.value);
                                     if orderdb_traderorder.sequence < order.entry_sequence.clone() {
@@ -641,64 +594,52 @@ pub fn create_snapshot_data(
                                         event_offset_partition = (data.partition, data.offset);
                                     }
                                 }
-                                Event::LendOrder(order, cmd, seq) =>
-                                    match cmd {
-                                        RpcCommand::CreateLendOrder(
-                                            _rpc_request,
-                                            _metadata,
-                                            zkos_hex_string,
-                                            _request_id,
-                                        ) => {
-                                            let order_clone = order.clone();
-                                            orderdb_lendorder.ordertable.insert(order.uuid, order);
-                                            // orderdb_lendorder.event.push(data.value);
-                                            if
-                                                orderdb_lendorder.sequence <
-                                                order_clone.entry_sequence
-                                            {
-                                                orderdb_lendorder.sequence =
-                                                    order_clone.entry_sequence;
-                                            }
-                                            if orderdb_lendorder.aggrigate_log_sequence < seq {
-                                                orderdb_lendorder.aggrigate_log_sequence = seq;
-                                            }
-                                            orderdb_lendorder.zkos_msg.insert(
-                                                order_clone.uuid,
-                                                zkos_hex_string
-                                            );
-                                            let _ = orderdb_traderorder.set_order_check(
-                                                order_clone.account_id
-                                            );
+                                Event::LendOrder(order, cmd, seq) => match cmd {
+                                    RpcCommand::CreateLendOrder(
+                                        _rpc_request,
+                                        _metadata,
+                                        zkos_hex_string,
+                                        _request_id,
+                                    ) => {
+                                        let order_clone = order.clone();
+                                        orderdb_lendorder.ordertable.insert(order.uuid, order);
+                                        // orderdb_lendorder.event.push(data.value);
+                                        if orderdb_lendorder.sequence < order_clone.entry_sequence {
+                                            orderdb_lendorder.sequence = order_clone.entry_sequence;
                                         }
-                                        RpcCommand::ExecuteLendOrder(
-                                            _rpc_request,
-                                            _metadata,
-                                            _zkos_hex_string,
-                                            _request_id,
-                                        ) => {
-                                            // orderdb_lendorder.event.push(data.value);
-
-                                            if
-                                                orderdb_lendorder.ordertable.contains_key(
-                                                    &order.uuid
-                                                )
-                                            {
-                                                orderdb_lendorder.ordertable.remove(&order.uuid);
-                                                let _removed_zkos_msg =
-                                                    orderdb_lendorder.zkos_msg.remove(&order.uuid);
-                                                let _ = orderdb_traderorder.remove_order_check(
-                                                    order.account_id
-                                                );
-                                            }
-                                            if orderdb_lendorder.aggrigate_log_sequence < seq {
-                                                orderdb_lendorder.aggrigate_log_sequence = seq;
-                                            }
-                                            if orderdb_lendorder.sequence < order.entry_sequence {
-                                                orderdb_lendorder.sequence = order.entry_sequence;
-                                            }
+                                        if orderdb_lendorder.aggrigate_log_sequence < seq {
+                                            orderdb_lendorder.aggrigate_log_sequence = seq;
                                         }
-                                        _ => {}
+                                        orderdb_lendorder
+                                            .zkos_msg
+                                            .insert(order_clone.uuid, zkos_hex_string);
+                                        let _ = orderdb_traderorder
+                                            .set_order_check(order_clone.account_id);
                                     }
+                                    RpcCommand::ExecuteLendOrder(
+                                        _rpc_request,
+                                        _metadata,
+                                        _zkos_hex_string,
+                                        _request_id,
+                                    ) => {
+                                        // orderdb_lendorder.event.push(data.value);
+
+                                        if orderdb_lendorder.ordertable.contains_key(&order.uuid) {
+                                            orderdb_lendorder.ordertable.remove(&order.uuid);
+                                            let _removed_zkos_msg =
+                                                orderdb_lendorder.zkos_msg.remove(&order.uuid);
+                                            let _ = orderdb_traderorder
+                                                .remove_order_check(order.account_id);
+                                        }
+                                        if orderdb_lendorder.aggrigate_log_sequence < seq {
+                                            orderdb_lendorder.aggrigate_log_sequence = seq;
+                                        }
+                                        if orderdb_lendorder.sequence < order.entry_sequence {
+                                            orderdb_lendorder.sequence = order.entry_sequence;
+                                        }
+                                    }
+                                    _ => {}
+                                },
                                 Event::PoolUpdate(_cmd, lend_pool, _seq) => {
                                     if data.offset > last_offset {
                                         lendpool_database = lend_pool;
@@ -709,268 +650,223 @@ pub fn create_snapshot_data(
                                     // set_localdb("FundingRate", funding_rate);
                                     localdb_hashmap.insert("FundingRate".to_string(), funding_rate);
                                 }
-                                Event::FeeUpdate(cmd, _time) =>
-                                    match cmd {
-                                        RelayerCommand::UpdateFees(
+                                Event::FeeUpdate(cmd, _time) => match cmd {
+                                    RelayerCommand::UpdateFees(
+                                        order_filled_on_market,
+                                        order_filled_on_limit,
+                                        order_settled_on_market,
+                                        order_settled_on_limit,
+                                    ) => {
+                                        localdb_hashmap.insert(
+                                            FeeType::FilledOnMarket.into(),
                                             order_filled_on_market,
+                                        );
+                                        localdb_hashmap.insert(
+                                            FeeType::FilledOnLimit.into(),
                                             order_filled_on_limit,
+                                        );
+                                        localdb_hashmap.insert(
+                                            FeeType::SettledOnMarket.into(),
                                             order_settled_on_market,
+                                        );
+                                        localdb_hashmap.insert(
+                                            FeeType::SettledOnLimit.into(),
                                             order_settled_on_limit,
-                                        ) => {
-                                            localdb_hashmap.insert(
-                                                FeeType::FilledOnMarket.into(),
-                                                order_filled_on_market
-                                            );
-                                            localdb_hashmap.insert(
-                                                FeeType::FilledOnLimit.into(),
-                                                order_filled_on_limit
-                                            );
-                                            localdb_hashmap.insert(
-                                                FeeType::SettledOnMarket.into(),
-                                                order_settled_on_market
-                                            );
-                                            localdb_hashmap.insert(
-                                                FeeType::SettledOnLimit.into(),
-                                                order_settled_on_limit
-                                            );
-                                        }
-                                        _ => {}
+                                        );
                                     }
+                                    _ => {}
+                                },
                                 Event::CurrentPriceUpdate(current_price, _time) => {
                                     // set_localdb("CurrentPrice", current_price);
-                                    localdb_hashmap.insert(
-                                        "CurrentPrice".to_string(),
-                                        current_price
-                                    );
+                                    localdb_hashmap
+                                        .insert("CurrentPrice".to_string(), current_price);
 
                                     queue_manager.bulk_insert_to_fill(
                                         &mut open_short_sortedset_db,
                                         &mut open_long_sortedset_db,
-                                        current_price
+                                        current_price,
                                     );
                                     queue_manager.bulk_insert_to_liquidate(
                                         &mut liquidation_short_sortedset_db,
                                         &mut liquidation_long_sortedset_db,
-                                        current_price
+                                        current_price,
                                     );
                                     queue_manager.bulk_insert_to_settle(
                                         &mut close_short_sortedset_db,
                                         &mut close_long_sortedset_db,
-                                        current_price
+                                        current_price,
                                     );
                                 }
-                                Event::SortedSetDBUpdate(cmd) =>
-                                    match cmd {
-                                        SortedSetCommand::AddOpenLimitPrice(
-                                            order_id,
-                                            entry_price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = open_long_sortedset_db.add(
-                                                        order_id,
-                                                        (entry_price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = open_short_sortedset_db.add(
-                                                        order_id,
-                                                        (entry_price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::AddLiquidationPrice(
-                                            order_id,
-                                            liquidation_price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _sortedset_ =
-                                                        liquidation_long_sortedset_db.add(
-                                                            order_id,
-                                                            (liquidation_price * 10000.0) as i64
-                                                        );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = liquidation_short_sortedset_db.add(
-                                                        order_id,
-                                                        (liquidation_price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::AddCloseLimitPrice(
-                                            order_id,
-                                            execution_price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = close_long_sortedset_db.add(
-                                                        order_id,
-                                                        (execution_price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = close_short_sortedset_db.add(
-                                                        order_id,
-                                                        (execution_price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::RemoveOpenLimitPrice(
-                                            order_id,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = open_long_sortedset_db.remove(order_id);
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ =
-                                                        open_short_sortedset_db.remove(order_id);
-                                                }
-                                            }
-                                        SortedSetCommand::RemoveLiquidationPrice(
-                                            order_id,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ =
-                                                        liquidation_long_sortedset_db.remove(
-                                                            order_id
-                                                        );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ =
-                                                        liquidation_short_sortedset_db.remove(
-                                                            order_id
-                                                        );
-                                                }
-                                            }
-                                        SortedSetCommand::RemoveCloseLimitPrice(
-                                            order_id,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ =
-                                                        close_long_sortedset_db.remove(order_id);
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ =
-                                                        close_short_sortedset_db.remove(order_id);
-                                                }
-                                            }
-                                        SortedSetCommand::UpdateOpenLimitPrice(
-                                            order_id,
-                                            entry_price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = open_long_sortedset_db.update(
-                                                        order_id,
-                                                        (entry_price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = open_short_sortedset_db.update(
-                                                        order_id,
-                                                        (entry_price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::UpdateLiquidationPrice(
-                                            order_id,
-                                            liquidation_price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = liquidation_long_sortedset_db.update(
-                                                        order_id,
-                                                        (liquidation_price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = liquidation_short_sortedset_db.update(
-                                                        order_id,
-                                                        (liquidation_price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::UpdateCloseLimitPrice(
-                                            order_id,
-                                            execution_price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = close_long_sortedset_db.update(
-                                                        order_id,
-                                                        (execution_price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = close_short_sortedset_db.update(
-                                                        order_id,
-                                                        (execution_price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
-                                            price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = open_long_sortedset_db.search_gt(
-                                                        (price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = open_short_sortedset_db.search_lt(
-                                                        (price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                                            price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = close_long_sortedset_db.search_lt(
-                                                        (price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ = close_short_sortedset_db.search_gt(
-                                                        (price * 10000.0) as i64
-                                                    );
-                                                }
-                                            }
-                                        SortedSetCommand::BulkSearchRemoveLiquidationPrice(
-                                            price,
-                                            position_type,
-                                        ) =>
-                                            match position_type {
-                                                PositionType::LONG => {
-                                                    let _ = liquidation_long_sortedset_db.search_gt(
-                                                        (price * 10000.0) as i64
-                                                    );
-                                                }
-                                                PositionType::SHORT => {
-                                                    let _ =
-                                                        liquidation_short_sortedset_db.search_lt(
-                                                            (price * 10000.0) as i64
-                                                        );
-                                                }
-                                            }
-                                    }
+                                Event::SortedSetDBUpdate(cmd) => match cmd {
+                                    SortedSetCommand::AddOpenLimitPrice(
+                                        order_id,
+                                        entry_price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = open_long_sortedset_db
+                                                .add(order_id, (entry_price * 10000.0) as i64);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = open_short_sortedset_db
+                                                .add(order_id, (entry_price * 10000.0) as i64);
+                                        }
+                                    },
+                                    SortedSetCommand::AddLiquidationPrice(
+                                        order_id,
+                                        liquidation_price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _sortedset_ = liquidation_long_sortedset_db.add(
+                                                order_id,
+                                                (liquidation_price * 10000.0) as i64,
+                                            );
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = liquidation_short_sortedset_db.add(
+                                                order_id,
+                                                (liquidation_price * 10000.0) as i64,
+                                            );
+                                        }
+                                    },
+                                    SortedSetCommand::AddCloseLimitPrice(
+                                        order_id,
+                                        execution_price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = close_long_sortedset_db
+                                                .add(order_id, (execution_price * 10000.0) as i64);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = close_short_sortedset_db
+                                                .add(order_id, (execution_price * 10000.0) as i64);
+                                        }
+                                    },
+                                    SortedSetCommand::RemoveOpenLimitPrice(
+                                        order_id,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = open_long_sortedset_db.remove(order_id);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = open_short_sortedset_db.remove(order_id);
+                                        }
+                                    },
+                                    SortedSetCommand::RemoveLiquidationPrice(
+                                        order_id,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = liquidation_long_sortedset_db.remove(order_id);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = liquidation_short_sortedset_db.remove(order_id);
+                                        }
+                                    },
+                                    SortedSetCommand::RemoveCloseLimitPrice(
+                                        order_id,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = close_long_sortedset_db.remove(order_id);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = close_short_sortedset_db.remove(order_id);
+                                        }
+                                    },
+                                    SortedSetCommand::UpdateOpenLimitPrice(
+                                        order_id,
+                                        entry_price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = open_long_sortedset_db
+                                                .update(order_id, (entry_price * 10000.0) as i64);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = open_short_sortedset_db
+                                                .update(order_id, (entry_price * 10000.0) as i64);
+                                        }
+                                    },
+                                    SortedSetCommand::UpdateLiquidationPrice(
+                                        order_id,
+                                        liquidation_price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = liquidation_long_sortedset_db.update(
+                                                order_id,
+                                                (liquidation_price * 10000.0) as i64,
+                                            );
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = liquidation_short_sortedset_db.update(
+                                                order_id,
+                                                (liquidation_price * 10000.0) as i64,
+                                            );
+                                        }
+                                    },
+                                    SortedSetCommand::UpdateCloseLimitPrice(
+                                        order_id,
+                                        execution_price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = close_long_sortedset_db.update(
+                                                order_id,
+                                                (execution_price * 10000.0) as i64,
+                                            );
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = close_short_sortedset_db.update(
+                                                order_id,
+                                                (execution_price * 10000.0) as i64,
+                                            );
+                                        }
+                                    },
+                                    SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
+                                        price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = open_long_sortedset_db
+                                                .search_gt((price * 10000.0) as i64);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = open_short_sortedset_db
+                                                .search_lt((price * 10000.0) as i64);
+                                        }
+                                    },
+                                    SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
+                                        price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = close_long_sortedset_db
+                                                .search_lt((price * 10000.0) as i64);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = close_short_sortedset_db
+                                                .search_gt((price * 10000.0) as i64);
+                                        }
+                                    },
+                                    SortedSetCommand::BulkSearchRemoveLiquidationPrice(
+                                        price,
+                                        position_type,
+                                    ) => match position_type {
+                                        PositionType::LONG => {
+                                            let _ = liquidation_long_sortedset_db
+                                                .search_gt((price * 10000.0) as i64);
+                                        }
+                                        PositionType::SHORT => {
+                                            let _ = liquidation_short_sortedset_db
+                                                .search_lt((price * 10000.0) as i64);
+                                        }
+                                    },
+                                },
                                 Event::PositionSizeLogDBUpdate(_cmd, event) => {
                                     position_size_log = event;
                                 }
@@ -983,66 +879,54 @@ pub fn create_snapshot_data(
                                     _timestamp,
                                     option_output,
                                     _request_id,
-                                ) =>
-                                    match order_type {
-                                        OrderType::LIMIT | OrderType::MARKET =>
-                                            match order_status {
-                                                OrderStatus::FILLED => {
-                                                    let uuid_to_byte = match
-                                                        bincode::serialize(&orderid)
-                                                    {
-                                                        Ok(uuid_v_u8) => uuid_v_u8,
-                                                        Err(_) => Vec::new(),
-                                                    };
-                                                    let output_memo_option = match option_output {
-                                                        Some(output_hex_string) => {
-                                                            match hex::decode(output_hex_string) {
-                                                                Ok(output_byte) => {
-                                                                    match
-                                                                        bincode::deserialize(
-                                                                            &output_byte
-                                                                        )
-                                                                    {
-                                                                        Ok(output_memo) => {
-                                                                            Some(output_memo)
-                                                                        }
-                                                                        Err(_) => None,
-                                                                    }
+                                ) => match order_type {
+                                    OrderType::LIMIT | OrderType::MARKET => match order_status {
+                                        OrderStatus::FILLED => {
+                                            let uuid_to_byte = match bincode::serialize(&orderid) {
+                                                Ok(uuid_v_u8) => uuid_v_u8,
+                                                Err(_) => Vec::new(),
+                                            };
+                                            let output_memo_option = match option_output {
+                                                Some(output_hex_string) => {
+                                                    match hex::decode(output_hex_string) {
+                                                        Ok(output_byte) => {
+                                                            match bincode::deserialize(&output_byte)
+                                                            {
+                                                                Ok(output_memo) => {
+                                                                    Some(output_memo)
                                                                 }
                                                                 Err(_) => None,
                                                             }
                                                         }
-                                                        None => None,
-                                                    };
-                                                    match output_memo_option {
-                                                        Some(output_memo) => {
-                                                            let _ = output_hex_storage.add(
-                                                                uuid_to_byte,
-                                                                Some(output_memo),
-                                                                0
-                                                            );
-                                                        }
-                                                        None => {}
+                                                        Err(_) => None,
                                                     }
                                                 }
-                                                | OrderStatus::SETTLED
-                                                | OrderStatus::CANCELLED
-                                                | OrderStatus::LIQUIDATE => {
-                                                    let uuid_to_byte = match
-                                                        bincode::serialize(&orderid)
-                                                    {
-                                                        Ok(uuid_v_u8) => uuid_v_u8,
-                                                        Err(_) => Vec::new(),
-                                                    };
-                                                    let _ = output_hex_storage.remove(
+                                                None => None,
+                                            };
+                                            match output_memo_option {
+                                                Some(output_memo) => {
+                                                    let _ = output_hex_storage.add(
                                                         uuid_to_byte,
-                                                        0
+                                                        Some(output_memo),
+                                                        0,
                                                     );
                                                 }
-                                                _ => {}
+                                                None => {}
                                             }
+                                        }
+                                        OrderStatus::SETTLED
+                                        | OrderStatus::CANCELLED
+                                        | OrderStatus::LIQUIDATE => {
+                                            let uuid_to_byte = match bincode::serialize(&orderid) {
+                                                Ok(uuid_v_u8) => uuid_v_u8,
+                                                Err(_) => Vec::new(),
+                                            };
+                                            let _ = output_hex_storage.remove(uuid_to_byte, 0);
+                                        }
                                         _ => {}
-                                    }
+                                    },
+                                    _ => {}
+                                },
                                 Event::TxHashUpdate(
                                     orderid,
                                     _account_id,
@@ -1051,71 +935,64 @@ pub fn create_snapshot_data(
                                     order_status,
                                     _timestamp,
                                     option_output,
-                                ) =>
-                                    match order_type {
-                                        OrderType::LIMIT | OrderType::MARKET =>
-                                            match order_status {
-                                                OrderStatus::FILLED => {
-                                                    let uuid_to_byte = match
-                                                        bincode::serialize(&orderid)
-                                                    {
-                                                        Ok(uuid_v_u8) => uuid_v_u8,
-                                                        Err(_) => Vec::new(),
-                                                    };
-                                                    let output_memo_option = match option_output {
-                                                        Some(output_hex_string) => {
-                                                            match hex::decode(output_hex_string) {
-                                                                Ok(output_byte) => {
-                                                                    match
-                                                                        bincode::deserialize(
-                                                                            &output_byte
-                                                                        )
-                                                                    {
-                                                                        Ok(output_memo) => {
-                                                                            Some(output_memo)
-                                                                        }
-                                                                        Err(_) => None,
-                                                                    }
+                                ) => match order_type {
+                                    OrderType::LIMIT | OrderType::MARKET => match order_status {
+                                        OrderStatus::FILLED => {
+                                            let uuid_to_byte = match bincode::serialize(&orderid) {
+                                                Ok(uuid_v_u8) => uuid_v_u8,
+                                                Err(_) => Vec::new(),
+                                            };
+                                            let output_memo_option = match option_output {
+                                                Some(output_hex_string) => {
+                                                    match hex::decode(output_hex_string) {
+                                                        Ok(output_byte) => {
+                                                            match bincode::deserialize(&output_byte)
+                                                            {
+                                                                Ok(output_memo) => {
+                                                                    Some(output_memo)
                                                                 }
                                                                 Err(_) => None,
                                                             }
                                                         }
-                                                        None => None,
-                                                    };
-                                                    match output_memo_option {
-                                                        Some(output_memo) => {
-                                                            let _ = output_hex_storage.add(
-                                                                uuid_to_byte,
-                                                                Some(output_memo),
-                                                                0
-                                                            );
-                                                        }
-                                                        None => {}
+                                                        Err(_) => None,
                                                     }
                                                 }
-                                                | OrderStatus::SETTLED
-                                                | OrderStatus::CANCELLED
-                                                | OrderStatus::LIQUIDATE => {
-                                                    let uuid_to_byte = match
-                                                        bincode::serialize(&orderid)
-                                                    {
-                                                        Ok(uuid_v_u8) => uuid_v_u8,
-                                                        Err(_) => Vec::new(),
-                                                    };
-                                                    let _ = output_hex_storage.remove(
+                                                None => None,
+                                            };
+                                            match output_memo_option {
+                                                Some(output_memo) => {
+                                                    let _ = output_hex_storage.add(
                                                         uuid_to_byte,
-                                                        0
+                                                        Some(output_memo),
+                                                        0,
                                                     );
                                                 }
-                                                _ => {}
+                                                None => {}
                                             }
+                                        }
+                                        OrderStatus::SETTLED
+                                        | OrderStatus::CANCELLED
+                                        | OrderStatus::LIQUIDATE => {
+                                            let uuid_to_byte = match bincode::serialize(&orderid) {
+                                                Ok(uuid_v_u8) => uuid_v_u8,
+                                                Err(_) => Vec::new(),
+                                            };
+                                            let _ = output_hex_storage.remove(uuid_to_byte, 0);
+                                        }
                                         _ => {}
-                                    }
+                                    },
+                                    _ => {}
+                                },
                                 Event::AdvanceStateQueue(_, _) => {}
                             }
                         }
                         Err(arg) => {
                             crate::log_heartbeat!(error, "Error at kafka log receiver : {:?}", arg);
+                            kafka_reconnect_attempt += 1;
+                            if kafka_reconnect_attempt > 20 {
+                                return Err(arg.to_string());
+                            }
+                            thread::sleep(std::time::Duration::from_millis(1000));
                         }
                     }
                 }
@@ -1269,8 +1146,10 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             // add field of Trader order db
             load_trader_data.sequence = snapshot_data.orderdb_traderorder.sequence.clone();
             load_trader_data.nonce = snapshot_data.orderdb_traderorder.nonce.clone();
-            load_trader_data.aggrigate_log_sequence =
-                snapshot_data.orderdb_traderorder.aggrigate_log_sequence.clone();
+            load_trader_data.aggrigate_log_sequence = snapshot_data
+                .orderdb_traderorder
+                .aggrigate_log_sequence
+                .clone();
             load_trader_data.last_snapshot_id =
                 snapshot_data.orderdb_traderorder.last_snapshot_id.clone();
             load_trader_data.zkos_msg = snapshot_data.orderdb_traderorder.zkos_msg.clone();
@@ -1280,8 +1159,10 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             // add field of Lend order db
             load_lend_data.sequence = snapshot_data.orderdb_lendorder.sequence.clone();
             load_lend_data.nonce = snapshot_data.orderdb_lendorder.nonce.clone();
-            load_lend_data.aggrigate_log_sequence =
-                snapshot_data.orderdb_lendorder.aggrigate_log_sequence.clone();
+            load_lend_data.aggrigate_log_sequence = snapshot_data
+                .orderdb_lendorder
+                .aggrigate_log_sequence
+                .clone();
             load_lend_data.last_snapshot_id =
                 snapshot_data.orderdb_lendorder.last_snapshot_id.clone();
             load_lend_data.zkos_msg = snapshot_data.orderdb_lendorder.zkos_msg.clone();
@@ -1292,60 +1173,48 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             let traderorder_hashmap = snapshot_data.orderdb_traderorder.ordertable.clone();
             let lendorder_hashmap = snapshot_data.orderdb_lendorder.ordertable.clone();
 
-            let trader_order_handle = match
-                thread::Builder
-                    ::new()
-                    .name(String::from("trader_order_handle"))
-                    .spawn(move || {
-                        match TRADER_ORDER_DB.lock() {
-                            Ok(mut load_trader_data) => {
-                                for (key, val) in traderorder_hashmap.iter() {
-                                    load_trader_data.ordertable.insert(
-                                        key.clone(),
-                                        Arc::new(RwLock::new(val.clone()))
-                                    );
-                                }
+            let trader_order_handle = match thread::Builder::new()
+                .name(String::from("trader_order_handle"))
+                .spawn(move || {
+                    match TRADER_ORDER_DB.lock() {
+                        Ok(mut load_trader_data) => {
+                            for (key, val) in traderorder_hashmap.iter() {
+                                load_trader_data
+                                    .ordertable
+                                    .insert(key.clone(), Arc::new(RwLock::new(val.clone())));
                             }
-                            Err(arg) => {
-                                crate::log_heartbeat!(
-                                    error,
-                                    "Error locking TRADER_ORDER_DB : {:?}",
-                                    arg
-                                );
-                            }
-                        };
-                    })
-            {
+                        }
+                        Err(arg) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error locking TRADER_ORDER_DB : {:?}",
+                                arg
+                            );
+                        }
+                    };
+                }) {
                 Ok(handle) => handle,
                 Err(arg) => {
                     crate::log_heartbeat!(error, "Error creating trader_order_handle : {:?}", arg);
                     return Err(arg.to_string());
                 }
             };
-            let lend_order_handle = match
-                thread::Builder
-                    ::new()
-                    .name(String::from("lend_order_handle"))
-                    .spawn(move || {
-                        match LEND_ORDER_DB.lock() {
-                            Ok(mut load_lend_data) => {
-                                for (key, val) in lendorder_hashmap.iter() {
-                                    load_lend_data.ordertable.insert(
-                                        key.clone(),
-                                        Arc::new(RwLock::new(val.clone()))
-                                    );
-                                }
+            let lend_order_handle = match thread::Builder::new()
+                .name(String::from("lend_order_handle"))
+                .spawn(move || {
+                    match LEND_ORDER_DB.lock() {
+                        Ok(mut load_lend_data) => {
+                            for (key, val) in lendorder_hashmap.iter() {
+                                load_lend_data
+                                    .ordertable
+                                    .insert(key.clone(), Arc::new(RwLock::new(val.clone())));
                             }
-                            Err(arg) => {
-                                crate::log_heartbeat!(
-                                    error,
-                                    "Error locking LEND_ORDER_DB : {:?}",
-                                    arg
-                                );
-                            }
-                        };
-                    })
-            {
+                        }
+                        Err(arg) => {
+                            crate::log_heartbeat!(error, "Error locking LEND_ORDER_DB : {:?}", arg);
+                        }
+                    };
+                }) {
                 Ok(handle) => handle,
                 Err(arg) => {
                     crate::log_heartbeat!(error, "Error creating lend_order_handle : {:?}", arg);
@@ -1362,28 +1231,38 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             *position_size_log = snapshot_data.position_size_log.clone();
             *load_pool_data = snapshot_data.lendpool_database.clone();
             let current_price = snapshot_data.localdb_hashmap.get("CurrentPrice").clone();
-            set_localdb("CurrentPrice", match current_price {
-                Some(value) => value.clone(),
-                None => 60000.0,
-            });
+            set_localdb(
+                "CurrentPrice",
+                match current_price {
+                    Some(value) => value.clone(),
+                    None => 60000.0,
+                },
+            );
             let funding_rate = snapshot_data.localdb_hashmap.get("FundingRate").clone();
-            set_localdb("FundingRate", match funding_rate {
-                Some(value) => value.clone(),
-                None => 0.0,
-            });
-            let order_filled_on_market = snapshot_data.localdb_hashmap
+            set_localdb(
+                "FundingRate",
+                match funding_rate {
+                    Some(value) => value.clone(),
+                    None => 0.0,
+                },
+            );
+            let order_filled_on_market = snapshot_data
+                .localdb_hashmap
                 .get::<String>(&FeeType::FilledOnMarket.into())
                 .unwrap_or(&0.0)
                 .clone();
-            let order_filled_on_limit = snapshot_data.localdb_hashmap
+            let order_filled_on_limit = snapshot_data
+                .localdb_hashmap
                 .get::<String>(&FeeType::FilledOnLimit.into())
                 .unwrap_or(&0.0)
                 .clone();
-            let order_settled_on_market = snapshot_data.localdb_hashmap
+            let order_settled_on_market = snapshot_data
+                .localdb_hashmap
                 .get::<String>(&FeeType::SettledOnMarket.into())
                 .unwrap_or(&0.0)
                 .clone();
-            let order_settled_on_limit = snapshot_data.localdb_hashmap
+            let order_settled_on_limit = snapshot_data
+                .localdb_hashmap
                 .get::<String>(&FeeType::SettledOnLimit.into())
                 .unwrap_or(&0.0)
                 .clone();
@@ -1409,7 +1288,11 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
         }
 
         Err(arg) => {
-            crate::log_heartbeat!(error, "unable to load data from snapshot \n error: {:?}", arg);
+            crate::log_heartbeat!(
+                error,
+                "unable to load data from snapshot \n error: {:?}",
+                arg
+            );
             return Err(arg.to_string());
         }
     }
@@ -1421,11 +1304,15 @@ fn write_snapshot_atomically(
     encoded: &[u8],
     final_path: &PathBuf,
     tx_consumed: &crossbeam_channel::Sender<(i32, i64)>,
-    offset: (i32, i64)
+    offset: (i32, i64),
 ) -> io::Result<()> {
     // 1. Write to temporary file
     let tmp_path = final_path.with_extension("new");
-    let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&tmp_path)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&tmp_path)?;
     file.write_all(encoded)?;
     file.sync_all()?; // flush file contents
 
