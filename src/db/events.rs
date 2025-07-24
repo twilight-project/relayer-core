@@ -376,10 +376,10 @@ impl Event {
                                                     };
                                                     match sender_clone.send(message) {
                                                         Ok(_) => {}
-                                                        Err(arg) => {
+                                                        Err(_arg) => {
                                                             crate::log_heartbeat!(
                                                                 warn,
-                                                                "Sender Dropped from Snapshot : received last updated event",
+                                                                "Sender Dropped from Snapshot : received last updated event"
                                                             );
                                                             connection_status = false;
                                                             break;

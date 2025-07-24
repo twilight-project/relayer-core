@@ -1,9 +1,7 @@
 use nyks_wallet::zkos_accounts::encrypted_account::KeyManager;
 use twilight_relayer_sdk::address::{Address, AddressType};
-use twilight_relayer_sdk::quisquislib;
 use twilight_relayer_sdk::quisquislib::ristretto::RistrettoPublicKey;
 use twilight_relayer_sdk::quisquislib::ristretto::RistrettoSecretKey;
-// use twilight_relayer_sdk::zkvm;
 use twilight_relayer_sdk::zkvm::zkos_types::Output;
 lazy_static! {
     pub static ref RELAYER_WALLET_SEED: String = std::env::var("RELAYER_WALLET_SEED")
