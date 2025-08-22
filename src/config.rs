@@ -4,10 +4,6 @@
 // use crate::aeronlibmpsc;
 use crate::relayer::{ThreadPool, TraderOrder};
 use mpsc::{channel, Receiver, Sender};
-use parking_lot::ReentrantMutex;
-use r2d2_postgres::postgres::NoTls;
-use r2d2_postgres::PostgresConnectionManager;
-use r2d2_redis::RedisConnectionManager;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;

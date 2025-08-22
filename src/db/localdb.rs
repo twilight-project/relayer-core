@@ -88,7 +88,6 @@ impl PositionSizeLog {
         drop(position_size_log);
     }
     pub fn new() -> Self {
-        // impl to read from redis or event logs
         PositionSizeLog {
             total_short_positionsize: 0.0,
             total_long_positionsize: 0.0,
