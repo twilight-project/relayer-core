@@ -39,7 +39,7 @@ lazy_static! {
 
 
     pub static ref SNAPSHOT_VERSION: String =
-    std::env::var("SnapshotVersion").unwrap_or("v0.1.0".to_string());
+    std::env::var("SNAPSHOT_VERSION").unwrap_or("v0.1.0".to_string());
 
     pub static ref EVENTLOG_VERSION: String =
     std::env::var("EVENTLOG_VERSION").unwrap_or("v0.1.0".to_string());

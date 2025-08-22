@@ -153,6 +153,7 @@ pub fn create_relayer_state_data() -> Result<
                     continue;
                 }
                };
+                let mut kafka_reconnect_attempt = 0;
                 loop {
                     match recever1.recv() {
                         Ok(data) => match data.value.clone() {
@@ -178,7 +179,12 @@ pub fn create_relayer_state_data() -> Result<
                             _ => {}
                         },
                         Err(arg) => {
-                            crate::log_heartbeat!(error, "Error at kafka log receiver : {:?}", arg)
+                            crate::log_heartbeat!(error, "Error at kafka log receiver : {:?}", arg);
+                            kafka_reconnect_attempt += 1;
+                            if kafka_reconnect_attempt > 20 {
+                                return Err(arg.to_string());
+                            }
+                            thread::sleep(std::time::Duration::from_millis(1000));
                         }
                     }
                 }

@@ -1,24 +1,24 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::{ BROKER, EVENTLOG_VERSION };
+use crate::config::{BROKER, EVENTLOG_VERSION};
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
-use crossbeam_channel::{ bounded, unbounded, Receiver, Sender };
+use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use jsonrpc::Request;
-use kafka::consumer::{ Consumer, FetchOffset, GroupOffsetStorage };
+use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
-use kafka::producer::{ Producer, Record, RequiredAcks };
+use kafka::producer::{Producer, Record, RequiredAcks};
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
-use serde_derive::{ Deserialize, Serialize };
+use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::{ Arc, Mutex, RwLock };
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::SystemTime;
-use std::time::{ self, Duration };
-use std::{ fmt, thread };
+use std::time::{self, Duration};
+use std::{fmt, thread};
 use uuid::serde::compact::serialize;
 use uuid::Uuid;
 pub type OffsetCompletion = (i32, i64);
@@ -124,66 +124,65 @@ impl EventKey {
     pub fn event_log_upcast(&mut self, log: String) -> String {
         match &*self.event_version {
             // v0.1.0 is the current version of the event log code example to upgrade the event log version for any struct change in commands
-            "v0.0.0" =>
-                match &*self.event_type {
-                    // "CurrentPriceUpdate" => {
-                    //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                    //     pub enum Eventold {
-                    //         CurrentPriceUpdate(f64, String),
-                    //     }
+            "v0.0.0" => match &*self.event_type {
+                // "CurrentPriceUpdate" => {
+                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                //     pub enum Eventold {
+                //         CurrentPriceUpdate(f64, String),
+                //     }
 
-                    //     // check for enum replacment with vec of value
-                    //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                    //     let Eventold::CurrentPriceUpdate(price, time) = log_der;
-                    //     let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
-                    //     // println!("log:{:?}", log);
-                    //     self.event_version = "v0.1.0".to_string();
-                    //     // println!("self:{:?}", self);
-                    //     return serde_json::to_string(&new_log).unwrap();
-                    // }
-                    // "TxHash" => {
-                    //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                    //     pub enum Eventold {
-                    //         TxHash(
-                    //             Uuid,
-                    //             String,
-                    //             String,
-                    //             OrderType,
-                    //             OrderStatus,
-                    //             String,
-                    //             Option<String>,
-                    //         ),
-                    //     }
-                    //     // check for enum replacment with vec of value
-                    //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                    //     let Eventold::TxHash(
-                    //         order_id,
-                    //         string1,
-                    //         string2,
-                    //         order_type,
-                    //         order_status,
-                    //         string3,
-                    //         option_string,
-                    //     ) = log_der;
-                    //     let new_log = Event::TxHash(
-                    //         order_id,
-                    //         string1.clone(),
-                    //         string2,
-                    //         order_type,
-                    //         order_status,
-                    //         string3,
-                    //         option_string,
-                    //         string1,
-                    //     );
-                    //     // println!("log:{:?}", log);
-                    //     self.event_version = "v0.1.0".to_string();
-                    //     // println!("self:{:?}", self);
-                    //     return serde_json::to_string(&new_log).unwrap();
-                    // }
-                    _ => {
-                        self.event_version = EVENTLOG_VERSION.clone();
-                    }
+                //     // check for enum replacment with vec of value
+                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
+                //     let Eventold::CurrentPriceUpdate(price, time) = log_der;
+                //     let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
+                //     // println!("log:{:?}", log);
+                //     self.event_version = "v0.1.0".to_string();
+                //     // println!("self:{:?}", self);
+                //     return serde_json::to_string(&new_log).unwrap();
+                // }
+                // "TxHash" => {
+                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                //     pub enum Eventold {
+                //         TxHash(
+                //             Uuid,
+                //             String,
+                //             String,
+                //             OrderType,
+                //             OrderStatus,
+                //             String,
+                //             Option<String>,
+                //         ),
+                //     }
+                //     // check for enum replacment with vec of value
+                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
+                //     let Eventold::TxHash(
+                //         order_id,
+                //         string1,
+                //         string2,
+                //         order_type,
+                //         order_status,
+                //         string3,
+                //         option_string,
+                //     ) = log_der;
+                //     let new_log = Event::TxHash(
+                //         order_id,
+                //         string1.clone(),
+                //         string2,
+                //         order_type,
+                //         order_status,
+                //         string3,
+                //         option_string,
+                //         string1,
+                //     );
+                //     // println!("log:{:?}", log);
+                //     self.event_version = "v0.1.0".to_string();
+                //     // println!("self:{:?}", self);
+                //     return serde_json::to_string(&new_log).unwrap();
+                // }
+                _ => {
+                    self.event_version = EVENTLOG_VERSION.clone();
                 }
+            },
             _ => {}
         }
         log
@@ -203,8 +202,25 @@ pub enum Event {
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand),
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
-    TxHash(Uuid, String, String, OrderType, OrderStatus, String, Option<String>, RequestID), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output, RequestID
-    TxHashUpdate(Uuid, String, String, OrderType, OrderStatus, String, Option<String>), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
+    TxHash(
+        Uuid,
+        String,
+        String,
+        OrderType,
+        OrderStatus,
+        String,
+        Option<String>,
+        RequestID,
+    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output, RequestID
+    TxHashUpdate(
+        Uuid,
+        String,
+        String,
+        OrderType,
+        OrderStatus,
+        String,
+        Option<String>,
+    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
     AdvanceStateQueue(Nonce, twilight_relayer_sdk::zkvm::Output),
     FeeUpdate(RelayerCommand, String), //fee data and time
@@ -214,8 +230,8 @@ impl Event {
     pub fn new(event: Event, key: String, topic: String) {
         match KAFKA_EVENT_LOG_THREADPOOL1.lock() {
             Ok(pool) => {
-                pool.execute(move || {
-                    match Event::send_event_to_kafka_queue(event, topic, key) {
+                pool.execute(
+                    move || match Event::send_event_to_kafka_queue(event, topic, key) {
                         Ok(_) => {}
                         Err(e) => {
                             crate::log_heartbeat!(
@@ -224,8 +240,8 @@ impl Event {
                                 e
                             );
                         }
-                    }
-                });
+                    },
+                );
                 drop(pool);
             }
             Err(e) => {
@@ -236,7 +252,7 @@ impl Event {
     pub fn send_event_to_kafka_queue(
         event: Event,
         topic: String,
-        key: String
+        key: String,
     ) -> Result<(), String> {
         // updating the event key and data to send to kafka queue
         let key = EventKey::new(key, event.get_event_type()).to_string_or_default();
@@ -250,23 +266,21 @@ impl Event {
 
         match KAFKA_EVENT_LOG_THREADPOOL2.lock() {
             Ok(pool) => {
-                pool.execute(move || {
-                    match KAFKA_PRODUCER_EVENT.lock() {
-                        Ok(mut kafka_producer) => {
-                            match kafka_producer.send(&Record::from_key_value(&topic, key, data)) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    crate::log_heartbeat!(
-                                        error,
-                                        "Error sending event to Kafka queue: {:?}",
-                                        e
-                                    );
-                                }
+                pool.execute(move || match KAFKA_PRODUCER_EVENT.lock() {
+                    Ok(mut kafka_producer) => {
+                        match kafka_producer.send(&Record::from_key_value(&topic, key, data)) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                crate::log_heartbeat!(
+                                    error,
+                                    "Error sending event to Kafka queue: {:?}",
+                                    e
+                                );
                             }
                         }
-                        Err(e) => {
-                            crate::log_heartbeat!(error, "Error locking Kafka producer: {:?}", e);
-                        }
+                    }
+                    Err(e) => {
+                        crate::log_heartbeat!(error, "Error locking Kafka producer: {:?}", e);
                     }
                 });
             }
@@ -287,7 +301,7 @@ impl Event {
         topic: String,
         group: String,
         fetchoffset: FetchOffset,
-        thread_name: &str
+        thread_name: &str,
     ) -> Result<(Arc<Mutex<Receiver<EventLog>>>, Sender<OffsetCompletion>), KafkaError> {
         let (sender, receiver) = bounded::<EventLog>(10_000);
         let (tx_consumed, rx_consumed) = unbounded::<OffsetCompletion>();
@@ -362,11 +376,10 @@ impl Event {
                                                     };
                                                     match sender_clone.send(message) {
                                                         Ok(_) => {}
-                                                        Err(arg) => {
+                                                        Err(_arg) => {
                                                             crate::log_heartbeat!(
                                                                 warn,
-                                                                "Sender Dropped from Snapshot : {:?}",
-                                                                arg
+                                                                "Sender Dropped from Snapshot : received last updated event"
                                                             );
                                                             connection_status = false;
                                                             break;
