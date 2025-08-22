@@ -1,21 +1,15 @@
-use address::{Address, AddressType};
-use quisquislib::ristretto::RistrettoPublicKey;
-use quisquislib::ristretto::RistrettoSecretKey;
-use relayerwalletlib::zkoswalletlib::keys_management::*;
-use zkvm::zkos_types::Output;
+use nyks_wallet::zkos_accounts::encrypted_account::KeyManager;
+use twilight_relayer_sdk::address::{Address, AddressType};
+use twilight_relayer_sdk::quisquislib::ristretto::RistrettoPublicKey;
+use twilight_relayer_sdk::quisquislib::ristretto::RistrettoSecretKey;
+use twilight_relayer_sdk::zkvm::zkos_types::Output;
 lazy_static! {
-    pub static ref RELAYER_WALLET_IV: String =
-        std::env::var("RELAYER_WALLET_IV").expect("missing environment variable RELAYER_WALLET_IV");
     pub static ref RELAYER_WALLET_SEED: String = std::env::var("RELAYER_WALLET_SEED")
         .expect("missing environment variable RELAYER_WALLET_SEED");
-    pub static ref RELAYER_WALLET_PATH: String = std::env::var("RELAYER_WALLET_PATH")
-        .expect("missing environment variable RELAYER_WALLET_PATH");
-    pub static ref RELAYER_WALLET_PASSWORD: String = std::env::var("RELAYER_WALLET_PASSWORD")
-        .expect("missing environment variable RELAYER_WALLET_PASSWORD");
 }
 
 pub fn last_state_output_string() -> String {
-    let hex: String =  std::env::var("REALYER_INIT_STATE").unwrap_or("0200000002000000010000002a000000000000003138363065656636336564656531303738313738623361646236336539663836393231636161313662358a00000000000000306365303339623237666236323732376138633465343339646631346562356432316333323637346464373731323961643332656230316433373566353364633439326364356563633835343066626434353566316165646536343161653266313234383665636465636265613966346361333138393632336664333865323434336636656337323338010000000000000000c2eb0b000000000000000000000000c6efe4352f217292b29d15dcf643071915652de75119f2f33a5f92255021570c010100000000000000020000000100000000000000400d0300000000000000000000000000e82fcb55c73fea8e4e3ba481a78a458afdcb702a445885fa6d4c74c8a553130b00000000".to_string());
+    let hex: String =  std::env::var("RELAYER_INIT_STATE").unwrap_or("0200000002000000010000002a000000000000003138363065656636336564656531303738313738623361646236336539663836393231636161313662358a00000000000000306365303339623237666236323732376138633465343339646631346562356432316333323637346464373731323961643332656230316433373566353364633439326364356563633835343066626434353566316165646536343161653266313234383665636465636265613966346361333138393632336664333865323434336636656337323338010000000000000000c2eb0b000000000000000000000000c6efe4352f217292b29d15dcf643071915652de75119f2f33a5f92255021570c010100000000000000020000000100000000000000400d0300000000000000000000000000e82fcb55c73fea8e4e3ba481a78a458afdcb702a445885fa6d4c74c8a553130b00000000".to_string());
 
     hex
 }
@@ -31,14 +25,20 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
     let seed = match std::env::var("RELAYER_WALLET_SEED") {
         Ok(seed) => seed,
         Err(_) => {
-            println!("RELAYER_WALLET_SEED is not set, using default seed");
+            crate::log_heartbeat!(error, "RELAYER_WALLET_SEED is not set, using default seed");
             "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
         }
     };
-    let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
-        quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+    let index: u64 = std::env::var("RELAYER_WALLET_SEED_INDEX")
+        .unwrap_or("0".to_string())
+        .parse()
+        .unwrap();
+    // let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
+    //     quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+    let key_manager = KeyManager::from_cosmos_signature(seed.as_bytes());
 
-    contract_owner_sk
+    let secret_key = key_manager.derive_child_key(index);
+    secret_key
 }
 pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
     let contract_owner_address = last_state_output_fixed()
@@ -57,14 +57,11 @@ pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use relayerwalletlib::zkoswalletlib::util::create_output_state_for_trade_lend_order;
-    use zkvm::zkos_types::Output;
-    #[test]
-    fn test_create_wallet() {
-        // init_relayer_wallet();
-    }
+    use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
+    use twilight_relayer_sdk::zkvm::zkos_types::Output;
+
     use curve25519_dalek::scalar::Scalar;
-    use relayerwalletlib::zkoswalletlib::util::get_state_info_from_output_hex;
+    use twilight_relayer_sdk::twilight_client_sdk::util::get_state_info_from_output_hex;
     #[test]
     fn test_get_outputhex_to_output() {
         let tlv_init: f64 = 20048621560.0 / 100000000.0;

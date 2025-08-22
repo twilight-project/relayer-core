@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::EVENTLOG_VERSION;
+use crate::config::{BROKER, EVENTLOG_VERSION};
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use jsonrpc::Request;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
@@ -24,23 +24,20 @@ use uuid::Uuid;
 pub type OffsetCompletion = (i32, i64);
 pub type Nonce = usize;
 lazy_static! {
-    pub static ref GLOBAL_NONCE: Arc<RwLock<usize>> = Arc::new(RwLock::new(0));
-    pub static ref KAFKA_EVENT_LOG_THREADPOOL1: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
-        1,
-        String::from("KAFKA_EVENT_LOG_THREADPOOL2")
-    ));
-    pub static ref KAFKA_EVENT_LOG_THREADPOOL2: Mutex<ThreadPool> = Mutex::new(ThreadPool::new(
-        1,
-        String::from("KAFKA_EVENT_LOG_THREADPOOL2")
-    ));
+    // pub static ref GLOBAL_NONCE: Arc<RwLock<usize>> = Arc::new(RwLock::new(0));
+    pub static ref KAFKA_EVENT_LOG_THREADPOOL1: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(1, String::from("KAFKA_EVENT_LOG_THREADPOOL1"))
+    );
+    pub static ref KAFKA_EVENT_LOG_THREADPOOL2: Mutex<ThreadPool> = Mutex::new(
+        ThreadPool::new(1, String::from("KAFKA_EVENT_LOG_THREADPOOL2"))
+    );
     pub static ref KAFKA_PRODUCER_EVENT: Mutex<Producer> = {
         dotenv::dotenv().expect("Failed loading dotenv");
-        let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
-        let producer = Producer::from_hosts(vec![broker.to_owned()])
+        let producer = Producer::from_hosts(vec![BROKER.to_owned()])
             .with_ack_timeout(Duration::from_secs(3))
             .with_required_acks(RequiredAcks::One)
             .create()
-            .unwrap();
+            .expect("error in creating kafka producer");
         Mutex::new(producer)
     };
 }
@@ -102,7 +99,7 @@ impl EventKey {
         }
     }
 
-    pub fn to_string_or_default(&mut self) -> String {
+    pub fn to_string_or_default(&self) -> String {
         match serde_json::to_string(self) {
             Ok(value) => value,
             Err(_arg) => "".to_string(),
@@ -120,23 +117,14 @@ impl EventKey {
             }
         }
     }
-    pub fn is_upcast(&mut self) -> bool {
-        if self.event_version == EVENTLOG_VERSION.to_string() {
-            false
-        } else {
-            true
-        }
+    pub fn is_upcast(&self) -> bool {
+        &self.event_version != &*EVENTLOG_VERSION
     }
+    // event type casting for load any order kafka logs for different version of event log
     pub fn event_log_upcast(&mut self, log: String) -> String {
-        // println!("evet {:?}", &*self.event_version);
-        // println!("&*self.event_type  {:?}", &*self.event_type);
         match &*self.event_version {
-            "0.0.0" => match &*self.event_type {
-                _ => {
-                    self.event_version = "1.0.0".to_string();
-                }
-            },
-            "1.0.0" => match &*self.event_type {
+            // v0.1.0 is the current version of the event log code example to upgrade the event log version for any struct change in commands
+            "v0.0.0" => match &*self.event_type {
                 // "CurrentPriceUpdate" => {
                 //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
                 //     pub enum Eventold {
@@ -148,51 +136,51 @@ impl EventKey {
                 //     let Eventold::CurrentPriceUpdate(price, time) = log_der;
                 //     let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
                 //     // println!("log:{:?}", log);
-                //     self.event_version = "1.0.1".to_string();
+                //     self.event_version = "v0.1.0".to_string();
                 //     // println!("self:{:?}", self);
                 //     return serde_json::to_string(&new_log).unwrap();
                 // }
-                "TxHash" => {
-                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                    pub enum Eventold {
-                        TxHash(
-                            Uuid,
-                            String,
-                            String,
-                            OrderType,
-                            OrderStatus,
-                            String,
-                            Option<String>,
-                        ),
-                    }
-                    // check for enum replacment with vec of value
-                    let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                    let Eventold::TxHash(
-                        order_id,
-                        string1,
-                        string2,
-                        order_type,
-                        order_status,
-                        string3,
-                        option_string,
-                    ) = log_der;
-                    let new_log = Event::TxHash(
-                        order_id,
-                        string1.clone(),
-                        string2,
-                        order_type,
-                        order_status,
-                        string3,
-                        option_string,
-                        string1,
-                    );
-                    // println!("log:{:?}", log);
-                    self.event_version = "1.0.1".to_string();
-                    // println!("self:{:?}", self);
-                    return serde_json::to_string(&new_log).unwrap();
-                }
+                // "TxHash" => {
+                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                //     pub enum Eventold {
+                //         TxHash(
+                //             Uuid,
+                //             String,
+                //             String,
+                //             OrderType,
+                //             OrderStatus,
+                //             String,
+                //             Option<String>,
+                //         ),
+                //     }
+                //     // check for enum replacment with vec of value
+                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
+                //     let Eventold::TxHash(
+                //         order_id,
+                //         string1,
+                //         string2,
+                //         order_type,
+                //         order_status,
+                //         string3,
+                //         option_string,
+                //     ) = log_der;
+                //     let new_log = Event::TxHash(
+                //         order_id,
+                //         string1.clone(),
+                //         string2,
+                //         order_type,
+                //         order_status,
+                //         string3,
+                //         option_string,
+                //         string1,
+                //     );
+                //     // println!("log:{:?}", log);
+                //     self.event_version = "v0.1.0".to_string();
+                //     // println!("self:{:?}", self);
+                //     return serde_json::to_string(&new_log).unwrap();
+                // }
                 _ => {
-                    self.event_version = "1.0.1".to_string();
+                    self.event_version = EVENTLOG_VERSION.clone();
                 }
             },
             _ => {}
@@ -234,61 +222,79 @@ pub enum Event {
         Option<String>,
     ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
     Stop(String),
-    AdvanceStateQueue(Nonce, zkvm::Output),
+    AdvanceStateQueue(Nonce, twilight_relayer_sdk::zkvm::Output),
     FeeUpdate(RelayerCommand, String), //fee data and time
 }
 
-// impl fmt::Display for Event {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             Event::TraderOrder(..) => write!(f, "TraderOrder"),
-//             Event::TraderOrderUpdate(..) => write!(f, "macOTraderOrderUpdateS"),
-//             Event::TraderOrderFundingUpdate(..) => write!(f, "TraderOrderFundingUpdate"),
-//             Event::TraderOrderLiquidation(..) => write!(f, "TraderOrderLiquidation"),
-//             Event::LendOrder(..) => write!(f, "LendOrder"),
-//             Event::PoolUpdate(..) => write!(f, "PoolUpdate"),
-//             Event::FundingRateUpdate(..) => write!(f, "FundingRateUpdate"),
-//             Event::CurrentPriceUpdate(..) => write!(f, "CurrentPriceUpdate"),
-//             Event::SortedSetDBUpdate(..) => write!(f, "SortedSetDBUpdate"),
-//             Event::PositionSizeLogDBUpdate(..) => write!(f, "PositionSizeLogDBUpdate"),
-//             Event::TxHash(..) => write!(f, "TxHash"),
-//             Event::Stop(..) => write!(f, "Stop"),
-//         }
-//     }
-// }
-
-use stopwatch::Stopwatch;
 impl Event {
-    pub fn new(event: Event, key: String, topic: String) -> Self {
-        let event_clone = event.clone();
-        let pool = KAFKA_EVENT_LOG_THREADPOOL1.lock().unwrap();
-        pool.execute(move || {
-            // match event_clone {
-            //     Event::CurrentPriceUpdate(..) => {}
-            //     _ => {
-            //         println!("{:#?}", event_clone);
-            //     }
-            // }
-            Event::send_event_to_kafka_queue(event_clone, topic, key);
-        });
-        drop(pool);
-        event
+    pub fn new(event: Event, key: String, topic: String) {
+        match KAFKA_EVENT_LOG_THREADPOOL1.lock() {
+            Ok(pool) => {
+                pool.execute(
+                    move || match Event::send_event_to_kafka_queue(event, topic, key) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error sending event to Kafka queue: {:?}",
+                                e
+                            );
+                        }
+                    },
+                );
+                drop(pool);
+            }
+            Err(e) => {
+                crate::log_heartbeat!(error, "Error locking Kafka event log thread pool: {:?}", e);
+            }
+        }
     }
-    pub fn send_event_to_kafka_queue(event: Event, topic: String, key: String) {
-        // let sw = Stopwatch::start_new();
+    pub fn send_event_to_kafka_queue(
+        event: Event,
+        topic: String,
+        key: String,
+    ) -> Result<(), String> {
+        // updating the event key and data to send to kafka queue
         let key = EventKey::new(key, event.get_event_type()).to_string_or_default();
-        let data = serde_json::to_vec(&event).unwrap();
-        let pool = KAFKA_EVENT_LOG_THREADPOOL2.lock().unwrap();
-        pool.execute(move || {
-            let mut kafka_producer = KAFKA_PRODUCER_EVENT.lock().unwrap();
-            kafka_producer
-                .send(&Record::from_key_value(&topic, key, data))
-                .unwrap();
-            drop(kafka_producer);
-        });
-        drop(pool);
-        // let time1 = sw.elapsed();
-        // println!("kafka msg send time: {:#?}", time1);
+        let data = match serde_json::to_vec(&event) {
+            Ok(data) => data,
+            Err(e) => {
+                crate::log_heartbeat!(error, "Error serializing event: {:?}", e);
+                return Err(e.to_string());
+            }
+        };
+
+        match KAFKA_EVENT_LOG_THREADPOOL2.lock() {
+            Ok(pool) => {
+                pool.execute(move || match KAFKA_PRODUCER_EVENT.lock() {
+                    Ok(mut kafka_producer) => {
+                        match kafka_producer.send(&Record::from_key_value(&topic, key, data)) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                crate::log_heartbeat!(
+                                    error,
+                                    "Error sending event to Kafka queue: {:?}",
+                                    e
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        crate::log_heartbeat!(error, "Error locking Kafka producer: {:?}", e);
+                    }
+                });
+            }
+            Err(e) => {
+                crate::log_heartbeat!(
+                    error,
+                    "Error locking Kafka producer event log thread pool: {:?}",
+                    e
+                );
+                return Err(e.to_string());
+            }
+        }
+
+        Ok(())
     }
 
     pub fn receive_event_for_snapshot_from_kafka_queue(
@@ -297,111 +303,160 @@ impl Event {
         fetchoffset: FetchOffset,
         thread_name: &str,
     ) -> Result<(Arc<Mutex<Receiver<EventLog>>>, Sender<OffsetCompletion>), KafkaError> {
-        let (sender, receiver) = unbounded();
+        let (sender, receiver) = bounded::<EventLog>(10_000);
         let (tx_consumed, rx_consumed) = unbounded::<OffsetCompletion>();
         // let _topic_clone = topic.clone();
-        let _handle = thread::Builder::new()
-            .name(String::from(thread_name))
-            .spawn(move || {
-                let broker = vec![std::env::var("BROKER")
-                    .expect("missing environment variable BROKER")
-                    .to_owned()];
-                let mut con = Consumer::from_hosts(broker)
-                    // .with_topic(topic)
-                    .with_group(group)
-                    .with_topic_partitions(topic.clone(), &[0])
-                    .with_fallback_offset(fetchoffset)
-                    .with_offset_storage(GroupOffsetStorage::Kafka)
-                    .create()
-                    .unwrap();
-                let mut connection_status = true;
-                let _partition: i32 = 0;
-                while connection_status {
-                    let sender_clone = sender.clone();
-                    let mss = con.poll().unwrap();
-                    if mss.is_empty() {
-                        // println!("No messages available right now.");
-                        // return Ok(());
-                    } else {
-                        for ms in mss.iter() {
-                            for m in ms.messages() {
-                                let mut eventkey = EventKey::from_string_or_deafault(
-                                    String::from_utf8_lossy(&m.key).to_string(),
-                                );
-                                let mut value = String::from_utf8_lossy(&m.value).to_string();
-                                while eventkey.is_upcast() {
-                                    value = eventkey.event_log_upcast(value);
-                                }
-                                let value = match serde_json::from_str(&value) {
-                                    Ok(ser_value) => ser_value,
-                                    Err(arg) => {
-                                        eprintln!("Error in event log snapshot : {:?}", arg);
-                                        let _ = con.consume_message(&topic, 0, m.offset);
-                                        continue;
-                                    }
-                                };
-                                let message = EventLog {
-                                    offset: m.offset,
-                                    key: String::from_utf8_lossy(&m.key).to_string(),
-                                    value: value,
-                                    partition: ms.partition(),
-                                };
-                                match sender_clone.send(message) {
-                                    Ok(_) => {
-                                        // let _ = con.consume_message(&topic_clone, partition, m.offset);
-                                        // println!("Im here");
-                                        // let _ = con.consume_message(&topic, 0, m.offset);
-                                    }
-                                    Err(_arg) => {
-                                        // println!("Closing Kafka Consumer Connection : {:#?}", arg);
-                                        connection_status = false;
-                                        break;
-                                    }
-                                }
-                            }
-                            if connection_status == false {
-                                break;
-                            }
-                            // let _ = con.consume_messageset(ms);
-                        }
-                        // con.commit_consumed().unwrap();
-                    }
-                    while !rx_consumed.is_empty() || !connection_status {
-                        match rx_consumed.recv() {
-                            Ok((partition, offset)) => {
-                                let e = con.consume_message(&topic, partition, offset);
+        let _handle = match
+            thread::Builder
+                ::new()
+                .name(String::from(thread_name))
+                .spawn(move || {
+                    let broker = vec![
+                        std::env
+                            ::var("BROKER")
+                            .unwrap_or_else(|_| "localhost:9092".to_string())
+                            .to_owned()
+                    ];
+                    match
+                        Consumer::from_hosts(broker)
+                            // .with_topic(topic)
+                            .with_group(group)
+                            .with_topic_partitions(topic.clone(), &[0])
+                            .with_fallback_offset(fetchoffset)
+                            .with_offset_storage(GroupOffsetStorage::Kafka)
+                            .create()
+                    {
+                        Ok(mut con) => {
+                            let mut connection_status = true;
+                            let _partition: i32 = 0;
+                            while connection_status {
+                                let sender_clone = sender.clone();
+                                match con.poll() {
+                                    Ok(mss) => {
+                                        if mss.is_empty() {
+                                            // println!("No messages available right now.");
+                                            // return Ok(());
+                                        } else {
+                                            for ms in mss.iter() {
+                                                for m in ms.messages() {
+                                                    let mut eventkey =
+                                                        EventKey::from_string_or_deafault(
+                                                            String::from_utf8_lossy(
+                                                                &m.key
+                                                            ).to_string()
+                                                        );
+                                                    let mut value = String::from_utf8_lossy(
+                                                        &m.value
+                                                    ).to_string();
+                                                    while eventkey.is_upcast() {
+                                                        value = eventkey.event_log_upcast(value);
+                                                    }
+                                                    let value = match serde_json::from_str(&value) {
+                                                        Ok(ser_value) => ser_value,
+                                                        Err(arg) => {
+                                                            crate::log_heartbeat!(
+                                                                error,
+                                                                "Error in event log snapshot for upcasting event: {:?}",
+                                                                arg
+                                                            );
+                                                            crate::log_heartbeat!(
+                                                                warn,
+                                                                "skipping currupted log"
+                                                            );
+                                                            continue;
+                                                        }
+                                                    };
+                                                    let message = EventLog {
+                                                        offset: m.offset,
+                                                        key: String::from_utf8_lossy(
+                                                            &m.key
+                                                        ).to_string(),
+                                                        value: value,
+                                                        partition: ms.partition(),
+                                                    };
+                                                    match sender_clone.send(message) {
+                                                        Ok(_) => {}
+                                                        Err(_arg) => {
+                                                            crate::log_heartbeat!(
+                                                                warn,
+                                                                "Sender Dropped from Snapshot : received last updated event"
+                                                            );
+                                                            connection_status = false;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                if connection_status == false {
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if !connection_status {
+                                            match rx_consumed.recv() {
+                                                Ok((partition, offset)) => {
+                                                    let e = con.consume_message(
+                                                        &topic,
+                                                        partition,
+                                                        offset
+                                                    );
 
-                                if e.is_err() {
-                                    println!("Kafka connection failed {:?}", e);
-                                    connection_status = false;
-                                    break;
-                                }
+                                                    if e.is_err() {
+                                                        crate::log_heartbeat!(
+                                                            error,
+                                                            "Kafka connection failed {:?}",
+                                                            e
+                                                        );
+                                                        // connection_status = false;
+                                                        break;
+                                                    }
 
-                                let e = con.commit_consumed();
-                                if e.is_err() {
-                                    println!("Kafka connection failed {:?}", e);
-                                    connection_status = false;
-                                    break;
+                                                    let e = con.commit_consumed();
+                                                    if e.is_err() {
+                                                        crate::log_heartbeat!(
+                                                            error,
+                                                            "Kafka connection failed {:?}",
+                                                            e
+                                                        );
+                                                        // connection_status = false;
+                                                        break;
+                                                    }
+                                                    // connection_status = false;
+                                                    break;
+                                                }
+                                                Err(_e) => {
+                                                    // connection_status = false;
+                                                    crate::log_heartbeat!(
+                                                        error,
+                                                        "The consumed channel is closed: {:?}",
+                                                        thread::current().name()
+                                                    );
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        crate::log_heartbeat!(warn, "Kafka poll error: {:?}", e);
+                                        std::thread::sleep(Duration::from_secs(1));
+                                    }
                                 }
-                                connection_status = false;
-                                break;
                             }
-                            Err(_e) => {
-                                connection_status = false;
-                                println!(
-                                    "The consumed channel is closed: {:?}",
-                                    thread::current().name()
-                                );
-                                break;
-                            }
+                            thread::sleep(time::Duration::from_millis(3000));
+                        }
+                        Err(e) => {
+                            crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
+                            drop(sender);
+                            return;
                         }
                     }
-                }
-                thread::sleep(time::Duration::from_millis(3000));
-                // con.commit_consumed().unwrap();
-                // thread::park();
-            })
-            .unwrap();
+                })
+        {
+            Ok(handle) => handle,
+            Err(e) => {
+                crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
+                return Err(e.into());
+            }
+        };
         Ok((Arc::new(Mutex::new(receiver)), tx_consumed))
     }
 

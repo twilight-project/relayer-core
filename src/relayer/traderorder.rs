@@ -66,7 +66,7 @@ impl TraderOrder {
         let mut entryprice = rpc_request.entryprice;
         let execution_price = rpc_request.execution_price;
         let mut fee_percentage: f64 = 0.0;
-        let fee_value: f64;
+        let mut fee_value: f64;
         match order_type {
             OrderType::MARKET => {
                 // entryprice = get_localdb("CurrentPrice");
@@ -97,9 +97,13 @@ impl TraderOrder {
             maintenance_margin,
             initial_margin,
         );
+        if order_status == OrderStatus::PENDING {
+            fee_value = 0.0;
+        }
         available_margin = available_margin - fee_value;
         let uuid_key = Uuid::new_v4();
         let new_account_id;
+
         if String::from(account_id.clone()) == String::from("account_id") {
             new_account_id = uuid_key.to_string();
         } else {
@@ -462,87 +466,6 @@ impl TraderOrder {
         //     timestamp: std::time::SystemTime::now(),
         // });
         -self.initial_margin.clone()
-    }
-
-    //order code for batching
-    pub fn to_hmset_arg_array(self) -> Vec<String> {
-        let mut result_vec: Vec<String> = Vec::new();
-        result_vec.push("uuid".to_string());
-        result_vec.push(self.uuid.to_string());
-        result_vec.push("account_id".to_string());
-        result_vec.push(self.account_id.to_string());
-        result_vec.push("position_type".to_string());
-        result_vec.push(serde_json::to_string(&self.position_type).unwrap());
-        result_vec.push("order_status".to_string());
-        result_vec.push(serde_json::to_string(&self.order_status).unwrap());
-        result_vec.push("order_type".to_string());
-        result_vec.push(serde_json::to_string(&self.order_type).unwrap());
-        result_vec.push("entryprice".to_string());
-        result_vec.push(self.entryprice.to_string());
-        result_vec.push("execution_price".to_string());
-        result_vec.push(self.execution_price.to_string());
-        result_vec.push("positionsize".to_string());
-        result_vec.push(self.positionsize.to_string());
-        result_vec.push("leverage".to_string());
-        result_vec.push(self.leverage.to_string());
-        result_vec.push("initial_margin".to_string());
-        result_vec.push(self.initial_margin.to_string());
-        result_vec.push("available_margin".to_string());
-        result_vec.push(self.available_margin.to_string());
-        result_vec.push("timestamp".to_string());
-        result_vec.push(serde_json::to_string(&self.timestamp).unwrap());
-        result_vec.push("bankruptcy_price".to_string());
-        result_vec.push(self.bankruptcy_price.to_string());
-        result_vec.push("bankruptcy_value".to_string());
-        result_vec.push(self.bankruptcy_value.to_string());
-        result_vec.push("maintenance_margin".to_string());
-        result_vec.push(self.maintenance_margin.to_string());
-        result_vec.push("liquidation_price".to_string());
-        result_vec.push(self.liquidation_price.to_string());
-        result_vec.push("unrealized_pnl".to_string());
-        result_vec.push(self.unrealized_pnl.to_string());
-        result_vec.push("settlement_price".to_string());
-        result_vec.push(self.settlement_price.to_string());
-        result_vec.push("entry_nonce".to_string());
-        result_vec.push(self.entry_nonce.to_string());
-        result_vec.push("exit_nonce".to_string());
-        result_vec.push(self.exit_nonce.to_string());
-        result_vec.push("entry_sequence".to_string());
-        result_vec.push(self.entry_sequence.to_string());
-        result_vec.push("fee_filled".to_string());
-        result_vec.push(self.fee_filled.to_string());
-        result_vec.push("fee_settled".to_string());
-        result_vec.push(self.fee_settled.to_string());
-
-        return result_vec;
-    }
-
-    pub fn from_hgetll_trader_order(json_str: Vec<String>) -> Result<Self, std::io::Error> {
-        Ok(TraderOrder {
-            uuid: serde_json::from_str(&json_str[1]).unwrap(),
-            account_id: serde_json::from_str(&json_str[3]).unwrap(),
-            position_type: serde_json::from_str(&json_str[5]).unwrap(),
-            order_status: serde_json::from_str(&json_str[7]).unwrap(),
-            order_type: serde_json::from_str(&json_str[9]).unwrap(),
-            entryprice: serde_json::from_str(&json_str[11]).unwrap(),
-            execution_price: serde_json::from_str(&json_str[13]).unwrap(),
-            positionsize: serde_json::from_str(&json_str[15]).unwrap(),
-            leverage: serde_json::from_str(&json_str[17]).unwrap(),
-            initial_margin: serde_json::from_str(&json_str[19]).unwrap(),
-            available_margin: serde_json::from_str(&json_str[21]).unwrap(),
-            timestamp: serde_json::from_str(&json_str[23]).unwrap(),
-            bankruptcy_price: serde_json::from_str(&json_str[25]).unwrap(),
-            bankruptcy_value: serde_json::from_str(&json_str[27]).unwrap(),
-            maintenance_margin: serde_json::from_str(&json_str[29]).unwrap(),
-            liquidation_price: serde_json::from_str(&json_str[31]).unwrap(),
-            unrealized_pnl: serde_json::from_str(&json_str[33]).unwrap(),
-            settlement_price: serde_json::from_str(&json_str[35]).unwrap(),
-            entry_nonce: serde_json::from_str(&json_str[37]).unwrap(),
-            exit_nonce: serde_json::from_str(&json_str[39]).unwrap(),
-            entry_sequence: serde_json::from_str(&json_str[41]).unwrap(),
-            fee_filled: serde_json::from_str(&json_str[43]).unwrap(),
-            fee_settled: serde_json::from_str(&json_str[45]).unwrap(),
-        })
     }
 
     pub fn serialize(&self) -> String {

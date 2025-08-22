@@ -9,7 +9,6 @@ use bincode;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
-use relayerwalletlib::zkoswalletlib::util::get_state_info_from_output_hex;
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
@@ -19,7 +18,9 @@ use std::fs;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
-use utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::twilight_client_sdk::util::get_state_info_from_output_hex;
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::zkvm;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +68,7 @@ impl RelayerState {
         let nonce = lendpool.nonce;
         let mut latest_nonce = 0;
 
-        match relayerwalletlib::zkoswalletlib::chain::get_utxo_details_by_address(
+        match twilight_relayer_sdk::twilight_client_sdk::chain::get_utxo_details_by_address(
             account_id.clone(),
             zkvm::IOType::State,
         ) {
@@ -82,7 +83,11 @@ impl RelayerState {
             }
             Err(arg) => {
                 // flag_chain_update = false;
-                println!("Failed to get latest state from chain \n Error:{:?}", arg);
+                crate::log_heartbeat!(
+                    error,
+                    "Failed to get latest state from chain \n Error:{:?}",
+                    arg
+                );
             }
         }
         if nonce == latest_nonce {
@@ -121,7 +126,7 @@ pub fn create_relayer_state_data() -> Result<
     let time = ServerTime::now().epoch;
     let event_stoper_string = format!("snapsot-start-{}", time);
     let eventstop: Event = Event::Stop(event_stoper_string.clone());
-    Event::send_event_to_kafka_queue(
+    let _ = Event::send_event_to_kafka_queue(
         eventstop.clone(),
         RELAYER_STATE_QUEUE.clone().to_string(),
         String::from("StopLoadMSG"),
@@ -144,25 +149,24 @@ pub fn create_relayer_state_data() -> Result<
                 Ok(rec_lock)=>{rec_lock}
                 Err(arg)=>{
                     retry_attempt+=1;
-                    println!("unable to lock the kafka log receiver :{:?}",arg);
+                    crate::log_heartbeat!(error, "unable to lock the kafka log receiver :{:?}",arg);
                     continue;
                 }
                };
+                let mut kafka_reconnect_attempt = 0;
                 loop {
                     match recever1.recv() {
                         Ok(data) => match data.value.clone() {
                             Event::Stop(timex) => {
-                                // println!("data:{:?}\n", data);
-                                // println!("timex:{:?}", timex);
-                                // println!("event_stoper_string:{:?}", event_stoper_string);
                                 if timex == event_stoper_string {
-                                    println!("exiting from consumer as received stop cmd");
-                                    // event_offset_partition = (data.partition, data.offset);
+                                    crate::log_heartbeat!(
+                                        debug,
+                                        "exiting from consumer as received stop cmd"
+                                    );
                                     break;
                                 }
                             }
                             Event::AdvanceStateQueue(_nonce, output) => {
-                                // println!("data:{:?}\n", data);
                                 let _ = relayer_state_db.insert(
                                     match output.as_out_state() {
                                         Some(state) => state.nonce.clone() as usize,
@@ -172,20 +176,27 @@ pub fn create_relayer_state_data() -> Result<
                                 );
                                 event_offset_partition = (data.partition, data.offset);
                             }
-                            _ => {
-                                // println!("data:{:?}\n", data);
-                            }
+                            _ => {}
                         },
-                        Err(arg) => println!("Error at kafka log receiver : {:?}", arg),
+                        Err(arg) => {
+                            crate::log_heartbeat!(error, "Error at kafka log receiver : {:?}", arg);
+                            kafka_reconnect_attempt += 1;
+                            if kafka_reconnect_attempt > 20 {
+                                return Err(arg.to_string());
+                            }
+                            thread::sleep(std::time::Duration::from_millis(1000));
+                        }
                     }
                 }
 
                 return Ok((relayer_state_db, tx_consumed, event_offset_partition));
             }
             Err(arg) => {
-                println!(
+                crate::log_heartbeat!(
+                    error,
                     "Failed to connect to kafka with error :{:?}\n attempt:{}",
-                    arg, retry_attempt
+                    arg,
+                    retry_attempt
                 );
                 retry_attempt += 1;
                 if retry_attempt == 5 {
@@ -209,11 +220,12 @@ pub fn load_relayer_latest_state() {
             match tx_consumed.send((partition, offset)) {
                 Ok(_) => {}
                 Err(arg) => {
-                    println!("unable to send completion offset :{:?}", arg);
+                    crate::log_heartbeat!(error, "unable to send completion offset :{:?}", arg);
                 }
             }
         }
-        Err(arg) => println!(
+        Err(arg) => crate::log_heartbeat!(
+            error,
             "unable to update relayer latest update due to Error:{:?}",
             arg
         ),

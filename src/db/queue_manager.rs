@@ -2,18 +2,19 @@
 #![allow(unused_imports)]
 use crate::config::*;
 use crate::db::*;
+use crate::relayer::relayer_command_handler::relayer_event_handler;
 use crate::relayer::*;
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
-use serde_derive::{Deserialize, Serialize};
+use serde_derive::{ Deserialize, Serialize };
 use std::collections::VecDeque;
-use std::collections::{HashMap, HashSet};
+use std::collections::{ HashMap, HashSet };
 use std::fs;
-use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::sync::{ mpsc, Arc, Mutex, RwLock };
 use std::thread;
 use std::time;
 use std::time::SystemTime;
-use utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,7 +85,7 @@ impl QueueState {
         &mut self,
         pending_short_db: &mut SortedSet,
         pending_long_db: &mut SortedSet,
-        price: f64,
+        price: f64
     ) {
         let short_id_list: Vec<Uuid> = pending_short_db.search_lt((price * 10000.0) as i64);
         let long_id_list: Vec<Uuid> = pending_long_db.search_gt((price * 10000.0) as i64);
@@ -101,7 +102,7 @@ impl QueueState {
         &mut self,
         pending_short_db: &mut SortedSet,
         pending_long_db: &mut SortedSet,
-        price: f64,
+        price: f64
     ) {
         let short_id_list: Vec<Uuid> = pending_short_db.search_gt((price * 10000.0) as i64);
         let long_id_list: Vec<Uuid> = pending_long_db.search_lt((price * 10000.0) as i64);
@@ -118,7 +119,7 @@ impl QueueState {
         &mut self,
         pending_short_db: &mut SortedSet,
         pending_long_db: &mut SortedSet,
-        price: f64,
+        price: f64
     ) {
         let short_id_list: Vec<Uuid> = pending_short_db.search_lt((price * 10000.0) as i64);
         let long_id_list: Vec<Uuid> = pending_long_db.search_gt((price * 10000.0) as i64);
@@ -131,8 +132,9 @@ impl QueueState {
             }
         }
     }
-    pub fn bulk_remove_queue(&mut self) {
-        println!(
+    pub fn bulk_remove_queue(&mut self, orderdb_traderorder: &OrderDBSnapShotTO) {
+        crate::log_heartbeat!(
+            debug,
             "Before \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
@@ -165,7 +167,58 @@ impl QueueState {
                 None => self.to_settle_remove.push(order_id),
             }
         }
-        println!(
+        let to_fill = self.to_fill.clone();
+        let to_settle = self.to_settle.clone();
+        let to_liquidate = self.to_liquidate.clone();
+
+        for (order_id, _) in to_fill {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::PENDING {
+                    } else {
+                        self.to_fill_remove.push(order_id);
+                        self.to_fill.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_fill_remove.push(order_id);
+                    self.to_fill.remove(&order_id);
+                }
+            }
+        }
+        for (order_id, _) in to_settle {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::FILLED {
+                    } else {
+                        self.to_settle_remove.push(order_id);
+                        self.to_settle.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_settle_remove.push(order_id);
+                    self.to_settle.remove(&order_id);
+                }
+            }
+        }
+        for (order_id, _) in to_liquidate {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::FILLED {
+                    } else {
+                        self.to_liquidate_remove.push(order_id);
+                        self.to_liquidate.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_liquidate_remove.push(order_id);
+                    self.to_liquidate.remove(&order_id);
+                }
+            }
+        }
+
+        crate::log_heartbeat!(
+            debug,
             "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
@@ -181,11 +234,12 @@ impl QueueState {
 
     pub fn process_queue(&mut self) {
         // let mut to_fill = self.to_fill;
-        println!(
+        crate::log_heartbeat!(
+            debug,
             "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_liquidate : {:?}",
             self.to_fill.len(),
             self.to_settle.len(),
-            self.to_liquidate.len(),
+            self.to_liquidate.len()
         );
 
         for (order_id, price) in self.to_fill.clone() {
@@ -194,7 +248,7 @@ impl QueueState {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(ServerTime::now().epoch),
+                        Some(ServerTime::now().epoch)
                     );
                     hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
                     hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
@@ -202,11 +256,9 @@ impl QueueState {
                 },
             };
 
-            relayer_event_handler(RelayerCommand::PriceTickerOrderFill(
-                vec![order_id],
-                meta,
-                price,
-            ));
+            relayer_event_handler(
+                RelayerCommand::PriceTickerOrderFill(vec![order_id], meta, price)
+            );
         }
         for (order_id, price) in self.to_liquidate.clone() {
             let meta = Meta {
@@ -214,7 +266,7 @@ impl QueueState {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(ServerTime::now().epoch),
+                        Some(ServerTime::now().epoch)
                     );
                     hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
                     hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
@@ -222,11 +274,9 @@ impl QueueState {
                 },
             };
 
-            relayer_event_handler(RelayerCommand::PriceTickerLiquidation(
-                vec![order_id],
-                meta,
-                price,
-            ));
+            relayer_event_handler(
+                RelayerCommand::PriceTickerLiquidation(vec![order_id], meta, price)
+            );
         }
         for (order_id, price) in self.to_settle.clone() {
             let meta = Meta {
@@ -234,7 +284,7 @@ impl QueueState {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(ServerTime::now().epoch),
+                        Some(ServerTime::now().epoch)
                     );
                     hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
                     hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
@@ -242,11 +292,32 @@ impl QueueState {
                 },
             };
 
-            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
-                vec![order_id],
-                meta,
-                price,
-            ));
+            relayer_event_handler(
+                RelayerCommand::PriceTickerOrderSettle(vec![order_id], meta, price)
+            );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hashmap_get() {
+        let mut hashmap = HashMap::new();
+        hashmap.insert(String::from("key1"), Some("value1".to_string()));
+        hashmap.insert(String::from("key2"), Some("value2".to_string()));
+
+        // Test getting existing key
+        assert_eq!(hashmap.get("key1"), Some(&Some("value1".to_string())));
+        assert_eq!(hashmap.get("key1"), Some(&Some("value1".to_string())));
+        println!("hashmap.get(\"key1\") = {:?}", hashmap.get("key1"));
+        // Test getting non-existent key
+        assert_eq!(hashmap.get("key3"), None);
+
+        // Test getting after removing key
+        hashmap.remove("key1");
+        assert_eq!(hashmap.get("key1"), None);
     }
 }

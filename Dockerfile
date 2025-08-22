@@ -1,29 +1,23 @@
-FROM rust 
+FROM rust as builder
 RUN USER=root apt-get update && \
     apt-get -y upgrade && \
     apt-get -y install git curl g++ build-essential libssl-dev pkg-config && \
     apt-get -y install software-properties-common && \
-    apt-get update 
+    apt-get update
 
-RUN USER=root cargo new --bin twilight-relayer-rust
-RUN cd ./twilight-relayer-rust
-WORKDIR /twilight-relayer-rust
+RUN git clone -b develop https://github.com/twilight-project/relayer-core.git
+WORKDIR /relayer-core
 
-COPY ./Cargo.toml ./Cargo.toml
+RUN cargo build --release 
 
-# this build step will cache your dependencies
-RUN cargo run
-RUN rm src/*.rs
+FROM rust
+RUN apt-get update && apt-get install -y ca-certificates curl libpq-dev libssl-dev
+EXPOSE 3031
 
-# copy your source tree
-COPY ./src ./src
-COPY ./.env ./.env
-
-
-# RUN cargo build --release
-# WORKDIR /twilight-relayer-rust
-EXPOSE 3030
-# COPY ./.env ./.env
-# RUN cargo run
-# ENTRYPOINT ["/usr/local/bin/aeronmd"]
-CMD ["cargo", "run"]
+WORKDIR /app
+COPY --from=builder ./relayer-core/target/release/main ./
+COPY --from=builder ./relayer-core/target/release/main.d ./
+COPY ./.env .env
+COPY ./relayerprogram.json ./relayerprogram.json
+COPY ./wallet.txt ./wallet.txt
+ENTRYPOINT ["/app/main"]

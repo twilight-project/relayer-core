@@ -8,20 +8,20 @@ use curve25519_dalek::scalar::Scalar;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
-use relayerwalletlib::zkoswalletlib::relayer_rpcclient::method::RequestResponse;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::SystemTime;
+use twilight_relayer_sdk::twilight_client_sdk::relayer_rpcclient::method::RequestResponse;
+use twilight_relayer_sdk::zkvm::Output;
 use uuid::Uuid;
-use zkvm::Output;
 type Payment = f64;
 type Deposit = f64;
 type Withdraw = f64;
 type PoolLockError = i128;
 type Nonce = usize;
-use relayerwalletlib::zkoswalletlib::util::{
+use twilight_relayer_sdk::twilight_client_sdk::util::{
     create_output_state_for_trade_lend_order, get_state_info_from_output_hex,
 };
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -217,10 +217,10 @@ impl LendPool {
             lendpool.clone(),
             nonce_init as usize,
         );
-        let _pool_event_execute = Event::new(
+        Event::new(
             pool_event,
             String::from("Initiate_Lend_Pool"),
-            LENDPOOL_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
         );
         lendpool
     }
@@ -231,15 +231,15 @@ impl LendPool {
 
         let time = ServerTime::now().epoch;
         let eventstop: Event = Event::Stop(time.clone());
-        Event::send_event_to_kafka_queue(
+        let _ = Event::send_event_to_kafka_queue(
             eventstop.clone(),
-            LENDPOOL_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
             String::from("StopLoadMSG"),
         );
         let mut stop_signal: bool = true;
 
         let (recever, tx_consumed) = Event::receive_event_for_snapshot_from_kafka_queue(
-            LENDPOOL_EVENT_LOG.clone().to_string(),
+            CORE_EVENT_LOG.clone().to_string(),
             ServerTime::now().epoch,
             FetchOffset::Earliest,
             "lendpool kafka thread",
@@ -335,13 +335,16 @@ impl LendPool {
     }
 
     pub fn check_backup() -> Self {
-        println!("Loading LendPool Database ....");
+        crate::log_heartbeat!(info, "Loading LendPool Database ....");
         let (old_data, database): (bool, LendPool) = LendPool::load_data();
         if old_data {
-            println!("LendPool Database Loaded ....");
+            crate::log_heartbeat!(info, "LendPool Database Loaded ....");
             database
         } else {
-            println!("No old LendPool Database found ....\nCreating new database");
+            crate::log_heartbeat!(
+                info,
+                "No old LendPool Database found ....\nCreating new database"
+            );
             LendPool::new()
         }
     }
@@ -376,7 +379,7 @@ impl LendPool {
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from("AddTraderOrderSettlement"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
                 //skip batch process code
@@ -400,7 +403,7 @@ impl LendPool {
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from("AddTraderLimitOrderSettlement"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
                 //skip batch process code
@@ -424,7 +427,7 @@ impl LendPool {
                 Event::new(
                     Event::PoolUpdate(command_clone, self.clone(), self.aggrigate_log_sequence),
                     String::from(format!("AddTraderOrderLiquidation-{}", trader_order.uuid)),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 // check pending order length
                 //skip batch process code
@@ -470,7 +473,7 @@ impl LendPool {
                         self.aggrigate_log_sequence,
                     ),
                     String::from("LendOrderCreateOrder"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 lendorder_db.add(lend_order.clone(), rpc_request.clone());
@@ -511,7 +514,7 @@ impl LendPool {
                         self.aggrigate_log_sequence,
                     ),
                     String::from("LendOrderSettleOrder"),
-                    LENDPOOL_EVENT_LOG.clone().to_string(),
+                    CORE_EVENT_LOG.clone().to_string(),
                 );
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 let _ = lendorder_db.remove(lend_order.clone(), rpc_request.clone());
@@ -528,7 +531,7 @@ impl LendPool {
                     // // self.event_log.push(Event::new(
                     // //     Event::PoolUpdate(command_clone, self.aggrigate_log_sequence),
                     // //     String::from("FundingCycleDataUpdate"),
-                    // //     LENDPOOL_EVENT_LOG.clone().to_string(),
+                    // //     CORE_EVENT_LOG.clone().to_string(),
                     // // ));
                 }
                 RelayerCommand::RpcCommandPoolupdate() => {
@@ -549,7 +552,6 @@ impl LendPool {
                                     _payment,
                                     next_output_state,
                                 ) => {
-                                    // println!("hey, im here");
                                     order.exit_nonce = self.nonce;
                                     let _ = trader_order_db.remove(order.clone(), rpc_cmd.clone());
 
@@ -625,7 +627,7 @@ impl LendPool {
                                 self.aggrigate_log_sequence,
                             ),
                             String::from(format!("RpcCommandPoolupdate-nonce-{}", self.nonce)),
-                            LENDPOOL_EVENT_LOG.clone().to_string(),
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                     }
                 }

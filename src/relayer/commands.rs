@@ -1,8 +1,9 @@
 use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
+use twilight_relayer_sdk::zkvm;
+use twilight_relayer_sdk::zkvm::Output;
 use uuid::Uuid;
-use zkvm::Output;
 pub type ZkosHexString = String;
 pub type RequestID = String;
 

@@ -28,7 +28,7 @@ use std::process::Command;
 /// Basic usage:
 ///
 /// ```rust,no_run
-///use crate::twilight_relayer_rust::kafkalib::kafka_topic;
+///use crate::relayer_core::kafkalib::kafka_topic;
 /// fn main() {
 ///     kafka_topic::kafka_new_topic("new_topic_name");
 /// }

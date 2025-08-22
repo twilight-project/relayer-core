@@ -22,7 +22,7 @@ use kafka::producer::{Producer, Record, RequiredAcks};
 /// Basic usage:
 ///
 /// ```rust,no_run
-///  use crate::twilight_relayer_rust::kafkalib;
+///  use crate::relayer_core::kafkalib;
 ///
 /// fn main() {
 /// 	let message_data: String = String::from("{\"name\": \"Some name\", \"age\": \"30\", }");
@@ -43,7 +43,7 @@ pub fn produce_main(payload: &String, topic: &str) {
     let data = &payload.as_bytes();
 
     if let Err(e) = produce_message(data, topic, vec![broker.to_owned()]) {
-        println!("Failed producing messages: {}", e);
+        crate::log_heartbeat!(error, "Failed producing messages: {}", e);
     }
 }
 

@@ -11,7 +11,6 @@ use std::time::Duration;
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{delay_for, interval};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tracing::{error, info, warn};
 
 use crate::pricefeederlib::btc_price_feeder;
 
@@ -74,17 +73,19 @@ impl PriceFeeder {
 
     /// Start the price feeding process
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        println!("Starting BTC price feeder...");
+        crate::log_heartbeat!(info, "Starting BTC price feeder...");
 
         loop {
             match self.connect_and_stream().await {
                 Ok(_) => {
-                    println!("WebSocket connection closed normally");
+                    crate::log_price!(debug, "WebSocket connection closed normally");
                 }
                 Err(e) => {
-                    println!(
+                    crate::log_price!(
+                        error,
                         "WebSocket error: {}. Reconnecting in {:?}",
-                        e, self.config.reconnect_delay
+                        e,
+                        self.config.reconnect_delay
                     );
                     delay_for(self.config.reconnect_delay).await;
                 }
@@ -94,10 +95,13 @@ impl PriceFeeder {
 
     /// Connect to WebSocket and handle the stream
     async fn connect_and_stream(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        println!("Connecting to {}", self.config.websocket_url);
+        crate::log_price!(info, "Connecting to {}", self.config.websocket_url);
 
         let (ws_stream, _) = connect_async(&self.config.websocket_url).await?;
-        println!("Connected successfully! Starting message processing...");
+        crate::log_price!(
+            info,
+            "Connected successfully! Starting message processing..."
+        );
         let (mut write, mut read) = ws_stream.split();
 
         // Channel for handling ping/pong and control messages
@@ -139,13 +143,14 @@ impl PriceFeeder {
                     // Pong received, connection is alive
                 }
                 Message::Close(_) => {
-                    println!(
+                    crate::log_price!(
+                        debug,
                         "Binance server closed connection (likely 24hr timeout) - reconnecting..."
                     );
                     break;
                 }
                 Message::Binary(_) => {
-                    warn!("Received unexpected binary message");
+                    crate::log_price!(warn, "Received unexpected binary message");
                 }
             }
         }
