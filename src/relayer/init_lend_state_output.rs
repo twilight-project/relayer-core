@@ -1,5 +1,6 @@
 use nyks_wallet::zkos_accounts::encrypted_account::KeyManager;
 use twilight_relayer_sdk::address::{Address, AddressType};
+use twilight_relayer_sdk::quisquislib;
 use twilight_relayer_sdk::quisquislib::ristretto::RistrettoPublicKey;
 use twilight_relayer_sdk::quisquislib::ristretto::RistrettoSecretKey;
 use twilight_relayer_sdk::zkvm::zkos_types::Output;
@@ -33,12 +34,16 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
         .unwrap_or("0".to_string())
         .parse()
         .unwrap();
+    if index == 0 {
+        let contract_owner_sk: RistrettoSecretKey =
+            quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+        return contract_owner_sk;
+    }
     // let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
     //     quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
     let key_manager = KeyManager::from_cosmos_signature(seed.as_bytes());
 
-    let secret_key = key_manager.derive_child_key(index);
-    secret_key
+    key_manager.derive_child_key(index)
 }
 pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
     let contract_owner_address = last_state_output_fixed()

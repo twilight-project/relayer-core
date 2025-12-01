@@ -239,6 +239,7 @@ impl TraderOrder {
         execution_price: f64,
         current_price: f64,
         cmd_order_type: OrderType,
+        sltp: Option<SlTpOrder>,
     ) -> (f64, OrderStatus) {
         let mut payment: f64 = 0.0;
         let mut orderstatus: OrderStatus = OrderStatus::FILLED;
@@ -272,6 +273,87 @@ impl TraderOrder {
                         let order_caluculated =
                             self.set_execution_price_for_limit_order_localdb(execution_price);
                     }
+                }
+            },
+            OrderType::SLTP => match sltp {
+                Some(sltp) => {
+                    match sltp.sl {
+                        Some(sl) => match self.position_type {
+                            PositionType::LONG => {
+                                if sl >= current_price {
+                                    payment = self.calculatepayment_localdb(
+                                        current_price,
+                                        get_fee(FeeType::FilledOnMarket),
+                                    );
+                                    orderstatus = OrderStatus::SETTLED;
+                                } else {
+                                    let order_caluculated = self
+                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                            sl,
+                                            SlTpOrderType::StopLoss,
+                                        );
+                                }
+                            }
+                            PositionType::SHORT => {
+                                if sl <= current_price {
+                                    payment = self.calculatepayment_localdb(
+                                        current_price,
+                                        get_fee(FeeType::FilledOnMarket),
+                                    );
+                                    orderstatus = OrderStatus::SETTLED;
+                                } else {
+                                    let order_caluculated = self
+                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                            sl,
+                                            SlTpOrderType::StopLoss,
+                                        );
+                                }
+                            }
+                        },
+                        None => {
+                            println!("sl is none");
+                        }
+                    }
+                    match sltp.tp {
+                        Some(tp) => match self.position_type {
+                            PositionType::LONG => {
+                                if tp <= current_price {
+                                    payment = self.calculatepayment_localdb(
+                                        current_price,
+                                        get_fee(FeeType::FilledOnMarket),
+                                    );
+                                    orderstatus = OrderStatus::SETTLED;
+                                } else {
+                                    let order_caluculated = self
+                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                            tp,
+                                            SlTpOrderType::TakeProfit,
+                                        );
+                                }
+                            }
+                            PositionType::SHORT => {
+                                if tp >= current_price {
+                                    payment = self.calculatepayment_localdb(
+                                        current_price,
+                                        get_fee(FeeType::FilledOnMarket),
+                                    );
+                                    orderstatus = OrderStatus::SETTLED;
+                                } else {
+                                    let order_caluculated = self
+                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                            tp,
+                                            SlTpOrderType::TakeProfit,
+                                        );
+                                }
+                            }
+                        },
+                        None => {
+                            println!("tp is none");
+                        }
+                    }
+                }
+                None => {
+                    println!("sltp is none");
                 }
             },
             _ => {}
@@ -353,6 +435,166 @@ impl TraderOrder {
             }
         }
     }
+    pub fn set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+        &mut self,
+        sltp_price: f64,
+        sltp_type: SlTpOrderType,
+    ) -> Result<(), std::io::Error> {
+        match sltp_type {
+            SlTpOrderType::StopLoss => match self.position_type {
+                PositionType::SHORT => {
+                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
+                        Ok(()) => {
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::AddStopLossCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            let result = add_to_limit_order_list
+                                .update(self.uuid, (sltp_price * 10000.0) as i64);
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::UpdateStopLossCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return result;
+                        }
+                    }
+                }
+                PositionType::LONG => {
+                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
+                        Ok(()) => {
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::AddStopLossCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            let result = add_to_limit_order_list
+                                .update(self.uuid, (sltp_price * 10000.0) as i64);
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::UpdateStopLossCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return result;
+                        }
+                    }
+                }
+            },
+            SlTpOrderType::TakeProfit => match self.position_type {
+                PositionType::LONG => {
+                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
+                        Ok(()) => {
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::AddTakeProfitCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            let result = add_to_limit_order_list
+                                .update(self.uuid, (sltp_price * 10000.0) as i64);
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::UpdateTakeProfitCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return result;
+                        }
+                    }
+                }
+                PositionType::SHORT => {
+                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
+                        Ok(()) => {
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::AddTakeProfitCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            let result = add_to_limit_order_list
+                                .update(self.uuid, (sltp_price * 10000.0) as i64);
+                            drop(add_to_limit_order_list);
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::UpdateTakeProfitCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        sltp_price.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return result;
+                        }
+                    }
+                }
+            },
+        }
+    }
 
     pub fn calculatepayment_localdb(&mut self, current_price: f64, fee: f64) -> f64 // returns payment
     {
@@ -375,9 +617,9 @@ impl TraderOrder {
         // );
         let payment = u_pnl.round() + margindifference.round() - fee_value;
         self.order_status = OrderStatus::SETTLED;
-        self.available_margin = self.initial_margin + payment;
+        self.available_margin = (self.initial_margin + payment).round();
         self.settlement_price = current_price;
-        self.unrealized_pnl = u_pnl;
+        self.unrealized_pnl = u_pnl.round();
         self.fee_settled = fee_value;
         payment
     }
@@ -445,6 +687,138 @@ impl TraderOrder {
             },
             _ => return (false, self.order_status.clone()),
         }
+    }
+    pub fn cancel_sltp_order(
+        &mut self,
+        sltp_type: SlTpOrderCancel,
+    ) -> (bool, OrderStatus, bool, OrderStatus) {
+        let result: Result<(Uuid, i64), std::io::Error>;
+        let mut cancel_status_sl: bool = false;
+        let mut cancel_status_tp: bool = false;
+        let mut order_status_sl: OrderStatus = OrderStatus::PENDING;
+        let mut order_status_tp: OrderStatus = OrderStatus::PENDING;
+        if sltp_type.sl {
+            match self.position_type {
+                PositionType::SHORT => {
+                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            // self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("RemoveStopLossCloseLIMITPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            // return (true, OrderStatus::CANCELLED);
+                            cancel_status_sl = true;
+                            order_status_sl = OrderStatus::CancelledStopLoss;
+                        }
+                        Err(_) => {
+                            cancel_status_sl = false;
+                            order_status_sl = OrderStatus::PENDING;
+                        }
+                    }
+                }
+                PositionType::LONG => {
+                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            // self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("RemoveStopLossCloseLIMITPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            // return (true, OrderStatus::CANCELLED);
+                            cancel_status_sl = true;
+                            order_status_sl = OrderStatus::CancelledStopLoss;
+                        }
+                        Err(_) => {
+                            cancel_status_sl = false;
+                            order_status_sl = OrderStatus::PENDING;
+                        }
+                    }
+                }
+            }
+        }
+        if sltp_type.tp {
+            match self.position_type {
+                PositionType::LONG => {
+                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            // self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("RemoveTakeProfitCloseLIMITPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            // return (true, OrderStatus::CANCELLED);
+                            cancel_status_tp = true;
+                            order_status_tp = OrderStatus::CancelledTakeProfit;
+                        }
+                        Err(_) => {
+                            cancel_status_tp = false;
+                            order_status_tp = OrderStatus::PENDING;
+                        }
+                    }
+                }
+                PositionType::SHORT => {
+                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let result = remove_from_open_order_list.remove(self.uuid);
+                    drop(remove_from_open_order_list);
+                    match result {
+                        Ok((_, _)) => {
+                            // self.order_status = OrderStatus::CANCELLED;
+                            Event::new(
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                ),
+                                format!("RemoveTakeProfitCloseLIMITPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            // return (true, OrderStatus::CANCELLED);
+                            cancel_status_tp = true;
+                            order_status_tp = OrderStatus::CancelledTakeProfit;
+                        }
+                        Err(_) => {
+                            cancel_status_tp = false;
+                            order_status_tp = OrderStatus::PENDING;
+                        }
+                    }
+                }
+            }
+        }
+        (
+            cancel_status_sl,
+            order_status_sl,
+            cancel_status_tp,
+            order_status_tp,
+        )
     }
 
     pub fn liquidate(&mut self, current_price: f64) -> f64 {
