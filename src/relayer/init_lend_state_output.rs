@@ -22,29 +22,6 @@ pub fn last_state_output_fixed() -> Output {
     last_state_output
 }
 
-// pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
-//     let seed = match std::env::var("RELAYER_WALLET_SEED") {
-//         Ok(seed) => seed,
-//         Err(_) => {
-//             crate::log_heartbeat!(error, "RELAYER_WALLET_SEED is not set, using default seed");
-//             "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
-//         }
-//     };
-//     let index: u64 = std::env::var("RELAYER_WALLET_SEED_INDEX")
-//         .unwrap_or("0".to_string())
-//         .parse()
-//         .unwrap();
-//     if index == 0 {
-//         let contract_owner_sk: RistrettoSecretKey =
-//             quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
-//         return contract_owner_sk;
-//     }
-//     // let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
-//     //     quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
-//     let key_manager = KeyManager::from_cosmos_signature(seed.as_bytes());
-
-//     key_manager.derive_child_key(index)
-// }
 pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
     let seed = match std::env::var("RELAYER_WALLET_SEED") {
         Ok(seed) => seed,
@@ -53,11 +30,34 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
             "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
         }
     };
-    let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
-        quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+    let index: u64 = std::env::var("RELAYER_WALLET_SEED_INDEX")
+        .unwrap_or("0".to_string())
+        .parse()
+        .unwrap();
+    if index == 0 {
+        let contract_owner_sk: RistrettoSecretKey =
+            quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+        return contract_owner_sk;
+    }
+    // let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
+    //     quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+    let key_manager = KeyManager::from_cosmos_signature(seed.as_bytes());
 
-    contract_owner_sk
+    key_manager.derive_child_key(index)
 }
+// pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
+//     let seed = match std::env::var("RELAYER_WALLET_SEED") {
+//         Ok(seed) => seed,
+//         Err(_) => {
+//             crate::log_heartbeat!(error, "RELAYER_WALLET_SEED is not set, using default seed");
+//             "uhv30yu9rNNRH7RIEIBcN+PgZ46y7C8ebc+IvJWgzQx3vjF9JP2VJZpJzLyUfKJ0W2nue6x00pTMA69X0fERlw==".to_string()
+//         }
+//     };
+//     let contract_owner_sk: quisquislib::ristretto::RistrettoSecretKey =
+//         quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
+
+//     contract_owner_sk
+// }
 pub fn get_pk_from_fixed_wallet() -> RistrettoPublicKey {
     let contract_owner_address = last_state_output_fixed()
         .as_output_data()
