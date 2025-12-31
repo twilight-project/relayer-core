@@ -311,14 +311,14 @@ impl Event {
                 ::new()
                 .name(String::from(thread_name))
                 .spawn(move || {
-                    let broker = vec![
-                        std::env
-                            ::var("BROKER")
-                            .unwrap_or_else(|_| "localhost:9092".to_string())
-                            .to_owned()
-                    ];
+                    // let broker = vec![
+                    //     std::env
+                    //         ::var("BROKER")
+                    //         .unwrap_or_else(|_| "localhost:9092".to_string())
+                    //         .to_owned()
+                    // ];
                     match
-                        Consumer::from_hosts(broker)
+                        Consumer::from_hosts(BROKERS.clone())
                             // .with_topic(topic)
                             .with_group(group)
                             .with_topic_partitions(topic.clone(), &[0])
