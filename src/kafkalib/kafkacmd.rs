@@ -1,7 +1,7 @@
 //https://docs.rs/kafka/0.4.1/kafka/client/struct.KafkaClient.html
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::BROKER;
+use crate::config::BROKERS;
 use crate::db::OffsetCompletion;
 use crate::kafkalib::offset_manager::OffsetManager;
 use crate::relayer::*;
@@ -18,15 +18,14 @@ use std::{thread, time};
 lazy_static! {
     pub static ref KAFKA_PRODUCER: Mutex<Producer> = {
         dotenv::dotenv().ok();
-        let producer = Producer::from_hosts(vec![BROKER.to_owned()])
+        let producer = Producer::from_hosts(BROKERS.clone())
             .with_ack_timeout(Duration::from_secs(1))
             .with_required_acks(RequiredAcks::One)
             .create()
             .expect("Failed to create kafka producer");
         Mutex::new(producer)
     };
-    pub static ref KAFKA_CLIENT: Mutex<KafkaClient> =
-        Mutex::new(KafkaClient::new(vec![BROKER.to_owned()]));
+    pub static ref KAFKA_CLIENT: Mutex<KafkaClient> = Mutex::new(KafkaClient::new(BROKERS.clone()));
 }
 
 pub fn check_kafka_topics() -> Result<Vec<String>, String> {
@@ -92,7 +91,7 @@ pub fn receive_from_kafka_queue(
                 let commit_tracker = offset_tracker.clone();
                 let mut pool_attempt = 0;
                 match
-                    Consumer::from_hosts(vec![BROKER.to_owned()])
+                    Consumer::from_hosts(BROKERS.clone())
                         // .with_topic(topic)
                         .with_group(group.clone())
                         .with_topic_partitions(topic.clone(), &[0])
@@ -274,7 +273,7 @@ impl Message {
 use crate::relayer::Meta;
 
 pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
-    match Consumer::from_hosts(vec![BROKER.to_owned()])
+    match Consumer::from_hosts(BROKERS.clone())
         // .with_topic(topic)
         .with_group(group)
         .with_topic_partitions(topic.clone(), &[0])

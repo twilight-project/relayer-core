@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::{BROKER, EVENTLOG_VERSION};
+use crate::config::{BROKERS, EVENTLOG_VERSION};
 use crate::db::*;
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
@@ -33,7 +33,7 @@ lazy_static! {
     );
     pub static ref KAFKA_PRODUCER_EVENT: Mutex<Producer> = {
         dotenv::dotenv().expect("Failed loading dotenv");
-        let producer = Producer::from_hosts(vec![BROKER.to_owned()])
+        let producer = Producer::from_hosts(BROKERS.clone())
             .with_ack_timeout(Duration::from_secs(3))
             .with_required_acks(RequiredAcks::One)
             .create()
