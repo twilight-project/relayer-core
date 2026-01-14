@@ -34,7 +34,7 @@ pub fn get_sk_from_fixed_wallet() -> RistrettoSecretKey {
         .unwrap_or("0".to_string())
         .parse()
         .unwrap();
-    if index == 0 {
+    if index == 999 {
         let contract_owner_sk: RistrettoSecretKey =
             quisquislib::keys::SecretKey::from_bytes(seed.as_bytes());
         return contract_owner_sk;
