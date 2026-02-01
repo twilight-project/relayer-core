@@ -28,9 +28,9 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                 format!("insert_fundingrate-{}", ServerTime::now().epoch),
                 CORE_EVENT_LOG.clone().to_string(),
             );
-            let mut lendpool = LEND_POOL_DB.lock().unwrap();
-            lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
-            drop(lendpool);
+            // let mut lendpool = LEND_POOL_DB.lock().unwrap();
+            // lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
+            // drop(lendpool);
         }
         RelayerCommand::PriceTickerLiquidation(order_id_array, metadata, currentprice) => {
             let mut orderdetails_array: Vec<(

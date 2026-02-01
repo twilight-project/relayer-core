@@ -543,6 +543,13 @@ pub fn fundingcycle(
             metadata,
             fundingrate,
         ));
+    } else {
+        let poolbatch = PoolBatchOrder::new();
+        relayer_event_handler(RelayerCommand::FundingCycle(
+            poolbatch,
+            metadata,
+            fundingrate,
+        ));
     }
     crate::log_heartbeat!(info, "funding cycle took {:#?}", sw.elapsed());
 }
