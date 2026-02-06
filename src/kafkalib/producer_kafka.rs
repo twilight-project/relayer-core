@@ -38,11 +38,15 @@ pub fn produce_main(payload: &String, topic: &str) {
     // let broker = "localhost:9092";
     dotenv::dotenv().expect("Failed loading dotenv");
 
-    let broker = std::env::var("BROKER").expect("missing environment variable BROKER");
+    let broker: Vec<String> = std::env::var("BROKER")
+        .unwrap_or_else(|_| "localhost:9092".to_string())
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .collect();
 
     let data = &payload.as_bytes();
 
-    if let Err(e) = produce_message(data, topic, vec![broker.to_owned()]) {
+    if let Err(e) = produce_message(data, topic, broker) {
         crate::log_heartbeat!(error, "Failed producing messages: {}", e);
     }
 }

@@ -1,19 +1,19 @@
 use crate::config::*;
 use crate::db::*;
+use crate::relayer::core::core_config::*;
+use crate::relayer::core::state_tx::*;
 use crate::relayer::*;
-use std::sync::{ mpsc };
+use std::sync::mpsc;
 use twilight_relayer_sdk::address::Network;
 use twilight_relayer_sdk::lend::*;
 use twilight_relayer_sdk::order::*;
 use twilight_relayer_sdk::transaction::Transaction;
 use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
 use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
-use crate::relayer::core::core_config::*;
-use crate::relayer::core::state_tx::*;
 
 pub fn zkos_order_handler(
     command: ZkosTxCommand,
-    sender: mpsc::Sender<Result<String, std::string::String>>
+    sender: mpsc::Sender<Result<String, std::string::String>>,
 ) {
     let command_clone = command.clone();
     // let (sender, receiver) = mpsc::channel();
@@ -1092,135 +1092,128 @@ pub fn zkos_order_handler(
                 next_state_output,
             ) => {
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
-                buffer.execute(move || {
-                    match output_option {
-                        Some(output_memo) => {
-                            let contract_owner_sk = get_sk_from_fixed_wallet();
+                buffer.execute(move || match output_option {
+                    Some(output_memo) => {
+                        let contract_owner_sk = get_sk_from_fixed_wallet();
 
-                            let contract_owner_pk = get_pk_from_fixed_wallet();
+                        let contract_owner_pk = get_pk_from_fixed_wallet();
 
-                            let program_tag = "LiquidateOrder".to_string();
-                            let is_state_updated = is_state_updated(&last_state_output);
-                            if !is_state_updated {
-                                let sender_clone = sender.clone();
-                                match
-                                    sender_clone.send(
-                                        Err(
-                                            "Tx Failed due to missing latest state update".to_string()
-                                        )
-                                    )
-                                {
-                                    Ok(_) => {
-                                        crate::log_trading!(
-                                            error,
-                                            "Tx Failed due to missing latest state update"
-                                        );
-                                    }
-                                    Err(_) => {
-                                        crate::log_trading!(
-                                            error,
-                                            "Tx Failed due to missing latest state update"
-                                        );
-                                    }
-                                }
-                                return;
-                            }
-                            let transaction = settle_trader_order(
-                                output_memo.clone(),
-                                trader_order.available_margin.clone().round() as u64,
-                                &ContractManager::import_program(&WALLET_PROGRAM_PATH.clone()),
-                                Network::Mainnet,
-                                1u64,
-                                last_state_output
-                                    .as_output_data()
-                                    .get_owner_address()
-                                    .unwrap()
-                                    .clone(),
-                                last_state_output.clone(),
-                                next_state_output.clone(),
-                                0,
-                                0,
-                                trader_order.settlement_price.round() as u64,
-                                contract_owner_sk,
-                                contract_owner_pk,
-                                program_tag
-                            );
-                            let tx_hash_result = match transaction {
-                                Ok(tx) =>
-                                    transaction_queue_to_confirm_relayer_latest_state(
-                                        last_state_output.clone(),
-                                        tx,
-                                        next_state_output.clone()
-                                    ),
-                                Err(arg) => Err(arg.to_string()),
-                            };
+                        let program_tag = "LiquidateOrder".to_string();
+                        let is_state_updated = is_state_updated(&last_state_output);
+                        if !is_state_updated {
                             let sender_clone = sender.clone();
-
-                            match sender_clone.send(tx_hash_result.clone()) {
-                                Ok(_) => {}
+                            match sender_clone.send(Err(
+                                "Tx Failed due to missing latest state update".to_string(),
+                            )) {
+                                Ok(_) => {
+                                    crate::log_trading!(
+                                        error,
+                                        "Tx Failed due to missing latest state update"
+                                    );
+                                }
                                 Err(_) => {
-                                    crate::log_trading!(error, "error in sender at line 2168");
-                                }
-                            }
-                            match tx_hash_result {
-                                Ok(tx_hash) => {
-                                    let mut tx_hash_storage = OUTPUT_STORAGE.lock().unwrap();
-                                    let _ = tx_hash_storage.remove(trader_order.uuid_to_byte(), 0);
-                                    drop(tx_hash_storage);
-                                    Event::new(
-                                        Event::TxHashUpdate(
-                                            trader_order.uuid,
-                                            trader_order.account_id,
-                                            tx_hash.clone(),
-                                            trader_order.order_type,
-                                            trader_order.order_status,
-                                            ServerTime::now().epoch,
-                                            None
-                                        ),
-                                        format!("tx_hash_result-{:?}", tx_hash),
-                                        CORE_EVENT_LOG.clone().to_string()
-                                    );
-                                }
-                                Err(arg) => {
-                                    Event::new(
-                                        Event::TxHashUpdate(
-                                            trader_order.uuid,
-                                            trader_order.account_id,
-                                            format!("Error : {:?}, liquidation failed", arg),
-                                            trader_order.order_type,
-                                            OrderStatus::RejectedFromChain,
-                                            ServerTime::now().epoch,
-                                            None
-                                        ),
-                                        String::from("tx_hash_error"),
-                                        CORE_EVENT_LOG.clone().to_string()
+                                    crate::log_trading!(
+                                        error,
+                                        "Tx Failed due to missing latest state update"
                                     );
                                 }
                             }
+                            return;
                         }
-                        None => {
-                            crate::log_trading!(
-                                error,
-                                "Output memo not Found for order_id:{}",
-                                trader_order.uuid
-                            );
-                            let sender_clone: mpsc::Sender<Result<String, String>> = sender.clone();
-                            let fn_response_tx_hash = Err("Output memo not Found".to_string());
-                            sender_clone.send(fn_response_tx_hash.clone()).unwrap();
-                            Event::new(
-                                Event::TxHashUpdate(
-                                    trader_order.uuid,
-                                    trader_order.account_id,
-                                    "Error : Output memo not Found, liquidation failed".to_string(),
-                                    trader_order.order_type,
-                                    OrderStatus::UtxoError,
-                                    ServerTime::now().epoch,
-                                    None
-                                ),
-                                String::from("tx_hash_error"),
-                                CORE_EVENT_LOG.clone().to_string()
-                            );
+                        let transaction = settle_trader_order(
+                            output_memo.clone(),
+                            trader_order.available_margin.clone().round() as u64,
+                            &ContractManager::import_program(&WALLET_PROGRAM_PATH.clone()),
+                            Network::Mainnet,
+                            1u64,
+                            last_state_output
+                                .as_output_data()
+                                .get_owner_address()
+                                .unwrap()
+                                .clone(),
+                            last_state_output.clone(),
+                            next_state_output.clone(),
+                            0,
+                            0,
+                            trader_order.settlement_price.round() as u64,
+                            contract_owner_sk,
+                            contract_owner_pk,
+                            program_tag,
+                        );
+                        let tx_hash_result = match transaction {
+                            Ok(tx) => transaction_queue_to_confirm_relayer_latest_state(
+                                last_state_output.clone(),
+                                tx,
+                                next_state_output.clone(),
+                            ),
+                            Err(arg) => Err(arg.to_string()),
+                        };
+                        let sender_clone = sender.clone();
+
+                        match sender_clone.send(tx_hash_result.clone()) {
+                            Ok(_) => {}
+                            Err(_) => {
+                                crate::log_trading!(error, "error in sender at line 2168");
+                            }
                         }
+                        match tx_hash_result {
+                            Ok(tx_hash) => {
+                                let mut tx_hash_storage = OUTPUT_STORAGE.lock().unwrap();
+                                let _ = tx_hash_storage.remove(trader_order.uuid_to_byte(), 0);
+                                drop(tx_hash_storage);
+                                Event::new(
+                                    Event::TxHashUpdate(
+                                        trader_order.uuid,
+                                        trader_order.account_id,
+                                        tx_hash.clone(),
+                                        trader_order.order_type,
+                                        trader_order.order_status,
+                                        ServerTime::now().epoch,
+                                        None,
+                                    ),
+                                    format!("tx_hash_result-{:?}", tx_hash),
+                                    CORE_EVENT_LOG.clone().to_string(),
+                                );
+                            }
+                            Err(arg) => {
+                                Event::new(
+                                    Event::TxHashUpdate(
+                                        trader_order.uuid,
+                                        trader_order.account_id,
+                                        format!("Error : {:?}, liquidation failed", arg),
+                                        trader_order.order_type,
+                                        OrderStatus::RejectedFromChain,
+                                        ServerTime::now().epoch,
+                                        None,
+                                    ),
+                                    String::from("tx_hash_error"),
+                                    CORE_EVENT_LOG.clone().to_string(),
+                                );
+                            }
+                        }
+                    }
+                    None => {
+                        crate::log_trading!(
+                            error,
+                            "Output memo not Found for order_id:{}",
+                            trader_order.uuid
+                        );
+                        let sender_clone: mpsc::Sender<Result<String, String>> = sender.clone();
+                        let fn_response_tx_hash = Err("Output memo not Found".to_string());
+                        sender_clone.send(fn_response_tx_hash.clone()).unwrap();
+                        Event::new(
+                            Event::TxHashUpdate(
+                                trader_order.uuid,
+                                trader_order.account_id,
+                                "Error : Output memo not Found, liquidation failed".to_string(),
+                                trader_order.order_type,
+                                OrderStatus::UtxoError,
+                                ServerTime::now().epoch,
+                                None,
+                            ),
+                            String::from("tx_hash_error"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
                     }
                 });
 

@@ -1,33 +1,31 @@
 //https://docs.rs/kafka/0.4.1/kafka/client/struct.KafkaClient.html
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::BROKER;
+use crate::config::BROKERS;
 use crate::db::OffsetCompletion;
 use crate::kafkalib::offset_manager::OffsetManager;
 use crate::relayer::*;
-use crossbeam_channel::{ unbounded, Receiver, Sender };
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
-use kafka::client::{ KafkaClient };
-use kafka::consumer::{ Consumer, FetchOffset, GroupOffsetStorage };
+use kafka::client::KafkaClient;
+use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
-use kafka::producer::{ Producer, RequiredAcks };
-use std::sync::{ Arc, Mutex };
+use kafka::producer::{Producer, RequiredAcks};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use std::{ thread, time };
+use std::{thread, time};
 
 lazy_static! {
     pub static ref KAFKA_PRODUCER: Mutex<Producer> = {
         dotenv::dotenv().ok();
-        let producer = Producer::from_hosts(vec![BROKER.to_owned()])
+        let producer = Producer::from_hosts(BROKERS.clone())
             .with_ack_timeout(Duration::from_secs(1))
             .with_required_acks(RequiredAcks::One)
             .create()
             .expect("Failed to create kafka producer");
         Mutex::new(producer)
     };
-    pub static ref KAFKA_CLIENT: Mutex<KafkaClient> = {
-        Mutex::new(KafkaClient::new(vec![BROKER.to_owned()]))
-    };
+    pub static ref KAFKA_CLIENT: Mutex<KafkaClient> = Mutex::new(KafkaClient::new(BROKERS.clone()));
 }
 
 pub fn check_kafka_topics() -> Result<Vec<String>, String> {
@@ -66,10 +64,13 @@ pub fn check_kafka_topics() -> Result<Vec<String>, String> {
 
 pub fn receive_from_kafka_queue(
     topic: String,
-    group: String
+    group: String,
 ) -> Result<
-    (Arc<Mutex<Receiver<(RpcCommand, OffsetCompletion)>>>, Sender<OffsetCompletion>),
-    KafkaError
+    (
+        Arc<Mutex<Receiver<(RpcCommand, OffsetCompletion)>>>,
+        Sender<OffsetCompletion>,
+    ),
+    KafkaError,
 > {
     let (sender, receiver) = unbounded();
     let (tx_consumed, rx_consumed) = unbounded::<OffsetCompletion>();
@@ -90,7 +91,7 @@ pub fn receive_from_kafka_queue(
                 let commit_tracker = offset_tracker.clone();
                 let mut pool_attempt = 0;
                 match
-                    Consumer::from_hosts(vec![BROKER.to_owned()])
+                    Consumer::from_hosts(BROKERS.clone())
                         // .with_topic(topic)
                         .with_group(group.clone())
                         .with_topic_partitions(topic.clone(), &[0])
@@ -259,7 +260,7 @@ impl Message {
                     createtraderorder,
                     Meta { metadata: metadata },
                     _zkos_hex_string,
-                    _request_id
+                    _request_id,
                 );
                 return rcmd;
             }
@@ -272,18 +273,17 @@ impl Message {
 use crate::relayer::Meta;
 
 pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
-    match
-        Consumer::from_hosts(vec![BROKER.to_owned()])
-            // .with_topic(topic)
-            .with_group(group)
-            .with_topic_partitions(topic.clone(), &[0])
-            .with_fallback_offset(FetchOffset::Earliest)
-            .with_offset_storage(GroupOffsetStorage::Kafka)
-            .create()
+    match Consumer::from_hosts(BROKERS.clone())
+        // .with_topic(topic)
+        .with_group(group)
+        .with_topic_partitions(topic.clone(), &[0])
+        .with_fallback_offset(FetchOffset::Earliest)
+        .with_offset_storage(GroupOffsetStorage::Kafka)
+        .create()
     {
         Ok(mut con) => {
-            let connection_status = true;
-            while connection_status {
+            // let connection_status = true;
+            loop {
                 let mss = match con.poll() {
                     Ok(mss) => mss,
                     Err(e) => {
@@ -297,7 +297,10 @@ pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
                     thread::sleep(time::Duration::from_millis(100));
                 } else {
                     for ms in mss.iter() {
-                        for m in ms.messages() {
+                        // for m in ms.messages() {
+                        //     return m.offset;
+                        // }
+                        if let Some(m) = ms.messages().iter().next() {
                             return m.offset;
                         }
                     }
@@ -310,5 +313,5 @@ pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
         }
     }
 
-    return -1;
+    // return -1;
 }

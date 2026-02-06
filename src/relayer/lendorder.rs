@@ -82,7 +82,8 @@ impl LendOrder {
         }
     }
     pub fn calculatepayment_localdb(&mut self, tlv2: f64, tps2: f64) -> Result<(), std::io::Error> {
-        let nwithdraw = (tlv2 * (self.npoolshare / 10000.0).round() / tps2) * 10000.0;
+        // let nwithdraw = (tlv2 * (self.npoolshare / 10000.0).round() / tps2) * 10000.0;
+        let nwithdraw = tlv2 * self.npoolshare / tps2;
         let withdraw = nwithdraw / 10000.0;
         if tlv2 < withdraw {
             return Err(std::io::Error::new(
@@ -91,16 +92,16 @@ impl LendOrder {
             ));
         }
         let payment = withdraw - self.new_lend_state_amount;
-        self.nwithdraw = nwithdraw;
+        self.nwithdraw = nwithdraw.round();
         let tlv3 = tlv2 - (nwithdraw / 10000.0).round();
         let tps3 = tps2 - (self.npoolshare / 10000.0).round();
-        self.payment = payment;
+        self.payment = payment.round();
         self.tlv2 = tlv2;
         self.tps2 = tps2;
         self.tlv3 = tlv3;
         self.tps3 = tps3;
         self.order_status = OrderStatus::SETTLED;
-        self.new_lend_state_amount = withdraw;
+        self.new_lend_state_amount = withdraw.round();
         Ok(())
     }
 }

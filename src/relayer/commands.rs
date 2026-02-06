@@ -72,6 +72,35 @@ pub enum RpcCommand {
     ExecuteLendOrder(ExecuteLendOrder, Meta, ZkosHexString, RequestID),
     CancelTraderOrder(CancelTraderOrder, Meta, ZkosHexString, RequestID),
     RelayerCommandTraderOrderSettleOnLimit(TraderOrder, Meta, f64),
+    ExecuteTraderOrderSlTp(
+        ExecuteTraderOrder,
+        Option<SlTpOrder>,
+        Meta,
+        ZkosHexString,
+        RequestID,
+    ),
+    CreateTraderOrderSlTp(
+        CreateTraderOrder,
+        Option<SlTpOrder>,
+        Option<ZkosSettleMsg>,
+        Meta,
+        ZkosHexString,
+        RequestID,
+    ),
+    CancelTraderOrderSlTp(
+        CancelTraderOrder,
+        SlTpOrderCancel,
+        Meta,
+        ZkosHexString,
+        RequestID,
+    ),
+    // TraderOrderMessageSlTp(
+    //     TraderOrderSlTp,
+    //     Option<SlTpOrder>,
+    //     Meta,
+    //     ZkosHexString,
+    //     RequestID,
+    // ),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -88,6 +117,13 @@ pub enum SortedSetCommand {
     BulkSearchRemoveLiquidationPrice(f64, PositionType),
     BulkSearchRemoveOpenLimitPrice(f64, PositionType),
     BulkSearchRemoveCloseLimitPrice(f64, PositionType),
+    AddStopLossCloseLIMITPrice(Uuid, f64, PositionType),
+    AddTakeProfitCloseLIMITPrice(Uuid, f64, PositionType),
+    RemoveStopLossCloseLIMITPrice(Uuid, PositionType),
+    RemoveTakeProfitCloseLIMITPrice(Uuid, PositionType),
+    UpdateStopLossCloseLIMITPrice(Uuid, f64, PositionType),
+    UpdateTakeProfitCloseLIMITPrice(Uuid, f64, PositionType),
+    BulkSearchRemoveSLTPCloseLIMITPrice(f64, PositionType),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

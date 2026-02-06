@@ -23,6 +23,19 @@ lazy_static! {
         Arc::new(Mutex::new(SortedSet::new()));
     pub static ref TRADER_LIMIT_CLOSE_SHORT: Arc<Mutex<SortedSet>> =
         Arc::new(Mutex::new(SortedSet::new()));
+
+    //take profit stop loss close limit price sortedset ****************************************************/
+    pub static ref TRADER_SLTP_CLOSE_LONG: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_SLTP_CLOSE_SHORT: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+
+    // pending stop loss take profit sortedset ****************************************************/
+    pub static ref TRADER_PENDING_STOP_LOSS_PRICE: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    pub static ref TRADER_PENDING_TAKE_PROFIT_PRICE: Arc<Mutex<SortedSet>> =
+        Arc::new(Mutex::new(SortedSet::new()));
+    // ****************************************************/
     pub static ref TRADER_ORDER_DB: Arc<Mutex<OrderDB<TraderOrder>>> =
         Arc::new(Mutex::new(LocalDB::<TraderOrder>::new()));
     pub static ref LEND_ORDER_DB: Arc<Mutex<OrderDB<LendOrder>>> =

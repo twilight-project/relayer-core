@@ -222,6 +222,11 @@ impl LendPool {
             String::from("Initiate_Lend_Pool"),
             CORE_EVENT_LOG.clone().to_string(),
         );
+        Event::new(
+            Event::FundingRateUpdate(0.0, 0.0, iso8601(&std::time::SystemTime::now())),
+            format!("insert_fundingrate-{}", ServerTime::now().epoch),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
         lendpool
     }
 

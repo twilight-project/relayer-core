@@ -1,12 +1,12 @@
 use crate::config::*;
 use crate::db::*;
-use crate::relayer::*;
-use std::sync::{ mpsc, Arc, RwLock };
-use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
-use twilight_relayer_sdk::zkvm::Output;
-use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use crate::relayer::core::core_config::*;
 use crate::relayer::core::zkos_handler::zkos_order_handler;
+use crate::relayer::*;
+use std::sync::{mpsc, Arc, RwLock};
+use twilight_relayer_sdk::twilight_client_sdk::util::create_output_state_for_trade_lend_order;
+use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
+use twilight_relayer_sdk::zkvm::Output;
 
 pub fn relayer_event_handler(command: RelayerCommand) {
     let command_clone = command.clone();
@@ -15,26 +15,28 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             Event::new(
                 Event::FundingRateUpdate(
                     fundingrate,
-                    metadata.metadata
+                    metadata
+                        .metadata
                         .get(&String::from("CurrentPrice"))
                         .unwrap()
                         .clone()
                         .unwrap()
                         .parse::<f64>()
                         .unwrap(),
-                    iso8601(&std::time::SystemTime::now())
+                    iso8601(&std::time::SystemTime::now()),
                 ),
                 format!("insert_fundingrate-{}", ServerTime::now().epoch),
-                CORE_EVENT_LOG.clone().to_string()
+                CORE_EVENT_LOG.clone().to_string(),
             );
-            let mut lendpool = LEND_POOL_DB.lock().unwrap();
-            lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
-            drop(lendpool);
+            // let mut lendpool = LEND_POOL_DB.lock().unwrap();
+            // lendpool.add_transaction(LendPoolCommand::BatchExecuteTraderOrder(command_clone));
+            // drop(lendpool);
         }
         RelayerCommand::PriceTickerLiquidation(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<
-                (Result<Arc<RwLock<TraderOrder>>, std::io::Error>, Option<Output>)
-            > = Vec::new();
+            let mut orderdetails_array: Vec<(
+                Result<Arc<RwLock<TraderOrder>>, std::io::Error>,
+                Option<Output>,
+            )> = Vec::new();
             let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
@@ -174,9 +176,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(buffer);
         }
         RelayerCommand::PriceTickerOrderFill(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<
-                (Result<Arc<RwLock<TraderOrder>>, std::io::Error>, Option<String>)
-            > = Vec::new();
+            let mut orderdetails_array: Vec<(
+                Result<Arc<RwLock<TraderOrder>>, std::io::Error>,
+                Option<String>,
+            )> = Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
                 let orderdetail = (
@@ -305,9 +308,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             drop(buffer);
         }
         RelayerCommand::PriceTickerOrderSettle(order_id_array, metadata, currentprice) => {
-            let mut orderdetails_array: Vec<
-                (Result<Arc<RwLock<TraderOrder>>, std::io::Error>, Option<String>)
-            > = Vec::new();
+            let mut orderdetails_array: Vec<(
+                Result<Arc<RwLock<TraderOrder>>, std::io::Error>,
+                Option<String>,
+            )> = Vec::new();
             let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
             for order_id in order_id_array {
                 let orderdetail = (
@@ -331,7 +335,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                     let (payment, order_status) = order.check_for_settlement(
                                         current_price_clone,
                                         current_price_clone,
-                                        OrderType::MARKET
+                                        OrderType::MARKET,
+                                        None,
                                     );
 
                                     match order_status {
@@ -350,10 +355,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         .unwrap()
                                                         .clone(),
                                                     lendpool.last_output_state
-                                                        .clone()
                                                         .as_output_data()
                                                         .get_owner_address()
-                                                        .clone()
                                                         .unwrap()
                                                         .clone(),
                                                     (lendpool.total_locked_value.round() -
@@ -451,7 +454,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             Event::new(
                 Event::TraderOrderFundingUpdate(trader_order.clone(), command_clone),
                 format!("update_order_funding-{}", trader_order.uuid.clone()),
-                CORE_EVENT_LOG.clone().to_string()
+                CORE_EVENT_LOG.clone().to_string(),
             );
         }
         RelayerCommand::UpdateFees(
@@ -462,22 +465,14 @@ pub fn relayer_event_handler(command: RelayerCommand) {
         ) => {
             let event_time = systemtime_to_utc();
             let mut local_storage = LOCALDB.lock().unwrap();
-            let old_order_filled_on_market = local_storage.insert(
-                FeeType::FilledOnMarket.into(),
-                order_filled_on_market
-            );
-            let old_order_filled_on_limit = local_storage.insert(
-                FeeType::FilledOnLimit.into(),
-                order_filled_on_limit
-            );
-            let old_order_settled_on_market = local_storage.insert(
-                FeeType::SettledOnMarket.into(),
-                order_settled_on_market
-            );
-            let old_order_settled_on_limit = local_storage.insert(
-                FeeType::SettledOnLimit.into(),
-                order_settled_on_limit
-            );
+            let old_order_filled_on_market =
+                local_storage.insert(FeeType::FilledOnMarket.into(), order_filled_on_market);
+            let old_order_filled_on_limit =
+                local_storage.insert(FeeType::FilledOnLimit.into(), order_filled_on_limit);
+            let old_order_settled_on_market =
+                local_storage.insert(FeeType::SettledOnMarket.into(), order_settled_on_market);
+            let old_order_settled_on_limit =
+                local_storage.insert(FeeType::SettledOnLimit.into(), order_settled_on_limit);
             drop(local_storage);
             if old_order_filled_on_market.is_some() {
                 crate::log_heartbeat!(
@@ -522,12 +517,12 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                         order_filled_on_market,
                         order_filled_on_limit,
                         order_settled_on_market,
-                        order_settled_on_limit
+                        order_settled_on_limit,
                     ),
-                    event_time.clone()
+                    event_time.clone(),
                 ),
                 format!("FeeUpdate-{}", event_time),
-                CORE_EVENT_LOG.clone().to_string()
+                CORE_EVENT_LOG.clone().to_string(),
             );
         }
     }
