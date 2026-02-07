@@ -43,6 +43,11 @@ pub struct GetOrderDetail {
     pub order_id: Uuid,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SetMarketFlag {
+    pub enabled: bool,
+}
+
 impl GetPnL {
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();

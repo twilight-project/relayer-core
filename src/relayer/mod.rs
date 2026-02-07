@@ -9,6 +9,7 @@ mod lendorder;
 mod checkservertime;
 // mod queueresolver;
 mod core;
+mod risk_engine;
 mod rpc_types;
 mod threadpool;
 mod traderorder;
@@ -32,4 +33,5 @@ pub use self::init_lend_state_output::{
 // pub use self::types::*;
 pub use twilight_relayer_sdk::twilight_client_sdk::relayer_types::*;
 
+pub use self::risk_engine::*;
 pub use self::utils::*;

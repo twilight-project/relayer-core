@@ -113,6 +113,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                         order.position_type.clone(),
                                                         order.positionsize.clone()
                                                     );
+                                                    RiskState::remove_order(
+                                                        order.position_type.clone(),
+                                                        entryvalue(order.initial_margin, order.leverage)
+                                                    );
                                                     let mut order_mut_ref = order_detail
                                                         .write()
                                                         .unwrap();

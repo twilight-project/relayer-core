@@ -63,12 +63,54 @@ pub fn rpc_event_handler(
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
 
+                // Risk engine validation gate
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                let risk_params = &*RISK_PARAMS;
+                match validate_open_order(
+                    &rpc_request.position_type,
+                    rpc_request.initial_margin,
+                    rpc_request.leverage,
+                    pool_equity_btc,
+                    risk_params,
+                ) {
+                    Ok(_x_btc) => {} // proceed with order
+                    Err(rejection) => {
+                        crate::log_heartbeat!(
+                            warn,
+                            "RISK_ENGINE: REJECT order={} reason={}",
+                            orderdata.uuid, rejection.to_rejection_string()
+                        );
+                        Event::new(
+                            Event::TxHash(
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                format!("Risk rejected: {}", rejection.to_rejection_string()),
+                                orderdata.order_type,
+                                OrderStatus::CANCELLED,
+                                ServerTime::now().epoch,
+                                None,
+                                request_id,
+                            ),
+                            String::from("tx_risk_rejected"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
+                        return;
+                    }
+                }
+
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let is_order_duplicate =
                     trader_order_db.set_order_check(orderdata.account_id.clone());
                 drop(trader_order_db);
 
-                if rpc_request.initial_margin > 0.0 || rpc_request.leverage <= 50.0 {
+                if rpc_request.initial_margin > 0.0 && rpc_request.leverage <= 50.0 {
                     if is_order_duplicate {
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
@@ -943,12 +985,54 @@ pub fn rpc_event_handler(
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
 
+                // Risk engine validation gate
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                let risk_params = &*RISK_PARAMS;
+                match validate_open_order(
+                    &rpc_request.position_type,
+                    rpc_request.initial_margin,
+                    rpc_request.leverage,
+                    pool_equity_btc,
+                    risk_params,
+                ) {
+                    Ok(_x_btc) => {} // proceed with order
+                    Err(rejection) => {
+                        crate::log_heartbeat!(
+                            warn,
+                            "RISK_ENGINE: REJECT order={} reason={}",
+                            orderdata.uuid, rejection.to_rejection_string()
+                        );
+                        Event::new(
+                            Event::TxHash(
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                format!("Risk rejected: {}", rejection.to_rejection_string()),
+                                orderdata.order_type,
+                                OrderStatus::CANCELLED,
+                                ServerTime::now().epoch,
+                                None,
+                                request_id,
+                            ),
+                            String::from("tx_risk_rejected"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
+                        return;
+                    }
+                }
+
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let is_order_duplicate =
                     trader_order_db.set_order_check(orderdata.account_id.clone());
                 drop(trader_order_db);
 
-                if rpc_request.initial_margin > 0.0 || rpc_request.leverage <= 50.0 {
+                if rpc_request.initial_margin > 0.0 && rpc_request.leverage <= 50.0 {
                     if is_order_duplicate {
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();

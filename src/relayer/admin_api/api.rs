@@ -245,6 +245,51 @@ pub fn startserver() {
         }
     });
 
+    /*****************Risk Engine Stats */
+    io.add_method_with_meta("GetRiskStats", move |_params: Params, _meta: Meta| async move {
+        let pool_equity_btc = {
+            let pool = LEND_POOL_DB.lock().unwrap();
+            pool.total_locked_value
+        };
+        let mark_price = get_localdb("CurrentPrice");
+        let stats = get_market_stats(pool_equity_btc, mark_price);
+        Ok(serde_json::to_value(&stats).unwrap())
+    });
+
+    /*****************Set Market Halt */
+    io.add_method_with_meta("SetMarketHalt", move |params: Params, _meta: Meta| async move {
+        match params.parse::<SetMarketFlag>() {
+            Ok(value) => {
+                RiskState::set_manual_halt(value.enabled);
+                crate::log_heartbeat!(warn, "RISK_ENGINE: Manual halt set to {}", value.enabled);
+                Ok(serde_json::to_value(format!("Manual halt set to {}", value.enabled)).unwrap())
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(
+                    format!("Invalid parameters, {:?}. Expected: {{ \"enabled\": bool }}", args)
+                );
+                Err(err)
+            }
+        }
+    });
+
+    /*****************Set Market Close Only */
+    io.add_method_with_meta("SetMarketCloseOnly", move |params: Params, _meta: Meta| async move {
+        match params.parse::<SetMarketFlag>() {
+            Ok(value) => {
+                RiskState::set_manual_close_only(value.enabled);
+                crate::log_heartbeat!(warn, "RISK_ENGINE: Manual close-only set to {}", value.enabled);
+                Ok(serde_json::to_value(format!("Manual close-only set to {}", value.enabled)).unwrap())
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(
+                    format!("Invalid parameters, {:?}. Expected: {{ \"enabled\": bool }}", args)
+                );
+                Err(err)
+            }
+        }
+    });
+
     crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
     let server = match
         ServerBuilder::new(io)
