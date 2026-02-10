@@ -225,6 +225,7 @@ pub enum Event {
     AdvanceStateQueue(Nonce, twilight_relayer_sdk::zkvm::Output),
     FeeUpdate(RelayerCommand, String), //fee data and time
     RiskEngineUpdate(RiskEngineCommand, RiskState),
+    RiskParamsUpdate(RiskParams),
 }
 
 impl Event {
@@ -480,6 +481,7 @@ impl Event {
             Event::TraderOrderLimitUpdate(..) => "TraderOrderLimitUpdate".to_string(),
             Event::FeeUpdate(..) => "FeeUpdate".to_string(),
             Event::RiskEngineUpdate(..) => "RiskEngineUpdate".to_string(),
+            Event::RiskParamsUpdate(..) => "RiskParamsUpdate".to_string(),
         }
     }
 }

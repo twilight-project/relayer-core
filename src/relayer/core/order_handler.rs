@@ -68,13 +68,13 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                let risk_params = &*RISK_PARAMS;
+                let risk_params = RISK_PARAMS.lock().unwrap().clone();
                 match validate_open_order(
                     &rpc_request.position_type,
                     rpc_request.initial_margin,
                     rpc_request.leverage,
                     pool_equity_btc,
-                    risk_params,
+                    &risk_params,
                 ) {
                     Ok(_x_btc) => {} // proceed with order
                     Err(rejection) => {
@@ -990,13 +990,13 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                let risk_params = &*RISK_PARAMS;
+                let risk_params = RISK_PARAMS.lock().unwrap().clone();
                 match validate_open_order(
                     &rpc_request.position_type,
                     rpc_request.initial_margin,
                     rpc_request.leverage,
                     pool_equity_btc,
-                    risk_params,
+                    &risk_params,
                 ) {
                     Ok(_x_btc) => {} // proceed with order
                     Err(rejection) => {

@@ -290,6 +290,45 @@ pub fn startserver() {
         }
     });
 
+    /*****************Update Risk Params */
+    io.add_method_with_meta("UpdateRiskParams", move |params: Params, _meta: Meta| async move {
+        match params.parse::<UpdateRiskParamsRequest>() {
+            Ok(value) => {
+                let current_params = RISK_PARAMS.lock().unwrap().clone();
+                let new_params = RiskParams {
+                    max_oi_mult: value.max_oi_mult.unwrap_or(current_params.max_oi_mult),
+                    max_net_mult: value.max_net_mult.unwrap_or(current_params.max_net_mult),
+                    max_position_pct: value.max_position_pct.unwrap_or(current_params.max_position_pct),
+                    min_position_btc: value.min_position_btc.unwrap_or(current_params.min_position_btc),
+                    max_leverage: value.max_leverage.unwrap_or(current_params.max_leverage),
+                };
+                RiskState::update_risk_params(new_params.clone());
+                crate::log_heartbeat!(
+                    warn,
+                    "RISK_ENGINE: Risk params updated: max_oi_mult={}, max_net_mult={}, max_position_pct={}, min_position_btc={}, max_leverage={}",
+                    new_params.max_oi_mult, new_params.max_net_mult, new_params.max_position_pct,
+                    new_params.min_position_btc, new_params.max_leverage
+                );
+                Ok(serde_json::to_value(&new_params).unwrap())
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(
+                    format!(
+                        "Invalid parameters, {:?}. Expected: {{ \"max_oi_mult\": f64?, \"max_net_mult\": f64?, \"max_position_pct\": f64?, \"min_position_btc\": f64?, \"max_leverage\": f64? }}",
+                        args
+                    )
+                );
+                Err(err)
+            }
+        }
+    });
+
+    /*****************Get Risk Params */
+    io.add_method_with_meta("GetRiskParams", move |_params: Params, _meta: Meta| async move {
+        let params = RISK_PARAMS.lock().unwrap().clone();
+        Ok(serde_json::to_value(&params).unwrap())
+    });
+
     crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
     let server = match
         ServerBuilder::new(io)

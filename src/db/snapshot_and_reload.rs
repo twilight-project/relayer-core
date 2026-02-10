@@ -121,8 +121,8 @@ impl SnapshotDBOldV1 {
             queue_manager: QueueState::new(),
         }
     }
-    pub fn migrate_to_new(&self) -> SnapshotDBOld {
-        let snapshot_new = SnapshotDBOld {
+    pub fn migrate_to_new(&self) -> SnapshotDBOldV2 {
+        let snapshot_new = SnapshotDBOldV2 {
             orderdb_traderorder: self.orderdb_traderorder.clone(),
             orderdb_lendorder: self.orderdb_lendorder.clone(),
             lendpool_database: self.lendpool_database.clone(),
@@ -145,7 +145,7 @@ impl SnapshotDBOldV1 {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SnapshotDBOld {
+pub struct SnapshotDBOldV2 {
     pub orderdb_traderorder: OrderDBSnapShotTO,
     pub orderdb_lendorder: OrderDBSnapShotLO,
     pub lendpool_database: LendPool,
@@ -160,6 +160,80 @@ pub struct SnapshotDBOld {
     pub position_size_log: PositionSizeLog,
     pub localdb_hashmap: HashMap<String, f64>,
     // pub output_memo_hashmap: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    pub event_offset_partition: (i32, i64),
+    pub event_timestamp: String,
+    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    queue_manager: QueueState,
+}
+
+impl SnapshotDBOldV2 {
+    pub fn migrate_to_new(&self) -> SnapshotDBOld {
+        SnapshotDBOld {
+            orderdb_traderorder: self.orderdb_traderorder.clone(),
+            orderdb_lendorder: self.orderdb_lendorder.clone(),
+            lendpool_database: self.lendpool_database.clone(),
+            liquidation_long_sortedset_db: self.liquidation_long_sortedset_db.clone(),
+            liquidation_short_sortedset_db: self.liquidation_short_sortedset_db.clone(),
+            open_long_sortedset_db: self.open_long_sortedset_db.clone(),
+            open_short_sortedset_db: self.open_short_sortedset_db.clone(),
+            close_long_sortedset_db: self.close_long_sortedset_db.clone(),
+            close_short_sortedset_db: self.close_short_sortedset_db.clone(),
+            sltp_close_long_sortedset_db: self.sltp_close_long_sortedset_db.clone(),
+            sltp_close_short_sortedset_db: self.sltp_close_short_sortedset_db.clone(),
+            position_size_log: self.position_size_log.clone(),
+            risk_state: RiskState::new(),
+            localdb_hashmap: self.localdb_hashmap.clone(),
+            event_offset_partition: self.event_offset_partition,
+            event_timestamp: self.event_timestamp.clone(),
+            output_hex_storage: self.output_hex_storage.clone(),
+            queue_manager: self.queue_manager.clone(),
+        }
+    }
+    fn print_status(&self) {
+        if self.orderdb_traderorder.sequence > 0 {
+            crate::log_heartbeat!(debug, "TraderOrder Database Loaded ....");
+        } else {
+            crate::log_heartbeat!(
+                debug,
+                "No old TraderOrder Database found ....\nCreating new TraderOrder_database"
+            );
+        }
+        if self.orderdb_lendorder.sequence > 0 {
+            crate::log_heartbeat!(debug, "LendOrder Database Loaded ....");
+        } else {
+            crate::log_heartbeat!(
+                debug,
+                "No old LendOrder Database found ....\nCreating new LendOrder_database"
+            );
+        }
+        if self.lendpool_database.aggrigate_log_sequence > 0 {
+            crate::log_heartbeat!(debug, "LendPool Database Loaded ....");
+        } else {
+            crate::log_heartbeat!(
+                debug,
+                "No old LendPool Database found ....\nCreating new LendPool_database"
+            );
+        }
+    }
+}
+
+// V3 snapshot format (had risk_state, no risk_params)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotDBOld {
+    pub orderdb_traderorder: OrderDBSnapShotTO,
+    pub orderdb_lendorder: OrderDBSnapShotLO,
+    pub lendpool_database: LendPool,
+    pub liquidation_long_sortedset_db: SortedSet,
+    pub liquidation_short_sortedset_db: SortedSet,
+    pub open_long_sortedset_db: SortedSet,
+    pub open_short_sortedset_db: SortedSet,
+    pub close_long_sortedset_db: SortedSet,
+    pub close_short_sortedset_db: SortedSet,
+    pub sltp_close_long_sortedset_db: SortedSet,
+    pub sltp_close_short_sortedset_db: SortedSet,
+    pub position_size_log: PositionSizeLog,
+    pub risk_state: RiskState,
+    pub localdb_hashmap: HashMap<String, f64>,
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
@@ -181,7 +255,8 @@ impl SnapshotDBOld {
             sltp_close_long_sortedset_db: self.sltp_close_long_sortedset_db.clone(),
             sltp_close_short_sortedset_db: self.sltp_close_short_sortedset_db.clone(),
             position_size_log: self.position_size_log.clone(),
-            risk_state: RiskState::new(),
+            risk_state: self.risk_state.clone(),
+            risk_params: None,
             localdb_hashmap: self.localdb_hashmap.clone(),
             event_offset_partition: self.event_offset_partition,
             event_timestamp: self.event_timestamp.clone(),
@@ -189,8 +264,35 @@ impl SnapshotDBOld {
             queue_manager: self.queue_manager.clone(),
         }
     }
-    fn new_old() -> Self {
-        SnapshotDBOld {
+}
+
+// V4 snapshot format (current - has risk_state + risk_params)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotDB {
+    pub orderdb_traderorder: OrderDBSnapShotTO,
+    pub orderdb_lendorder: OrderDBSnapShotLO,
+    pub lendpool_database: LendPool,
+    pub liquidation_long_sortedset_db: SortedSet,
+    pub liquidation_short_sortedset_db: SortedSet,
+    pub open_long_sortedset_db: SortedSet,
+    pub open_short_sortedset_db: SortedSet,
+    pub close_long_sortedset_db: SortedSet,
+    pub close_short_sortedset_db: SortedSet,
+    pub sltp_close_long_sortedset_db: SortedSet,
+    pub sltp_close_short_sortedset_db: SortedSet,
+    pub position_size_log: PositionSizeLog,
+    pub risk_state: RiskState,
+    pub risk_params: Option<RiskParams>,
+    pub localdb_hashmap: HashMap<String, f64>,
+    pub event_offset_partition: (i32, i64),
+    pub event_timestamp: String,
+    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    queue_manager: QueueState,
+}
+
+impl SnapshotDB {
+    fn new() -> Self {
+        SnapshotDB {
             orderdb_traderorder: OrderDBSnapShotTO::new(),
             orderdb_lendorder: OrderDBSnapShotLO::new(),
             lendpool_database: LendPool::default(),
@@ -203,6 +305,8 @@ impl SnapshotDBOld {
             sltp_close_long_sortedset_db: SortedSet::new(),
             sltp_close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
+            risk_state: RiskState::new(),
+            risk_params: Some(RiskParams::from_env()),
             localdb_hashmap: {
                 let mut hashmap = HashMap::new();
 
@@ -241,118 +345,12 @@ impl SnapshotDBOld {
                     CORE_EVENT_LOG.clone().to_string(),
                     format!("FeeUpdate-{}", event_time),
                 );
-                hashmap
-            },
-            event_offset_partition: (0, 0),
-            event_timestamp: ServerTime::now().epoch,
-            output_hex_storage:
-                utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
-            queue_manager: QueueState::new(),
-        }
-    }
-    fn print_status(&self) {
-        if self.orderdb_traderorder.sequence > 0 {
-            crate::log_heartbeat!(debug, "TraderOrder Database Loaded ....");
-        } else {
-            crate::log_heartbeat!(
-                debug,
-                "No old TraderOrder Database found ....\nCreating new TraderOrder_database"
-            );
-        }
-        if self.orderdb_lendorder.sequence > 0 {
-            crate::log_heartbeat!(debug, "LendOrder Database Loaded ....");
-        } else {
-            crate::log_heartbeat!(
-                debug,
-                "No old LendOrder Database found ....\nCreating new LendOrder_database"
-            );
-        }
-        if self.lendpool_database.aggrigate_log_sequence > 0 {
-            crate::log_heartbeat!(debug, "LendPool Database Loaded ....");
-        } else {
-            crate::log_heartbeat!(
-                debug,
-                "No old LendPool Database found ....\nCreating new LendPool_database"
-            );
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SnapshotDB {
-    pub orderdb_traderorder: OrderDBSnapShotTO,
-    pub orderdb_lendorder: OrderDBSnapShotLO,
-    pub lendpool_database: LendPool,
-    pub liquidation_long_sortedset_db: SortedSet,
-    pub liquidation_short_sortedset_db: SortedSet,
-    pub open_long_sortedset_db: SortedSet,
-    pub open_short_sortedset_db: SortedSet,
-    pub close_long_sortedset_db: SortedSet,
-    pub close_short_sortedset_db: SortedSet,
-    pub sltp_close_long_sortedset_db: SortedSet,
-    pub sltp_close_short_sortedset_db: SortedSet,
-    pub position_size_log: PositionSizeLog,
-    pub risk_state: RiskState,
-    pub localdb_hashmap: HashMap<String, f64>,
-    pub event_offset_partition: (i32, i64),
-    pub event_timestamp: String,
-    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
-}
-
-impl SnapshotDB {
-    fn new() -> Self {
-        SnapshotDB {
-            orderdb_traderorder: OrderDBSnapShotTO::new(),
-            orderdb_lendorder: OrderDBSnapShotLO::new(),
-            lendpool_database: LendPool::default(),
-            liquidation_long_sortedset_db: SortedSet::new(),
-            liquidation_short_sortedset_db: SortedSet::new(),
-            open_long_sortedset_db: SortedSet::new(),
-            open_short_sortedset_db: SortedSet::new(),
-            close_long_sortedset_db: SortedSet::new(),
-            close_short_sortedset_db: SortedSet::new(),
-            sltp_close_long_sortedset_db: SortedSet::new(),
-            sltp_close_short_sortedset_db: SortedSet::new(),
-            position_size_log: PositionSizeLog::new(),
-            risk_state: RiskState::new(),
-            localdb_hashmap: {
-                let mut hashmap = HashMap::new();
-
-                let filled_on_market = std::env::var("FILLED_ON_MARKET")
-                    .unwrap_or("0.04".to_string())
-                    .parse::<f64>()
-                    .unwrap_or(0.04);
-                let filled_on_limit = std::env::var("FILLED_ON_LIMIT")
-                    .unwrap_or("0.02".to_string())
-                    .parse::<f64>()
-                    .unwrap_or(0.02);
-                let settled_on_market = std::env::var("SETTLED_ON_MARKET")
-                    .unwrap_or("0.04".to_string())
-                    .parse::<f64>()
-                    .unwrap_or(0.04);
-                let settled_on_limit = std::env::var("SETTLED_ON_LIMIT")
-                    .unwrap_or("0.02".to_string())
-                    .parse::<f64>()
-                    .unwrap_or(0.02);
-
-                hashmap.insert(FeeType::FilledOnMarket.into(), filled_on_market);
-                hashmap.insert(FeeType::FilledOnLimit.into(), filled_on_limit);
-                hashmap.insert(FeeType::SettledOnMarket.into(), settled_on_market);
-                hashmap.insert(FeeType::SettledOnLimit.into(), settled_on_limit);
-                let event_time = systemtime_to_utc();
+                // Emit initial risk params event
+                let initial_risk_params = RiskParams::from_env();
                 let _ = Event::send_event_to_kafka_queue(
-                    Event::FeeUpdate(
-                        RelayerCommand::UpdateFees(
-                            filled_on_market,
-                            filled_on_limit,
-                            settled_on_market,
-                            settled_on_limit,
-                        ),
-                        event_time.clone(),
-                    ),
+                    Event::RiskParamsUpdate(initial_risk_params),
                     CORE_EVENT_LOG.clone().to_string(),
-                    format!("FeeUpdate-{}", event_time),
+                    format!("RiskParamsUpdate-{}", event_time),
                 );
                 hashmap
             },
@@ -412,30 +410,40 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
                     snap_data
                 }
                 Err(arg) => {
-                    crate::log_heartbeat!(error, "Could not decode V3 snapshot - Error:{:#?}", arg);
-                    crate::log_heartbeat!(error, "trying V2 (SnapshotDBOld) format:");
+                    crate::log_heartbeat!(error, "Could not decode V4 snapshot - Error:{:#?}", arg);
+                    crate::log_heartbeat!(error, "trying V3 (SnapshotDBOld) format:");
                     match bincode::deserialize::<SnapshotDBOld>(&snapshot_data_from_file) {
                         Ok(snap_data) => {
                             fetchoffset = FetchOffset::Earliest;
                             snap_data.migrate_to_new()
                         }
                         Err(arg2) => {
-                            crate::log_heartbeat!(error, "Could not decode V2 snapshot - Error:{:#?}", arg2);
-                            crate::log_heartbeat!(error, "trying V1 (SnapshotDBOldV1) format:");
-                            match bincode::deserialize::<SnapshotDBOldV1>(&snapshot_data_from_file) {
+                            crate::log_heartbeat!(error, "Could not decode V3 snapshot - Error:{:#?}", arg2);
+                            crate::log_heartbeat!(error, "trying V2 (SnapshotDBOldV2) format:");
+                            match bincode::deserialize::<SnapshotDBOldV2>(&snapshot_data_from_file) {
                                 Ok(snap_data) => {
                                     fetchoffset = FetchOffset::Earliest;
                                     snap_data.migrate_to_new().migrate_to_new()
                                 }
                                 Err(arg3) => {
-                                    crate::log_heartbeat!(
-                                        info,
-                                        "No previous Snapshot Found- Error:{:#?} \n path: {:?} \n Creating new Snapshot",
-                                        arg3,
-                                        format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
-                                    );
-                                    fetchoffset = FetchOffset::Earliest;
-                                    SnapshotDB::new()
+                                    crate::log_heartbeat!(error, "Could not decode V2 snapshot - Error:{:#?}", arg3);
+                                    crate::log_heartbeat!(error, "trying V1 (SnapshotDBOldV1) format:");
+                                    match bincode::deserialize::<SnapshotDBOldV1>(&snapshot_data_from_file) {
+                                        Ok(snap_data) => {
+                                            fetchoffset = FetchOffset::Earliest;
+                                            snap_data.migrate_to_new().migrate_to_new().migrate_to_new()
+                                        }
+                                        Err(arg4) => {
+                                            crate::log_heartbeat!(
+                                                info,
+                                                "No previous Snapshot Found- Error:{:#?} \n path: {:?} \n Creating new Snapshot",
+                                                arg4,
+                                                format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
+                                            );
+                                            fetchoffset = FetchOffset::Earliest;
+                                            SnapshotDB::new()
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -508,6 +516,7 @@ pub fn create_snapshot_data(
         mut sltp_close_short_sortedset_db,
         mut position_size_log,
         mut risk_state,
+        mut risk_params,
         mut localdb_hashmap,
         mut event_offset_partition,
         event_timestamp: _,
@@ -1218,6 +1227,9 @@ pub fn create_snapshot_data(
                                 Event::RiskEngineUpdate(_cmd, event) => {
                                     risk_state = event;
                                 }
+                                Event::RiskParamsUpdate(params) => {
+                                    risk_params = Some(params);
+                                }
                                 Event::TxHash(
                                     orderid,
                                     _account_id,
@@ -1367,6 +1379,7 @@ pub fn create_snapshot_data(
                         sltp_close_short_sortedset_db: sltp_close_short_sortedset_db.clone(),
                         position_size_log: position_size_log.clone(),
                         risk_state: risk_state.clone(),
+                        risk_params: risk_params.clone(),
                         localdb_hashmap: localdb_hashmap,
                         event_offset_partition: event_offset_partition,
                         event_timestamp: event_timestamp,
@@ -1610,6 +1623,13 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
                 let mut risk_engine_state = RISK_ENGINE_STATE.lock().unwrap();
                 *risk_engine_state = snapshot_data.risk_state.clone();
                 drop(risk_engine_state);
+            }
+            // Restore risk params from snapshot (if previously set via RPC)
+            if let Some(ref params) = snapshot_data.risk_params {
+                let mut risk_params = RISK_PARAMS.lock().unwrap();
+                *risk_params = params.clone();
+                drop(risk_params);
+                crate::log_heartbeat!(info, "RISK_ENGINE: Restored risk params from snapshot");
             }
             *load_pool_data = snapshot_data.lendpool_database.clone();
             let current_price = snapshot_data.localdb_hashmap.get("CurrentPrice").clone();

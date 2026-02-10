@@ -10,7 +10,8 @@ use std::sync::{Arc, Mutex};
 lazy_static! {
     pub static ref RISK_ENGINE_STATE: Arc<Mutex<RiskState>> =
         Arc::new(Mutex::new(RiskState::new()));
-    pub static ref RISK_PARAMS: RiskParams = RiskParams::from_env();
+    pub static ref RISK_PARAMS: Arc<Mutex<RiskParams>> =
+        Arc::new(Mutex::new(RiskParams::from_env()));
 }
 
 // --- Risk Parameters (loaded from env with defaults) ---
@@ -214,6 +215,17 @@ impl RiskState {
             CORE_EVENT_LOG.clone().to_string(),
         );
         drop(state);
+    }
+
+    pub fn update_risk_params(new_params: RiskParams) {
+        let mut params = RISK_PARAMS.lock().unwrap();
+        *params = new_params.clone();
+        Event::new(
+            Event::RiskParamsUpdate(new_params),
+            String::from("UpdateRiskParams"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(params);
     }
 }
 
@@ -420,7 +432,7 @@ pub fn validate_open_order(
 
 pub fn get_market_stats(pool_equity_btc: f64, mark_price: f64) -> MarketRiskStats {
     let state = RISK_ENGINE_STATE.lock().unwrap();
-    let params = &*RISK_PARAMS;
+    let params = RISK_PARAMS.lock().unwrap().clone();
 
     let (status, status_reason) = compute_market_status(&state, pool_equity_btc);
 
@@ -442,7 +454,7 @@ pub fn get_market_stats(pool_equity_btc: f64, mark_price: f64) -> MarketRiskStat
         0.0
     };
 
-    let limits = compute_limits(total_long, total_short, pool_equity_btc, &status, params);
+    let limits = compute_limits(total_long, total_short, pool_equity_btc, &status, &params);
 
     drop(state);
 
@@ -459,7 +471,7 @@ pub fn get_market_stats(pool_equity_btc: f64, mark_price: f64) -> MarketRiskStat
         max_short_btc: limits.max_short_btc,
         status,
         status_reason: status_reason.map(|r| r.to_string()),
-        params: params.clone(),
+        params: params,
     }
 }
 

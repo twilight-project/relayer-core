@@ -48,6 +48,15 @@ pub struct SetMarketFlag {
     pub enabled: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct UpdateRiskParamsRequest {
+    pub max_oi_mult: Option<f64>,
+    pub max_net_mult: Option<f64>,
+    pub max_position_pct: Option<f64>,
+    pub min_position_btc: Option<f64>,
+    pub max_leverage: Option<f64>,
+}
+
 impl GetPnL {
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();
