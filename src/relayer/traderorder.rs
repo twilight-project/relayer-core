@@ -198,7 +198,15 @@ impl TraderOrder {
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
         // Risk engine bookkeeping: track BTC exposure (entry_value) for both FILLED and PENDING
-        RiskState::add_order(ordertx.position_type.clone(), entryvalue(ordertx.initial_margin, ordertx.leverage));
+        if (ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET)
+            || (ordertx.order_status == OrderStatus::PENDING
+                && ordertx.order_type == OrderType::LIMIT)
+        {
+            RiskState::add_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
+        }
         if order_entry_status {
             // Adding in side wise and total position size
             PositionSizeLog::add_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
@@ -629,7 +637,10 @@ impl TraderOrder {
     pub fn order_remove_from_localdb(&self) {
         let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
-        RiskState::remove_order(ordertx.position_type.clone(), entryvalue(ordertx.initial_margin, ordertx.leverage));
+        RiskState::remove_order(
+            ordertx.position_type.clone(),
+            entryvalue(ordertx.initial_margin, ordertx.leverage),
+        );
         match ordertx.position_type {
             PositionType::LONG => {
                 let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
@@ -654,7 +665,10 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
-                            RiskState::remove_order(self.position_type.clone(), entryvalue(self.initial_margin, self.leverage));
+                            RiskState::remove_order(
+                                self.position_type.clone(),
+                                entryvalue(self.initial_margin, self.leverage),
+                            );
                             Event::new(
                                 Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
                                     self.uuid.clone(),
@@ -675,7 +689,10 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
-                            RiskState::remove_order(self.position_type.clone(), entryvalue(self.initial_margin, self.leverage));
+                            RiskState::remove_order(
+                                self.position_type.clone(),
+                                entryvalue(self.initial_margin, self.leverage),
+                            );
                             Event::new(
                                 Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
                                     self.uuid.clone(),

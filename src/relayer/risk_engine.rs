@@ -430,6 +430,21 @@ pub fn validate_open_order(
     Ok(x_btc)
 }
 
+pub fn validate_close_cancel_order(
+    pool_equity_btc: f64,
+) -> Result<(), RiskRejectionReason> {
+    let state = RISK_ENGINE_STATE.lock().unwrap();
+    let (status, status_reason) = compute_market_status(&state, pool_equity_btc);
+    drop(state);
+
+    if status == MarketStatus::HALT {
+        let reason = status_reason.map_or("UNKNOWN".to_string(), |r| r.to_string());
+        return Err(RiskRejectionReason::Halt(reason));
+    }
+
+    Ok(())
+}
+
 pub fn get_market_stats(pool_equity_btc: f64, mark_price: f64) -> MarketRiskStats {
     let state = RISK_ENGINE_STATE.lock().unwrap();
     let params = RISK_PARAMS.lock().unwrap().clone();
