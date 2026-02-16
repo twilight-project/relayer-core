@@ -124,15 +124,35 @@ impl RiskRejectionReason {
 
 // --- Risk State (authoritative, persisted via events/snapshots) ---
 
+// Old RiskState (V4 snapshot format — no pause flags)
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RiskStateOld {
+    pub total_long_btc: f64,
+    pub total_short_btc: f64,
+    pub manual_halt: bool,
+    pub manual_close_only: bool,
+}
+
+impl RiskStateOld {
+    pub fn migrate_to_new(&self) -> RiskState {
+        RiskState {
+            total_long_btc: self.total_long_btc,
+            total_short_btc: self.total_short_btc,
+            manual_halt: self.manual_halt,
+            manual_close_only: self.manual_close_only,
+            pause_funding: false,
+            pause_price_feed: false,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RiskState {
     pub total_long_btc: f64, // sum of entry_value (sats) for all open LONG positions
     pub total_short_btc: f64, // sum of entry_value (sats) for all open SHORT positions
     pub manual_halt: bool,
     pub manual_close_only: bool,
-    #[serde(default)]
     pub pause_funding: bool,
-    #[serde(default)]
     pub pause_price_feed: bool,
 }
 

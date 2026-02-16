@@ -286,55 +286,139 @@ pub fn startserver() {
                         crate::log_heartbeat!(warn, "RISK_ENGINE: Price feed paused");
                     }
 
-                    // 4. Cancel pending limit orders if requested
+                    // 4. Cancel pending limit orders if requested (background thread)
                     if req.cancel_pending_limit_orders.unwrap_or(false) {
-                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                        let all_orders = trader_order_db.getall_mut();
-                        let mut uuids_to_remove: Vec<uuid::Uuid> = Vec::new();
+                        // Collect UUIDs from the sorted sets (much faster than iterating all orders)
+                        let open_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                        let open_short = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                        let mut pending_uuids: Vec<uuid::Uuid> = open_long.sorted_order.iter().map(|(uuid, _)| *uuid).collect();
+                        pending_uuids.extend(open_short.sorted_order.iter().map(|(uuid, _)| *uuid));
+                        drop(open_long);
+                        drop(open_short);
 
-                        for order_arc in &all_orders {
-                            let mut order = order_arc.write().unwrap();
-                            if order.order_status == OrderStatus::PENDING && order.order_type == OrderType::LIMIT {
-                                let (cancelled, _) = order.cancelorder_localdb();
-                                if cancelled {
-                                    uuids_to_remove.push(order.uuid);
-                                    pending_cancelled += 1;
-                                }
-                            }
-                        }
-
-                        for uuid in &uuids_to_remove {
-                            trader_order_db.ordertable.remove(uuid);
-                        }
-                        drop(trader_order_db);
+                        pending_cancelled = pending_uuids.len() as u64;
 
                         if pending_cancelled > 0 {
-                            crate::log_heartbeat!(warn, "RISK_ENGINE: Cancelled {} pending limit orders", pending_cancelled);
+                            crate::log_heartbeat!(warn, "RISK_ENGINE: Scheduling cancellation of {} pending limit orders", pending_cancelled);
+                            std::thread::Builder::new()
+                                .name(String::from("halt_cancel_pending_limits"))
+                                .spawn(move || {
+                                    let mut cancelled_count: u64 = 0;
+                                    let mut uuids_to_remove: Vec<uuid::Uuid> = Vec::new();
+
+                                    for uuid in &pending_uuids {
+                                        let trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                        let order_arc = match trader_order_db.ordertable.get(uuid) {
+                                            Some(arc) => arc.clone(),
+                                            None => {
+                                                drop(trader_order_db);
+                                                continue;
+                                            }
+                                        };
+                                        drop(trader_order_db);
+
+                                        let mut order = order_arc.write().unwrap();
+                                        if order.order_status == OrderStatus::PENDING && order.order_type == OrderType::LIMIT {
+                                            let (cancelled, _) = order.cancelorder_localdb();
+                                            if cancelled {
+                                                uuids_to_remove.push(*uuid);
+                                                cancelled_count += 1;
+                                            }
+                                        }
+                                    }
+
+                                    // Remove cancelled orders from ordertable
+                                    if !uuids_to_remove.is_empty() {
+                                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                        for uuid in &uuids_to_remove {
+                                            trader_order_db.ordertable.remove(uuid);
+                                        }
+                                        drop(trader_order_db);
+                                    }
+
+                                    crate::log_heartbeat!(warn, "RISK_ENGINE: Cancelled {} pending limit orders (background)", cancelled_count);
+                                })
+                                .unwrap();
                         }
                     }
 
-                    // 5. Cancel settling limit orders if requested
+                    // 5. Cancel settling limit orders if requested (background thread)
                     if req.cancel_settling_limit_orders.unwrap_or(false) {
-                        let mut close_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-                        let mut close_short = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-                        settling_cancelled += close_long.len as u64;
-                        settling_cancelled += close_short.len as u64;
-                        *close_long = SortedSet::new();
-                        *close_short = SortedSet::new();
-                        drop(close_long);
-                        drop(close_short);
-
-                        let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
-                        let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
-                        settling_cancelled += sltp_long.len as u64;
-                        settling_cancelled += sltp_short.len as u64;
-                        *sltp_long = SortedSet::new();
-                        *sltp_short = SortedSet::new();
-                        drop(sltp_long);
-                        drop(sltp_short);
+                        // Count entries before spawning thread for the response
+                        let close_long_count = TRADER_LIMIT_CLOSE_LONG.lock().unwrap().len as u64;
+                        let close_short_count = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap().len as u64;
+                        let sltp_long_count = TRADER_SLTP_CLOSE_LONG.lock().unwrap().len as u64;
+                        let sltp_short_count = TRADER_SLTP_CLOSE_SHORT.lock().unwrap().len as u64;
+                        settling_cancelled = close_long_count + close_short_count + sltp_long_count + sltp_short_count;
 
                         if settling_cancelled > 0 {
-                            crate::log_heartbeat!(warn, "RISK_ENGINE: Cleared {} settling limit order entries", settling_cancelled);
+                            crate::log_heartbeat!(warn, "RISK_ENGINE: Scheduling clearing of {} settling limit order entries", settling_cancelled);
+                            std::thread::Builder::new()
+                                .name(String::from("halt_cancel_settling_limits"))
+                                .spawn(move || {
+                                    // Close limit orders
+                                    let mut close_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                                    let mut close_short = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+
+                                    for (uuid, _) in &close_long.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
+                                                *uuid,
+                                                PositionType::LONG,
+                                            )),
+                                            format!("HaltRemoveCloseLimitPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string(),
+                                        );
+                                    }
+                                    for (uuid, _) in &close_short.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
+                                                *uuid,
+                                                PositionType::SHORT,
+                                            )),
+                                            format!("HaltRemoveCloseLimitPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string(),
+                                        );
+                                    }
+
+                                    *close_long = SortedSet::new();
+                                    *close_short = SortedSet::new();
+                                    drop(close_long);
+                                    drop(close_short);
+
+                                    // SLTP close limit orders
+                                    let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                                    let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+
+                                    for (uuid, _) in &sltp_long.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                                *uuid,
+                                                PositionType::LONG,
+                                            )),
+                                            format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string(),
+                                        );
+                                    }
+                                    for (uuid, _) in &sltp_short.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                                *uuid,
+                                                PositionType::SHORT,
+                                            )),
+                                            format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string(),
+                                        );
+                                    }
+
+                                    *sltp_long = SortedSet::new();
+                                    *sltp_short = SortedSet::new();
+                                    drop(sltp_long);
+                                    drop(sltp_short);
+
+                                    crate::log_heartbeat!(warn, "RISK_ENGINE: Cleared settling limit order entries (background)");
+                                })
+                                .unwrap();
                         }
                     }
 
