@@ -49,6 +49,16 @@ pub struct SetMarketFlag {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SetMarketHaltRequest {
+    pub enabled: bool,
+    pub cancel_pending_limit_orders: Option<bool>,
+    pub cancel_settling_limit_orders: Option<bool>,
+    pub pause_funding: Option<bool>,
+    pub pause_price_feed: Option<bool>,
+    pub exit_relayer: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct UpdateRiskParamsRequest {
     pub max_oi_mult: Option<f64>,
     pub max_net_mult: Option<f64>,

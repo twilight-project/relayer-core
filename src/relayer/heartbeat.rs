@@ -88,7 +88,14 @@ pub fn heartbeat() {
             // scheduler.every(600.seconds()).run(move || {
             scheduler.every((1).hour()).run(move || {
                 if get_relayer_status() {
-                    updatefundingrate_localdb(1.0);
+                    let state = RISK_ENGINE_STATE.lock().unwrap();
+                    let paused = state.pause_funding;
+                    drop(state);
+                    if !paused {
+                        updatefundingrate_localdb(1.0);
+                    } else {
+                        crate::log_heartbeat!(warn, "RISK_ENGINE: Funding cycle skipped (paused)");
+                    }
                 }
             });
             // scheduler.every(1.seconds()).run(move || {
@@ -148,7 +155,10 @@ pub fn price_check_and_update() {
         }
     };
     drop(local_storage);
-    if get_relayer_status() {
+    let state = RISK_ENGINE_STATE.lock().unwrap();
+    let price_paused = state.pause_price_feed;
+    drop(state);
+    if get_relayer_status() && !price_paused {
         crate::log_price!(debug, "Updating current price to: {}", currentprice);
 
         Event::new(

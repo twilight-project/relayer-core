@@ -130,6 +130,10 @@ pub struct RiskState {
     pub total_short_btc: f64, // sum of entry_value (sats) for all open SHORT positions
     pub manual_halt: bool,
     pub manual_close_only: bool,
+    #[serde(default)]
+    pub pause_funding: bool,
+    #[serde(default)]
+    pub pause_price_feed: bool,
 }
 
 impl RiskState {
@@ -139,6 +143,8 @@ impl RiskState {
             total_short_btc: 0.0,
             manual_halt: false,
             manual_close_only: false,
+            pause_funding: false,
+            pause_price_feed: false,
         }
     }
 
@@ -212,6 +218,34 @@ impl RiskState {
                 state.clone(),
             ),
             String::from("SetManualCloseOnly"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn set_pause_funding(enabled: bool) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        state.pause_funding = enabled;
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::SetPauseFunding(enabled),
+                state.clone(),
+            ),
+            String::from("SetPauseFunding"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn set_pause_price_feed(enabled: bool) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        state.pause_price_feed = enabled;
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::SetPausePriceFeed(enabled),
+                state.clone(),
+            ),
+            String::from("SetPausePriceFeed"),
             CORE_EVENT_LOG.clone().to_string(),
         );
         drop(state);

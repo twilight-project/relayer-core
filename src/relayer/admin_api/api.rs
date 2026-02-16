@@ -258,15 +258,156 @@ pub fn startserver() {
 
     /*****************Set Market Halt */
     io.add_method_with_meta("SetMarketHalt", move |params: Params, _meta: Meta| async move {
-        match params.parse::<SetMarketFlag>() {
-            Ok(value) => {
-                RiskState::set_manual_halt(value.enabled);
-                crate::log_heartbeat!(warn, "RISK_ENGINE: Manual halt set to {}", value.enabled);
-                Ok(serde_json::to_value(format!("Manual halt set to {}", value.enabled)).unwrap())
+        match params.parse::<SetMarketHaltRequest>() {
+            Ok(req) => {
+                let mut pending_cancelled: u64 = 0;
+                let mut settling_cancelled: u64 = 0;
+                let mut funding_paused = false;
+                let mut price_feed_paused = false;
+                let mut exit_initiated = false;
+                let mut snapshot_taken = false;
+
+                if req.enabled {
+                    // 1. Set halt flag
+                    RiskState::set_manual_halt(true);
+                    crate::log_heartbeat!(warn, "RISK_ENGINE: Manual halt ENABLED");
+
+                    // 2. Pause funding if requested
+                    if req.pause_funding.unwrap_or(false) {
+                        RiskState::set_pause_funding(true);
+                        funding_paused = true;
+                        crate::log_heartbeat!(warn, "RISK_ENGINE: Funding paused");
+                    }
+
+                    // 3. Pause price feed if requested
+                    if req.pause_price_feed.unwrap_or(false) {
+                        RiskState::set_pause_price_feed(true);
+                        price_feed_paused = true;
+                        crate::log_heartbeat!(warn, "RISK_ENGINE: Price feed paused");
+                    }
+
+                    // 4. Cancel pending limit orders if requested
+                    if req.cancel_pending_limit_orders.unwrap_or(false) {
+                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                        let all_orders = trader_order_db.getall_mut();
+                        let mut uuids_to_remove: Vec<uuid::Uuid> = Vec::new();
+
+                        for order_arc in &all_orders {
+                            let mut order = order_arc.write().unwrap();
+                            if order.order_status == OrderStatus::PENDING && order.order_type == OrderType::LIMIT {
+                                let (cancelled, _) = order.cancelorder_localdb();
+                                if cancelled {
+                                    uuids_to_remove.push(order.uuid);
+                                    pending_cancelled += 1;
+                                }
+                            }
+                        }
+
+                        for uuid in &uuids_to_remove {
+                            trader_order_db.ordertable.remove(uuid);
+                        }
+                        drop(trader_order_db);
+
+                        if pending_cancelled > 0 {
+                            crate::log_heartbeat!(warn, "RISK_ENGINE: Cancelled {} pending limit orders", pending_cancelled);
+                        }
+                    }
+
+                    // 5. Cancel settling limit orders if requested
+                    if req.cancel_settling_limit_orders.unwrap_or(false) {
+                        let mut close_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                        let mut close_short = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                        settling_cancelled += close_long.len as u64;
+                        settling_cancelled += close_short.len as u64;
+                        *close_long = SortedSet::new();
+                        *close_short = SortedSet::new();
+                        drop(close_long);
+                        drop(close_short);
+
+                        let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                        let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                        settling_cancelled += sltp_long.len as u64;
+                        settling_cancelled += sltp_short.len as u64;
+                        *sltp_long = SortedSet::new();
+                        *sltp_short = SortedSet::new();
+                        drop(sltp_long);
+                        drop(sltp_short);
+
+                        if settling_cancelled > 0 {
+                            crate::log_heartbeat!(warn, "RISK_ENGINE: Cleared {} settling limit order entries", settling_cancelled);
+                        }
+                    }
+
+                    // 6. Exit relayer if requested
+                    if req.exit_relayer.unwrap_or(false) {
+                        exit_initiated = true;
+
+                        // Force pause funding + price feed regardless of individual flags
+                        if !funding_paused {
+                            RiskState::set_pause_funding(true);
+                            funding_paused = true;
+                        }
+                        if !price_feed_paused {
+                            RiskState::set_pause_price_feed(true);
+                            price_feed_paused = true;
+                        }
+
+                        // Stop all service loops
+                        set_relayer_status(false);
+                        crate::log_heartbeat!(warn, "RISK_ENGINE: Relayer set to idle (exit_relayer)");
+
+                        // Take final snapshot
+                        match snapshot() {
+                            Ok(_) => {
+                                snapshot_taken = true;
+                                crate::log_heartbeat!(warn, "RISK_ENGINE: Final snapshot taken");
+                            }
+                            Err(e) => {
+                                crate::log_heartbeat!(error, "RISK_ENGINE: Failed to take snapshot: {:?}", e);
+                            }
+                        }
+                    }
+                } else {
+                    // Disabling halt
+                    RiskState::set_manual_halt(false);
+                    crate::log_heartbeat!(warn, "RISK_ENGINE: Manual halt DISABLED");
+
+                    // Resume funding if explicitly requested
+                    if req.pause_funding == Some(false) {
+                        RiskState::set_pause_funding(false);
+                        crate::log_heartbeat!(warn, "RISK_ENGINE: Funding resumed");
+                    }
+
+                    // Resume price feed if explicitly requested
+                    if req.pause_price_feed == Some(false) {
+                        RiskState::set_pause_price_feed(false);
+                        crate::log_heartbeat!(warn, "RISK_ENGINE: Price feed resumed");
+                    }
+
+                    // Read current state for response
+                    let state = RISK_ENGINE_STATE.lock().unwrap();
+                    funding_paused = state.pause_funding;
+                    price_feed_paused = state.pause_price_feed;
+                    drop(state);
+                }
+
+                let response = serde_json::json!({
+                    "halt_enabled": req.enabled,
+                    "pending_orders_cancelled": pending_cancelled,
+                    "settling_orders_cancelled": settling_cancelled,
+                    "funding_paused": funding_paused,
+                    "price_feed_paused": price_feed_paused,
+                    "exit_initiated": exit_initiated,
+                    "snapshot_taken": snapshot_taken,
+                });
+                Ok(response)
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(
-                    format!("Invalid parameters, {:?}. Expected: {{ \"enabled\": bool }}", args)
+                    format!(
+                        "Invalid parameters, {:?}. Expected: {{ \"enabled\": bool, \"cancel_pending_limit_orders\": bool?, \"cancel_settling_limit_orders\": bool?, \"pause_funding\": bool?, \"pause_price_feed\": bool?, \"exit_relayer\": bool? }}",
+                        args
+                    )
                 );
                 Err(err)
             }

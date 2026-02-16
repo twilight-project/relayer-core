@@ -138,6 +138,8 @@ pub enum RiskEngineCommand {
     RemoveExposure(PositionType, f64),
     SetManualHalt(bool),
     SetManualCloseOnly(bool),
+    SetPauseFunding(bool),
+    SetPausePriceFeed(bool),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
