@@ -180,6 +180,16 @@ pub fn rpc_event_handler(
                                 Ok(_) => {}
                                 Err(_) => {}
                             }
+                        } else {
+                            crate::log_heartbeat!(
+                                warn,
+                                "Unexpected order status {:?} for order={}, skipping",
+                                orderdata_clone.order_status, orderdata_clone.uuid
+                            );
+                            match tx_consumed.send(offset_complition) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
                         }
                     } else {
                         // send event for txhash with error saying order already exist in the relayer
@@ -897,7 +907,12 @@ pub fn rpc_event_handler(
             });
             drop(buffer);
         } // RpcCommand::Liquidation(trader_order, metadata) => {}
-        RpcCommand::RelayerCommandTraderOrderSettleOnLimit(..) => {}
+        RpcCommand::RelayerCommandTraderOrderSettleOnLimit(..) => {
+            match tx_consumed.send(offset_complition) {
+                Ok(_) => {}
+                Err(_) => {}
+            }
+        }
         RpcCommand::ExecuteTraderOrderSlTp(
             rpc_request,
             sltp,
@@ -1257,6 +1272,16 @@ pub fn rpc_event_handler(
                                 ),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            match tx_consumed.send(offset_complition) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
+                        } else {
+                            crate::log_heartbeat!(
+                                warn,
+                                "Unexpected order status {:?} for sltp order={}, skipping",
+                                orderdata_clone.order_status, orderdata_clone.uuid
                             );
                             match tx_consumed.send(offset_complition) {
                                 Ok(_) => {}
