@@ -1,6 +1,6 @@
 [package]
 name = "relayer-core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Twilight Project"]
 description = "A high-performance matching engine written in Rust using Event Sourcing pattern with CQRS framework to handle tens of thousands of orders per second"
