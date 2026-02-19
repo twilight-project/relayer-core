@@ -48,13 +48,11 @@ pub fn startserver() {
                     4 => {
                         let trader_lp_long = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
                         println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long);
-                        println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long.sorted_order);
                         drop(trader_lp_long);
                     }
                     5 => {
                         let trader_lp_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
                         println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
-                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long.sorted_order);
                         drop(trader_lp_long);
                     }
                     6 => {
@@ -76,14 +74,12 @@ pub fn startserver() {
                     }
                     9 => {
                         let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
-                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long.sorted_order);
+                        println!("\n TRADER_LIMIT_CLOSE_LONG : {:#?}", trader_lp_long);
                         drop(trader_lp_long);
                     }
                     10 => {
                         let trader_lp_long = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
-                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long.sorted_order);
+                        println!("\n TRADER_LIMIT_CLOSE_SHORT : {:#?}", trader_lp_long);
                         drop(trader_lp_long);
                     }
                     11 => {
