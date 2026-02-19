@@ -6,7 +6,7 @@ use jsonrpc_core::types::error::Error as JsonRpcError;
 use jsonrpc_core::*;
 use jsonrpc_http_server::{
     hyper,
-    jsonrpc_core::{MetaIoHandler, Metadata, Params},
+    jsonrpc_core::{ MetaIoHandler, Metadata, Params },
     ServerBuilder,
 };
 use std::collections::HashMap;
@@ -21,214 +21,214 @@ pub fn startserver() {
     // let mut io = IoHandler::default();
     let mut io = MetaIoHandler::default();
 
-    io.add_method_with_meta(
-        "GetServerTime",
-        move |params: Params, _meta: Meta| async move {
-            Ok(serde_json::to_value(&check_server_time()).unwrap())
-        },
-    );
+    io.add_method_with_meta("GetServerTime", move |params: Params, _meta: Meta| async move {
+        Ok(serde_json::to_value(&check_server_time()).unwrap())
+    });
 
-    io.add_method_with_meta(
-        "CheckVector",
-        move |params: Params, meta: Meta| async move {
-            match params.parse::<TestLocaldb>() {
-                Ok(value) => {
-                    // let sw = Stopwatch::start_new();
-                    match value.key {
-                        1 => {
-                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
-                            println!("\n LEND_ORDER_DB : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        2 => {
-                            let trader_lp_long = LEND_POOL_DB.lock().unwrap();
-                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        3 => {
-                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
-                            println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        4 => {
-                            let trader_lp_long = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
-                            println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        5 => {
-                            let trader_lp_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
-                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        6 => {
-                            let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
-                            println!(
-                                "\n Trader_ORDER_DB : {:#?}",
-                                trader_lp_long.sequence.clone()
-                            );
-                            drop(trader_lp_long);
-                        }
-                        7 => {
-                            let trader_lp_long = TRADER_LP_LONG.lock().unwrap();
-                            println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.len);
-                            println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.sorted_order);
-                            drop(trader_lp_long);
-                        }
-                        8 => {
-                            let trader_lp_short = TRADER_LP_SHORT.lock().unwrap();
-                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_short.len);
-                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_short.sorted_order);
-                            drop(trader_lp_short);
-                        }
-                        9 => {
-                            let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        10 => {
-                            let trader_lp_long = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-                            println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        11 => {
-                            let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
-                            println!("\n POSITION_SIZE_LOG : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
-                        12 => {
-                            // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
-                            println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
-                            // drop(trader_lp_long);
-                        }
-                        13 => {
-                            // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
-                            // println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
+    io.add_method_with_meta("CheckVector", move |params: Params, meta: Meta| async move {
+        match params.parse::<TestLocaldb>() {
+            Ok(value) => {
+                // let sw = Stopwatch::start_new();
+                match value.key {
+                    1 => {
+                        let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                        println!("\n LEND_ORDER_DB : {:#?}", trader_lp_long);
+                        drop(trader_lp_long);
+                    }
+                    2 => {
+                        let trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                        println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                        drop(trader_lp_long);
+                    }
+                    3 => {
+                        let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                        println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long);
+                        drop(trader_lp_long);
+                    }
+                    4 => {
+                        let trader_lp_long = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
+                        println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long);
+                        println!("\n TRADER_LIMIT_OPEN_SHORT : {:#?}", trader_lp_long.sorted_order);
+                        drop(trader_lp_long);
+                    }
+                    5 => {
+                        let trader_lp_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
+                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long.sorted_order);
+                        drop(trader_lp_long);
+                    }
+                    6 => {
+                        let trader_lp_long = TRADER_ORDER_DB.lock().unwrap();
+                        println!("\n Trader_ORDER_DB : {:#?}", trader_lp_long.sequence.clone());
+                        drop(trader_lp_long);
+                    }
+                    7 => {
+                        let trader_lp_long = TRADER_LP_LONG.lock().unwrap();
+                        println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.len);
+                        println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.sorted_order);
+                        drop(trader_lp_long);
+                    }
+                    8 => {
+                        let trader_lp_short = TRADER_LP_SHORT.lock().unwrap();
+                        println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_short.len);
+                        println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_short.sorted_order);
+                        drop(trader_lp_short);
+                    }
+                    9 => {
+                        let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long.sorted_order);
+                        drop(trader_lp_long);
+                    }
+                    10 => {
+                        let trader_lp_long = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long);
+                        println!("\n TRADER_LIMIT_OPEN_LONG : {:#?}", trader_lp_long.sorted_order);
+                        drop(trader_lp_long);
+                    }
+                    11 => {
+                        let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                        println!("\n POSITION_SIZE_LOG : {:#?}", trader_lp_long);
+                        drop(trader_lp_long);
+                    }
+                    12 => {
+                        // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                        println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
+                        // drop(trader_lp_long);
+                    }
+                    13 => {
+                        // let trader_lp_long = POSITION_SIZE_LOG.lock().unwrap();
+                        // println!("\n CurrentPrice : {:#?}", get_localdb("CurrentPrice"));
 
-                            // drop(trader_lp_long);
-                            std::thread::Builder::new()
-                                .name(String::from("updatefundingrate_localdb(1.0)"))
-                                .spawn(move || {
-                                    updatefundingrate_localdb(1.0);
-                                })
-                                .unwrap();
-                        }
-                        14 => {
-                            std::thread::Builder::new()
-                                .name(String::from("json-RPC startserver"))
-                                .spawn(move || {
-                                    let current_price = value.price;
-                                    let get_open_order_short_list1 =
-                                        TRADER_LP_SHORT.lock().unwrap();
-                                    let get_open_order_long_list1 = TRADER_LP_LONG.lock().unwrap();
-                                    let sw = Stopwatch::start_new();
-                                    let mut get_open_order_short_list =
-                                        get_open_order_short_list1.clone();
-                                    let mut get_open_order_long_list =
-                                        get_open_order_long_list1.clone();
-                                    let time1 = sw.elapsed();
-                                    let orderid_list_short = get_open_order_short_list
-                                        .search_lt((current_price * 10000.0) as i64);
-                                    let orderid_list_long = get_open_order_long_list
-                                        .search_gt((current_price * 10000.0) as i64);
-                                    drop(get_open_order_short_list1);
-                                    drop(get_open_order_long_list1);
-                                    let time2 = sw.elapsed();
-                                    println!("cloning time is {:#?}", time1);
-                                    println!(
-                                        "searching for ordercount:{} is {:#?}",
-                                        orderid_list_short.len() + orderid_list_long.len(),
-                                        time2
-                                    );
-                                })
-                                .unwrap();
-                        }
-                        15 => {
-                            std::thread::Builder::new()
-                                .name(String::from("snapshot"))
-                                .spawn(move || {
-                                    let _ = snapshot();
-                                })
-                                .unwrap();
-                        }
-                        16 => {
-                            let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
-                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
-                            *trader_lp_long = LendPool::new();
-                            drop(trader_lp_long);
-                        }
-                        17 => {
-                            let mut lend_pool_db = LEND_POOL_DB.lock().unwrap();
-                            *lend_pool_db = LendPool::new();
-                            println!("\n LEND_POOL_DB : {:#?}", lend_pool_db);
-                            drop(lend_pool_db);
-                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                            *trader_order_db = LocalDB::<TraderOrder>::new();
-                            println!("\n Trader_ORDER_DB : {:#?}", trader_order_db);
-                            drop(trader_order_db);
-                            let mut lend_order_db = LEND_ORDER_DB.lock().unwrap();
-                            *lend_order_db = LocalDB::<LendOrder>::new();
-                            println!("\n LEND_ORDER_DB : {:#?}", lend_order_db);
-                            drop(lend_order_db);
-                        }
-                        18 => {
-                            let lend_pool_db = LEND_POOL_DB.lock().unwrap();
-                            // *lend_pool_db = LendPool::new();
-                            println!(
-                                "\n LEND_POOL_DB : {:#?}",
-                                hex::encode(
-                                    bincode::serialize(&lend_pool_db.last_output_state.clone())
-                                        .unwrap()
-                                )
-                            );
-                            drop(lend_pool_db);
-                        }
-                        19 => {
-                            set_relayer_status(value.relayer_status);
-                        }
-                        20 => {
-                            relayer_event_handler(RelayerCommand::PriceTickerLiquidation(
+                        // drop(trader_lp_long);
+                        std::thread::Builder
+                            ::new()
+                            .name(String::from("updatefundingrate_localdb(1.0)"))
+                            .spawn(move || {
+                                updatefundingrate_localdb(1.0);
+                            })
+                            .unwrap();
+                    }
+                    14 => {
+                        std::thread::Builder
+                            ::new()
+                            .name(String::from("json-RPC startserver"))
+                            .spawn(move || {
+                                let current_price = value.price;
+                                let get_open_order_short_list1 = TRADER_LP_SHORT.lock().unwrap();
+                                let get_open_order_long_list1 = TRADER_LP_LONG.lock().unwrap();
+                                let sw = Stopwatch::start_new();
+                                let mut get_open_order_short_list =
+                                    get_open_order_short_list1.clone();
+                                let mut get_open_order_long_list =
+                                    get_open_order_long_list1.clone();
+                                let time1 = sw.elapsed();
+                                let orderid_list_short = get_open_order_short_list.search_lt(
+                                    (current_price * 10000.0) as i64
+                                );
+                                let orderid_list_long = get_open_order_long_list.search_gt(
+                                    (current_price * 10000.0) as i64
+                                );
+                                drop(get_open_order_short_list1);
+                                drop(get_open_order_long_list1);
+                                let time2 = sw.elapsed();
+                                println!("cloning time is {:#?}", time1);
+                                println!(
+                                    "searching for ordercount:{} is {:#?}",
+                                    orderid_list_short.len() + orderid_list_long.len(),
+                                    time2
+                                );
+                            })
+                            .unwrap();
+                    }
+                    15 => {
+                        std::thread::Builder
+                            ::new()
+                            .name(String::from("snapshot"))
+                            .spawn(move || {
+                                let _ = snapshot();
+                            })
+                            .unwrap();
+                    }
+                    16 => {
+                        let mut trader_lp_long = LEND_POOL_DB.lock().unwrap();
+                        println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                        *trader_lp_long = LendPool::new();
+                        drop(trader_lp_long);
+                    }
+                    17 => {
+                        let mut lend_pool_db = LEND_POOL_DB.lock().unwrap();
+                        *lend_pool_db = LendPool::new();
+                        println!("\n LEND_POOL_DB : {:#?}", lend_pool_db);
+                        drop(lend_pool_db);
+                        let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                        *trader_order_db = LocalDB::<TraderOrder>::new();
+                        println!("\n Trader_ORDER_DB : {:#?}", trader_order_db);
+                        drop(trader_order_db);
+                        let mut lend_order_db = LEND_ORDER_DB.lock().unwrap();
+                        *lend_order_db = LocalDB::<LendOrder>::new();
+                        println!("\n LEND_ORDER_DB : {:#?}", lend_order_db);
+                        drop(lend_order_db);
+                    }
+                    18 => {
+                        let lend_pool_db = LEND_POOL_DB.lock().unwrap();
+                        // *lend_pool_db = LendPool::new();
+                        println!(
+                            "\n LEND_POOL_DB : {:#?}",
+                            hex::encode(
+                                bincode::serialize(&lend_pool_db.last_output_state.clone()).unwrap()
+                            )
+                        );
+                        drop(lend_pool_db);
+                    }
+                    19 => {
+                        set_relayer_status(value.relayer_status);
+                    }
+                    20 => {
+                        relayer_event_handler(
+                            RelayerCommand::PriceTickerLiquidation(
                                 vec![value.orderid],
                                 commands::Meta {
                                     metadata: meta.metadata,
                                 },
-                                value.price,
-                            ));
-                        }
-                        21 => {
-                            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-                            println!("\n OUTPUT_STORAGE : {:#?}", output_hex_storage);
-                            drop(output_hex_storage);
-                        }
-                        22 => {
-                            let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
-                            let uuid_to_byte = match bincode::serialize(&value.orderid) {
-                                Ok(uuid_v_u8) => uuid_v_u8,
-                                Err(_) => Vec::new(),
-                            };
-                            let output_option =
-                                match output_hex_storage.get_utxo_by_id(uuid_to_byte, 0) {
-                                    Ok(output) => output,
-                                    Err(_) => None,
-                                };
-                            println!("\n output_option : {:#?}", output_option);
-                            drop(output_hex_storage);
-                        }
-                        _ => {
-                            let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
-                            println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
-                            drop(trader_lp_long);
-                        }
+                                value.price
+                            )
+                        );
                     }
-                    Ok(serde_json::to_value(&check_server_time()).unwrap())
+                    21 => {
+                        let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+                        println!("\n OUTPUT_STORAGE : {:#?}", output_hex_storage);
+                        drop(output_hex_storage);
+                    }
+                    22 => {
+                        let output_hex_storage = OUTPUT_STORAGE.lock().unwrap();
+                        let uuid_to_byte = match bincode::serialize(&value.orderid) {
+                            Ok(uuid_v_u8) => uuid_v_u8,
+                            Err(_) => Vec::new(),
+                        };
+                        let output_option = match
+                            output_hex_storage.get_utxo_by_id(uuid_to_byte, 0)
+                        {
+                            Ok(output) => output,
+                            Err(_) => None,
+                        };
+                        println!("\n output_option : {:#?}", output_option);
+                        drop(output_hex_storage);
+                    }
+                    _ => {
+                        let trader_lp_long = LEND_ORDER_DB.lock().unwrap();
+                        println!("\n LEND_POOL_DB : {:#?}", trader_lp_long);
+                        drop(trader_lp_long);
+                    }
                 }
-                Err(args) => {
-                    let err =
-                        JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
-                    Err(err)
-                }
+                Ok(serde_json::to_value(&check_server_time()).unwrap())
             }
-        },
-    );
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(format!("Invalid parameters, {:?}", args));
+                Err(err)
+            }
+        }
+    });
 
     /*****************Fee Update */
     io.add_method_with_meta("UpdateFees", move |params: Params, meta: Meta| async move {
@@ -252,18 +252,15 @@ pub fn startserver() {
     });
 
     /*****************Risk Engine Stats */
-    io.add_method_with_meta(
-        "GetRiskStats",
-        move |_params: Params, _meta: Meta| async move {
-            let pool_equity_btc = {
-                let pool = LEND_POOL_DB.lock().unwrap();
-                pool.total_locked_value
-            };
-            let mark_price = get_localdb("CurrentPrice");
-            let stats = get_market_stats(pool_equity_btc, mark_price);
-            Ok(serde_json::to_value(&stats).unwrap())
-        },
-    );
+    io.add_method_with_meta("GetRiskStats", move |_params: Params, _meta: Meta| async move {
+        let pool_equity_btc = {
+            let pool = LEND_POOL_DB.lock().unwrap();
+            pool.total_locked_value
+        };
+        let mark_price = get_localdb("CurrentPrice");
+        let stats = get_market_stats(pool_equity_btc, mark_price);
+        Ok(serde_json::to_value(&stats).unwrap())
+    });
 
     /*****************Set Market Halt */
     io.add_method_with_meta("SetMarketHalt", move |params: Params, _meta: Meta| async move {
@@ -300,7 +297,10 @@ pub fn startserver() {
                         // Collect UUIDs from the sorted sets (much faster than iterating all orders)
                         let open_long = TRADER_LIMIT_OPEN_LONG.lock().unwrap();
                         let open_short = TRADER_LIMIT_OPEN_SHORT.lock().unwrap();
-                        let mut pending_uuids: Vec<uuid::Uuid> = open_long.sorted_order.iter().map(|(uuid, _)| *uuid).collect();
+                        let mut pending_uuids: Vec<uuid::Uuid> = open_long.sorted_order
+                            .iter()
+                            .map(|(uuid, _)| *uuid)
+                            .collect();
                         pending_uuids.extend(open_short.sorted_order.iter().map(|(uuid, _)| *uuid));
                         drop(open_long);
                         drop(open_short);
@@ -308,42 +308,65 @@ pub fn startserver() {
                         pending_cancelled = pending_uuids.len() as u64;
 
                         if pending_cancelled > 0 {
-                            crate::log_heartbeat!(warn, "RISK_ENGINE: Scheduling cancellation of {} pending limit orders", pending_cancelled);
-                            std::thread::Builder::new()
+                            crate::log_heartbeat!(
+                                warn,
+                                "RISK_ENGINE: Scheduling cancellation of {} pending limit orders",
+                                pending_cancelled
+                            );
+                            std::thread::Builder
+                                ::new()
                                 .name(String::from("halt_cancel_pending_limits"))
                                 .spawn(move || {
                                     let mut cancelled_count: u64 = 0;
                                     let mut metadata = HashMap::new();
-                                    metadata.insert(String::from("reason"), Some("Halt".to_string()));
+                                    metadata.insert(
+                                        String::from("reason"),
+                                        Some("Halt".to_string())
+                                    );
                                     let meta = commands::Meta { metadata: metadata };
                                     for uuid in &pending_uuids {
                                         // Acquire TRADER_ORDER_DB, get the Arc, then drop the lock
                                         // before calling cancelorder_localdb to avoid deadlock
                                         // (cancelorder_localdb locks TRADER_LIMIT_OPEN_LONG/SHORT internally)
                                         let order_arc = {
-                                            let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                                            let mut trader_order_db =
+                                                TRADER_ORDER_DB.lock().unwrap();
                                             match trader_order_db.get_mut(*uuid) {
                                                 Ok(arc) => arc,
-                                                Err(_) => { continue; }
+                                                Err(_) => {
+                                                    continue;
+                                                }
                                             }
                                         }; // TRADER_ORDER_DB lock dropped here
 
                                         let mut order = order_arc.write().unwrap();
-                                        if order.order_status == OrderStatus::PENDING && order.order_type == OrderType::LIMIT {
+                                        if
+                                            order.order_status == OrderStatus::PENDING &&
+                                            order.order_type == OrderType::LIMIT
+                                        {
                                             let (cancelled, _) = order.cancelorder_localdb();
                                             let order_clone = order.clone();
                                             drop(order);
                                             if cancelled {
                                                 cancelled_count += 1;
-                                                let command = RpcCommand::CancelTraderOrder(CancelTraderOrder {
-                                                    account_id: order_clone.account_id.clone(),
-                                                    uuid: order_clone.uuid.clone(),
-                                                    order_type: OrderType::LIMIT,
-                                                    order_status: OrderStatus::CANCELLED,
-                                                }, meta.clone(), ZkosHexString::new(), RequestID::new());
+                                                let command = RpcCommand::CancelTraderOrder(
+                                                    CancelTraderOrder {
+                                                        account_id: order_clone.account_id.clone(),
+                                                        uuid: order_clone.uuid.clone(),
+                                                        order_type: OrderType::LIMIT,
+                                                        order_status: OrderStatus::CANCELLED,
+                                                    },
+                                                    meta.clone(),
+                                                    ZkosHexString::new(),
+                                                    RequestID::new()
+                                                );
                                                 // Re-acquire TRADER_ORDER_DB for remove
-                                                let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                                                let _ = trader_order_db.remove(order_clone.clone(), command);
+                                                let mut trader_order_db =
+                                                    TRADER_ORDER_DB.lock().unwrap();
+                                                let _ = trader_order_db.remove(
+                                                    order_clone.clone(),
+                                                    command
+                                                );
                                                 drop(trader_order_db);
                                                 Event::new(
                                                     Event::TxHash(
@@ -354,19 +377,23 @@ pub fn startserver() {
                                                         OrderStatus::CANCELLED,
                                                         ServerTime::now().epoch,
                                                         None,
-                                                        RequestID::new().to_string(),
+                                                        RequestID::new().to_string()
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
                                                         "Order successfully cancelled !!".to_string()
                                                     ),
-                                                    CORE_EVENT_LOG.clone().to_string(),
+                                                    CORE_EVENT_LOG.clone().to_string()
                                                 );
                                             }
                                         }
                                     }
 
-                                    crate::log_heartbeat!(warn, "RISK_ENGINE: Cancelled {} pending limit orders (background)", cancelled_count);
+                                    crate::log_heartbeat!(
+                                        warn,
+                                        "RISK_ENGINE: Cancelled {} pending limit orders (background)",
+                                        cancelled_count
+                                    );
                                 })
                                 .unwrap();
                         }
@@ -379,11 +406,20 @@ pub fn startserver() {
                         let close_short_count = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap().len as u64;
                         let sltp_long_count = TRADER_SLTP_CLOSE_LONG.lock().unwrap().len as u64;
                         let sltp_short_count = TRADER_SLTP_CLOSE_SHORT.lock().unwrap().len as u64;
-                        settling_cancelled = close_long_count + close_short_count + sltp_long_count + sltp_short_count;
+                        settling_cancelled =
+                            close_long_count +
+                            close_short_count +
+                            sltp_long_count +
+                            sltp_short_count;
 
                         if settling_cancelled > 0 {
-                            crate::log_heartbeat!(warn, "RISK_ENGINE: Scheduling clearing of {} settling limit order entries", settling_cancelled);
-                            std::thread::Builder::new()
+                            crate::log_heartbeat!(
+                                warn,
+                                "RISK_ENGINE: Scheduling clearing of {} settling limit order entries",
+                                settling_cancelled
+                            );
+                            std::thread::Builder
+                                ::new()
                                 .name(String::from("halt_cancel_settling_limits"))
                                 .spawn(move || {
                                     // Close limit orders
@@ -392,22 +428,26 @@ pub fn startserver() {
 
                                     for (uuid, _) in &close_long.sorted_order {
                                         Event::new(
-                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                                                *uuid,
-                                                PositionType::LONG,
-                                            )),
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveCloseLimitPrice(
+                                                    *uuid,
+                                                    PositionType::LONG
+                                                )
+                                            ),
                                             format!("HaltRemoveCloseLimitPrice-{}", uuid),
-                                            CORE_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string()
                                         );
                                     }
                                     for (uuid, _) in &close_short.sorted_order {
                                         Event::new(
-                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                                                *uuid,
-                                                PositionType::SHORT,
-                                            )),
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveCloseLimitPrice(
+                                                    *uuid,
+                                                    PositionType::SHORT
+                                                )
+                                            ),
                                             format!("HaltRemoveCloseLimitPrice-{}", uuid),
-                                            CORE_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string()
                                         );
                                     }
 
@@ -422,22 +462,26 @@ pub fn startserver() {
 
                                     for (uuid, _) in &sltp_long.sorted_order {
                                         Event::new(
-                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
-                                                *uuid,
-                                                PositionType::LONG,
-                                            )),
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                                    *uuid,
+                                                    PositionType::LONG
+                                                )
+                                            ),
                                             format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
-                                            CORE_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string()
                                         );
                                     }
                                     for (uuid, _) in &sltp_short.sorted_order {
                                         Event::new(
-                                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
-                                                *uuid,
-                                                PositionType::SHORT,
-                                            )),
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                                    *uuid,
+                                                    PositionType::SHORT
+                                                )
+                                            ),
                                             format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
-                                            CORE_EVENT_LOG.clone().to_string(),
+                                            CORE_EVENT_LOG.clone().to_string()
                                         );
                                     }
 
@@ -446,7 +490,10 @@ pub fn startserver() {
                                     drop(sltp_long);
                                     drop(sltp_short);
 
-                                    crate::log_heartbeat!(warn, "RISK_ENGINE: Cleared settling limit order entries (background)");
+                                    crate::log_heartbeat!(
+                                        warn,
+                                        "RISK_ENGINE: Cleared settling limit order entries (background)"
+                                    );
                                 })
                                 .unwrap();
                         }
@@ -468,7 +515,10 @@ pub fn startserver() {
 
                         // Stop all service loops
                         set_relayer_status(false);
-                        crate::log_heartbeat!(warn, "RISK_ENGINE: Relayer set to idle (exit_relayer)");
+                        crate::log_heartbeat!(
+                            warn,
+                            "RISK_ENGINE: Relayer set to idle (exit_relayer)"
+                        );
 
                         // Take final snapshot
                         match snapshot() {
@@ -477,7 +527,11 @@ pub fn startserver() {
                                 crate::log_heartbeat!(warn, "RISK_ENGINE: Final snapshot taken");
                             }
                             Err(e) => {
-                                crate::log_heartbeat!(error, "RISK_ENGINE: Failed to take snapshot: {:?}", e);
+                                crate::log_heartbeat!(
+                                    error,
+                                    "RISK_ENGINE: Failed to take snapshot: {:?}",
+                                    e
+                                );
                             }
                         }
                     }
@@ -505,7 +559,8 @@ pub fn startserver() {
                     drop(state);
                 }
 
-                let response = serde_json::json!({
+                let response =
+                    serde_json::json!({
                     "halt_enabled": req.enabled,
                     "pending_orders_cancelled": pending_cancelled,
                     "settling_orders_cancelled": settling_cancelled,
@@ -529,32 +584,29 @@ pub fn startserver() {
     });
 
     /*****************Set Market Close Only */
-    io.add_method_with_meta(
-        "SetMarketCloseOnly",
-        move |params: Params, _meta: Meta| async move {
-            match params.parse::<SetMarketFlag>() {
-                Ok(value) => {
-                    RiskState::set_manual_close_only(value.enabled);
-                    crate::log_heartbeat!(
-                        warn,
-                        "RISK_ENGINE: Manual close-only set to {}",
-                        value.enabled
-                    );
-                    Ok(
-                        serde_json::to_value(format!("Manual close-only set to {}", value.enabled))
-                            .unwrap(),
-                    )
-                }
-                Err(args) => {
-                    let err = JsonRpcError::invalid_params(format!(
-                        "Invalid parameters, {:?}. Expected: {{ \"enabled\": bool }}",
-                        args
-                    ));
-                    Err(err)
-                }
+    io.add_method_with_meta("SetMarketCloseOnly", move |params: Params, _meta: Meta| async move {
+        match params.parse::<SetMarketFlag>() {
+            Ok(value) => {
+                RiskState::set_manual_close_only(value.enabled);
+                crate::log_heartbeat!(
+                    warn,
+                    "RISK_ENGINE: Manual close-only set to {}",
+                    value.enabled
+                );
+                Ok(
+                    serde_json
+                        ::to_value(format!("Manual close-only set to {}", value.enabled))
+                        .unwrap()
+                )
             }
-        },
-    );
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(
+                    format!("Invalid parameters, {:?}. Expected: {{ \"enabled\": bool }}", args)
+                );
+                Err(err)
+            }
+        }
+    });
 
     /*****************Update Risk Params */
     io.add_method_with_meta("UpdateRiskParams", move |params: Params, _meta: Meta| async move {
@@ -564,16 +616,23 @@ pub fn startserver() {
                 let new_params = RiskParams {
                     max_oi_mult: value.max_oi_mult.unwrap_or(current_params.max_oi_mult),
                     max_net_mult: value.max_net_mult.unwrap_or(current_params.max_net_mult),
-                    max_position_pct: value.max_position_pct.unwrap_or(current_params.max_position_pct),
-                    min_position_btc: value.min_position_btc.unwrap_or(current_params.min_position_btc),
+                    max_position_pct: value.max_position_pct.unwrap_or(
+                        current_params.max_position_pct
+                    ),
+                    min_position_btc: value.min_position_btc.unwrap_or(
+                        current_params.min_position_btc
+                    ),
                     max_leverage: value.max_leverage.unwrap_or(current_params.max_leverage),
                 };
                 RiskState::update_risk_params(new_params.clone());
                 crate::log_heartbeat!(
                     warn,
                     "RISK_ENGINE: Risk params updated: max_oi_mult={}, max_net_mult={}, max_position_pct={}, min_position_btc={}, max_leverage={}",
-                    new_params.max_oi_mult, new_params.max_net_mult, new_params.max_position_pct,
-                    new_params.min_position_btc, new_params.max_leverage
+                    new_params.max_oi_mult,
+                    new_params.max_net_mult,
+                    new_params.max_position_pct,
+                    new_params.min_position_btc,
+                    new_params.max_leverage
                 );
                 Ok(serde_json::to_value(&new_params).unwrap())
             }
@@ -590,42 +649,36 @@ pub fn startserver() {
     });
 
     /*****************Get Risk Params */
-    io.add_method_with_meta(
-        "GetRiskParams",
-        move |_params: Params, _meta: Meta| async move {
-            let params = RISK_PARAMS.lock().unwrap().clone();
-            Ok(serde_json::to_value(&params).unwrap())
-        },
-    );
+    io.add_method_with_meta("GetRiskParams", move |_params: Params, _meta: Meta| async move {
+        let params = RISK_PARAMS.lock().unwrap().clone();
+        Ok(serde_json::to_value(&params).unwrap())
+    });
 
-    crate::log_heartbeat!(
-        info,
-        "Starting jsonRPC server @ {}",
-        *RELAYER_SERVER_SOCKETADDR
-    );
-    let server = match ServerBuilder::new(io)
-        .threads(*RELAYER_SERVER_THREAD)
-        .meta_extractor(|req: &hyper::Request<hyper::Body>| {
-            let auth = req
-                .headers()
-                .get(hyper::header::CONTENT_TYPE)
-                .map(|h| h.to_str().unwrap_or("").to_owned());
-            let relayer = req
-                .headers()
-                .get("Relayer")
-                .map(|h| h.to_str().unwrap_or("").to_owned());
+    crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
+    let server = match
+        ServerBuilder::new(io)
+            .threads(*RELAYER_SERVER_THREAD)
+            .meta_extractor(|req: &hyper::Request<hyper::Body>| {
+                let auth = req
+                    .headers()
+                    .get(hyper::header::CONTENT_TYPE)
+                    .map(|h| h.to_str().unwrap_or("").to_owned());
+                let relayer = req
+                    .headers()
+                    .get("Relayer")
+                    .map(|h| h.to_str().unwrap_or("").to_owned());
 
-            // println!("I'm Here");
-            Meta {
-                metadata: {
-                    let mut hashmap = HashMap::new();
-                    hashmap.insert(String::from("CONTENT_TYPE"), auth);
-                    hashmap.insert(String::from("Relayer"), relayer);
-                    hashmap
-                },
-            }
-        })
-        .start_http(&(*RELAYER_SERVER_SOCKETADDR).parse().unwrap())
+                // println!("I'm Here");
+                Meta {
+                    metadata: {
+                        let mut hashmap = HashMap::new();
+                        hashmap.insert(String::from("CONTENT_TYPE"), auth);
+                        hashmap.insert(String::from("Relayer"), relayer);
+                        hashmap
+                    },
+                }
+            })
+            .start_http(&(*RELAYER_SERVER_SOCKETADDR).parse().unwrap())
     {
         Ok(server) => server,
         Err(e) => {
