@@ -41,7 +41,7 @@ jobs:
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install protobuf openssl@3 libpq
+          brew install protobuf openssl@3 libpq postgresql
           echo "OPENSSL_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
           echo "PQ_LIB_DIR=$(brew --prefix libpq)/lib" >> $GITHUB_ENV
 
@@ -50,9 +50,11 @@ jobs:
         shell: powershell
         run: |
           choco install protoc -y
-          echo "OPENSSL_DIR=C:\Strawberry\c" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          $pgDir = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          echo "PQ_LIB_DIR=$($pgDir.FullName)\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          vcpkg install openssl:x64-windows
+          vcpkg install libpq:x64-windows
+          vcpkg integrate install
+          echo "OPENSSL_DIR=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "PQ_LIB_DIR=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\lib" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -70,7 +72,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-cargo-release-
 
+      - name: Build release binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          RUSTFLAGS="-C link-arg=-Wl,-no_fixup_chains" cargo build --release --target ${{ matrix.target }} --verbose
+
       - name: Build release binary
+        if: runner.os != 'macOS'
         run: cargo build --release --target ${{ matrix.target }} --verbose
 
       - name: Prepare binary artifact (Unix)
