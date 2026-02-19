@@ -4,6 +4,10 @@ on:
   release:
     types: [created, published]
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -75,7 +79,7 @@ jobs:
       - name: Build release binary (macOS)
         if: runner.os == 'macOS'
         run: |
-          RUSTFLAGS="-C link-arg=-Wl,-no_fixup_chains" cargo build --release --target ${{ matrix.target }} --verbose
+          RUSTFLAGS="-C symbol-mangling-version=v0" cargo build --release --target ${{ matrix.target }} --verbose
 
       - name: Build release binary
         if: runner.os != 'macOS'
