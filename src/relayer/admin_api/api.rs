@@ -71,12 +71,14 @@ pub fn startserver() {
                         7 => {
                             let trader_lp_long = TRADER_LP_LONG.lock().unwrap();
                             println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.len);
+                            println!("\n TRADER_LP_LONG : {:#?}", trader_lp_long.sorted_order);
                             drop(trader_lp_long);
                         }
                         8 => {
-                            let trader_lp_long = TRADER_LP_SHORT.lock().unwrap();
-                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_long.len);
-                            drop(trader_lp_long);
+                            let trader_lp_short = TRADER_LP_SHORT.lock().unwrap();
+                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_short.len);
+                            println!("\n TRADER_LP_SHORT : {:#?}", trader_lp_short.sorted_order);
+                            drop(trader_lp_short);
                         }
                         9 => {
                             let trader_lp_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
