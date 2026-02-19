@@ -133,6 +133,16 @@ pub enum PositionSizeLogCommand {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum RiskEngineCommand {
+    AddExposure(PositionType, f64),
+    RemoveExposure(PositionType, f64),
+    SetManualHalt(bool),
+    SetManualCloseOnly(bool),
+    SetPauseFunding(bool),
+    SetPausePriceFeed(bool),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum ZkosTxCommand {
     CreateTraderOrderTX(TraderOrder, RpcCommand),
     CreateTraderOrderLIMITTX(TraderOrder, Option<ZkosHexString>),

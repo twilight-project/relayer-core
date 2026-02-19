@@ -43,6 +43,30 @@ pub struct GetOrderDetail {
     pub order_id: Uuid,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SetMarketFlag {
+    pub enabled: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SetMarketHaltRequest {
+    pub enabled: bool,
+    pub cancel_pending_limit_orders: Option<bool>,
+    pub cancel_settling_limit_orders: Option<bool>,
+    pub pause_funding: Option<bool>,
+    pub pause_price_feed: Option<bool>,
+    pub exit_relayer: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct UpdateRiskParamsRequest {
+    pub max_oi_mult: Option<f64>,
+    pub max_net_mult: Option<f64>,
+    pub max_position_pct: Option<f64>,
+    pub min_position_btc: Option<f64>,
+    pub max_leverage: Option<f64>,
+}
+
 impl GetPnL {
     pub fn serialize(&self) -> String {
         let serialized = serde_json::to_string(self).unwrap();

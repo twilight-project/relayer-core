@@ -197,6 +197,16 @@ impl TraderOrder {
 
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
+        // Risk engine bookkeeping: track BTC exposure (entry_value) for both FILLED and PENDING
+        if (ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET)
+            || (ordertx.order_status == OrderStatus::PENDING
+                && ordertx.order_type == OrderType::LIMIT)
+        {
+            RiskState::add_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
+        }
         if order_entry_status {
             // Adding in side wise and total position size
             PositionSizeLog::add_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
@@ -287,11 +297,11 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated = self
-                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                            sl,
-                                            SlTpOrderType::StopLoss,
-                                        );
+                                    let order_caluculated =
+                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                                    sl,
+                                                    SlTpOrderType::StopLoss
+                                                );
                                 }
                             }
                             PositionType::SHORT => {
@@ -302,11 +312,11 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated = self
-                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                            sl,
-                                            SlTpOrderType::StopLoss,
-                                        );
+                                    let order_caluculated =
+                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                                    sl,
+                                                    SlTpOrderType::StopLoss
+                                                );
                                 }
                             }
                         },
@@ -324,11 +334,11 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated = self
-                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                            tp,
-                                            SlTpOrderType::TakeProfit,
-                                        );
+                                    let order_caluculated =
+                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                                    tp,
+                                                    SlTpOrderType::TakeProfit
+                                                );
                                 }
                             }
                             PositionType::SHORT => {
@@ -339,11 +349,11 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated = self
-                                        .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                            tp,
-                                            SlTpOrderType::TakeProfit,
-                                        );
+                                    let order_caluculated =
+                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                                                    tp,
+                                                    SlTpOrderType::TakeProfit
+                                                );
                                 }
                             }
                         },
@@ -596,8 +606,8 @@ impl TraderOrder {
         }
     }
 
-    pub fn calculatepayment_localdb(&mut self, current_price: f64, fee: f64) -> f64 // returns payment
-    {
+    pub fn calculatepayment_localdb(&mut self, current_price: f64, fee: f64) -> f64 {
+        // returns payment
         let ordertx = self.clone();
         let margindifference = self.available_margin - self.initial_margin;
         let u_pnl = unrealizedpnl(
@@ -627,16 +637,44 @@ impl TraderOrder {
     pub fn order_remove_from_localdb(&self) {
         let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
+        RiskState::remove_order(
+            ordertx.position_type.clone(),
+            entryvalue(ordertx.initial_margin, ordertx.leverage),
+        );
         match ordertx.position_type {
             PositionType::LONG => {
                 let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
                 let _ = add_to_liquidation_list.remove(ordertx.uuid);
                 drop(add_to_liquidation_list);
+                let mut remove_from_limit_order_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                if let Ok((_, _)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                    Event::new(
+                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
+                            ordertx.uuid,
+                            PositionType::LONG,
+                        )),
+                        format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                }
+                drop(remove_from_limit_order_list);
             }
             PositionType::SHORT => {
                 let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
                 let _ = add_to_liquidation_list.remove(ordertx.uuid);
                 drop(add_to_liquidation_list);
+                let mut remove_from_limit_order_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                if let Ok((_, _)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                    Event::new(
+                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
+                            ordertx.uuid,
+                            PositionType::SHORT,
+                        )),
+                        format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                }
+                drop(remove_from_limit_order_list);
             }
         }
     }
@@ -651,6 +689,10 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
+                            RiskState::remove_order(
+                                self.position_type.clone(),
+                                entryvalue(self.initial_margin, self.leverage),
+                            );
                             Event::new(
                                 Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
                                     self.uuid.clone(),
@@ -661,7 +703,9 @@ impl TraderOrder {
                             );
                             return (true, OrderStatus::CANCELLED);
                         }
-                        Err(_) => return (false, self.order_status.clone()),
+                        Err(_) => {
+                            return (false, self.order_status.clone());
+                        }
                     }
                 }
                 PositionType::SHORT => {
@@ -671,6 +715,10 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
+                            RiskState::remove_order(
+                                self.position_type.clone(),
+                                entryvalue(self.initial_margin, self.leverage),
+                            );
                             Event::new(
                                 Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
                                     self.uuid.clone(),
@@ -681,11 +729,15 @@ impl TraderOrder {
                             );
                             return (true, OrderStatus::CANCELLED);
                         }
-                        Err(_) => return (false, self.order_status.clone()),
+                        Err(_) => {
+                            return (false, self.order_status.clone());
+                        }
                     }
                 }
             },
-            _ => return (false, self.order_status.clone()),
+            _ => {
+                return (false, self.order_status.clone());
+            }
         }
     }
     pub fn cancel_sltp_order(

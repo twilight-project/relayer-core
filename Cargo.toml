@@ -61,3 +61,6 @@ tag = "v0.1.1"
 [dependencies.nyks-wallet]
 git = "https://github.com/twilight-project/nyks-wallet.git"
 tag = "v0.1.1"
+
+[profile.dev]
+strip = "debuginfo"

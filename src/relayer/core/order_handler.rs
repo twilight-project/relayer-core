@@ -63,12 +63,54 @@ pub fn rpc_event_handler(
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
 
+                // Risk engine validation gate
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                let risk_params = RISK_PARAMS.lock().unwrap().clone();
+                match validate_open_order(
+                    &rpc_request.position_type,
+                    rpc_request.initial_margin,
+                    rpc_request.leverage,
+                    pool_equity_btc,
+                    &risk_params,
+                ) {
+                    Ok(_x_btc) => {} // proceed with order
+                    Err(rejection) => {
+                        crate::log_heartbeat!(
+                            warn,
+                            "RISK_ENGINE: REJECT order={} reason={}",
+                            orderdata.uuid, rejection.to_rejection_string()
+                        );
+                        Event::new(
+                            Event::TxHash(
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                format!("Risk rejected: {}", rejection.to_rejection_string()),
+                                orderdata.order_type,
+                                OrderStatus::CANCELLED,
+                                ServerTime::now().epoch,
+                                None,
+                                request_id,
+                            ),
+                            String::from("tx_risk_rejected"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
+                        return;
+                    }
+                }
+
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let is_order_duplicate =
                     trader_order_db.set_order_check(orderdata.account_id.clone());
                 drop(trader_order_db);
 
-                if rpc_request.initial_margin > 0.0 || rpc_request.leverage <= 50.0 {
+                if rpc_request.initial_margin > 0.0 && rpc_request.leverage <= 50.0 {
                     if is_order_duplicate {
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
@@ -138,6 +180,16 @@ pub fn rpc_event_handler(
                                 Ok(_) => {}
                                 Err(_) => {}
                             }
+                        } else {
+                            crate::log_heartbeat!(
+                                warn,
+                                "Unexpected order status {:?} for order={}, skipping",
+                                orderdata_clone.order_status, orderdata_clone.uuid
+                            );
+                            match tx_consumed.send(offset_complition) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
                         }
                     } else {
                         // send event for txhash with error saying order already exist in the relayer
@@ -187,6 +239,38 @@ pub fn rpc_event_handler(
         RpcCommand::ExecuteTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
+                // Risk engine halt gate: block close/settle during HALT
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                    crate::log_heartbeat!(
+                        warn,
+                        "RISK_ENGINE: REJECT close order={} reason={}",
+                        rpc_request.uuid, rejection.to_rejection_string()
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            rpc_request.uuid,
+                            rpc_request.account_id,
+                            format!("Risk rejected: {}", rejection.to_rejection_string()),
+                            rpc_request.order_type,
+                            OrderStatus::CANCELLED,
+                            ServerTime::now().epoch,
+                            None,
+                            request_id,
+                        ),
+                        String::from("tx_risk_rejected"),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
+                    return;
+                }
+
                 let execution_price = rpc_request.execution_price.clone();
                 let current_price = get_localdb("CurrentPrice");
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
@@ -372,6 +456,38 @@ pub fn rpc_event_handler(
         RpcCommand::CreateLendOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
+                // Risk engine halt gate: block new lend orders during HALT
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                    crate::log_heartbeat!(
+                        warn,
+                        "RISK_ENGINE: REJECT lend create account={} reason={}",
+                        rpc_request.account_id, rejection.to_rejection_string()
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            Uuid::new_v4(),
+                            rpc_request.account_id.clone(),
+                            format!("Risk rejected: {}", rejection.to_rejection_string()),
+                            OrderType::LEND,
+                            OrderStatus::CANCELLED,
+                            ServerTime::now().epoch,
+                            None,
+                            request_id,
+                        ),
+                        String::from("tx_risk_rejected"),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
+                    return;
+                }
+
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
                 let is_order_exist: bool;
 
@@ -481,6 +597,38 @@ pub fn rpc_event_handler(
         RpcCommand::ExecuteLendOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
+                // Risk engine halt gate: block lend settle during HALT
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                    crate::log_heartbeat!(
+                        warn,
+                        "RISK_ENGINE: REJECT lend settle order={} reason={}",
+                        rpc_request.uuid, rejection.to_rejection_string()
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            rpc_request.uuid,
+                            rpc_request.account_id.clone(),
+                            format!("Risk rejected: {}", rejection.to_rejection_string()),
+                            OrderType::LEND,
+                            OrderStatus::CANCELLED,
+                            ServerTime::now().epoch,
+                            None,
+                            request_id,
+                        ),
+                        String::from("tx_risk_rejected"),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
+                    return;
+                }
+
                 let mut lend_pool = LEND_POOL_DB.lock().unwrap();
                 let mut lendorder_db = LEND_ORDER_DB.lock().unwrap();
                 let order_detail_wraped = lendorder_db.get_mut(rpc_request.uuid);
@@ -642,6 +790,38 @@ pub fn rpc_event_handler(
         RpcCommand::CancelTraderOrder(rpc_request, metadata, zkos_hex_string, request_id) => {
             let buffer = THREADPOOL_URGENT_ORDER.lock().unwrap();
             buffer.execute(move || {
+                // Risk engine halt gate: block cancel during HALT
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                    crate::log_heartbeat!(
+                        warn,
+                        "RISK_ENGINE: REJECT cancel order={} reason={}",
+                        rpc_request.uuid, rejection.to_rejection_string()
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            rpc_request.uuid,
+                            rpc_request.account_id.clone(),
+                            format!("Risk rejected: {}", rejection.to_rejection_string()),
+                            rpc_request.order_type,
+                            OrderStatus::CANCELLED,
+                            ServerTime::now().epoch,
+                            None,
+                            request_id,
+                        ),
+                        String::from("tx_risk_rejected"),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
+                    return;
+                }
+
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let order_detail_wraped = trader_order_db.get_mut(rpc_request.uuid);
                 drop(trader_order_db);
@@ -727,7 +907,12 @@ pub fn rpc_event_handler(
             });
             drop(buffer);
         } // RpcCommand::Liquidation(trader_order, metadata) => {}
-        RpcCommand::RelayerCommandTraderOrderSettleOnLimit(..) => {}
+        RpcCommand::RelayerCommandTraderOrderSettleOnLimit(..) => {
+            match tx_consumed.send(offset_complition) {
+                Ok(_) => {}
+                Err(_) => {}
+            }
+        }
         RpcCommand::ExecuteTraderOrderSlTp(
             rpc_request,
             sltp,
@@ -737,6 +922,38 @@ pub fn rpc_event_handler(
         ) => {
             let buffer = THREADPOOL_FIFO_ORDER.lock().unwrap();
             buffer.execute(move || {
+                // Risk engine halt gate: block close/settle during HALT
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                    crate::log_heartbeat!(
+                        warn,
+                        "RISK_ENGINE: REJECT close sltp order={} reason={}",
+                        rpc_request.uuid, rejection.to_rejection_string()
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            rpc_request.uuid,
+                            rpc_request.account_id,
+                            format!("Risk rejected: {}", rejection.to_rejection_string()),
+                            rpc_request.order_type,
+                            OrderStatus::CANCELLED,
+                            ServerTime::now().epoch,
+                            None,
+                            request_id,
+                        ),
+                        String::from("tx_risk_rejected"),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    match tx_consumed.send(offset_complition) {
+                        Ok(_) => {}
+                        Err(_) => {}
+                    }
+                    return;
+                }
+
                 let execution_price = rpc_request.execution_price.clone();
                 let current_price = get_localdb("CurrentPrice");
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
@@ -943,12 +1160,54 @@ pub fn rpc_event_handler(
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
 
+                // Risk engine validation gate
+                let pool_equity_btc = {
+                    let pool = LEND_POOL_DB.lock().unwrap();
+                    pool.total_locked_value
+                };
+                let risk_params = RISK_PARAMS.lock().unwrap().clone();
+                match validate_open_order(
+                    &rpc_request.position_type,
+                    rpc_request.initial_margin,
+                    rpc_request.leverage,
+                    pool_equity_btc,
+                    &risk_params,
+                ) {
+                    Ok(_x_btc) => {} // proceed with order
+                    Err(rejection) => {
+                        crate::log_heartbeat!(
+                            warn,
+                            "RISK_ENGINE: REJECT order={} reason={}",
+                            orderdata.uuid, rejection.to_rejection_string()
+                        );
+                        Event::new(
+                            Event::TxHash(
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                format!("Risk rejected: {}", rejection.to_rejection_string()),
+                                orderdata.order_type,
+                                OrderStatus::CANCELLED,
+                                ServerTime::now().epoch,
+                                None,
+                                request_id,
+                            ),
+                            String::from("tx_risk_rejected"),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        match tx_consumed.send(offset_complition) {
+                            Ok(_) => {}
+                            Err(_) => {}
+                        }
+                        return;
+                    }
+                }
+
                 let mut trader_order_db = TRADER_ORDER_DB.lock().unwrap();
                 let is_order_duplicate =
                     trader_order_db.set_order_check(orderdata.account_id.clone());
                 drop(trader_order_db);
 
-                if rpc_request.initial_margin > 0.0 || rpc_request.leverage <= 50.0 {
+                if rpc_request.initial_margin > 0.0 && rpc_request.leverage <= 50.0 {
                     if is_order_duplicate {
                         if orderdata_clone.order_status == OrderStatus::FILLED {
                             let buffer_insert = THREADPOOL_NORMAL_ORDER_INSERT.lock().unwrap();
@@ -1013,6 +1272,16 @@ pub fn rpc_event_handler(
                                 ),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            match tx_consumed.send(offset_complition) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
+                        } else {
+                            crate::log_heartbeat!(
+                                warn,
+                                "Unexpected order status {:?} for sltp order={}, skipping",
+                                orderdata_clone.order_status, orderdata_clone.uuid
                             );
                             match tx_consumed.send(offset_complition) {
                                 Ok(_) => {}
