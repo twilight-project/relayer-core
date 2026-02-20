@@ -21,16 +21,11 @@ fn main() {
 
     tracing::info!("Starting Twilight Relayer");
     heartbeat();
-    loop {
-        thread::sleep(time::Duration::from_millis(1000));
-        if get_relayer_status() {
-        } else {
-            thread::sleep(time::Duration::from_millis(10000));
-            tracing::info!("Relayer started taking snapshot");
-            let _ = snapshot();
-            thread::sleep(time::Duration::from_millis(10000));
-            tracing::info!("Relayer shutting down");
-            process::exit(0);
-        }
-    }
+    wait_for_relayer_shutdown();
+    thread::sleep(time::Duration::from_millis(10000));
+    tracing::info!("Relayer started taking snapshot");
+    let _ = snapshot();
+    thread::sleep(time::Duration::from_millis(10000));
+    tracing::info!("Relayer shutting down");
+    process::exit(0);
 }

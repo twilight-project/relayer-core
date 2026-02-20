@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::thread;
 
 pub struct ThreadPool {
+    name: String,
     workers: Vec<Worker>,
     sender: mpsc::Sender<Message>,
 }
@@ -36,7 +37,7 @@ impl ThreadPool {
             workers.push(Worker::new(id, t_name.clone(), Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers, sender }
+        ThreadPool { name: t_name, workers, sender }
     }
 
     pub fn execute<F>(&self, f: F)
@@ -45,23 +46,29 @@ impl ThreadPool {
     {
         let job = Box::new(f);
 
-        self.sender.send(Message::NewJob(job)).unwrap();
+        if let Err(e) = self.sender.send(Message::NewJob(job)) {
+            crate::log_heartbeat!(error, "ThreadPool [{}]: failed to send job: {:?}", self.name, e);
+        }
     }
 
     pub fn shutdown(&mut self) {
-        crate::log_heartbeat!(warn, "Sending terminate message to all workers.");
+        crate::log_heartbeat!(warn, "ThreadPool [{}]: Sending terminate message to all workers.", self.name);
 
         for _ in &self.workers {
-            self.sender.send(Message::Terminate).unwrap();
+            if let Err(e) = self.sender.send(Message::Terminate) {
+                crate::log_heartbeat!(error, "ThreadPool [{}]: failed to send terminate: {:?}", self.name, e);
+            }
         }
 
-        crate::log_heartbeat!(warn, "Shutting down all workers.");
+        crate::log_heartbeat!(warn, "ThreadPool [{}]: Shutting down all workers.", self.name);
 
         for worker in &mut self.workers {
-            crate::log_heartbeat!(warn, "Shutting down worker {}", worker.id);
+            crate::log_heartbeat!(warn, "ThreadPool [{}]: Shutting down worker {}", self.name, worker.id);
 
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                if let Err(e) = thread.join() {
+                    crate::log_heartbeat!(error, "ThreadPool [{}]: worker {} thread panicked: {:?}", self.name, worker.id, e);
+                }
             }
         }
     }
@@ -69,19 +76,23 @@ impl ThreadPool {
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
-        crate::log_heartbeat!(warn, "Sending terminate message to all workers.");
+        crate::log_heartbeat!(warn, "ThreadPool [{}]: Sending terminate message to all workers.", self.name);
 
         for _ in &self.workers {
-            self.sender.send(Message::Terminate).unwrap();
+            if let Err(e) = self.sender.send(Message::Terminate) {
+                crate::log_heartbeat!(error, "ThreadPool [{}]: failed to send terminate: {:?}", self.name, e);
+            }
         }
 
-        crate::log_heartbeat!(warn, "Shutting down all workers.");
+        crate::log_heartbeat!(warn, "ThreadPool [{}]: Shutting down all workers.", self.name);
 
         for worker in &mut self.workers {
-            crate::log_heartbeat!(warn, "Shutting down worker {}", worker.id);
+            crate::log_heartbeat!(warn, "ThreadPool [{}]: Shutting down worker {}", self.name, worker.id);
 
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                if let Err(e) = thread.join() {
+                    crate::log_heartbeat!(error, "ThreadPool [{}]: worker {} thread panicked: {:?}", self.name, worker.id, e);
+                }
             }
         }
     }
@@ -94,20 +105,27 @@ struct Worker {
 
 impl Worker {
     fn new(id: usize, t_name: String, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
+        let thread_name = format!("{}-{}", t_name, id);
+        let thread_name_clone = thread_name.clone();
         let thread = thread::Builder::new()
-            .name(format!("{}-{}", t_name, id))
+            .name(thread_name.clone())
             .spawn(move || loop {
-                let message = receiver.lock().unwrap().recv().unwrap();
+                let message = match receiver.lock() {
+                    Ok(rx) => match rx.recv() {
+                        Ok(msg) => msg,
+                        Err(_) => break, // channel closed, exit worker
+                    },
+                    Err(e) => {
+                        crate::log_heartbeat!(error, "ThreadPool worker [{}]: mutex poisoned: {:?}", thread_name, e);
+                        break;
+                    }
+                };
 
                 match message {
                     Message::NewJob(job) => {
-                        // println!("Worker {} got a job; executing.", id);
-
                         job();
                     }
                     Message::Terminate => {
-                        // println!("Worker {} was told to terminate.", id);
-
                         break;
                     }
                 }
@@ -115,7 +133,13 @@ impl Worker {
 
         Worker {
             id,
-            thread: Some(thread.unwrap()),
+            thread: match thread {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    crate::log_heartbeat!(error, "ThreadPool: failed to spawn worker thread [{}]: {:?}", thread_name_clone, e);
+                    None
+                }
+            },
         }
     }
 }

@@ -8,7 +8,7 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::sync::{mpsc, Arc, Condvar, Mutex, RwLock};
 use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
 use twilight_relayer_sdk::utxo_in_memory;
 use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
@@ -89,7 +89,7 @@ lazy_static! {
     .parse::<bool>()
     .unwrap_or(true);
 
-    pub static ref IS_RELAYER_ACTIVE:Mutex<bool> = Mutex::new(true);
+    pub static ref IS_RELAYER_ACTIVE: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct

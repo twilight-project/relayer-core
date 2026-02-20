@@ -118,15 +118,42 @@ pub fn get_lock_error_for_lend_settle(lend_order: LendOrder) -> i128 {
 }
 
 pub fn get_relayer_status() -> bool {
-    let status = IS_RELAYER_ACTIVE.lock().unwrap();
-    let status_result = *status;
-    drop(status);
-    status_result
+    let (lock, _) = &*IS_RELAYER_ACTIVE;
+    match lock.lock() {
+        Ok(status) => *status,
+        Err(e) => {
+            tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
+            false
+        }
+    }
 }
+
 pub fn set_relayer_status(new_status: bool) {
-    let mut status = IS_RELAYER_ACTIVE.lock().unwrap();
-    *status = new_status;
-    drop(status);
+    let (lock, cvar) = &*IS_RELAYER_ACTIVE;
+    match lock.lock() {
+        Ok(mut status) => {
+            *status = new_status;
+            cvar.notify_all();
+        }
+        Err(e) => {
+            tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
+        }
+    }
+}
+
+pub fn wait_for_relayer_shutdown() {
+    let (lock, cvar) = &*IS_RELAYER_ACTIVE;
+    match lock.lock() {
+        Ok(guard) => {
+            let _guard = cvar.wait_while(guard, |active| *active).unwrap_or_else(|e| {
+                tracing::error!("Condvar wait failed: {:?}", e);
+                e.into_inner()
+            });
+        }
+        Err(e) => {
+            tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
+        }
+    }
 }
 
 use datasize::data_size;
