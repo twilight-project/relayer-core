@@ -71,10 +71,10 @@ pub fn heartbeat() {
     thread::Builder::new()
         .name(String::from("price_check_and_update"))
         .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(250));
-            thread::spawn(move || {
-                price_check_and_update();
-            });
+            thread::sleep(time::Duration::from_millis(200));
+            // thread::spawn(move || {
+            price_check_and_update();
+            // });
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(100));
