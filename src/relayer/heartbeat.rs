@@ -71,10 +71,8 @@ pub fn heartbeat() {
     thread::Builder::new()
         .name(String::from("price_check_and_update"))
         .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(200));
-            // thread::spawn(move || {
+            thread::sleep(time::Duration::from_millis(250));
             price_check_and_update();
-            // });
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(100));
@@ -144,8 +142,6 @@ pub fn heartbeat() {
 }
 
 pub fn price_check_and_update() {
-    let current_time = std::time::SystemTime::now();
-
     //get_localdb with single mutex unlock
     let local_storage = LOCALDB.lock().unwrap();
     let mut currentprice = match local_storage.get(&String::from("Latest_Price")) {
@@ -159,6 +155,7 @@ pub fn price_check_and_update() {
     let price_paused = state.pause_price_feed;
     drop(state);
     if get_relayer_status() && !price_paused {
+        let current_time = std::time::SystemTime::now();
         crate::log_price!(debug, "Updating current price to: {}", currentprice);
 
         Event::new(
