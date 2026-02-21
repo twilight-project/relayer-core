@@ -171,6 +171,15 @@ impl PriceFeeder {
         let new_price = btc_price_feeder::update_btc_price(text, &current_price);
         if new_price != current_price {
             self.price_state.update_price(new_price).await;
+            // Auto-resume price feed if it was paused due to staleness
+            use crate::relayer::{RiskState, RISK_ENGINE_STATE};
+            let state = RISK_ENGINE_STATE.lock().unwrap();
+            let was_paused = state.pause_price_feed;
+            drop(state);
+            if was_paused {
+                RiskState::set_pause_price_feed(false);
+                crate::log_heartbeat!(info, "STALE PRICE: Fresh price received — auto-resuming price feed");
+            }
         }
     }
 

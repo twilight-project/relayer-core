@@ -32,6 +32,12 @@ pub fn update_btc_price(payload: String, last_price: &f64) -> f64 {
         if current_price != *last_price {
             set_localdb("Latest_Price", current_price);
         }
+        // Record timestamp of last successful price update (epoch millis)
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as f64;
+        set_localdb("Latest_Price_Timestamp", timestamp);
     } else {
         current_price = *last_price;
     }
