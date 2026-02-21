@@ -65,6 +65,7 @@ pub struct UpdateRiskParamsRequest {
     pub max_position_pct: Option<f64>,
     pub min_position_btc: Option<f64>,
     pub max_leverage: Option<f64>,
+    pub mm_ratio: Option<f64>,
 }
 
 impl GetPnL {

@@ -16,6 +16,10 @@ lazy_static! {
 
 // --- Risk Parameters (loaded from env with defaults) ---
 
+fn default_mm_ratio() -> f64 {
+    0.4
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RiskParams {
     pub max_oi_mult: f64,      // alpha: max OI / pool equity
@@ -23,6 +27,8 @@ pub struct RiskParams {
     pub max_position_pct: f64, // gamma: max single position / pool equity
     pub min_position_btc: f64, // min position size in sats (0 = disabled)
     pub max_leverage: f64,     // max leverage (0 = use existing limit)
+    #[serde(default = "default_mm_ratio")]
+    pub mm_ratio: f64,         // maintenance margin ratio (0.4 = 40%)
 }
 
 impl RiskParams {
@@ -49,6 +55,10 @@ impl RiskParams {
                 .unwrap_or("50.0".to_string())
                 .parse::<f64>()
                 .unwrap_or(50.0),
+            mm_ratio: std::env::var("RISK_MM_RATIO")
+                .unwrap_or("0.4".to_string())
+                .parse::<f64>()
+                .unwrap_or(0.4),
         }
     }
 }
@@ -669,6 +679,7 @@ mod tests {
             max_position_pct: gamma,
             min_position_btc: 0.0,
             max_leverage: 0.0,
+            mm_ratio: 0.4,
         }
     }
 

@@ -619,23 +619,25 @@ pub fn startserver() {
                         current_params.min_position_btc
                     ),
                     max_leverage: value.max_leverage.unwrap_or(current_params.max_leverage),
+                    mm_ratio: value.mm_ratio.unwrap_or(current_params.mm_ratio),
                 };
                 RiskState::update_risk_params(new_params.clone());
                 crate::log_heartbeat!(
                     warn,
-                    "RISK_ENGINE: Risk params updated: max_oi_mult={}, max_net_mult={}, max_position_pct={}, min_position_btc={}, max_leverage={}",
+                    "RISK_ENGINE: Risk params updated: max_oi_mult={}, max_net_mult={}, max_position_pct={}, min_position_btc={}, max_leverage={}, mm_ratio={}",
                     new_params.max_oi_mult,
                     new_params.max_net_mult,
                     new_params.max_position_pct,
                     new_params.min_position_btc,
-                    new_params.max_leverage
+                    new_params.max_leverage,
+                    new_params.mm_ratio
                 );
                 Ok(serde_json::to_value(&new_params).unwrap())
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(
                     format!(
-                        "Invalid parameters, {:?}. Expected: {{ \"max_oi_mult\": f64?, \"max_net_mult\": f64?, \"max_position_pct\": f64?, \"min_position_btc\": f64?, \"max_leverage\": f64? }}",
+                        "Invalid parameters, {:?}. Expected: {{ \"max_oi_mult\": f64?, \"max_net_mult\": f64?, \"max_position_pct\": f64?, \"min_position_btc\": f64?, \"max_leverage\": f64?, \"mm_ratio\": f64? }}",
                         args
                     )
                 );

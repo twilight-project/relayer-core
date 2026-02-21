@@ -50,8 +50,8 @@ pub fn bankruptcyvalue(positionsize: f64, bankruptcyprice: f64) -> f64 {
         0.0
     }
 }
-pub fn maintenancemargin(entry_value: f64, bankruptcyvalue: f64, fee: f64, funding: f64) -> f64 {
-    (0.4 * entry_value + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
+pub fn maintenancemargin(entry_value: f64, bankruptcyvalue: f64, fee: f64, funding: f64, mm_ratio: f64) -> f64 {
+    (mm_ratio * entry_value + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
 }
 
 pub fn liquidationprice(

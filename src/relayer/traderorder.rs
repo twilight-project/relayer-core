@@ -88,8 +88,9 @@ impl TraderOrder {
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let fundingrate = get_localdb("FundingRate");
+        let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
         let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate);
+            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -148,6 +149,7 @@ impl TraderOrder {
         let fee_percentage: f64 = get_fee(FeeType::FilledOnLimit); //different fee for market order
 
         let fundingrate = get_localdb("FundingRate");
+        let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
@@ -156,7 +158,7 @@ impl TraderOrder {
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate);
+            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,

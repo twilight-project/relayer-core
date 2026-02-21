@@ -623,11 +623,13 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             fee = get_fee(FeeType::FilledOnLimit);
         }
         // update maintenancemargin
+        let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
         ordertx.maintenance_margin = maintenancemargin(
             entryvalue(ordertx.initial_margin, ordertx.leverage),
             ordertx.bankruptcy_value,
             fee,
             fundingratechange,
+            mm_ratio,
         );
 
         // check if AM <= MM if true then call liquidate position else update liquidation price
