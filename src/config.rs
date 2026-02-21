@@ -101,6 +101,12 @@ lazy_static! {
     .unwrap_or("30".to_string())
     .parse::<u64>()
     .unwrap_or(30);
+
+    pub static ref ALLOW_NEW_SNAPSHOT_ON_DECODE_FAILURE: bool =
+    std::env::var("ALLOW_NEW_SNAPSHOT_ON_DECODE_FAILURE")
+        .unwrap_or("false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct

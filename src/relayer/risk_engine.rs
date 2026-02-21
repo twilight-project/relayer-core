@@ -63,6 +63,29 @@ impl RiskParams {
     }
 }
 
+/// V6 and earlier snapshot format — RiskParams WITHOUT mm_ratio
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RiskParamsOld {
+    pub max_oi_mult: f64,
+    pub max_net_mult: f64,
+    pub max_position_pct: f64,
+    pub min_position_btc: f64,
+    pub max_leverage: f64,
+}
+
+impl RiskParamsOld {
+    pub fn migrate_to_new(&self) -> RiskParams {
+        RiskParams {
+            max_oi_mult: self.max_oi_mult,
+            max_net_mult: self.max_net_mult,
+            max_position_pct: self.max_position_pct,
+            min_position_btc: self.min_position_btc,
+            max_leverage: self.max_leverage,
+            mm_ratio: 0.4, // default
+        }
+    }
+}
+
 // --- Market Status ---
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
