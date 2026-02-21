@@ -296,6 +296,56 @@ pub struct SnapshotDBOld {
 }
 
 impl SnapshotDBOld {
+    pub fn migrate_to_new(&self) -> SnapshotDBOldV5 {
+        SnapshotDBOldV5 {
+            orderdb_traderorder: self.orderdb_traderorder.clone(),
+            orderdb_lendorder: self.orderdb_lendorder.clone(),
+            lendpool_database: self.lendpool_database.clone(),
+            liquidation_long_sortedset_db: self.liquidation_long_sortedset_db.clone(),
+            liquidation_short_sortedset_db: self.liquidation_short_sortedset_db.clone(),
+            open_long_sortedset_db: self.open_long_sortedset_db.clone(),
+            open_short_sortedset_db: self.open_short_sortedset_db.clone(),
+            close_long_sortedset_db: self.close_long_sortedset_db.clone(),
+            close_short_sortedset_db: self.close_short_sortedset_db.clone(),
+            sltp_close_long_sortedset_db: self.sltp_close_long_sortedset_db.clone(),
+            sltp_close_short_sortedset_db: self.sltp_close_short_sortedset_db.clone(),
+            position_size_log: self.position_size_log.clone(),
+            risk_state: self.risk_state.migrate_to_new(),
+            risk_params: self.risk_params.clone(),
+            localdb_hashmap: self.localdb_hashmap.clone(),
+            event_offset_partition: self.event_offset_partition,
+            event_timestamp: self.event_timestamp.clone(),
+            output_hex_storage: self.output_hex_storage.clone(),
+            queue_manager: self.queue_manager.clone(),
+        }
+    }
+}
+
+// V5 snapshot format (has RiskStateOldV5 with pause_funding + pause_price_feed, no pending fields)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotDBOldV5 {
+    pub orderdb_traderorder: OrderDBSnapShotTO,
+    pub orderdb_lendorder: OrderDBSnapShotLO,
+    pub lendpool_database: LendPool,
+    pub liquidation_long_sortedset_db: SortedSet,
+    pub liquidation_short_sortedset_db: SortedSet,
+    pub open_long_sortedset_db: SortedSet,
+    pub open_short_sortedset_db: SortedSet,
+    pub close_long_sortedset_db: SortedSet,
+    pub close_short_sortedset_db: SortedSet,
+    pub sltp_close_long_sortedset_db: SortedSet,
+    pub sltp_close_short_sortedset_db: SortedSet,
+    pub position_size_log: PositionSizeLog,
+    pub risk_state: RiskStateOldV5,
+    pub risk_params: Option<RiskParams>,
+    pub localdb_hashmap: HashMap<String, f64>,
+    pub event_offset_partition: (i32, i64),
+    pub event_timestamp: String,
+    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    queue_manager: QueueState,
+}
+
+impl SnapshotDBOldV5 {
     pub fn migrate_to_new(&self) -> SnapshotDB {
         SnapshotDB {
             orderdb_traderorder: self.orderdb_traderorder.clone(),
@@ -321,7 +371,7 @@ impl SnapshotDBOld {
     }
 }
 
-// V5 snapshot format (current - has RiskState with pause_funding + pause_price_feed)
+// V6 snapshot format (current - has RiskState with pending exposure fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotDB {
     pub orderdb_traderorder: OrderDBSnapShotTO,
@@ -465,46 +515,56 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
                     snap_data
                 }
                 Err(arg) => {
-                    crate::log_heartbeat!(error, "Could not decode V5 snapshot - Error:{:#?}", arg);
-                    crate::log_heartbeat!(error, "trying V4 (SnapshotDBOld) format:");
-                    match bincode::deserialize::<SnapshotDBOld>(&snapshot_data_from_file) {
+                    crate::log_heartbeat!(error, "Could not decode V6 snapshot - Error:{:#?}", arg);
+                    crate::log_heartbeat!(error, "trying V5 (SnapshotDBOldV5) format:");
+                    match bincode::deserialize::<SnapshotDBOldV5>(&snapshot_data_from_file) {
                         Ok(snap_data) => {
                             fetchoffset = FetchOffset::Earliest;
                             snap_data.migrate_to_new()
                         }
-                        Err(arg2) => {
-                            crate::log_heartbeat!(error, "Could not decode V4 snapshot - Error:{:#?}", arg2);
-                            crate::log_heartbeat!(error, "trying V3 (SnapshotDBOldV3) format:");
-                            match bincode::deserialize::<SnapshotDBOldV3>(&snapshot_data_from_file) {
+                        Err(arg1) => {
+                            crate::log_heartbeat!(error, "Could not decode V5 snapshot - Error:{:#?}", arg1);
+                            crate::log_heartbeat!(error, "trying V4 (SnapshotDBOld) format:");
+                            match bincode::deserialize::<SnapshotDBOld>(&snapshot_data_from_file) {
                                 Ok(snap_data) => {
                                     fetchoffset = FetchOffset::Earliest;
                                     snap_data.migrate_to_new().migrate_to_new()
                                 }
-                                Err(arg3) => {
-                                    crate::log_heartbeat!(error, "Could not decode V3 snapshot - Error:{:#?}", arg3);
-                                    crate::log_heartbeat!(error, "trying V2 (SnapshotDBOldV2) format:");
-                                    match bincode::deserialize::<SnapshotDBOldV2>(&snapshot_data_from_file) {
+                                Err(arg2) => {
+                                    crate::log_heartbeat!(error, "Could not decode V4 snapshot - Error:{:#?}", arg2);
+                                    crate::log_heartbeat!(error, "trying V3 (SnapshotDBOldV3) format:");
+                                    match bincode::deserialize::<SnapshotDBOldV3>(&snapshot_data_from_file) {
                                         Ok(snap_data) => {
                                             fetchoffset = FetchOffset::Earliest;
                                             snap_data.migrate_to_new().migrate_to_new().migrate_to_new()
                                         }
-                                        Err(arg4) => {
-                                            crate::log_heartbeat!(error, "Could not decode V2 snapshot - Error:{:#?}", arg4);
-                                            crate::log_heartbeat!(error, "trying V1 (SnapshotDBOldV1) format:");
-                                            match bincode::deserialize::<SnapshotDBOldV1>(&snapshot_data_from_file) {
+                                        Err(arg3) => {
+                                            crate::log_heartbeat!(error, "Could not decode V3 snapshot - Error:{:#?}", arg3);
+                                            crate::log_heartbeat!(error, "trying V2 (SnapshotDBOldV2) format:");
+                                            match bincode::deserialize::<SnapshotDBOldV2>(&snapshot_data_from_file) {
                                                 Ok(snap_data) => {
                                                     fetchoffset = FetchOffset::Earliest;
                                                     snap_data.migrate_to_new().migrate_to_new().migrate_to_new().migrate_to_new()
                                                 }
-                                                Err(arg5) => {
-                                                    crate::log_heartbeat!(
-                                                        info,
-                                                        "No previous Snapshot Found- Error:{:#?} \n path: {:?} \n Creating new Snapshot",
-                                                        arg5,
-                                                        format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
-                                                    );
-                                                    fetchoffset = FetchOffset::Earliest;
-                                                    SnapshotDB::new()
+                                                Err(arg4) => {
+                                                    crate::log_heartbeat!(error, "Could not decode V2 snapshot - Error:{:#?}", arg4);
+                                                    crate::log_heartbeat!(error, "trying V1 (SnapshotDBOldV1) format:");
+                                                    match bincode::deserialize::<SnapshotDBOldV1>(&snapshot_data_from_file) {
+                                                        Ok(snap_data) => {
+                                                            fetchoffset = FetchOffset::Earliest;
+                                                            snap_data.migrate_to_new().migrate_to_new().migrate_to_new().migrate_to_new().migrate_to_new()
+                                                        }
+                                                        Err(arg5) => {
+                                                            crate::log_heartbeat!(
+                                                                info,
+                                                                "No previous Snapshot Found- Error:{:#?} \n path: {:?} \n Creating new Snapshot",
+                                                                arg5,
+                                                                format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION)
+                                                            );
+                                                            fetchoffset = FetchOffset::Earliest;
+                                                            SnapshotDB::new()
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

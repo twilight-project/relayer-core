@@ -136,8 +136,8 @@ pub struct RiskStateOld {
 }
 
 impl RiskStateOld {
-    pub fn migrate_to_new(&self) -> RiskState {
-        RiskState {
+    pub fn migrate_to_new(&self) -> RiskStateOldV5 {
+        RiskStateOldV5 {
             total_long_btc: self.total_long_btc,
             total_short_btc: self.total_short_btc,
             manual_halt: self.manual_halt,
@@ -148,10 +148,38 @@ impl RiskStateOld {
     }
 }
 
+// V5 RiskState (no pending exposure fields)
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RiskStateOldV5 {
+    pub total_long_btc: f64,
+    pub total_short_btc: f64,
+    pub manual_halt: bool,
+    pub manual_close_only: bool,
+    pub pause_funding: bool,
+    pub pause_price_feed: bool,
+}
+
+impl RiskStateOldV5 {
+    pub fn migrate_to_new(&self) -> RiskState {
+        RiskState {
+            total_long_btc: self.total_long_btc,
+            total_short_btc: self.total_short_btc,
+            total_pending_long_btc: 0.0,
+            total_pending_short_btc: 0.0,
+            manual_halt: self.manual_halt,
+            manual_close_only: self.manual_close_only,
+            pause_funding: self.pause_funding,
+            pause_price_feed: self.pause_price_feed,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RiskState {
-    pub total_long_btc: f64, // sum of entry_value (sats) for all open LONG positions
-    pub total_short_btc: f64, // sum of entry_value (sats) for all open SHORT positions
+    pub total_long_btc: f64, // sum of entry_value (sats) for all filled LONG positions
+    pub total_short_btc: f64, // sum of entry_value (sats) for all filled SHORT positions
+    pub total_pending_long_btc: f64, // sum of entry_value (sats) for all pending LONG limit orders
+    pub total_pending_short_btc: f64, // sum of entry_value (sats) for all pending SHORT limit orders
     pub manual_halt: bool,
     pub manual_close_only: bool,
     pub pause_funding: bool,
@@ -163,6 +191,8 @@ impl RiskState {
         RiskState {
             total_long_btc: 0.0,
             total_short_btc: 0.0,
+            total_pending_long_btc: 0.0,
+            total_pending_short_btc: 0.0,
             manual_halt: false,
             manual_close_only: false,
             pause_funding: false,
@@ -215,6 +245,76 @@ impl RiskState {
                 state.clone(),
             ),
             String::from("RemoveRiskExposure"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn add_pending_order(position_type: PositionType, entry_value: f64) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        match position_type {
+            PositionType::LONG => {
+                state.total_pending_long_btc += entry_value;
+            }
+            PositionType::SHORT => {
+                state.total_pending_short_btc += entry_value;
+            }
+        }
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::AddPendingExposure(position_type, entry_value),
+                state.clone(),
+            ),
+            String::from("AddPendingRiskExposure"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn remove_pending_order(position_type: PositionType, entry_value: f64) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        match position_type {
+            PositionType::LONG => {
+                state.total_pending_long_btc -= entry_value;
+                if state.total_pending_long_btc < 0.0 {
+                    state.total_pending_long_btc = 0.0;
+                }
+            }
+            PositionType::SHORT => {
+                state.total_pending_short_btc -= entry_value;
+                if state.total_pending_short_btc < 0.0 {
+                    state.total_pending_short_btc = 0.0;
+                }
+            }
+        }
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::RemovePendingExposure(position_type, entry_value),
+                state.clone(),
+            ),
+            String::from("RemovePendingRiskExposure"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn recalculate_exposure(
+        total_long_btc: f64,
+        total_short_btc: f64,
+        total_pending_long_btc: f64,
+        total_pending_short_btc: f64,
+    ) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        state.total_long_btc = total_long_btc;
+        state.total_short_btc = total_short_btc;
+        state.total_pending_long_btc = total_pending_long_btc;
+        state.total_pending_short_btc = total_pending_short_btc;
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::RecalculateExposure,
+                state.clone(),
+            ),
+            String::from("RecalculateRiskExposure"),
             CORE_EVENT_LOG.clone().to_string(),
         );
         drop(state);

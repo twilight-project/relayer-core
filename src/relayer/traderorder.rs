@@ -197,11 +197,27 @@ impl TraderOrder {
 
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
-        // Risk engine bookkeeping: track BTC exposure (entry_value) for both FILLED and PENDING
-        if (ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET)
-            || (ordertx.order_status == OrderStatus::PENDING
-                && ordertx.order_type == OrderType::LIMIT)
+        // Risk engine bookkeeping: track BTC exposure separately for filled vs pending
+        if ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET {
+            RiskState::add_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
+        } else if ordertx.order_status == OrderStatus::PENDING
+            && ordertx.order_type == OrderType::LIMIT
         {
+            RiskState::add_pending_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
+        } else if ordertx.order_status == OrderStatus::FILLED
+            && ordertx.order_type == OrderType::LIMIT
+        {
+            // Limit order fill: move exposure from pending → filled
+            RiskState::remove_pending_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
             RiskState::add_order(
                 ordertx.position_type.clone(),
                 entryvalue(ordertx.initial_margin, ordertx.leverage),
@@ -689,7 +705,7 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
-                            RiskState::remove_order(
+                            RiskState::remove_pending_order(
                                 self.position_type.clone(),
                                 entryvalue(self.initial_margin, self.leverage),
                             );
@@ -715,7 +731,7 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
-                            RiskState::remove_order(
+                            RiskState::remove_pending_order(
                                 self.position_type.clone(),
                                 entryvalue(self.initial_margin, self.leverage),
                             );
