@@ -145,10 +145,12 @@ pub fn wait_for_relayer_shutdown() {
     let (lock, cvar) = &*IS_RELAYER_ACTIVE;
     match lock.lock() {
         Ok(guard) => {
-            let _guard = cvar.wait_while(guard, |active| *active).unwrap_or_else(|e| {
-                tracing::error!("Condvar wait failed: {:?}", e);
-                e.into_inner()
-            });
+            let _guard = cvar
+                .wait_while(guard, |active| *active)
+                .unwrap_or_else(|e| {
+                    tracing::error!("Condvar wait failed: {:?}", e);
+                    e.into_inner()
+                });
         }
         Err(e) => {
             tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
@@ -162,7 +164,12 @@ pub fn get_size_in_mb<T>(value: &T)
 where
     T: DataSize,
 {
-    crate::log_heartbeat!(warn, "{:#?}MB", data_size(value) / (8 * 1024 * 1024));
+    // There is a mistake in the division: 1MB = 1024 * 1024 bytes (not 8 * 1024 * 1024)
+    // Also, the log prints with {:#?}, which is for pretty-printing Debug, not for numbers.
+    // This should log the size in MB as f64 for accuracy.
+    let bytes = data_size(value) as f64;
+    let mb = bytes / (1024.0 * 1024.0);
+    crate::log_heartbeat!(warn, "{:.3}MB", mb);
 }
 
 pub fn get_fee(key: FeeType) -> f64 {
@@ -178,8 +185,8 @@ pub fn set_fee(key: FeeType, value: f64) {
     drop(local_storage);
 }
 
-pub fn calculate_fee_on_open_order(fee_persentage: f64, positionsize: f64, price: f64) -> f64 {
-    let fee = (fee_persentage / 100.0) * positionsize / price;
+pub fn calculate_fee_on_open_order(fee_percentage: f64, positionsize: f64, price: f64) -> f64 {
+    let fee = (fee_percentage / 100.0) * positionsize / price;
     if fee < 1.0 {
         return 1.0;
     }

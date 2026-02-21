@@ -878,19 +878,6 @@ impl TraderOrder {
         self.settlement_price = current_price;
         self.liquidation_price = current_price;
         self.available_margin = 0.0;
-        // adding candle data
-        // PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
-
-        // let side = match ordertx.position_type {
-        //     PositionType::SHORT => Side::BUY,
-        //     PositionType::LONG => Side::SELL,
-        // };
-        // update_recent_orders(CloseTrade {
-        //     side: side,
-        //     positionsize: ordertx.positionsize,
-        //     price: ordertx.entryprice,
-        //     timestamp: std::time::SystemTime::now(),
-        // });
         -self.initial_margin.clone()
     }
 

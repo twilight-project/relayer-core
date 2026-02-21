@@ -82,7 +82,7 @@ pub fn receive_from_kafka_queue(
             .spawn(move || {
                 // get the last offset from kafka
                 let last_offset = get_offset_from_kafka(topic.clone(), group.clone());
-                println!("last_offset: {:#?}", last_offset);
+               crate::log_heartbeat!(debug,"last_offset: {:#?}", last_offset);
 
                 // create an offset tracker
                 let offset_tracker = Arc::new(OffsetManager::new(last_offset - 1));
@@ -132,7 +132,8 @@ pub fn receive_from_kafka_queue(
                                                             {
                                                                 Ok(_) => {}
                                                                 Err(arg) => {
-                                                                    eprintln!(
+                                                                    crate::log_heartbeat!(
+                                            error, 
                                                                         "Closing Kafka Consumer Connection on kafka rpc client: {:#?}",
                                                                         arg
                                                                     );
@@ -142,7 +143,8 @@ pub fn receive_from_kafka_queue(
                                                             }
                                                         }
                                                         Err(e) => {
-                                                            eprintln!(
+                                                            crate::log_heartbeat!(
+                                            error, 
                                                                 "Error parsing message on kafka rpc client: {:?}",
                                                                 e
                                                             );
@@ -197,13 +199,15 @@ pub fn receive_from_kafka_queue(
                                 let e = con.consume_message(&topic, topic_partition, offset);
 
                                 if e.is_err() {
-                                    eprintln!("Kafka connection failed {:?}", e);
+                                    crate::log_heartbeat!(
+                                            error, "Kafka commit consumed failed {:?}", e);
                                     break;
                                 }
 
                                 let e = con.commit_consumed();
                                 if e.is_err() {
-                                    eprintln!("Kafka connection failed {:?}", e);
+                                    crate::log_heartbeat!(
+                                            error, "Kafka commit consumed failed {:?}", e);
                                     break;
                                 }
                             }

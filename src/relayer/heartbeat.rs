@@ -151,6 +151,7 @@ pub fn price_check_and_update() {
         }
     };
     drop(local_storage);
+    currentprice = currentprice.round();
     let state = RISK_ENGINE_STATE.lock().unwrap();
     let price_paused = state.pause_price_feed;
     drop(state);
@@ -164,7 +165,6 @@ pub fn price_check_and_update() {
             CORE_EVENT_LOG.clone().to_string(),
         );
 
-        currentprice = currentprice.round();
         set_localdb("CurrentPrice", currentprice);
         crate::log_price!(debug, "Price updated to: {}", currentprice);
         let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
@@ -441,8 +441,7 @@ pub fn updatefundingrate_localdb(psi: f64) {
     }
 
     //positive funding if totallong > totalshort else negative funding
-    if totallong > totalshort {
-    } else {
+    if totallong <= totalshort {
         fundingrate = fundingrate * -1.0;
     }
     // updatefundingrateindb(fundingrate.clone(), current_price, current_time);

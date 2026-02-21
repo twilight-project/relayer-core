@@ -105,7 +105,7 @@ impl EventKey {
             Err(_arg) => "".to_string(),
         }
     }
-    pub fn from_string_or_deafault(serialize_event_key: String) -> Self {
+    pub fn from_string_or_default(serialize_event_key: String) -> Self {
         match serde_json::from_str(&serialize_event_key) {
             Ok(event_key) => event_key,
             Err(arg) => {
@@ -342,7 +342,7 @@ impl Event {
                                             for ms in mss.iter() {
                                                 for m in ms.messages() {
                                                     let mut eventkey =
-                                                        EventKey::from_string_or_deafault(
+                                                        EventKey::from_string_or_default(
                                                             String::from_utf8_lossy(
                                                                 &m.key
                                                             ).to_string()
