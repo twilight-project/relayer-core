@@ -104,6 +104,7 @@ pub enum RiskRejectionReason {
         requested_btc: f64,
         allowed_btc: f64,
     },
+    PriceFeedPaused,
 }
 
 impl RiskRejectionReason {
@@ -118,6 +119,7 @@ impl RiskRejectionReason {
             RiskRejectionReason::OiLimitReached { .. } => "OI_LIMIT_REACHED".to_string(),
             RiskRejectionReason::SkewLimitReached { .. } => "SKEW_LIMIT_REACHED".to_string(),
             RiskRejectionReason::LimitReached { .. } => "LIMIT_REACHED".to_string(),
+            RiskRejectionReason::PriceFeedPaused => "PRICE_FEED_PAUSED".to_string(),
         }
     }
 }
@@ -395,6 +397,11 @@ pub fn validate_open_order(
 ) -> Result<f64, RiskRejectionReason> {
     let state = RISK_ENGINE_STATE.lock().unwrap();
 
+    // Reject all opens when price feed is paused
+    if state.pause_price_feed {
+        return Err(RiskRejectionReason::PriceFeedPaused);
+    }
+
     // Compute market status
     let (status, status_reason) = compute_market_status(&state, pool_equity_btc);
 
@@ -486,8 +493,15 @@ pub fn validate_open_order(
 
 pub fn validate_close_cancel_order(
     pool_equity_btc: f64,
+    order_type: &OrderType,
 ) -> Result<(), RiskRejectionReason> {
     let state = RISK_ENGINE_STATE.lock().unwrap();
+
+    // Reject non-lend orders when price feed is paused
+    if state.pause_price_feed && *order_type != OrderType::LEND {
+        return Err(RiskRejectionReason::PriceFeedPaused);
+    }
+
     let (status, status_reason) = compute_market_status(&state, pool_equity_btc);
     drop(state);
 
