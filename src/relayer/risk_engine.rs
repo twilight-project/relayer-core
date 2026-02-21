@@ -5,7 +5,10 @@ use crate::config::*;
 use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+
+pub static STALE_PRICE_PAUSED: AtomicBool = AtomicBool::new(false);
 
 lazy_static! {
     pub static ref RISK_ENGINE_STATE: Arc<Mutex<RiskState>> =
@@ -530,8 +533,8 @@ pub fn validate_open_order(
 ) -> Result<f64, RiskRejectionReason> {
     let state = RISK_ENGINE_STATE.lock().unwrap();
 
-    // Reject all opens when price feed is paused
-    if state.pause_price_feed {
+    // Reject all opens when price feed is paused (admin halt or stale price)
+    if state.pause_price_feed || STALE_PRICE_PAUSED.load(Ordering::Relaxed) {
         return Err(RiskRejectionReason::PriceFeedPaused);
     }
 
@@ -630,8 +633,8 @@ pub fn validate_close_cancel_order(
 ) -> Result<(), RiskRejectionReason> {
     let state = RISK_ENGINE_STATE.lock().unwrap();
 
-    // Reject non-lend orders when price feed is paused
-    if state.pause_price_feed && *order_type != OrderType::LEND {
+    // Reject non-lend orders when price feed is paused (admin halt or stale price)
+    if (state.pause_price_feed || STALE_PRICE_PAUSED.load(Ordering::Relaxed)) && *order_type != OrderType::LEND {
         return Err(RiskRejectionReason::PriceFeedPaused);
     }
 

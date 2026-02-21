@@ -6,7 +6,7 @@ mod pricefeederlib;
 mod relayer;
 use db::snapshot;
 use relayer::*;
-use std::{ process, thread, time };
+use std::{process, thread, time};
 #[macro_use]
 extern crate lazy_static;
 
@@ -22,6 +22,7 @@ fn main() {
     tracing::info!("Starting Twilight Relayer");
     heartbeat();
     wait_for_relayer_shutdown();
+    tracing::info!("Relayer shutdown cmd received");
     thread::sleep(time::Duration::from_millis(10000));
     tracing::info!("Relayer started taking snapshot");
     let _ = snapshot();

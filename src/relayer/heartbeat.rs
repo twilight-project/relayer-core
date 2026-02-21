@@ -77,7 +77,8 @@ pub fn heartbeat() {
                 let state = RISK_ENGINE_STATE.lock().unwrap();
                 let price_paused = state.pause_price_feed;
                 drop(state);
-                if get_relayer_status() && !price_paused {
+                let stale_paused = STALE_PRICE_PAUSED.load(std::sync::atomic::Ordering::Relaxed);
+                if get_relayer_status() && !price_paused && !stale_paused {
                     price_check_and_update();
                 }
                 let elapsed_us = start.elapsed().as_micros();
@@ -178,7 +179,7 @@ pub fn price_check_and_update() {
                 "STALE PRICE: No fresh price for {}s (halt threshold: {}s) — auto-pausing price feed",
                 age_secs, *STALE_PRICE_HALT_THRESHOLD_SECS
             );
-            RiskState::set_pause_price_feed(true);
+            STALE_PRICE_PAUSED.store(true, std::sync::atomic::Ordering::Relaxed);
             return;
         } else if age_secs > *STALE_PRICE_WARN_THRESHOLD_SECS {
             crate::log_heartbeat!(warn,
