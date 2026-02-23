@@ -83,7 +83,9 @@ pub fn heartbeat() {
                 }
                 let elapsed_us = start.elapsed().as_micros();
                 if elapsed_us < INTERVAL_US {
-                    thread::sleep(time::Duration::from_micros((INTERVAL_US - elapsed_us) as u64));
+                    thread::sleep(time::Duration::from_micros(
+                        (INTERVAL_US - elapsed_us) as u64,
+                    ));
                 }
             }
         })
@@ -479,6 +481,7 @@ pub fn updatefundingrate_localdb(psi: f64) {
         fundingrate = fundingrate * -1.0;
     }
     // updatefundingrateindb(fundingrate.clone(), current_price, current_time);
+    set_localdb("FundingRate", fundingrate.clone());
     crate::log_heartbeat!(info, "funding cycle processing...");
     let meta = Meta {
         metadata: {
