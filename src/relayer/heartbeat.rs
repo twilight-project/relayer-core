@@ -70,11 +70,24 @@ pub fn heartbeat() {
 
     thread::Builder::new()
         .name(String::from("price_check_and_update"))
-        .spawn(move || loop {
-            thread::sleep(time::Duration::from_millis(250));
-            thread::spawn(move || {
-                price_check_and_update();
-            });
+        .spawn(move || {
+            const INTERVAL_US: u128 = 250_000; // 250ms in microseconds
+            loop {
+                let start = std::time::Instant::now();
+                let state = RISK_ENGINE_STATE.lock().unwrap();
+                let price_paused = state.pause_price_feed;
+                drop(state);
+                let stale_paused = STALE_PRICE_PAUSED.load(std::sync::atomic::Ordering::Relaxed);
+                if get_relayer_status() && !price_paused && !stale_paused {
+                    price_check_and_update();
+                }
+                let elapsed_us = start.elapsed().as_micros();
+                if elapsed_us < INTERVAL_US {
+                    thread::sleep(time::Duration::from_micros(
+                        (INTERVAL_US - elapsed_us) as u64,
+                    ));
+                }
+            }
         })
         .unwrap();
     thread::sleep(time::Duration::from_millis(100));
@@ -144,8 +157,6 @@ pub fn heartbeat() {
 }
 
 pub fn price_check_and_update() {
-    let current_time = std::time::SystemTime::now();
-
     //get_localdb with single mutex unlock
     let local_storage = LOCALDB.lock().unwrap();
     let mut currentprice = match local_storage.get(&String::from("Latest_Price")) {
@@ -154,38 +165,60 @@ pub fn price_check_and_update() {
             return;
         }
     };
+    let price_timestamp = local_storage.get("Latest_Price_Timestamp").cloned();
     drop(local_storage);
-    let state = RISK_ENGINE_STATE.lock().unwrap();
-    let price_paused = state.pause_price_feed;
-    drop(state);
-    if get_relayer_status() && !price_paused {
-        crate::log_price!(debug, "Updating current price to: {}", currentprice);
 
-        Event::new(
-            Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
-            String::from("insert_CurrentPrice"),
-            CORE_EVENT_LOG.clone().to_string(),
-        );
+    // Stale price detection
+    if let Some(timestamp_ms) = price_timestamp {
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as f64;
+        let age_secs = ((now_ms - timestamp_ms) / 1000.0) as u64;
 
-        currentprice = currentprice.round();
-        set_localdb("CurrentPrice", currentprice);
-        crate::log_price!(debug, "Price updated to: {}", currentprice);
-        let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
-        treadpool_pending_order.execute(move || {
-            check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
-        treadpool_liquidation_order.execute(move || {
-            check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
-        treadpool_settling_order.execute(move || {
-            check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
-        });
-        drop(treadpool_pending_order);
-        drop(treadpool_liquidation_order);
-        drop(treadpool_settling_order);
+        if age_secs > *STALE_PRICE_HALT_THRESHOLD_SECS {
+            crate::log_heartbeat!(error,
+                "STALE PRICE: No fresh price for {}s (halt threshold: {}s) — auto-pausing price feed",
+                age_secs, *STALE_PRICE_HALT_THRESHOLD_SECS
+            );
+            STALE_PRICE_PAUSED.store(true, std::sync::atomic::Ordering::Relaxed);
+            return;
+        } else if age_secs > *STALE_PRICE_WARN_THRESHOLD_SECS {
+            crate::log_heartbeat!(warn,
+                "STALE PRICE: No fresh price for {}s (warn threshold: {}s) — skipping price update cycle",
+                age_secs, *STALE_PRICE_WARN_THRESHOLD_SECS
+            );
+            return;
+        }
     }
+
+    currentprice = currentprice.round();
+    let current_time = std::time::SystemTime::now();
+    crate::log_price!(debug, "Updating current price to: {}", currentprice);
+
+    Event::new(
+        Event::CurrentPriceUpdate(currentprice.clone(), iso8601(&current_time.clone())),
+        String::from("insert_CurrentPrice"),
+        CORE_EVENT_LOG.clone().to_string(),
+    );
+
+    set_localdb("CurrentPrice", currentprice);
+    crate::log_price!(debug, "Price updated to: {}", currentprice);
+    let treadpool_pending_order = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
+    treadpool_pending_order.execute(move || {
+        check_pending_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+    });
+    let treadpool_liquidation_order = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+    treadpool_liquidation_order.execute(move || {
+        check_liquidating_orders_on_price_ticker_update_localdb(currentprice.clone());
+    });
+    let treadpool_settling_order = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+    treadpool_settling_order.execute(move || {
+        check_settling_limit_order_on_price_ticker_update_localdb(currentprice.clone());
+    });
+    drop(treadpool_pending_order);
+    drop(treadpool_liquidation_order);
+    drop(treadpool_settling_order);
 }
 
 pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f64) {
@@ -444,11 +477,11 @@ pub fn updatefundingrate_localdb(psi: f64) {
     }
 
     //positive funding if totallong > totalshort else negative funding
-    if totallong > totalshort {
-    } else {
+    if totallong <= totalshort {
         fundingrate = fundingrate * -1.0;
     }
     // updatefundingrateindb(fundingrate.clone(), current_price, current_time);
+    set_localdb("FundingRate", fundingrate.clone());
     crate::log_heartbeat!(info, "funding cycle processing...");
     let meta = Meta {
         metadata: {
@@ -594,11 +627,13 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
             fee = get_fee(FeeType::FilledOnLimit);
         }
         // update maintenancemargin
+        let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
         ordertx.maintenance_margin = maintenancemargin(
             entryvalue(ordertx.initial_margin, ordertx.leverage),
             ordertx.bankruptcy_value,
             fee,
             fundingratechange,
+            mm_ratio,
         );
 
         // check if AM <= MM if true then call liquidate position else update liquidation price

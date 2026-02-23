@@ -88,8 +88,9 @@ impl TraderOrder {
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let fundingrate = get_localdb("FundingRate");
+        let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
         let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate);
+            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -148,6 +149,7 @@ impl TraderOrder {
         let fee_percentage: f64 = get_fee(FeeType::FilledOnLimit); //different fee for market order
 
         let fundingrate = get_localdb("FundingRate");
+        let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
         let position_side = positionside(&position_type);
         let entry_value = entryvalue(initial_margin, leverage);
         let positionsize = positionsize(entry_value, entryprice);
@@ -156,7 +158,7 @@ impl TraderOrder {
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate);
+            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -197,11 +199,27 @@ impl TraderOrder {
 
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
-        // Risk engine bookkeeping: track BTC exposure (entry_value) for both FILLED and PENDING
-        if (ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET)
-            || (ordertx.order_status == OrderStatus::PENDING
-                && ordertx.order_type == OrderType::LIMIT)
+        // Risk engine bookkeeping: track BTC exposure separately for filled vs pending
+        if ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET {
+            RiskState::add_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
+        } else if ordertx.order_status == OrderStatus::PENDING
+            && ordertx.order_type == OrderType::LIMIT
         {
+            RiskState::add_pending_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
+        } else if ordertx.order_status == OrderStatus::FILLED
+            && ordertx.order_type == OrderType::LIMIT
+        {
+            // Limit order fill: move exposure from pending → filled
+            RiskState::remove_pending_order(
+                ordertx.position_type.clone(),
+                entryvalue(ordertx.initial_margin, ordertx.leverage),
+            );
             RiskState::add_order(
                 ordertx.position_type.clone(),
                 entryvalue(ordertx.initial_margin, ordertx.leverage),
@@ -689,7 +707,7 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
-                            RiskState::remove_order(
+                            RiskState::remove_pending_order(
                                 self.position_type.clone(),
                                 entryvalue(self.initial_margin, self.leverage),
                             );
@@ -715,7 +733,7 @@ impl TraderOrder {
                     match result {
                         Ok((_, _)) => {
                             self.order_status = OrderStatus::CANCELLED;
-                            RiskState::remove_order(
+                            RiskState::remove_pending_order(
                                 self.position_type.clone(),
                                 entryvalue(self.initial_margin, self.leverage),
                             );
@@ -878,19 +896,6 @@ impl TraderOrder {
         self.settlement_price = current_price;
         self.liquidation_price = current_price;
         self.available_margin = 0.0;
-        // adding candle data
-        // PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
-
-        // let side = match ordertx.position_type {
-        //     PositionType::SHORT => Side::BUY,
-        //     PositionType::LONG => Side::SELL,
-        // };
-        // update_recent_orders(CloseTrade {
-        //     side: side,
-        //     positionsize: ordertx.positionsize,
-        //     price: ordertx.entryprice,
-        //     timestamp: std::time::SystemTime::now(),
-        // });
         -self.initial_margin.clone()
     }
 

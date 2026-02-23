@@ -8,7 +8,7 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use std::sync::{mpsc, Arc, Mutex, RwLock};
+use std::sync::{mpsc, Arc, Condvar, Mutex, RwLock};
 use twilight_relayer_sdk::twilight_client_sdk::programcontroller::ContractManager;
 use twilight_relayer_sdk::utxo_in_memory;
 use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
@@ -89,7 +89,24 @@ lazy_static! {
     .parse::<bool>()
     .unwrap_or(true);
 
-    pub static ref IS_RELAYER_ACTIVE:Mutex<bool> = Mutex::new(true);
+    pub static ref IS_RELAYER_ACTIVE: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());
+
+    // Stale price detection thresholds (in seconds)
+    pub static ref STALE_PRICE_WARN_THRESHOLD_SECS: u64 = std::env::var("STALE_PRICE_WARN_THRESHOLD_SECS")
+    .unwrap_or("10".to_string())
+    .parse::<u64>()
+    .unwrap_or(10);
+
+    pub static ref STALE_PRICE_HALT_THRESHOLD_SECS: u64 = std::env::var("STALE_PRICE_HALT_THRESHOLD_SECS")
+    .unwrap_or("30".to_string())
+    .parse::<u64>()
+    .unwrap_or(30);
+
+    pub static ref ALLOW_NEW_SNAPSHOT_ON_DECODE_FAILURE: bool =
+    std::env::var("ALLOW_NEW_SNAPSHOT_ON_DECODE_FAILURE")
+        .unwrap_or("false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct

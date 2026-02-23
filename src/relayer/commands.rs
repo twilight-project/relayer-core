@@ -136,6 +136,9 @@ pub enum PositionSizeLogCommand {
 pub enum RiskEngineCommand {
     AddExposure(PositionType, f64),
     RemoveExposure(PositionType, f64),
+    AddPendingExposure(PositionType, f64),
+    RemovePendingExposure(PositionType, f64),
+    RecalculateExposure,
     SetManualHalt(bool),
     SetManualCloseOnly(bool),
     SetPauseFunding(bool),

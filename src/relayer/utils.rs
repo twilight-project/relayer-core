@@ -50,8 +50,8 @@ pub fn bankruptcyvalue(positionsize: f64, bankruptcyprice: f64) -> f64 {
         0.0
     }
 }
-pub fn maintenancemargin(entry_value: f64, bankruptcyvalue: f64, fee: f64, funding: f64) -> f64 {
-    (0.4 * entry_value + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
+pub fn maintenancemargin(entry_value: f64, bankruptcyvalue: f64, fee: f64, funding: f64, mm_ratio: f64) -> f64 {
+    (mm_ratio * entry_value + fee * bankruptcyvalue + funding * bankruptcyvalue) / 100.0
 }
 
 pub fn liquidationprice(
@@ -118,15 +118,44 @@ pub fn get_lock_error_for_lend_settle(lend_order: LendOrder) -> i128 {
 }
 
 pub fn get_relayer_status() -> bool {
-    let status = IS_RELAYER_ACTIVE.lock().unwrap();
-    let status_result = *status;
-    drop(status);
-    status_result
+    let (lock, _) = &*IS_RELAYER_ACTIVE;
+    match lock.lock() {
+        Ok(status) => *status,
+        Err(e) => {
+            tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
+            false
+        }
+    }
 }
+
 pub fn set_relayer_status(new_status: bool) {
-    let mut status = IS_RELAYER_ACTIVE.lock().unwrap();
-    *status = new_status;
-    drop(status);
+    let (lock, cvar) = &*IS_RELAYER_ACTIVE;
+    match lock.lock() {
+        Ok(mut status) => {
+            *status = new_status;
+            cvar.notify_all();
+        }
+        Err(e) => {
+            tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
+        }
+    }
+}
+
+pub fn wait_for_relayer_shutdown() {
+    let (lock, cvar) = &*IS_RELAYER_ACTIVE;
+    match lock.lock() {
+        Ok(guard) => {
+            let _guard = cvar
+                .wait_while(guard, |active| *active)
+                .unwrap_or_else(|e| {
+                    tracing::error!("Condvar wait failed: {:?}", e);
+                    e.into_inner()
+                });
+        }
+        Err(e) => {
+            tracing::error!("Failed to lock IS_RELAYER_ACTIVE: {:?}", e);
+        }
+    }
 }
 
 use datasize::data_size;
@@ -135,7 +164,12 @@ pub fn get_size_in_mb<T>(value: &T)
 where
     T: DataSize,
 {
-    crate::log_heartbeat!(warn, "{:#?}MB", data_size(value) / (8 * 1024 * 1024));
+    // There is a mistake in the division: 1MB = 1024 * 1024 bytes (not 8 * 1024 * 1024)
+    // Also, the log prints with {:#?}, which is for pretty-printing Debug, not for numbers.
+    // This should log the size in MB as f64 for accuracy.
+    let bytes = data_size(value) as f64;
+    let mb = bytes / (1024.0 * 1024.0);
+    crate::log_heartbeat!(warn, "{:.3}MB", mb);
 }
 
 pub fn get_fee(key: FeeType) -> f64 {
@@ -151,8 +185,8 @@ pub fn set_fee(key: FeeType, value: f64) {
     drop(local_storage);
 }
 
-pub fn calculate_fee_on_open_order(fee_persentage: f64, positionsize: f64, price: f64) -> f64 {
-    let fee = (fee_persentage / 100.0) * positionsize / price;
+pub fn calculate_fee_on_open_order(fee_percentage: f64, positionsize: f64, price: f64) -> f64 {
+    let fee = (fee_percentage / 100.0) * positionsize / price;
     if fee < 1.0 {
         return 1.0;
     }

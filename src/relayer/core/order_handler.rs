@@ -244,7 +244,7 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::MARKET) {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT close order={} reason={}",
@@ -461,7 +461,7 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::LEND) {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT lend create account={} reason={}",
@@ -602,7 +602,7 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::LEND) {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT lend settle order={} reason={}",
@@ -795,7 +795,7 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::LIMIT) {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT cancel order={} reason={}",
@@ -927,7 +927,7 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc) {
+                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::SLTP) {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT close sltp order={} reason={}",

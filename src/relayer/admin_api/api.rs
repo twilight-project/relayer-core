@@ -619,23 +619,25 @@ pub fn startserver() {
                         current_params.min_position_btc
                     ),
                     max_leverage: value.max_leverage.unwrap_or(current_params.max_leverage),
+                    mm_ratio: value.mm_ratio.unwrap_or(current_params.mm_ratio),
                 };
                 RiskState::update_risk_params(new_params.clone());
                 crate::log_heartbeat!(
                     warn,
-                    "RISK_ENGINE: Risk params updated: max_oi_mult={}, max_net_mult={}, max_position_pct={}, min_position_btc={}, max_leverage={}",
+                    "RISK_ENGINE: Risk params updated: max_oi_mult={}, max_net_mult={}, max_position_pct={}, min_position_btc={}, max_leverage={}, mm_ratio={}",
                     new_params.max_oi_mult,
                     new_params.max_net_mult,
                     new_params.max_position_pct,
                     new_params.min_position_btc,
-                    new_params.max_leverage
+                    new_params.max_leverage,
+                    new_params.mm_ratio
                 );
                 Ok(serde_json::to_value(&new_params).unwrap())
             }
             Err(args) => {
                 let err = JsonRpcError::invalid_params(
                     format!(
-                        "Invalid parameters, {:?}. Expected: {{ \"max_oi_mult\": f64?, \"max_net_mult\": f64?, \"max_position_pct\": f64?, \"min_position_btc\": f64?, \"max_leverage\": f64? }}",
+                        "Invalid parameters, {:?}. Expected: {{ \"max_oi_mult\": f64?, \"max_net_mult\": f64?, \"max_position_pct\": f64?, \"min_position_btc\": f64?, \"max_leverage\": f64?, \"mm_ratio\": f64? }}",
                         args
                     )
                 );
@@ -648,6 +650,59 @@ pub fn startserver() {
     io.add_method_with_meta("GetRiskParams", move |_params: Params, _meta: Meta| async move {
         let params = RISK_PARAMS.lock().unwrap().clone();
         Ok(serde_json::to_value(&params).unwrap())
+    });
+
+    /*****************Recalculate Risk State */
+    io.add_method_with_meta("RecalculateRiskState", move |_params: Params, _meta: Meta| async move {
+        std::thread::Builder::new()
+            .name(String::from("recalculate_risk_state"))
+            .spawn(move || {
+                let trader_order_db = TRADER_ORDER_DB.lock().unwrap();
+                let mut total_long_btc: f64 = 0.0;
+                let mut total_short_btc: f64 = 0.0;
+                let mut total_pending_long_btc: f64 = 0.0;
+                let mut total_pending_short_btc: f64 = 0.0;
+
+                for (_uuid, order_arc) in trader_order_db.ordertable.iter() {
+                    let order = order_arc.read().unwrap();
+                    let entry_value = entryvalue(order.initial_margin, order.leverage);
+                    match (&order.order_status, &order.position_type) {
+                        (OrderStatus::FILLED, PositionType::LONG) => {
+                            total_long_btc += entry_value;
+                        }
+                        (OrderStatus::FILLED, PositionType::SHORT) => {
+                            total_short_btc += entry_value;
+                        }
+                        (OrderStatus::PENDING, PositionType::LONG) => {
+                            total_pending_long_btc += entry_value;
+                        }
+                        (OrderStatus::PENDING, PositionType::SHORT) => {
+                            total_pending_short_btc += entry_value;
+                        }
+                        _ => {}
+                    }
+                }
+                drop(trader_order_db);
+
+                crate::log_heartbeat!(
+                    warn,
+                    "RISK_ENGINE: Recalculated exposure - filled_long={}, filled_short={}, pending_long={}, pending_short={}",
+                    total_long_btc,
+                    total_short_btc,
+                    total_pending_long_btc,
+                    total_pending_short_btc
+                );
+
+                RiskState::recalculate_exposure(
+                    total_long_btc,
+                    total_short_btc,
+                    total_pending_long_btc,
+                    total_pending_short_btc,
+                );
+            })
+            .unwrap();
+
+        Ok(serde_json::to_value("Risk state recalculation started in background").unwrap())
     });
 
     crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);

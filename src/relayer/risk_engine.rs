@@ -5,7 +5,10 @@ use crate::config::*;
 use crate::db::*;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+
+pub static STALE_PRICE_PAUSED: AtomicBool = AtomicBool::new(false);
 
 lazy_static! {
     pub static ref RISK_ENGINE_STATE: Arc<Mutex<RiskState>> =
@@ -16,6 +19,10 @@ lazy_static! {
 
 // --- Risk Parameters (loaded from env with defaults) ---
 
+fn default_mm_ratio() -> f64 {
+    0.4
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RiskParams {
     pub max_oi_mult: f64,      // alpha: max OI / pool equity
@@ -23,6 +30,8 @@ pub struct RiskParams {
     pub max_position_pct: f64, // gamma: max single position / pool equity
     pub min_position_btc: f64, // min position size in sats (0 = disabled)
     pub max_leverage: f64,     // max leverage (0 = use existing limit)
+    #[serde(default = "default_mm_ratio")]
+    pub mm_ratio: f64,         // maintenance margin ratio (0.4 = 40%)
 }
 
 impl RiskParams {
@@ -49,6 +58,33 @@ impl RiskParams {
                 .unwrap_or("50.0".to_string())
                 .parse::<f64>()
                 .unwrap_or(50.0),
+            mm_ratio: std::env::var("RISK_MM_RATIO")
+                .unwrap_or("0.4".to_string())
+                .parse::<f64>()
+                .unwrap_or(0.4),
+        }
+    }
+}
+
+/// V6 and earlier snapshot format — RiskParams WITHOUT mm_ratio
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RiskParamsOld {
+    pub max_oi_mult: f64,
+    pub max_net_mult: f64,
+    pub max_position_pct: f64,
+    pub min_position_btc: f64,
+    pub max_leverage: f64,
+}
+
+impl RiskParamsOld {
+    pub fn migrate_to_new(&self) -> RiskParams {
+        RiskParams {
+            max_oi_mult: self.max_oi_mult,
+            max_net_mult: self.max_net_mult,
+            max_position_pct: self.max_position_pct,
+            min_position_btc: self.min_position_btc,
+            max_leverage: self.max_leverage,
+            mm_ratio: 0.4, // default
         }
     }
 }
@@ -104,6 +140,7 @@ pub enum RiskRejectionReason {
         requested_btc: f64,
         allowed_btc: f64,
     },
+    PriceFeedPaused,
 }
 
 impl RiskRejectionReason {
@@ -118,6 +155,7 @@ impl RiskRejectionReason {
             RiskRejectionReason::OiLimitReached { .. } => "OI_LIMIT_REACHED".to_string(),
             RiskRejectionReason::SkewLimitReached { .. } => "SKEW_LIMIT_REACHED".to_string(),
             RiskRejectionReason::LimitReached { .. } => "LIMIT_REACHED".to_string(),
+            RiskRejectionReason::PriceFeedPaused => "PRICE_FEED_PAUSED".to_string(),
         }
     }
 }
@@ -134,8 +172,8 @@ pub struct RiskStateOld {
 }
 
 impl RiskStateOld {
-    pub fn migrate_to_new(&self) -> RiskState {
-        RiskState {
+    pub fn migrate_to_new(&self) -> RiskStateOldV5 {
+        RiskStateOldV5 {
             total_long_btc: self.total_long_btc,
             total_short_btc: self.total_short_btc,
             manual_halt: self.manual_halt,
@@ -146,10 +184,38 @@ impl RiskStateOld {
     }
 }
 
+// V5 RiskState (no pending exposure fields)
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RiskStateOldV5 {
+    pub total_long_btc: f64,
+    pub total_short_btc: f64,
+    pub manual_halt: bool,
+    pub manual_close_only: bool,
+    pub pause_funding: bool,
+    pub pause_price_feed: bool,
+}
+
+impl RiskStateOldV5 {
+    pub fn migrate_to_new(&self) -> RiskState {
+        RiskState {
+            total_long_btc: self.total_long_btc,
+            total_short_btc: self.total_short_btc,
+            total_pending_long_btc: 0.0,
+            total_pending_short_btc: 0.0,
+            manual_halt: self.manual_halt,
+            manual_close_only: self.manual_close_only,
+            pause_funding: self.pause_funding,
+            pause_price_feed: self.pause_price_feed,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RiskState {
-    pub total_long_btc: f64, // sum of entry_value (sats) for all open LONG positions
-    pub total_short_btc: f64, // sum of entry_value (sats) for all open SHORT positions
+    pub total_long_btc: f64, // sum of entry_value (sats) for all filled LONG positions
+    pub total_short_btc: f64, // sum of entry_value (sats) for all filled SHORT positions
+    pub total_pending_long_btc: f64, // sum of entry_value (sats) for all pending LONG limit orders
+    pub total_pending_short_btc: f64, // sum of entry_value (sats) for all pending SHORT limit orders
     pub manual_halt: bool,
     pub manual_close_only: bool,
     pub pause_funding: bool,
@@ -161,6 +227,8 @@ impl RiskState {
         RiskState {
             total_long_btc: 0.0,
             total_short_btc: 0.0,
+            total_pending_long_btc: 0.0,
+            total_pending_short_btc: 0.0,
             manual_halt: false,
             manual_close_only: false,
             pause_funding: false,
@@ -213,6 +281,76 @@ impl RiskState {
                 state.clone(),
             ),
             String::from("RemoveRiskExposure"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn add_pending_order(position_type: PositionType, entry_value: f64) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        match position_type {
+            PositionType::LONG => {
+                state.total_pending_long_btc += entry_value;
+            }
+            PositionType::SHORT => {
+                state.total_pending_short_btc += entry_value;
+            }
+        }
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::AddPendingExposure(position_type, entry_value),
+                state.clone(),
+            ),
+            String::from("AddPendingRiskExposure"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn remove_pending_order(position_type: PositionType, entry_value: f64) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        match position_type {
+            PositionType::LONG => {
+                state.total_pending_long_btc -= entry_value;
+                if state.total_pending_long_btc < 0.0 {
+                    state.total_pending_long_btc = 0.0;
+                }
+            }
+            PositionType::SHORT => {
+                state.total_pending_short_btc -= entry_value;
+                if state.total_pending_short_btc < 0.0 {
+                    state.total_pending_short_btc = 0.0;
+                }
+            }
+        }
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::RemovePendingExposure(position_type, entry_value),
+                state.clone(),
+            ),
+            String::from("RemovePendingRiskExposure"),
+            CORE_EVENT_LOG.clone().to_string(),
+        );
+        drop(state);
+    }
+
+    pub fn recalculate_exposure(
+        total_long_btc: f64,
+        total_short_btc: f64,
+        total_pending_long_btc: f64,
+        total_pending_short_btc: f64,
+    ) {
+        let mut state = RISK_ENGINE_STATE.lock().unwrap();
+        state.total_long_btc = total_long_btc;
+        state.total_short_btc = total_short_btc;
+        state.total_pending_long_btc = total_pending_long_btc;
+        state.total_pending_short_btc = total_pending_short_btc;
+        Event::new(
+            Event::RiskEngineUpdate(
+                RiskEngineCommand::RecalculateExposure,
+                state.clone(),
+            ),
+            String::from("RecalculateRiskExposure"),
             CORE_EVENT_LOG.clone().to_string(),
         );
         drop(state);
@@ -395,6 +533,11 @@ pub fn validate_open_order(
 ) -> Result<f64, RiskRejectionReason> {
     let state = RISK_ENGINE_STATE.lock().unwrap();
 
+    // Reject all opens when price feed is paused (admin halt or stale price)
+    if state.pause_price_feed || STALE_PRICE_PAUSED.load(Ordering::Relaxed) {
+        return Err(RiskRejectionReason::PriceFeedPaused);
+    }
+
     // Compute market status
     let (status, status_reason) = compute_market_status(&state, pool_equity_btc);
 
@@ -486,8 +629,15 @@ pub fn validate_open_order(
 
 pub fn validate_close_cancel_order(
     pool_equity_btc: f64,
+    order_type: &OrderType,
 ) -> Result<(), RiskRejectionReason> {
     let state = RISK_ENGINE_STATE.lock().unwrap();
+
+    // Reject non-lend orders when price feed is paused (admin halt or stale price)
+    if (state.pause_price_feed || STALE_PRICE_PAUSED.load(Ordering::Relaxed)) && *order_type != OrderType::LEND {
+        return Err(RiskRejectionReason::PriceFeedPaused);
+    }
+
     let (status, status_reason) = compute_market_status(&state, pool_equity_btc);
     drop(state);
 
@@ -555,6 +705,7 @@ mod tests {
             max_position_pct: gamma,
             min_position_btc: 0.0,
             max_leverage: 0.0,
+            mm_ratio: 0.4,
         }
     }
 

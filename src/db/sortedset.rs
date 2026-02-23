@@ -30,7 +30,7 @@ impl SortedSet {
             Ok(())
         } else {
             Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
+                std::io::ErrorKind::NotFound,
                 "Key already exist",
             ))
         }
@@ -104,7 +104,7 @@ impl SortedSet {
             Ok(())
         } else {
             Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
+                std::io::ErrorKind::NotFound,
                 "Key does not exist",
             ))
         }
@@ -115,10 +115,13 @@ impl SortedSet {
         value.sort_by_key(|p| p.0);
         let db = self.sorted_order.clone();
         let mut db_iter = db.iter();
+        let mut cursor: usize = 0;
         for (uuid, price) in value {
             if self.hash.contains(&uuid) {
-                let key_index = db_iter.position(|&(x, _y)| x == uuid).unwrap();
-                self.sorted_order[key_index].1 = price;
+                let relative_index = db_iter.position(|&(x, _y)| x == uuid).unwrap();
+                let absolute_index = cursor + relative_index;
+                self.sorted_order[absolute_index].1 = price;
+                cursor = absolute_index + 1;
             }
         }
         Ok(())
@@ -162,5 +165,53 @@ impl SortedSet {
         } else {
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_bulk_second_entry_writes_wrong_index() {
+        let mut set = SortedSet::new();
+
+        // Create 3 deterministic UUIDs that sort in a known order
+        let uuid_a = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        let uuid_b = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+        let uuid_c = Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap();
+        let uuid_d = Uuid::parse_str("00000000-0000-0000-0000-000000000004").unwrap();
+        let uuid_e = Uuid::parse_str("00000000-0000-0000-0000-000000000005").unwrap();
+        let uuid_f = Uuid::parse_str("00000000-0000-0000-0000-000000000006").unwrap();
+
+        set.add(uuid_a, 100).unwrap();
+        set.add(uuid_b, 200).unwrap();
+        set.add(uuid_c, 300).unwrap();
+        set.add(uuid_d, 400).unwrap();
+        set.add(uuid_e, 500).unwrap();
+        set.add(uuid_f, 600).unwrap();
+        // Update B and C with new prices
+        let updates = vec![(uuid_b, 999), (uuid_c, 888), (uuid_f, 555)];
+        set.update_bulk(updates).unwrap();
+
+        // Sort by UUID to inspect in deterministic order
+        set.sorthash();
+        println!("set: {:#?}", set.sorted_order);
+        // Check results: A should be unchanged, B and C should have new prices
+        assert_eq!(
+            set.sorted_order[0],
+            (uuid_a, 100),
+            "A should be unchanged at price 100"
+        );
+        assert_eq!(
+            set.sorted_order[1],
+            (uuid_b, 999),
+            "B should be updated to 999"
+        );
+        assert_eq!(
+            set.sorted_order[2],
+            (uuid_c, 888),
+            "C should be updated to 888"
+        );
     }
 }
