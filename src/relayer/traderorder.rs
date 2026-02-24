@@ -758,6 +758,48 @@ impl TraderOrder {
             }
         }
     }
+    pub fn cancel_close_limit_order(&mut self) -> (bool, OrderStatus) {
+        match self.position_type {
+            PositionType::LONG => {
+                let mut limit_close_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                let result = limit_close_list.remove(self.uuid);
+                drop(limit_close_list);
+                match result {
+                    Ok((_, _)) => {
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
+                                self.uuid.clone(),
+                                self.position_type.clone(),
+                            )),
+                            format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        (true, OrderStatus::CANCELLED)
+                    }
+                    Err(_) => (false, self.order_status.clone()),
+                }
+            }
+            PositionType::SHORT => {
+                let mut limit_close_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                let result = limit_close_list.remove(self.uuid);
+                drop(limit_close_list);
+                match result {
+                    Ok((_, _)) => {
+                        Event::new(
+                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
+                                self.uuid.clone(),
+                                self.position_type.clone(),
+                            )),
+                            format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        (true, OrderStatus::CANCELLED)
+                    }
+                    Err(_) => (false, self.order_status.clone()),
+                }
+            }
+        }
+    }
     pub fn cancel_sltp_order(
         &mut self,
         sltp_type: SlTpOrderCancel,
