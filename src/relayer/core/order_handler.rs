@@ -863,6 +863,49 @@ pub fn rpc_event_handler(
                                     }
                                 }
                             }
+                            OrderStatus::FILLED => {
+                                let (cancel_status, order_status) = order.cancel_close_limit_order();
+                                drop(order);
+                                if cancel_status {
+                                    Event::new(
+                                        Event::TxHash(
+                                            rpc_request.uuid,
+                                            rpc_request.account_id,
+                                            "Close limit order successfully cancelled !!".to_string(),
+                                            rpc_request.order_type,
+                                            OrderStatus::CANCELLED,
+                                            ServerTime::now().epoch,
+                                            None,
+                                            request_id,
+                                        ),
+                                        format!(
+                                            "tx_hash_result-{:?}",
+                                            "Close limit order successfully cancelled !!".to_string()
+                                        ),
+                                        CORE_EVENT_LOG.clone().to_string(),
+                                    );
+                                } else {
+                                    crate::log_trading!(
+                                        debug,
+                                        "No close limit order found for order {}",
+                                        rpc_request.uuid
+                                    );
+                                    Event::new(
+                                        Event::TxHash(
+                                            rpc_request.uuid,
+                                            rpc_request.account_id,
+                                            "No close limit order found to cancel !!".to_string(),
+                                            rpc_request.order_type,
+                                            OrderStatus::OrderNotFound,
+                                            ServerTime::now().epoch,
+                                            None,
+                                            request_id,
+                                        ),
+                                        String::from("close_limit_order_not_found"),
+                                        CORE_EVENT_LOG.clone().to_string(),
+                                    );
+                                }
+                            }
                             _ => {
                                 drop(order);
                                 crate::log_trading!(
