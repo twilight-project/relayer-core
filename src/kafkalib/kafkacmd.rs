@@ -156,7 +156,7 @@ pub fn receive_from_kafka_queue(
                                         }
                                     }
                                     Err(e) => {
-                                        crate::log_heartbeat!(warn, "Kafka poll error: {:?}", e);
+                                        crate::log_heartbeat!(warn, "Kafka poll error receive from kafka queue: {:?}", e);
                                         kafka_health::record_kafka_failure();
                                         pool_attempt += 1;
                                         if pool_attempt > 100 {

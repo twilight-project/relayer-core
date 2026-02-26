@@ -274,9 +274,11 @@ impl Event {
                 pool.execute(move || {
                     let mut attempt: u64 = 0;
                     loop {
-                        match KAFKA_PRODUCER_EVENT
-                            .send(&Record::from_key_value(&topic, key.clone(), data.clone()))
-                        {
+                        match KAFKA_PRODUCER_EVENT.send(&Record::from_key_value(
+                            &topic,
+                            key.clone(),
+                            data.clone(),
+                        )) {
                             Ok(_) => break,
                             Err(e) => {
                                 attempt += 1;
@@ -444,7 +446,7 @@ impl Event {
                                         }
                                     }
                                     Err(e) => {
-                                        crate::log_heartbeat!(warn, "Kafka poll error: {:?}", e);
+                                        crate::log_heartbeat!(warn, "Kafka poll error event snapshot: {:?}", e);
                                         std::thread::sleep(Duration::from_secs(1));
                                     }
                                 }
