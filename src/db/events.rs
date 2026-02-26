@@ -446,7 +446,7 @@ impl Event {
                                         }
                                     }
                                     Err(e) => {
-                                        crate::log_heartbeat!(warn, "Kafka poll error event snapshot: {:?}", e);
+                                        crate::log_heartbeat!(warn, "Kafka poll error event.rs: {:?}", e);
                                         std::thread::sleep(Duration::from_secs(1));
                                     }
                                 }
