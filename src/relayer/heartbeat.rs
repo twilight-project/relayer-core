@@ -1,5 +1,6 @@
 use crate::config::*;
 use crate::db::*;
+use crate::kafkalib::kafka_health;
 use crate::pricefeederlib::price_feeder::receive_btc_price;
 use crate::relayer::order_handler::client_cmd_receiver;
 use crate::relayer::relayer_command_handler::relayer_event_handler;
@@ -143,9 +144,18 @@ pub fn heartbeat() {
         .name(String::from("client_cmd_receiver"))
         .spawn(move || {
             thread::sleep(time::Duration::from_millis(10000));
+            let mut consecutive_failures: u64 = 0;
             loop {
                 client_cmd_receiver();
-                thread::sleep(time::Duration::from_millis(1000));
+                // client_cmd_receiver returns when kafka connection breaks
+                consecutive_failures += 1;
+                kafka_health::record_kafka_failure();
+                crate::log_heartbeat!(
+                    warn,
+                    "client_cmd_receiver exited, retry #{}",
+                    consecutive_failures
+                );
+                kafka_health::backoff_sleep(consecutive_failures);
             }
         })
         .unwrap();

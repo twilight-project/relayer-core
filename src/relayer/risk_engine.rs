@@ -3,6 +3,7 @@
 #![allow(non_camel_case_types)]
 use crate::config::*;
 use crate::db::*;
+use crate::kafkalib::kafka_health::KAFKA_UNHEALTHY;
 use crate::relayer::*;
 use serde_derive::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -141,6 +142,7 @@ pub enum RiskRejectionReason {
         allowed_btc: f64,
     },
     PriceFeedPaused,
+    KafkaUnhealthy,
 }
 
 impl RiskRejectionReason {
@@ -156,6 +158,7 @@ impl RiskRejectionReason {
             RiskRejectionReason::SkewLimitReached { .. } => "SKEW_LIMIT_REACHED".to_string(),
             RiskRejectionReason::LimitReached { .. } => "LIMIT_REACHED".to_string(),
             RiskRejectionReason::PriceFeedPaused => "PRICE_FEED_PAUSED".to_string(),
+            RiskRejectionReason::KafkaUnhealthy => "KAFKA_UNHEALTHY".to_string(),
         }
     }
 }
@@ -453,6 +456,7 @@ pub struct MarketRiskStats {
     pub status: MarketStatus,
     pub status_reason: Option<String>,
     pub params: RiskParams,
+    pub kafka_unhealthy: bool,
 }
 
 // --- Core Risk Engine Functions ---
@@ -531,6 +535,11 @@ pub fn validate_open_order(
     pool_equity_btc: f64,
     params: &RiskParams,
 ) -> Result<f64, RiskRejectionReason> {
+    // Reject all opens when Kafka is unhealthy (no event sourcing guarantee)
+    if KAFKA_UNHEALTHY.load(Ordering::Relaxed) {
+        return Err(RiskRejectionReason::KafkaUnhealthy);
+    }
+
     let state = RISK_ENGINE_STATE.lock().unwrap();
 
     // Reject all opens when price feed is paused (admin halt or stale price)
@@ -631,6 +640,11 @@ pub fn validate_close_cancel_order(
     pool_equity_btc: f64,
     order_type: &OrderType,
 ) -> Result<(), RiskRejectionReason> {
+    // Reject all operations when Kafka is unhealthy (no event sourcing guarantee)
+    if KAFKA_UNHEALTHY.load(Ordering::Relaxed) {
+        return Err(RiskRejectionReason::KafkaUnhealthy);
+    }
+
     let state = RISK_ENGINE_STATE.lock().unwrap();
 
     // Reject non-lend orders when price feed is paused (admin halt or stale price)
@@ -691,6 +705,7 @@ pub fn get_market_stats(pool_equity_btc: f64, mark_price: f64) -> MarketRiskStat
         status,
         status_reason: status_reason.map(|r| r.to_string()),
         params: params,
+        kafka_unhealthy: KAFKA_UNHEALTHY.load(Ordering::Relaxed),
     }
 }
 

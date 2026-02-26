@@ -1,6 +1,7 @@
 //! ## kafkalib for twilight
 //!
 
+pub mod kafka_health;
 pub mod kafka_topic;
 pub mod kafkacmd;
 pub mod offset_manager;

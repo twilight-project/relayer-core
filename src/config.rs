@@ -107,6 +107,32 @@ lazy_static! {
         .unwrap_or("false".to_string())
         .parse::<bool>()
         .unwrap_or(false);
+
+    // Kafka resilience thresholds
+    pub static ref KAFKA_FAILURE_HALT_THRESHOLD: u64 = std::env::var("KAFKA_FAILURE_HALT_THRESHOLD")
+    .unwrap_or("10".to_string())
+    .parse::<u64>()
+    .unwrap_or(10);
+
+    pub static ref KAFKA_RECOVERY_THRESHOLD: u64 = std::env::var("KAFKA_RECOVERY_THRESHOLD")
+    .unwrap_or("3".to_string())
+    .parse::<u64>()
+    .unwrap_or(3);
+
+    pub static ref KAFKA_RETRY_BASE_MS: u64 = std::env::var("KAFKA_RETRY_BASE_MS")
+    .unwrap_or("500".to_string())
+    .parse::<u64>()
+    .unwrap_or(500);
+
+    pub static ref KAFKA_RETRY_MAX_MS: u64 = std::env::var("KAFKA_RETRY_MAX_MS")
+    .unwrap_or("30000".to_string())
+    .parse::<u64>()
+    .unwrap_or(30000);
+
+    pub static ref KAFKA_MAX_STARTUP_RETRIES: u64 = std::env::var("KAFKA_MAX_STARTUP_RETRIES")
+    .unwrap_or("60".to_string())
+    .parse::<u64>()
+    .unwrap_or(60);
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct
