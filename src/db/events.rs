@@ -321,16 +321,10 @@ impl Event {
                 ::new()
                 .name(String::from(thread_name))
                 .spawn(move || {
-                    // let broker = vec![
-                    //     std::env
-                    //         ::var("BROKER")
-                    //         .unwrap_or_else(|_| "localhost:9092".to_string())
-                    //         .to_owned()
-                    // ];
                     match
                         Consumer::from_hosts(BROKERS.clone())
                             // .with_topic(topic)
-                            .with_group(group)
+                            .with_group(group.clone())
                             .with_topic_partitions(topic.clone(), &[0])
                             .with_fallback_offset(fetchoffset)
                             .with_offset_storage(GroupOffsetStorage::Kafka)
@@ -339,10 +333,12 @@ impl Event {
                         Ok(mut con) => {
                             let mut connection_status = true;
                             let _partition: i32 = 0;
+                            let mut snapshot_poll_failures: u64 = 0;
                             while connection_status {
                                 let sender_clone = sender.clone();
                                 match con.poll() {
                                     Ok(mss) => {
+                                        snapshot_poll_failures = 0;
                                         if mss.is_empty() {
                                             // println!("No messages available right now.");
                                             // return Ok(());
@@ -371,7 +367,7 @@ impl Event {
                                                             );
                                                             crate::log_heartbeat!(
                                                                 warn,
-                                                                "skipping currupted log"
+                                                                "skipping corrupted log"
                                                             );
                                                             continue;
                                                         }
@@ -385,7 +381,9 @@ impl Event {
                                                         partition: ms.partition(),
                                                     };
                                                     match sender_clone.send(message) {
-                                                        Ok(_) => {}
+                                                        Ok(_) => {
+
+                                                        }
                                                         Err(_arg) => {
                                                             crate::log_heartbeat!(
                                                                 warn,
@@ -446,15 +444,23 @@ impl Event {
                                         }
                                     }
                                     Err(e) => {
-                                        crate::log_heartbeat!(warn, "Kafka poll error event.rs: {:?}", e);
-                                        std::thread::sleep(Duration::from_secs(1));
+                                        snapshot_poll_failures += 1;
+                                        kafka_health::record_kafka_failure();
+                                        crate::log_heartbeat!(warn, "Kafka poll error event.rs (group: {}. attempt {}): {}", group, snapshot_poll_failures, e);
+                                        if snapshot_poll_failures > 3 {
+                                            crate::log_heartbeat!(warn, "Snapshot consumer: too many poll failures, closing consumer thread");
+                                            // connection_status = false;
+                                            break;
+                                        }
+                                        kafka_health::backoff_sleep(snapshot_poll_failures);
                                     }
                                 }
                             }
                             thread::sleep(time::Duration::from_millis(3000));
                         }
                         Err(e) => {
-                            crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
+                            kafka_health::record_kafka_failure();
+                            crate::log_heartbeat!(error, "Kafka connection failed: {}", e);
                             drop(sender);
                             return;
                         }

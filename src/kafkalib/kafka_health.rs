@@ -66,10 +66,7 @@ pub fn backoff_sleep(attempt: u64) {
 
 /// Attempt to create a Kafka Producer with retries and backoff.
 /// Returns None if all retries fail (NO PANIC).
-pub fn create_producer_with_retry(
-    max_retries: u64,
-    ack_timeout_secs: u64,
-) -> Option<Producer> {
+pub fn create_producer_with_retry(max_retries: u64, ack_timeout_secs: u64) -> Option<Producer> {
     dotenv::dotenv().ok();
     for attempt in 0..max_retries {
         match Producer::from_hosts(BROKERS.clone())
@@ -90,7 +87,7 @@ pub fn create_producer_with_retry(
             Err(e) => {
                 crate::log_heartbeat!(
                     warn,
-                    "KAFKA_HEALTH: Producer creation attempt {}/{} failed: {:?}",
+                    "KAFKA_HEALTH: Producer creation attempt {}/{} failed: {}",
                     attempt + 1,
                     max_retries,
                     e
@@ -145,7 +142,10 @@ impl ResilientProducer {
         K: AsBytes,
         V: AsBytes,
     {
-        let mut guard = self.inner.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|e| format!("Lock poisoned: {}", e))?;
 
         // If we have no producer, try to reconnect first
         if guard.is_none() {
@@ -166,7 +166,7 @@ impl ResilientProducer {
                 Err(e) => {
                     crate::log_heartbeat!(
                         warn,
-                        "KAFKA_HEALTH: Send failed, attempting reconnect: {:?}",
+                        "KAFKA_HEALTH: Send failed, attempting reconnect: {}",
                         e
                     );
                 }
@@ -187,7 +187,7 @@ impl ResilientProducer {
                 Err(e) => {
                     *guard = None;
                     record_kafka_failure();
-                    return Err(format!("Kafka send failed after reconnect: {:?}", e));
+                    return Err(format!("Kafka send failed after reconnect: {}", e));
                 }
             }
         }
