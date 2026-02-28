@@ -133,6 +133,9 @@ lazy_static! {
     .unwrap_or("60".to_string())
     .parse::<u64>()
     .unwrap_or(60);
+
+    pub static ref PERSISTENT_QUEUE_PATH: String =
+    std::env::var("PERSISTENT_QUEUE_PATH").unwrap_or_else(|_| "./data/relayer_snapshot/event_queue".to_string());
 }
 
 /// Binance Individual Symbol Mini Ticker Stream Payload Struct

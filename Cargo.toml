@@ -49,6 +49,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
 log = "0.4"
+sled = "0.34"
 
 
 curve25519-dalek = { version = "3", default-features = false }

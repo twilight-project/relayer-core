@@ -15,7 +15,55 @@ use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 pub fn heartbeat() {
     dotenv::dotenv().ok();
-    // init_psql();
+    // Drain any events left in persistent queue from previous run
+    {
+        use crate::db::KAFKA_PRODUCER_EVENT;
+        use crate::kafkalib::persistent_queue::EVENT_QUEUE;
+        use kafka::producer::Record;
+
+        let pending = EVENT_QUEUE.drain_pending();
+        if !pending.is_empty() {
+            crate::log_heartbeat!(
+                warn,
+                "PERSISTENT_QUEUE: Found {} unsent events from previous run, replaying...",
+                pending.len()
+            );
+            for (id, entry) in pending {
+                let mut attempt: u64 = 0;
+                loop {
+                    match KAFKA_PRODUCER_EVENT.send(&Record::from_key_value(
+                        &entry.topic,
+                        entry.key.clone(),
+                        entry.data.clone(),
+                    )) {
+                        Ok(_) => {
+                            EVENT_QUEUE.remove(id).ok();
+                            break;
+                        }
+                        Err(e) => {
+                            attempt += 1;
+                            crate::log_heartbeat!(
+                                warn,
+                                "PERSISTENT_QUEUE: Replay event {} failed (attempt {}): {}",
+                                id,
+                                attempt,
+                                e
+                            );
+                            kafka_health::backoff_sleep(attempt);
+                        }
+                    }
+                }
+            }
+            crate::log_heartbeat!(
+                info,
+                "PERSISTENT_QUEUE: All pending events replayed successfully"
+            );
+        }
+
+        // Reclaim disk space from previous run's queue entries
+        EVENT_QUEUE.reset_if_empty();
+    }
+
     crate::log_database!(info, "Looking for previous database...");
     match load_from_snapshot() {
         Ok(mut queue_manager) => {

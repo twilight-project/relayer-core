@@ -4,6 +4,7 @@ use crate::config::{BROKERS, EVENTLOG_VERSION};
 use crate::db::*;
 use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
+use crate::kafkalib::persistent_queue;
 use crate::relayer::*;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use jsonrpc::Request;
@@ -269,6 +270,12 @@ impl Event {
             }
         };
 
+        // 1. Persist to disk FIRST (crash-safe)
+        let queue_id = persistent_queue::EVENT_QUEUE
+            .push(topic.clone(), key.clone(), data.clone())
+            .map_err(|e| format!("Failed to persist event: {}", e))?;
+
+        // 2. Then dispatch to thread pool for async Kafka send
         match KAFKA_EVENT_LOG_THREADPOOL2.lock() {
             Ok(pool) => {
                 pool.execute(move || {
@@ -279,7 +286,18 @@ impl Event {
                             key.clone(),
                             data.clone(),
                         )) {
-                            Ok(_) => break,
+                            Ok(_) => {
+                                // 3. Remove from persistent queue only after successful send
+                                if let Err(e) = persistent_queue::EVENT_QUEUE.remove(queue_id) {
+                                    crate::log_heartbeat!(
+                                        error,
+                                        "Failed to remove event {} from persistent queue: {}",
+                                        queue_id,
+                                        e
+                                    );
+                                }
+                                break;
+                            }
                             Err(e) => {
                                 attempt += 1;
                                 crate::log_heartbeat!(

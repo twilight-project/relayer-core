@@ -5,5 +5,6 @@ pub mod kafka_health;
 pub mod kafka_topic;
 pub mod kafkacmd;
 pub mod offset_manager;
+pub mod persistent_queue;
 pub mod producer_kafka;
 //https://docs.rs/kafka/0.4.1/kafka/client/struct.KafkaClient.html
