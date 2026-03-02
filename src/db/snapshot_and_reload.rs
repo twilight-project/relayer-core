@@ -384,8 +384,8 @@ pub struct SnapshotDBOldV6 {
 }
 
 impl SnapshotDBOldV6 {
-    pub fn migrate_to_new(&self) -> SnapshotDB {
-        SnapshotDB {
+    pub fn migrate_to_new(&self) -> SnapshotDBOldV7 {
+        SnapshotDBOldV7 {
             orderdb_traderorder: self.orderdb_traderorder.clone(),
             orderdb_lendorder: self.orderdb_lendorder.clone(),
             lendpool_database: self.lendpool_database.clone(),
@@ -409,9 +409,9 @@ impl SnapshotDBOldV6 {
     }
 }
 
-// V7 snapshot format (current — has RiskParams with mm_ratio)
+// V7 snapshot format (old — has RiskParams with mm_ratio, no group_name)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SnapshotDB {
+pub struct SnapshotDBOldV7 {
     pub orderdb_traderorder: OrderDBSnapShotTO,
     pub orderdb_lendorder: OrderDBSnapShotLO,
     pub lendpool_database: LendPool,
@@ -433,9 +433,61 @@ pub struct SnapshotDB {
     queue_manager: QueueState,
 }
 
+impl SnapshotDBOldV7 {
+    pub fn migrate_to_new(&self) -> SnapshotDB {
+        SnapshotDB {
+            orderdb_traderorder: self.orderdb_traderorder.clone(),
+            orderdb_lendorder: self.orderdb_lendorder.clone(),
+            lendpool_database: self.lendpool_database.clone(),
+            liquidation_long_sortedset_db: self.liquidation_long_sortedset_db.clone(),
+            liquidation_short_sortedset_db: self.liquidation_short_sortedset_db.clone(),
+            open_long_sortedset_db: self.open_long_sortedset_db.clone(),
+            open_short_sortedset_db: self.open_short_sortedset_db.clone(),
+            close_long_sortedset_db: self.close_long_sortedset_db.clone(),
+            close_short_sortedset_db: self.close_short_sortedset_db.clone(),
+            sltp_close_long_sortedset_db: self.sltp_close_long_sortedset_db.clone(),
+            sltp_close_short_sortedset_db: self.sltp_close_short_sortedset_db.clone(),
+            position_size_log: self.position_size_log.clone(),
+            risk_state: self.risk_state.clone(),
+            risk_params: self.risk_params.clone(),
+            localdb_hashmap: self.localdb_hashmap.clone(),
+            event_offset_partition: self.event_offset_partition,
+            event_timestamp: self.event_timestamp.clone(),
+            output_hex_storage: self.output_hex_storage.clone(),
+            queue_manager: self.queue_manager.clone(),
+            group_name: format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
+        }
+    }
+}
+
+// V8/V9 snapshot format (current — has group_name for unique Kafka consumer groups)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotDB {
+    pub orderdb_traderorder: OrderDBSnapShotTO,
+    pub orderdb_lendorder: OrderDBSnapShotLO,
+    pub lendpool_database: LendPool,
+    pub liquidation_long_sortedset_db: SortedSet,
+    pub liquidation_short_sortedset_db: SortedSet,
+    pub open_long_sortedset_db: SortedSet,
+    pub open_short_sortedset_db: SortedSet,
+    pub close_long_sortedset_db: SortedSet,
+    pub close_short_sortedset_db: SortedSet,
+    pub sltp_close_long_sortedset_db: SortedSet,
+    pub sltp_close_short_sortedset_db: SortedSet,
+    pub position_size_log: PositionSizeLog,
+    pub risk_state: RiskState,
+    pub risk_params: Option<RiskParams>,
+    pub localdb_hashmap: HashMap<String, f64>,
+    pub event_offset_partition: (i32, i64),
+    pub event_timestamp: String,
+    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    queue_manager: QueueState,
+    pub group_name: String,
+}
+
 /// Current snapshot version written by this binary.
-/// V8 = V7 struct layout + zstd compression on payload.
-const SNAPSHOT_FORMAT_VERSION: u32 = 8;
+/// V9 = V8 struct layout + group_name field + zstd compression on payload.
+const SNAPSHOT_FORMAT_VERSION: u32 = 9;
 
 impl SnapshotDB {
     fn new() -> Self {
@@ -506,6 +558,12 @@ impl SnapshotDB {
             output_hex_storage:
                 utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
             queue_manager: QueueState::new(),
+            group_name: format!(
+                "{}-{}-{}",
+                *RELAYER_SNAPSHOT_FILE_LOCATION,
+                *SNAPSHOT_VERSION,
+                Uuid::new_v4()
+            ),
         }
     }
     fn print_status(&self) {
@@ -539,10 +597,12 @@ impl SnapshotDB {
     fn log_metadata(&self) {
         crate::log_heartbeat!(
             info,
-            "Snapshot loaded: {} trader orders, {} lend orders, \
+            "Snapshot : version={}, group_name={}, {} trader orders, {} lend orders, \
              liq_long={}, liq_short={}, open_long={}, open_short={}, \
              close_long={}, close_short={}, sltp_long={}, sltp_short={}, \
              offset=({}, {}), timestamp={}",
+            SNAPSHOT_FORMAT_VERSION,
+            self.group_name,
             self.orderdb_traderorder.ordertable.len(),
             self.orderdb_lendorder.ordertable.len(),
             self.liquidation_long_sortedset_db.len,
@@ -609,30 +669,45 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
     }
 
     match version {
-        // V8: zstd-compressed bincode with same struct layout as V7
-        8 => {
+        // V9: zstd-compressed bincode with group_name field
+        9 => {
             let decompressed = zstd_decompress(payload)?;
             bincode::deserialize::<SnapshotDB>(&decompressed)
                 .map(|s| Some(s))
+                .map_err(|e| format!("V9 deserialize failed: {:#?}", e))
+        }
+        // V8: zstd-compressed bincode with same struct layout as V7 (no group_name)
+        8 => {
+            let decompressed = zstd_decompress(payload)?;
+            bincode::deserialize::<SnapshotDBOldV7>(&decompressed)
+                .map(|s| Some(s.migrate_to_new()))
                 .map_err(|e| format!("V8 deserialize failed: {:#?}", e))
         }
         // V7 and below: raw (uncompressed) bincode
-        7 => bincode::deserialize::<SnapshotDB>(payload)
-            .map(|s| Some(s))
+        7 => bincode::deserialize::<SnapshotDBOldV7>(payload)
+            .map(|s| Some(s.migrate_to_new()))
             .map_err(|e| format!("V7 deserialize failed: {:#?}", e)),
         6 => bincode::deserialize::<SnapshotDBOldV6>(payload)
-            .map(|s| Some(s.migrate_to_new()))
+            .map(|s| Some(s.migrate_to_new().migrate_to_new()))
             .map_err(|e| format!("V6 deserialize failed: {:#?}", e)),
         5 => bincode::deserialize::<SnapshotDBOldV5>(payload)
-            .map(|s| Some(s.migrate_to_new().migrate_to_new()))
+            .map(|s| Some(s.migrate_to_new().migrate_to_new().migrate_to_new()))
             .map_err(|e| format!("V5 deserialize failed: {:#?}", e)),
         4 => bincode::deserialize::<SnapshotDBOld>(payload)
-            .map(|s| Some(s.migrate_to_new().migrate_to_new().migrate_to_new()))
+            .map(|s| {
+                Some(
+                    s.migrate_to_new()
+                        .migrate_to_new()
+                        .migrate_to_new()
+                        .migrate_to_new(),
+                )
+            })
             .map_err(|e| format!("V4 deserialize failed: {:#?}", e)),
         3 => bincode::deserialize::<SnapshotDBOldV3>(payload)
             .map(|s| {
                 Some(
                     s.migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new(),
@@ -646,6 +721,7 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new(),
                 )
             })
@@ -654,6 +730,7 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
             .map(|s| {
                 Some(
                     s.migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
@@ -670,24 +747,33 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
 /// files that were written without a version header.
 fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
     if let Ok(snap) = bincode::deserialize::<SnapshotDB>(data) {
-        crate::log_heartbeat!(info, "Decoded legacy snapshot as V7");
+        crate::log_heartbeat!(info, "Decoded legacy snapshot as V8 (with group_name)");
         return Ok(snap);
+    }
+    if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV7>(data) {
+        crate::log_heartbeat!(info, "Decoded legacy snapshot as V7, migrating");
+        return Ok(snap.migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV6>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V6, migrating");
-        return Ok(snap.migrate_to_new());
+        return Ok(snap.migrate_to_new().migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV5>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V5, migrating");
-        return Ok(snap.migrate_to_new().migrate_to_new());
+        return Ok(snap.migrate_to_new().migrate_to_new().migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOld>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V4, migrating");
-        return Ok(snap.migrate_to_new().migrate_to_new().migrate_to_new());
+        return Ok(snap
+            .migrate_to_new()
+            .migrate_to_new()
+            .migrate_to_new()
+            .migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV3>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V3, migrating");
         return Ok(snap
+            .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
@@ -696,6 +782,7 @@ fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV2>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V2, migrating");
         return Ok(snap
+            .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
@@ -710,9 +797,10 @@ fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
+            .migrate_to_new()
             .migrate_to_new());
     }
-    Err("All legacy snapshot decode attempts failed (V7-V1)".to_string())
+    Err("All legacy snapshot decode attempts failed (V8-V1)".to_string())
 }
 
 pub fn snapshot() -> Result<SnapshotDB, String> {
@@ -728,7 +816,11 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
             // ── Improvement #1+2: try versioned+checksummed format first ────
             decoded_snapshot = match decode_versioned_snapshot(&snapshot_data_from_file) {
                 Ok(Some(snap)) => {
-                    crate::log_heartbeat!(info, "Loaded versioned snapshot successfully");
+                    crate::log_heartbeat!(
+                        info,
+                        "Loaded versioned:{} snapshot successfully",
+                        SNAPSHOT_FORMAT_VERSION
+                    );
                     fetchoffset = FetchOffset::Earliest;
                     snap
                 }
@@ -862,7 +954,7 @@ pub fn snapshot() -> Result<SnapshotDB, String> {
     })?;
 
     crate::log_heartbeat!(info, "Snapshot Done");
-
+    snapshot_db_updated.log_metadata();
     Ok(snapshot_db_updated)
 }
 
@@ -889,6 +981,7 @@ struct SnapshotBuilder {
     event_timestamp: String,
     output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
     queue_manager: QueueState,
+    group_name: String,
 }
 
 impl SnapshotBuilder {
@@ -913,6 +1006,7 @@ impl SnapshotBuilder {
             event_timestamp,
             output_hex_storage: snapshot_db.output_hex_storage,
             queue_manager: snapshot_db.queue_manager,
+            group_name: snapshot_db.group_name,
         }
     }
 
@@ -944,6 +1038,7 @@ impl SnapshotBuilder {
             event_timestamp: self.event_timestamp,
             output_hex_storage: self.output_hex_storage,
             queue_manager: self.queue_manager,
+            group_name: self.group_name,
         }
     }
 
@@ -1674,12 +1769,15 @@ pub fn create_snapshot_data(
 
     let mut builder = SnapshotBuilder::from_snapshot(snapshot_db, event_timestamp);
 
+    let saved_offset = builder.event_offset_partition.1;
+    let mut first_new_event_seen = false;
+
     let mut stop_signal: bool = true;
     let mut retry_attempt = 0;
     while retry_attempt < 10 {
         match Event::receive_event_for_snapshot_from_kafka_queue(
             CORE_EVENT_LOG.clone().to_string(),
-            format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
+            builder.group_name.clone(),
             fetchoffset,
             "snapshot handle",
         ) {
@@ -1701,16 +1799,43 @@ pub fn create_snapshot_data(
                 while stop_signal {
                     match recever1.recv() {
                         Ok(data) => {
+                            // Always check Stop event first (must not be filtered)
+                            if let Event::Stop(ref timex) = data.value {
+                                if *timex == event_stoper_string {
+                                    stop_signal = false;
+                                    builder.event_offset_partition = (data.partition, data.offset);
+                                    continue;
+                                }
+                            }
+
+                            // Skip already-processed events
+                            if saved_offset > 0 && data.offset <= saved_offset {
+                                continue;
+                            }
+
+                            // Gap detection on first new event
+                            // if !first_new_event_seen && saved_offset > 0 {
+                            //     first_new_event_seen = true;
+                            //     if data.offset > saved_offset + 1 {
+                            //         crate::log_heartbeat!(
+                            //             warn,
+                            //             "Potential data gap: saved_offset={}, first_event_offset={}. {} events may be missing. Regenerating group_name for fresh Kafka start.",
+                            //             saved_offset, data.offset, data.offset - saved_offset - 1
+                            //         );
+                            //         builder.group_name = format!(
+                            //             "{}-{}-{}",
+                            //             *RELAYER_SNAPSHOT_FILE_LOCATION,
+                            //             *SNAPSHOT_VERSION,
+                            //             Uuid::new_v4()
+                            //         );
+                            //     }
+                            // }
+
                             // Handle PoolUpdate offset tracking separately
                             if let Event::PoolUpdate(_, _, _) = &data.value {
                                 if data.offset > last_offset {
                                     last_offset = data.offset;
                                     builder.handle_event(&data);
-                                }
-                            } else if let Event::Stop(ref timex) = data.value {
-                                if *timex == event_stoper_string {
-                                    stop_signal = false;
-                                    builder.event_offset_partition = (data.partition, data.offset);
                                 }
                             } else {
                                 builder.handle_event(&data);
@@ -1775,7 +1900,7 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
 
             snapshot_data.print_status();
             // ── Improvement #10: log metadata ───────────────────────────────
-            snapshot_data.log_metadata();
+            // snapshot_data.log_metadata();
 
             *output_hex_storage = snapshot_data.output_hex_storage;
             drop(output_hex_storage);
