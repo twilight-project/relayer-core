@@ -1770,7 +1770,7 @@ pub fn create_snapshot_data(
     let mut builder = SnapshotBuilder::from_snapshot(snapshot_db, event_timestamp);
 
     let saved_offset = builder.event_offset_partition.1;
-    let mut first_new_event_seen = false;
+    // let mut first_new_event_seen = false;
 
     let mut stop_signal: bool = true;
     let mut retry_attempt = 0;
