@@ -590,10 +590,22 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
     hasher.update(payload);
     let computed_crc = hasher.finalize();
     if stored_crc != computed_crc {
-        return Err(format!(
-            "Snapshot checksum mismatch: stored={:#010x}, computed={:#010x}. File may be corrupt.",
-            stored_crc, computed_crc
-        ));
+        // V8+ files always have a valid header — CRC mismatch means corruption.
+        // For versions 1-7, the "header" might just be the first bytes of a legacy
+        // bincode file that coincidentally look like a version number. Fall through
+        // to the legacy decoder instead of erroring.
+        if version >= 8 {
+            return Err(format!(
+                "Snapshot checksum mismatch: stored={:#010x}, computed={:#010x}. File may be corrupt.",
+                stored_crc, computed_crc
+            ));
+        }
+        crate::log_heartbeat!(
+            info,
+            "CRC mismatch for apparent version {} — likely a legacy (pre-header) snapshot, falling back",
+            version
+        );
+        return Ok(None);
     }
 
     match version {
