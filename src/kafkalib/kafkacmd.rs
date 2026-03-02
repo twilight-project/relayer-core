@@ -7,6 +7,7 @@ use crate::kafkalib::offset_manager::OffsetManager;
 use crate::relayer::*;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
+use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use kafka::client::KafkaClient;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
@@ -16,15 +17,7 @@ use std::time::Duration;
 use std::{thread, time};
 
 lazy_static! {
-    pub static ref KAFKA_PRODUCER: Mutex<Producer> = {
-        dotenv::dotenv().ok();
-        let producer = Producer::from_hosts(BROKERS.clone())
-            .with_ack_timeout(Duration::from_secs(1))
-            .with_required_acks(RequiredAcks::One)
-            .create()
-            .expect("Failed to create kafka producer");
-        Mutex::new(producer)
-    };
+    pub static ref KAFKA_PRODUCER: ResilientProducer = ResilientProducer::new(1);
     pub static ref KAFKA_CLIENT: Mutex<KafkaClient> = Mutex::new(KafkaClient::new(BROKERS.clone()));
 }
 
@@ -82,7 +75,7 @@ pub fn receive_from_kafka_queue(
             .spawn(move || {
                 // get the last offset from kafka
                 let last_offset = get_offset_from_kafka(topic.clone(), group.clone());
-               crate::log_heartbeat!(debug,"last_offset: {:#?}", last_offset);
+                crate::log_heartbeat!(debug, "last_offset: {:#?}", last_offset);
 
                 // create an offset tracker
                 let offset_tracker = Arc::new(OffsetManager::new(last_offset - 1));
@@ -107,6 +100,8 @@ pub fn receive_from_kafka_queue(
                                 let sender_clone = sender.clone();
                                 match con.poll() {
                                     Ok(mss) => {
+                                        kafka_health::record_kafka_success();
+                                        pool_attempt = 0;
                                         if mss.is_empty() {
                                         } else {
                                             for ms in mss.iter() {
@@ -133,7 +128,7 @@ pub fn receive_from_kafka_queue(
                                                                 Ok(_) => {}
                                                                 Err(arg) => {
                                                                     crate::log_heartbeat!(
-                                            error, 
+                                                                        error,
                                                                         "Closing Kafka Consumer Connection on kafka rpc client: {:#?}",
                                                                         arg
                                                                     );
@@ -144,7 +139,7 @@ pub fn receive_from_kafka_queue(
                                                         }
                                                         Err(e) => {
                                                             crate::log_heartbeat!(
-                                            error, 
+                                                                error,
                                                                 "Error parsing message on kafka rpc client: {:?}",
                                                                 e
                                                             );
@@ -161,12 +156,17 @@ pub fn receive_from_kafka_queue(
                                         }
                                     }
                                     Err(e) => {
-                                        crate::log_heartbeat!(warn, "Kafka poll error: {:?}", e);
-                                        std::thread::sleep(Duration::from_secs(1));
+                                        crate::log_heartbeat!(
+                                            warn,
+                                            "Kafka poll error receive from kafka queue: {:?}",
+                                            e
+                                        );
+                                        kafka_health::record_kafka_failure();
                                         pool_attempt += 1;
                                         if pool_attempt > 100 {
                                             break;
                                         }
+                                        kafka_health::backoff_sleep(pool_attempt);
                                     }
                                 }
                             } else {
@@ -200,14 +200,20 @@ pub fn receive_from_kafka_queue(
 
                                 if e.is_err() {
                                     crate::log_heartbeat!(
-                                            error, "Kafka commit consumed failed {:?}", e);
+                                        error,
+                                        "Kafka commit consumed failed {:?}",
+                                        e
+                                    );
                                     break;
                                 }
 
                                 let e = con.commit_consumed();
                                 if e.is_err() {
                                     crate::log_heartbeat!(
-                                            error, "Kafka commit consumed failed {:?}", e);
+                                        error,
+                                        "Kafka commit consumed failed {:?}",
+                                        e
+                                    );
                                     break;
                                 }
                             }
@@ -219,7 +225,8 @@ pub fn receive_from_kafka_queue(
                         // thread::park();
                     }
                     Err(e) => {
-                        crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
+                        crate::log_heartbeat!(error, "Kafka connection failed: {}", e);
+                        kafka_health::record_kafka_failure();
                         drop(sender);
                         return;
                     }
@@ -291,7 +298,8 @@ pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
                 let mss = match con.poll() {
                     Ok(mss) => mss,
                     Err(e) => {
-                        crate::log_heartbeat!(error, "Error polling kafka consumer: {:?}", e);
+                        crate::log_heartbeat!(error, "Error polling kafka consumer: {}", e);
+                        kafka_health::record_kafka_failure();
                         return -1;
                     }
                 };
@@ -312,7 +320,8 @@ pub fn get_offset_from_kafka(topic: String, group: String) -> i64 {
             }
         }
         Err(e) => {
-            crate::log_heartbeat!(error, "Error creating kafka consumer: {:?}", e);
+            crate::log_heartbeat!(error, "Error creating kafka consumer: {}", e);
+            kafka_health::record_kafka_failure();
             return -1;
         }
     }

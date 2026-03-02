@@ -88,6 +88,8 @@ impl RelayerState {
                     "Failed to get latest state from chain \n Error:{:?}",
                     arg
                 );
+                // exit due to above error
+                std::process::exit(1);
             }
         }
         if nonce == latest_nonce {

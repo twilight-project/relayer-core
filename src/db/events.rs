@@ -2,7 +2,9 @@
 #![allow(unused_imports)]
 use crate::config::{BROKERS, EVENTLOG_VERSION};
 use crate::db::*;
+use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
+use crate::kafkalib::persistent_queue;
 use crate::relayer::*;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use jsonrpc::Request;
@@ -31,15 +33,7 @@ lazy_static! {
     pub static ref KAFKA_EVENT_LOG_THREADPOOL2: Mutex<ThreadPool> = Mutex::new(
         ThreadPool::new(1, String::from("KAFKA_EVENT_LOG_THREADPOOL2"))
     );
-    pub static ref KAFKA_PRODUCER_EVENT: Mutex<Producer> = {
-        dotenv::dotenv().expect("Failed loading dotenv");
-        let producer = Producer::from_hosts(BROKERS.clone())
-            .with_ack_timeout(Duration::from_secs(3))
-            .with_required_acks(RequiredAcks::One)
-            .create()
-            .expect("error in creating kafka producer");
-        Mutex::new(producer)
-    };
+    pub static ref KAFKA_PRODUCER_EVENT: ResilientProducer = ResilientProducer::new(3);
 }
 
 #[derive(Debug)]
@@ -232,18 +226,28 @@ impl Event {
     pub fn new(event: Event, key: String, topic: String) {
         match KAFKA_EVENT_LOG_THREADPOOL1.lock() {
             Ok(pool) => {
-                pool.execute(
-                    move || match Event::send_event_to_kafka_queue(event, topic, key) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            crate::log_heartbeat!(
-                                error,
-                                "Error sending event to Kafka queue: {:?}",
-                                e
-                            );
+                pool.execute(move || {
+                    let mut attempt: u64 = 0;
+                    loop {
+                        match Event::send_event_to_kafka_queue(
+                            event.clone(),
+                            topic.clone(),
+                            key.clone(),
+                        ) {
+                            Ok(_) => break,
+                            Err(e) => {
+                                attempt += 1;
+                                crate::log_heartbeat!(
+                                    error,
+                                    "Error dispatching event to Kafka (attempt {}), retrying: {:?}",
+                                    attempt,
+                                    e
+                                );
+                                kafka_health::backoff_sleep(attempt);
+                            }
                         }
-                    },
-                );
+                    }
+                });
                 drop(pool);
             }
             Err(e) => {
@@ -266,23 +270,45 @@ impl Event {
             }
         };
 
+        // 1. Persist to disk FIRST (crash-safe)
+        let queue_id = persistent_queue::EVENT_QUEUE
+            .push(topic.clone(), key.clone(), data.clone())
+            .map_err(|e| format!("Failed to persist event: {}", e))?;
+
+        // 2. Then dispatch to thread pool for async Kafka send
         match KAFKA_EVENT_LOG_THREADPOOL2.lock() {
             Ok(pool) => {
-                pool.execute(move || match KAFKA_PRODUCER_EVENT.lock() {
-                    Ok(mut kafka_producer) => {
-                        match kafka_producer.send(&Record::from_key_value(&topic, key, data)) {
-                            Ok(_) => {}
+                pool.execute(move || {
+                    let mut attempt: u64 = 0;
+                    loop {
+                        match KAFKA_PRODUCER_EVENT.send(&Record::from_key_value(
+                            &topic,
+                            key.clone(),
+                            data.clone(),
+                        )) {
+                            Ok(_) => {
+                                // 3. Remove from persistent queue only after successful send
+                                if let Err(e) = persistent_queue::EVENT_QUEUE.remove(queue_id) {
+                                    crate::log_heartbeat!(
+                                        error,
+                                        "Failed to remove event {} from persistent queue: {}",
+                                        queue_id,
+                                        e
+                                    );
+                                }
+                                break;
+                            }
                             Err(e) => {
+                                attempt += 1;
                                 crate::log_heartbeat!(
                                     error,
-                                    "Error sending event to Kafka queue: {:?}",
+                                    "Event send to Kafka failed (attempt {}), retrying: {:?}",
+                                    attempt,
                                     e
                                 );
+                                kafka_health::backoff_sleep(attempt);
                             }
                         }
-                    }
-                    Err(e) => {
-                        crate::log_heartbeat!(error, "Error locking Kafka producer: {:?}", e);
                     }
                 });
             }
@@ -313,16 +339,10 @@ impl Event {
                 ::new()
                 .name(String::from(thread_name))
                 .spawn(move || {
-                    // let broker = vec![
-                    //     std::env
-                    //         ::var("BROKER")
-                    //         .unwrap_or_else(|_| "localhost:9092".to_string())
-                    //         .to_owned()
-                    // ];
                     match
                         Consumer::from_hosts(BROKERS.clone())
                             // .with_topic(topic)
-                            .with_group(group)
+                            .with_group(group.clone())
                             .with_topic_partitions(topic.clone(), &[0])
                             .with_fallback_offset(fetchoffset)
                             .with_offset_storage(GroupOffsetStorage::Kafka)
@@ -331,10 +351,12 @@ impl Event {
                         Ok(mut con) => {
                             let mut connection_status = true;
                             let _partition: i32 = 0;
+                            let mut snapshot_poll_failures: u64 = 0;
                             while connection_status {
                                 let sender_clone = sender.clone();
                                 match con.poll() {
                                     Ok(mss) => {
+                                        snapshot_poll_failures = 0;
                                         if mss.is_empty() {
                                             // println!("No messages available right now.");
                                             // return Ok(());
@@ -363,7 +385,7 @@ impl Event {
                                                             );
                                                             crate::log_heartbeat!(
                                                                 warn,
-                                                                "skipping currupted log"
+                                                                "skipping corrupted log"
                                                             );
                                                             continue;
                                                         }
@@ -377,7 +399,9 @@ impl Event {
                                                         partition: ms.partition(),
                                                     };
                                                     match sender_clone.send(message) {
-                                                        Ok(_) => {}
+                                                        Ok(_) => {
+
+                                                        }
                                                         Err(_arg) => {
                                                             crate::log_heartbeat!(
                                                                 warn,
@@ -438,15 +462,23 @@ impl Event {
                                         }
                                     }
                                     Err(e) => {
-                                        crate::log_heartbeat!(warn, "Kafka poll error: {:?}", e);
-                                        std::thread::sleep(Duration::from_secs(1));
+                                        snapshot_poll_failures += 1;
+                                        kafka_health::record_kafka_failure();
+                                        crate::log_heartbeat!(warn, "Kafka poll error event.rs (group: {}. attempt {}): {}", group, snapshot_poll_failures, e);
+                                        if snapshot_poll_failures > 3 {
+                                            crate::log_heartbeat!(warn, "Snapshot consumer: too many poll failures, closing consumer thread");
+                                            // connection_status = false;
+                                            break;
+                                        }
+                                        kafka_health::backoff_sleep(snapshot_poll_failures);
                                     }
                                 }
                             }
                             thread::sleep(time::Duration::from_millis(3000));
                         }
                         Err(e) => {
-                            crate::log_heartbeat!(error, "Kafka connection failed {:?}", e);
+                            kafka_health::record_kafka_failure();
+                            crate::log_heartbeat!(error, "Kafka connection failed: {}", e);
                             drop(sender);
                             return;
                         }
