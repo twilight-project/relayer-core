@@ -6,7 +6,6 @@ use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
 use crate::relayer::*;
 use bincode;
 use crc32fast::Hasher as Crc32Hasher;
-use std::io::Cursor;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Record;
@@ -15,6 +14,7 @@ use serde::Serialize as SerializeAs;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
+use std::io::Cursor;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Mutex, RwLock};
@@ -1068,16 +1068,14 @@ impl SnapshotBuilder {
                 match order.order_status {
                     OrderStatus::FILLED => match order.position_type {
                         PositionType::LONG => {
-                            let _ = self.liquidation_long_sortedset_db.add(
-                                order.uuid,
-                                (order.liquidation_price * 10000.0) as i64,
-                            );
+                            let _ = self
+                                .liquidation_long_sortedset_db
+                                .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
                         }
                         PositionType::SHORT => {
-                            let _ = self.liquidation_short_sortedset_db.add(
-                                order.uuid,
-                                (order.liquidation_price * 10000.0) as i64,
-                            );
+                            let _ = self
+                                .liquidation_short_sortedset_db
+                                .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
                         }
                     },
                     OrderStatus::PENDING => match order.position_type {
@@ -1097,9 +1095,7 @@ impl SnapshotBuilder {
                 self.orderdb_traderorder
                     .zkos_msg
                     .insert(order.uuid, zkos_hex_string);
-                let _ = self
-                    .orderdb_traderorder
-                    .set_order_check(order.account_id);
+                let _ = self.orderdb_traderorder.set_order_check(order.account_id);
             }
             RpcCommand::CancelTraderOrder(
                 _rpc_request,
@@ -1153,12 +1149,10 @@ impl SnapshotBuilder {
                 match order.order_status {
                     OrderStatus::SETTLED => match order.position_type {
                         PositionType::LONG => {
-                            let _ =
-                                self.liquidation_long_sortedset_db.remove(order.uuid);
+                            let _ = self.liquidation_long_sortedset_db.remove(order.uuid);
                         }
                         PositionType::SHORT => {
-                            let _ =
-                                self.liquidation_short_sortedset_db.remove(order.uuid);
+                            let _ = self.liquidation_short_sortedset_db.remove(order.uuid);
                         }
                     },
                     _ => {}
@@ -1251,16 +1245,14 @@ impl SnapshotBuilder {
         match order.order_status {
             OrderStatus::FILLED => match order.position_type {
                 PositionType::LONG => {
-                    let _ = self.liquidation_long_sortedset_db.add(
-                        order.uuid,
-                        (order.liquidation_price * 10000.0) as i64,
-                    );
+                    let _ = self
+                        .liquidation_long_sortedset_db
+                        .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
                 }
                 PositionType::SHORT => {
-                    let _ = self.liquidation_short_sortedset_db.add(
-                        order.uuid,
-                        (order.liquidation_price * 10000.0) as i64,
-                    );
+                    let _ = self
+                        .liquidation_short_sortedset_db
+                        .add(order.uuid, (order.liquidation_price * 10000.0) as i64);
                 }
             },
             _ => {}
@@ -1275,16 +1267,14 @@ impl SnapshotBuilder {
 
         match order.position_type {
             PositionType::LONG => {
-                let _ = self.liquidation_long_sortedset_db.update(
-                    order.uuid,
-                    (order.liquidation_price * 10000.0) as i64,
-                );
+                let _ = self
+                    .liquidation_long_sortedset_db
+                    .update(order.uuid, (order.liquidation_price * 10000.0) as i64);
             }
             PositionType::SHORT => {
-                let _ = self.liquidation_short_sortedset_db.update(
-                    order.uuid,
-                    (order.liquidation_price * 10000.0) as i64,
-                );
+                let _ = self
+                    .liquidation_short_sortedset_db
+                    .update(order.uuid, (order.liquidation_price * 10000.0) as i64);
             }
         }
     }
@@ -1312,12 +1302,7 @@ impl SnapshotBuilder {
 
     fn handle_lend_order(&mut self, order: LendOrder, cmd: RpcCommand, seq: usize) {
         match cmd {
-            RpcCommand::CreateLendOrder(
-                _rpc_request,
-                _metadata,
-                zkos_hex_string,
-                _request_id,
-            ) => {
+            RpcCommand::CreateLendOrder(_rpc_request, _metadata, zkos_hex_string, _request_id) => {
                 let order_clone = order.clone();
                 self.orderdb_lendorder.ordertable.insert(order.uuid, order);
                 if self.orderdb_lendorder.sequence < order_clone.entry_sequence {
@@ -1415,22 +1400,20 @@ impl SnapshotBuilder {
                     }
                 }
             }
-            SortedSetCommand::AddLiquidationPrice(
-                order_id,
-                liquidation_price,
-                position_type,
-            ) => match position_type {
-                PositionType::LONG => {
-                    let _ = self
-                        .liquidation_long_sortedset_db
-                        .add(order_id, (liquidation_price * 10000.0) as i64);
+            SortedSetCommand::AddLiquidationPrice(order_id, liquidation_price, position_type) => {
+                match position_type {
+                    PositionType::LONG => {
+                        let _ = self
+                            .liquidation_long_sortedset_db
+                            .add(order_id, (liquidation_price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = self
+                            .liquidation_short_sortedset_db
+                            .add(order_id, (liquidation_price * 10000.0) as i64);
+                    }
                 }
-                PositionType::SHORT => {
-                    let _ = self
-                        .liquidation_short_sortedset_db
-                        .add(order_id, (liquidation_price * 10000.0) as i64);
-                }
-            },
+            }
             SortedSetCommand::AddCloseLimitPrice(order_id, execution_price, position_type) => {
                 match position_type {
                     PositionType::LONG => {
@@ -1465,16 +1448,15 @@ impl SnapshotBuilder {
                     }
                 }
             }
-            SortedSetCommand::RemoveCloseLimitPrice(order_id, position_type) => {
-                match position_type {
-                    PositionType::LONG => {
-                        let _ = self.close_long_sortedset_db.remove(order_id);
-                    }
-                    PositionType::SHORT => {
-                        let _ = self.close_short_sortedset_db.remove(order_id);
-                    }
+            SortedSetCommand::RemoveCloseLimitPrice(order_id, position_type) => match position_type
+            {
+                PositionType::LONG => {
+                    let _ = self.close_long_sortedset_db.remove(order_id);
                 }
-            }
+                PositionType::SHORT => {
+                    let _ = self.close_short_sortedset_db.remove(order_id);
+                }
+            },
             SortedSetCommand::UpdateOpenLimitPrice(order_id, entry_price, position_type) => {
                 match position_type {
                     PositionType::LONG => {
@@ -1505,22 +1487,20 @@ impl SnapshotBuilder {
                         .update(order_id, (liquidation_price * 10000.0) as i64);
                 }
             },
-            SortedSetCommand::UpdateCloseLimitPrice(
-                order_id,
-                execution_price,
-                position_type,
-            ) => match position_type {
-                PositionType::LONG => {
-                    let _ = self
-                        .close_long_sortedset_db
-                        .update(order_id, (execution_price * 10000.0) as i64);
+            SortedSetCommand::UpdateCloseLimitPrice(order_id, execution_price, position_type) => {
+                match position_type {
+                    PositionType::LONG => {
+                        let _ = self
+                            .close_long_sortedset_db
+                            .update(order_id, (execution_price * 10000.0) as i64);
+                    }
+                    PositionType::SHORT => {
+                        let _ = self
+                            .close_short_sortedset_db
+                            .update(order_id, (execution_price * 10000.0) as i64);
+                    }
                 }
-                PositionType::SHORT => {
-                    let _ = self
-                        .close_short_sortedset_db
-                        .update(order_id, (execution_price * 10000.0) as i64);
-                }
-            },
+            }
             SortedSetCommand::BulkSearchRemoveOpenLimitPrice(price, position_type) => {
                 match position_type {
                     PositionType::LONG => {
@@ -1718,19 +1698,14 @@ pub fn create_snapshot_data(
                             } else if let Event::Stop(ref timex) = data.value {
                                 if *timex == event_stoper_string {
                                     stop_signal = false;
-                                    builder.event_offset_partition =
-                                        (data.partition, data.offset);
+                                    builder.event_offset_partition = (data.partition, data.offset);
                                 }
                             } else {
                                 builder.handle_event(&data);
                             }
                         }
                         Err(arg) => {
-                            crate::log_heartbeat!(
-                                error,
-                                "Error at kafka log receiver : {:?}",
-                                arg
-                            );
+                            crate::log_heartbeat!(error, "Error at kafka log receiver : {:?}", arg);
                             kafka_reconnect_attempt += 1;
                             if kafka_reconnect_attempt > 20 {
                                 return Err(arg.to_string());
@@ -1765,8 +1740,7 @@ pub fn create_snapshot_data(
 pub fn load_from_snapshot() -> Result<QueueState, String> {
     match snapshot() {
         Ok(snapshot_data) => {
-            let mut liquidation_long_sortedset_db =
-                lock_or_err!(TRADER_LP_LONG, "TRADER_LP_LONG");
+            let mut liquidation_long_sortedset_db = lock_or_err!(TRADER_LP_LONG, "TRADER_LP_LONG");
             let mut liquidation_short_sortedset_db =
                 lock_or_err!(TRADER_LP_SHORT, "TRADER_LP_SHORT");
             let mut open_long_sortedset_db =
@@ -1781,14 +1755,11 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
                 lock_or_err!(TRADER_SLTP_CLOSE_LONG, "TRADER_SLTP_CLOSE_LONG");
             let mut sltp_close_short_sortedset_db =
                 lock_or_err!(TRADER_SLTP_CLOSE_SHORT, "TRADER_SLTP_CLOSE_SHORT");
-            let mut position_size_log =
-                lock_or_err!(POSITION_SIZE_LOG, "POSITION_SIZE_LOG");
-            let mut load_trader_data =
-                lock_or_err!(TRADER_ORDER_DB, "TRADER_ORDER_DB");
+            let mut position_size_log = lock_or_err!(POSITION_SIZE_LOG, "POSITION_SIZE_LOG");
+            let mut load_trader_data = lock_or_err!(TRADER_ORDER_DB, "TRADER_ORDER_DB");
             let mut load_lend_data = lock_or_err!(LEND_ORDER_DB, "LEND_ORDER_DB");
             let mut load_pool_data = lock_or_err!(LEND_POOL_DB, "LEND_POOL_DB");
-            let mut output_hex_storage =
-                lock_or_err!(OUTPUT_STORAGE, "OUTPUT_STORAGE");
+            let mut output_hex_storage = lock_or_err!(OUTPUT_STORAGE, "OUTPUT_STORAGE");
 
             snapshot_data.print_status();
             // ── Improvement #10: log metadata ───────────────────────────────
@@ -1803,8 +1774,7 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             load_trader_data.nonce = snapshot_data.orderdb_traderorder.nonce;
             load_trader_data.aggrigate_log_sequence =
                 snapshot_data.orderdb_traderorder.aggrigate_log_sequence;
-            load_trader_data.last_snapshot_id =
-                snapshot_data.orderdb_traderorder.last_snapshot_id;
+            load_trader_data.last_snapshot_id = snapshot_data.orderdb_traderorder.last_snapshot_id;
             load_trader_data.zkos_msg = snapshot_data.orderdb_traderorder.zkos_msg.clone();
             load_trader_data.hash = snapshot_data.orderdb_traderorder.hash.clone();
             //end
@@ -1814,8 +1784,7 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             load_lend_data.nonce = snapshot_data.orderdb_lendorder.nonce;
             load_lend_data.aggrigate_log_sequence =
                 snapshot_data.orderdb_lendorder.aggrigate_log_sequence;
-            load_lend_data.last_snapshot_id =
-                snapshot_data.orderdb_lendorder.last_snapshot_id;
+            load_lend_data.last_snapshot_id = snapshot_data.orderdb_lendorder.last_snapshot_id;
             load_lend_data.zkos_msg = snapshot_data.orderdb_lendorder.zkos_msg.clone();
             load_lend_data.hash = snapshot_data.orderdb_lendorder.hash.clone();
             // end
@@ -1990,7 +1959,10 @@ fn write_snapshot_atomically(
     }
 
     // 4. Push committed offset downstream; ignore channel-full errors
-    let _ = tx_consumed.try_send(offset);
+    // let _ = tx_consumed.try_send(offset);
+    if let Err(e) = tx_consumed.send(offset) {
+        crate::log_heartbeat!(error, "Error pushing committed offset downstream: {:?}", e);
+    }
 
     Ok(())
 }
