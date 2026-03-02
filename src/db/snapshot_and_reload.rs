@@ -655,8 +655,18 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
         // bincode file that coincidentally look like a version number. Fall through
         // to the legacy decoder instead of erroring.
         if version >= 8 {
+            if *ALLOW_LEGACY_SNAPSHOT_FALLBACK {
+                crate::log_heartbeat!(
+                    warn,
+                    "CRC mismatch for apparent version {} (stored={:#010x}, computed={:#010x}). \
+                     ALLOW_LEGACY_SNAPSHOT_FALLBACK=true, falling back to legacy decoding.",
+                    version, stored_crc, computed_crc
+                );
+                return Ok(None);
+            }
             return Err(format!(
-                "Snapshot checksum mismatch: stored={:#010x}, computed={:#010x}. File may be corrupt.",
+                "Snapshot checksum mismatch: stored={:#010x}, computed={:#010x}. File may be corrupt. \
+                 Set ALLOW_LEGACY_SNAPSHOT_FALLBACK=true to attempt legacy decoding.",
                 stored_crc, computed_crc
             ));
         }

@@ -108,6 +108,12 @@ lazy_static! {
         .parse::<bool>()
         .unwrap_or(false);
 
+    pub static ref ALLOW_LEGACY_SNAPSHOT_FALLBACK: bool =
+    std::env::var("ALLOW_LEGACY_SNAPSHOT_FALLBACK")
+        .unwrap_or("false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+
     // Kafka resilience thresholds
     pub static ref KAFKA_FAILURE_HALT_THRESHOLD: u64 = std::env::var("KAFKA_FAILURE_HALT_THRESHOLD")
     .unwrap_or("10".to_string())
