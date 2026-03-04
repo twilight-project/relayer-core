@@ -194,7 +194,7 @@ pub enum Event {
     PoolUpdate(LendPoolCommand, LendPool, usize),
     FundingRateUpdate(f64, f64, String), //funding rate, btc price, time
     CurrentPriceUpdate(f64, String),
-    SortedSetDBUpdate(SortedSetCommand),
+    SortedSetDBUpdate(SortedSetCommand, String), //command, time
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
     TxHash(
         Uuid,

@@ -296,7 +296,7 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
                 current_price.clone(),
                 PositionType::SHORT,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveOpenLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -306,7 +306,7 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
                 current_price.clone(),
                 PositionType::LONG,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveOpenLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -357,7 +357,7 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveLiquidationPrice(
                 current_price.clone(),
                 PositionType::SHORT,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveLiquidationPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -367,7 +367,7 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveLiquidationPrice(
                 current_price.clone(),
                 PositionType::LONG,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveLiquidationPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -435,7 +435,7 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
                 current_price.clone(),
                 PositionType::SHORT,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveCloseLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -445,7 +445,7 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
                 current_price.clone(),
                 PositionType::LONG,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveCloseLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -456,7 +456,7 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
                 current_price.clone(),
                 PositionType::SHORT,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveSLTPCloseLIMITPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -466,7 +466,7 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
             Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
                 current_price.clone(),
                 PositionType::LONG,
-            )),
+            ), iso8601(&std::time::SystemTime::now())),
             String::from("BulkSearchRemoveSLTPCloseLIMITPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -779,7 +779,7 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                             Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
                                 ordertx.uuid.clone(),
                                 ordertx.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );

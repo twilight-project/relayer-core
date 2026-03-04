@@ -135,7 +135,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                                         SortedSetCommand::RemoveCloseLimitPrice(
                                                                             order.uuid,
                                                                             PositionType::LONG
-                                                                        )
+                                                                        ),
+                                                                        iso8601(&std::time::SystemTime::now()),
                                                                     ),
                                                                     format!(
                                                                         "RemoveCloseLimitPrice-{}",
@@ -160,7 +161,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                                         SortedSetCommand::RemoveCloseLimitPrice(
                                                                             order.uuid,
                                                                             PositionType::SHORT
-                                                                        )
+                                                                        ),
+                                                                        iso8601(&std::time::SystemTime::now()),
                                                                     ),
                                                                     format!(
                                                                         "RemoveCloseLimitPrice-{}",

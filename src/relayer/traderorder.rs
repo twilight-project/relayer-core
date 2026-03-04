@@ -405,7 +405,7 @@ impl TraderOrder {
                                 self.uuid.clone(),
                                 execution_price.clone(),
                                 self.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -420,7 +420,7 @@ impl TraderOrder {
                                 self.uuid.clone(),
                                 execution_price.clone(),
                                 self.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -438,7 +438,7 @@ impl TraderOrder {
                                 self.uuid.clone(),
                                 execution_price.clone(),
                                 self.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -453,7 +453,7 @@ impl TraderOrder {
                                 self.uuid.clone(),
                                 execution_price.clone(),
                                 self.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -482,6 +482,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -499,6 +500,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -519,6 +521,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -536,6 +539,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -558,6 +562,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -575,6 +580,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -595,6 +601,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -612,6 +619,7 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -670,7 +678,7 @@ impl TraderOrder {
                         Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
                             ordertx.uuid,
                             PositionType::LONG,
-                        )),
+                        ), iso8601(&std::time::SystemTime::now())),
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -687,7 +695,7 @@ impl TraderOrder {
                         Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
                             ordertx.uuid,
                             PositionType::SHORT,
-                        )),
+                        ), iso8601(&std::time::SystemTime::now())),
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -715,7 +723,7 @@ impl TraderOrder {
                                 Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
                                     self.uuid.clone(),
                                     self.position_type.clone(),
-                                )),
+                                ), iso8601(&std::time::SystemTime::now())),
                                 format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -741,7 +749,7 @@ impl TraderOrder {
                                 Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
                                     self.uuid.clone(),
                                     self.position_type.clone(),
-                                )),
+                                ), iso8601(&std::time::SystemTime::now())),
                                 format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -770,7 +778,7 @@ impl TraderOrder {
                             Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
                                 self.uuid.clone(),
                                 self.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -789,7 +797,7 @@ impl TraderOrder {
                             Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
                                 self.uuid.clone(),
                                 self.position_type.clone(),
-                            )),
+                            ), iso8601(&std::time::SystemTime::now())),
                             format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -824,6 +832,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveStopLossCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -851,6 +860,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveStopLossCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -882,6 +892,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveTakeProfitCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -909,6 +920,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveTakeProfitCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),

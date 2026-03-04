@@ -428,7 +428,8 @@ pub fn startserver() {
                                                 SortedSetCommand::RemoveCloseLimitPrice(
                                                     *uuid,
                                                     PositionType::LONG
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
                                             format!("HaltRemoveCloseLimitPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()
@@ -440,7 +441,8 @@ pub fn startserver() {
                                                 SortedSetCommand::RemoveCloseLimitPrice(
                                                     *uuid,
                                                     PositionType::SHORT
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
                                             format!("HaltRemoveCloseLimitPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()
@@ -462,7 +464,8 @@ pub fn startserver() {
                                                 SortedSetCommand::RemoveStopLossCloseLIMITPrice(
                                                     *uuid,
                                                     PositionType::LONG
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
                                             format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()
@@ -474,7 +477,8 @@ pub fn startserver() {
                                                 SortedSetCommand::RemoveStopLossCloseLIMITPrice(
                                                     *uuid,
                                                     PositionType::SHORT
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
                                             format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()

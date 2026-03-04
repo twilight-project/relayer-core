@@ -660,7 +660,9 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
                     warn,
                     "CRC mismatch for apparent version {} (stored={:#010x}, computed={:#010x}). \
                      ALLOW_LEGACY_SNAPSHOT_FALLBACK=true, falling back to legacy decoding.",
-                    version, stored_crc, computed_crc
+                    version,
+                    stored_crc,
+                    computed_crc
                 );
                 return Ok(None);
             }
@@ -1083,7 +1085,7 @@ impl SnapshotBuilder {
             Event::CurrentPriceUpdate(current_price, _time) => {
                 self.handle_current_price_update(current_price)
             }
-            Event::SortedSetDBUpdate(cmd) => self.handle_sorted_set_update(cmd),
+            Event::SortedSetDBUpdate(cmd, _time) => self.handle_sorted_set_update(cmd),
             Event::PositionSizeLogDBUpdate(_cmd, event) => {
                 self.position_size_log = event;
             }
