@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::{BROKERS, EVENTLOG_VERSION};
+use crate::config::BROKERS;
+
+pub const EVENTLOG_VERSION: &str = "v0.1.1";
 use crate::db::*;
 use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
@@ -112,7 +114,7 @@ impl EventKey {
         }
     }
     pub fn is_upcast(&self) -> bool {
-        &self.event_version != &*EVENTLOG_VERSION
+        self.event_version != EVENTLOG_VERSION
     }
     // event type casting for load any order kafka logs for different version of event log
     pub fn event_log_upcast(&mut self, log: String) -> String {
@@ -174,7 +176,7 @@ impl EventKey {
                 //     return serde_json::to_string(&new_log).unwrap();
                 // }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.clone();
+                    self.event_version = EVENTLOG_VERSION.to_string();
                 }
             },
             "v0.1.0" => match &*self.event_type {
@@ -192,7 +194,7 @@ impl EventKey {
                                 "Error upcasting SortedSetDBUpdate from v0.1.0: {:?}",
                                 e
                             );
-                            self.event_version = EVENTLOG_VERSION.clone();
+                            self.event_version = EVENTLOG_VERSION.to_string();
                             return log;
                         }
                     };
@@ -201,7 +203,7 @@ impl EventKey {
                         cmd,
                         crate::relayer::iso8601(&std::time::SystemTime::now()),
                     );
-                    self.event_version = EVENTLOG_VERSION.clone();
+                    self.event_version = EVENTLOG_VERSION.to_string();
                     match serde_json::to_string(&new_log) {
                         Ok(v) => return v,
                         Err(e) => {
@@ -215,7 +217,7 @@ impl EventKey {
                     }
                 }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.clone();
+                    self.event_version = EVENTLOG_VERSION.to_string();
                 }
             },
             _ => {}
