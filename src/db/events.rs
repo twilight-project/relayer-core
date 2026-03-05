@@ -177,6 +177,47 @@ impl EventKey {
                     self.event_version = EVENTLOG_VERSION.clone();
                 }
             },
+            "v0.1.0" => match &*self.event_type {
+                "SortedSetDBUpdate" => {
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventOld {
+                        SortedSetDBUpdate(SortedSetCommand),
+                    }
+
+                    let log_der: EventOld = match serde_json::from_str(&log) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error upcasting SortedSetDBUpdate from v0.1.0: {:?}",
+                                e
+                            );
+                            self.event_version = EVENTLOG_VERSION.clone();
+                            return log;
+                        }
+                    };
+                    let EventOld::SortedSetDBUpdate(cmd) = log_der;
+                    let new_log = Event::SortedSetDBUpdate(
+                        cmd,
+                        crate::relayer::iso8601(&std::time::SystemTime::now()),
+                    );
+                    self.event_version = EVENTLOG_VERSION.clone();
+                    match serde_json::to_string(&new_log) {
+                        Ok(v) => return v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error serializing upcasted SortedSetDBUpdate: {:?}",
+                                e
+                            );
+                            return log;
+                        }
+                    }
+                }
+                _ => {
+                    self.event_version = EVENTLOG_VERSION.clone();
+                }
+            },
             _ => {}
         }
         log
