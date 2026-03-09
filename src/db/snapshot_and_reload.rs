@@ -1095,28 +1095,11 @@ impl SnapshotBuilder {
             Event::RiskParamsUpdate(params) => {
                 self.risk_params = Some(params);
             }
-            Event::TxHash(
-                orderid,
-                _account_id,
-                _tx_hash,
-                order_type,
-                order_status,
-                _timestamp,
-                option_output,
-                _request_id,
-            ) => {
-                self.handle_output_storage(orderid, order_type, order_status, option_output);
+            Event::TxHash(data) => {
+                self.handle_output_storage(data.order_id, data.order_type, data.order_status, data.output);
             }
-            Event::TxHashUpdate(
-                orderid,
-                _account_id,
-                _tx_hash,
-                order_type,
-                order_status,
-                _timestamp,
-                option_output,
-            ) => {
-                self.handle_output_storage(orderid, order_type, order_status, option_output);
+            Event::TxHashUpdate(data) => {
+                self.handle_output_storage(data.order_id, data.order_type, data.order_status, data.output);
             }
             Event::AdvanceStateQueue(_, _) => {}
         }

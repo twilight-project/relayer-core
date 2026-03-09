@@ -85,14 +85,15 @@ pub fn rpc_event_handler(
                         );
                         Event::new(
                             Event::TxHash(
-                                orderdata.uuid,
-                                orderdata.account_id,
-                                format!("Risk rejected: {}", rejection.to_rejection_string()),
-                                orderdata.order_type,
-                                OrderStatus::CANCELLED,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id,
+                                TxHashData::new(
+                                    orderdata.uuid,
+                                    orderdata.account_id,
+                                    String::new(),
+                                    orderdata.order_type,
+                                    OrderStatus::RejectedByRiskEngine,
+                                    request_id,
+                                )
+                                .with_reason("Risk engine rejected order".to_string()),
                             ),
                             String::from("tx_risk_rejected"),
                             CORE_EVENT_LOG.clone().to_string(),
@@ -164,14 +165,14 @@ pub fn rpc_event_handler(
                             drop(trader_order_db);
                             Event::new(
                                 Event::TxHash(
-                                    completed_order.uuid,
-                                    completed_order.account_id,
-                                    request_id.clone(),
-                                    completed_order.order_type,
-                                    OrderStatus::PENDING,
-                                    ServerTime::now().epoch,
-                                    None,
-                                    request_id.clone(),
+                                    TxHashData::new(
+                                        completed_order.uuid,
+                                        completed_order.account_id,
+                                        request_id.clone(),
+                                        completed_order.order_type,
+                                        OrderStatus::PENDING,
+                                        request_id.clone(),
+                                    ),
                                 ),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -195,15 +196,15 @@ pub fn rpc_event_handler(
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
-                                orderdata.uuid,
-                                orderdata.account_id,
-                                "Duplicate order found in the database with same public key"
-                                    .to_string(),
-                                orderdata.order_type,
-                                OrderStatus::DuplicateOrder,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id,
+                                TxHashData::new(
+                                    orderdata.uuid,
+                                    orderdata.account_id,
+                                    String::new(),
+                                    orderdata.order_type,
+                                    OrderStatus::DuplicateOrder,
+                                    request_id,
+                                )
+                                .with_reason("Duplicate order detected".to_string()),
                             ),
                             String::from("tx_duplicate_error"),
                             CORE_EVENT_LOG.clone().to_string(),
@@ -216,14 +217,15 @@ pub fn rpc_event_handler(
                 } else {
                     Event::new(
                         Event::TxHash(
-                            orderdata.uuid,
-                            orderdata.account_id,
-                            "Invalid Initial margin>0 or Leverage<=50".to_string(),
-                            orderdata.order_type,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                String::new(),
+                                orderdata.order_type,
+                                OrderStatus::CANCELLED,
+                                request_id,
+                            )
+                            .with_reason("Invalid Initial margin>0 or Leverage<=50".to_string()),
                         ),
                         String::from("tx_wrong_parameter_error"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -252,14 +254,15 @@ pub fn rpc_event_handler(
                     );
                     Event::new(
                         Event::TxHash(
-                            rpc_request.uuid,
-                            rpc_request.account_id,
-                            format!("Risk rejected: {}", rejection.to_rejection_string()),
-                            rpc_request.order_type,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                rpc_request.uuid,
+                                rpc_request.account_id,
+                                String::new(),
+                                rpc_request.order_type,
+                                OrderStatus::RejectedByRiskEngine,
+                                request_id,
+                            )
+                            .with_reason("Risk engine rejected order".to_string()),
                         ),
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -375,14 +378,14 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                         Event::new(
                                             Event::TxHash(
-                                                order_updated_clone.uuid,
-                                                order_updated_clone.account_id,
-                                                request_id.clone(),
-                                                order_updated_clone.order_type,
-                                                OrderStatus::PENDING,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id.clone(),
+                                                TxHashData::new(
+                                                    order_updated_clone.uuid,
+                                                    order_updated_clone.account_id,
+                                                    request_id.clone(),
+                                                    order_updated_clone.order_type,
+                                                    OrderStatus::PENDING,
+                                                    request_id.clone(),
+                                                ),
                                             ),
                                             format!("tx_settle_limit_submit-{:?}", request_id),
                                             CORE_EVENT_LOG.clone().to_string(),
@@ -403,14 +406,15 @@ pub fn rpc_event_handler(
                                 // send event for txhash with error saying order already exist in the relayer
                                 Event::new(
                                     Event::TxHash(
-                                        rpc_request.uuid,
-                                        rpc_request.account_id,
-                                        "Order not found or invalid order status !!".to_string(),
-                                        rpc_request.order_type,
-                                        OrderStatus::OrderNotFound,
-                                        ServerTime::now().epoch,
-                                        None,
-                                        request_id,
+                                        TxHashData::new(
+                                            rpc_request.uuid,
+                                            rpc_request.account_id,
+                                            String::new(),
+                                            rpc_request.order_type,
+                                            OrderStatus::OrderNotFound,
+                                            request_id,
+                                        )
+                                        .with_reason("Order not found or invalid status".to_string()),
                                     ),
                                     String::from("trader_tx_not_found_error"),
                                     CORE_EVENT_LOG.clone().to_string(),
@@ -432,14 +436,15 @@ pub fn rpc_event_handler(
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
-                                rpc_request.uuid,
-                                rpc_request.account_id,
-                                format!("Error found:{:#?}", arg),
-                                rpc_request.order_type,
-                                OrderStatus::OrderNotFound,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id,
+                                TxHashData::new(
+                                    rpc_request.uuid,
+                                    rpc_request.account_id,
+                                    format!("Error found:{:#?}", arg),
+                                    rpc_request.order_type,
+                                    OrderStatus::OrderNotFound,
+                                    request_id,
+                                )
+                                .with_reason("Order not found or invalid status".to_string()),
                             ),
                             String::from("trader_tx_not_found_error"),
                             CORE_EVENT_LOG.clone().to_string(),
@@ -469,14 +474,15 @@ pub fn rpc_event_handler(
                     );
                     Event::new(
                         Event::TxHash(
-                            Uuid::new_v4(),
-                            rpc_request.account_id.clone(),
-                            format!("Risk rejected: {}", rejection.to_rejection_string()),
-                            OrderType::LEND,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                Uuid::new_v4(),
+                                rpc_request.account_id.clone(),
+                                String::new(),
+                                OrderType::LEND,
+                                OrderStatus::RejectedByRiskEngine,
+                                request_id,
+                            )
+                            .with_reason("Risk engine rejected order".to_string()),
                         ),
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -571,15 +577,15 @@ pub fn rpc_event_handler(
                     // send event for txhash with error saying order already exist in the relayer
                     Event::new(
                         Event::TxHash(
-                            Uuid::new_v4(),
-                            rpc_request.account_id.clone(),
-                            "Duplicate order found in the database with same public key"
-                                .to_string(),
-                            OrderType::LEND,
-                            OrderStatus::DuplicateOrder,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                Uuid::new_v4(),
+                                rpc_request.account_id.clone(),
+                                String::new(),
+                                OrderType::LEND,
+                                OrderStatus::DuplicateOrder,
+                                request_id,
+                            )
+                            .with_reason("Duplicate order detected".to_string()),
                         ),
                         String::from("tx_duplicate_error"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -610,14 +616,15 @@ pub fn rpc_event_handler(
                     );
                     Event::new(
                         Event::TxHash(
-                            rpc_request.uuid,
-                            rpc_request.account_id.clone(),
-                            format!("Risk rejected: {}", rejection.to_rejection_string()),
-                            OrderType::LEND,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                rpc_request.uuid,
+                                rpc_request.account_id.clone(),
+                                String::new(),
+                                OrderType::LEND,
+                                OrderStatus::RejectedByRiskEngine,
+                                request_id,
+                            )
+                            .with_reason("Risk engine rejected order".to_string()),
                         ),
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -736,17 +743,18 @@ pub fn rpc_event_handler(
                                 // send event for txhash with error saying order already exist in the relayer
                                 Event::new(
                                     Event::TxHash(
-                                        rpc_request.uuid,
-                                        rpc_request.account_id,
-                                        "Order not found or invalid order status !!".to_string(),
-                                        OrderType::LEND,
-                                        OrderStatus::OrderNotFound,
-                                        ServerTime::now().epoch,
-                                        None,
-                                        request_id
+                                        TxHashData::new(
+                                            rpc_request.uuid,
+                                            rpc_request.account_id,
+                                            String::new(),
+                                            OrderType::LEND,
+                                            OrderStatus::OrderNotFound,
+                                            request_id,
+                                        )
+                                        .with_reason("Order not found or invalid status".to_string()),
                                     ),
                                     String::from("lend_tx_not_found_error"),
-                                    CORE_EVENT_LOG.clone().to_string()
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -766,17 +774,18 @@ pub fn rpc_event_handler(
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
-                                rpc_request.uuid,
-                                rpc_request.account_id,
-                                format!("Error found:{:#?}", arg),
-                                OrderType::LEND,
-                                OrderStatus::Error,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id
+                                TxHashData::new(
+                                    rpc_request.uuid,
+                                    rpc_request.account_id,
+                                    format!("Error found:{:#?}", arg),
+                                    OrderType::LEND,
+                                    OrderStatus::Error,
+                                    request_id,
+                                )
+                                .with_reason(format!("Error found:{:#?}", arg)),
                             ),
                             String::from("lend_tx_not_found_error"),
-                            CORE_EVENT_LOG.clone().to_string()
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
@@ -803,14 +812,15 @@ pub fn rpc_event_handler(
                     );
                     Event::new(
                         Event::TxHash(
-                            rpc_request.uuid,
-                            rpc_request.account_id.clone(),
-                            format!("Risk rejected: {}", rejection.to_rejection_string()),
-                            rpc_request.order_type,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                rpc_request.uuid,
+                                rpc_request.account_id.clone(),
+                                String::new(),
+                                rpc_request.order_type,
+                                OrderStatus::RejectedByRiskEngine,
+                                request_id,
+                            )
+                            .with_reason("Risk engine rejected order".to_string()),
                         ),
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -842,14 +852,15 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                         Event::new(
                                             Event::TxHash(
-                                                rpc_request.uuid,
-                                                rpc_request.account_id,
-                                                "Order successfully cancelled !!".to_string(),
-                                                rpc_request.order_type,
-                                                OrderStatus::CANCELLED,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id,
+                                                TxHashData::new(
+                                                    rpc_request.uuid,
+                                                    rpc_request.account_id,
+                                                    String::new(),
+                                                    rpc_request.order_type,
+                                                    OrderStatus::CANCELLED,
+                                                    request_id,
+                                                )
+                                                .with_reason("User requested cancellation".to_string()),
                                             ),
                                             format!(
                                                 "tx_hash_result-{:?}",
@@ -869,14 +880,15 @@ pub fn rpc_event_handler(
                                 if cancel_status {
                                     Event::new(
                                         Event::TxHash(
-                                            rpc_request.uuid,
-                                            rpc_request.account_id,
-                                            "Close limit order successfully cancelled !!".to_string(),
-                                            rpc_request.order_type,
-                                            OrderStatus::CANCELLED,
-                                            ServerTime::now().epoch,
-                                            None,
-                                            request_id,
+                                            TxHashData::new(
+                                                rpc_request.uuid,
+                                                rpc_request.account_id,
+                                                String::new(),
+                                                rpc_request.order_type,
+                                                OrderStatus::CANCELLED,
+                                                request_id,
+                                            )
+                                            .with_reason("Close limit order cancelled by user".to_string()),
                                         ),
                                         format!(
                                             "tx_hash_result-{:?}",
@@ -892,14 +904,15 @@ pub fn rpc_event_handler(
                                     );
                                     Event::new(
                                         Event::TxHash(
-                                            rpc_request.uuid,
-                                            rpc_request.account_id,
-                                            "No close limit order found to cancel !!".to_string(),
-                                            rpc_request.order_type,
-                                            OrderStatus::OrderNotFound,
-                                            ServerTime::now().epoch,
-                                            None,
-                                            request_id,
+                                            TxHashData::new(
+                                                rpc_request.uuid,
+                                                rpc_request.account_id,
+                                                String::new(),
+                                                rpc_request.order_type,
+                                                OrderStatus::OrderNotFound,
+                                                request_id,
+                                            )
+                                            .with_reason("No close limit order found".to_string()),
                                         ),
                                         String::from("close_limit_order_not_found"),
                                         CORE_EVENT_LOG.clone().to_string(),
@@ -915,14 +928,15 @@ pub fn rpc_event_handler(
                                 );
                                 Event::new(
                                     Event::TxHash(
-                                        rpc_request.uuid,
-                                        rpc_request.account_id,
-                                        "Order not found or invalid order status !!".to_string(),
-                                        rpc_request.order_type,
-                                        OrderStatus::OrderNotFound,
-                                        ServerTime::now().epoch,
-                                        None,
-                                        request_id,
+                                        TxHashData::new(
+                                            rpc_request.uuid,
+                                            rpc_request.account_id,
+                                            String::new(),
+                                            rpc_request.order_type,
+                                            OrderStatus::OrderNotFound,
+                                            request_id,
+                                        )
+                                        .with_reason("Order not found or invalid status".to_string()),
                                     ),
                                     String::from("trader_order_not_found_error"),
                                     CORE_EVENT_LOG.clone().to_string(),
@@ -978,14 +992,15 @@ pub fn rpc_event_handler(
                     );
                     Event::new(
                         Event::TxHash(
-                            rpc_request.uuid,
-                            rpc_request.account_id,
-                            format!("Risk rejected: {}", rejection.to_rejection_string()),
-                            rpc_request.order_type,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                rpc_request.uuid,
+                                rpc_request.account_id,
+                                String::new(),
+                                rpc_request.order_type,
+                                OrderStatus::RejectedByRiskEngine,
+                                request_id,
+                            )
+                            .with_reason("Risk engine rejected order".to_string()),
                         ),
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -1097,17 +1112,17 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                         Event::new(
                                             Event::TxHash(
-                                                order_updated_clone.uuid,
-                                                order_updated_clone.account_id,
-                                                request_id.clone(),
-                                                order_updated_clone.order_type,
-                                                OrderStatus::PENDING,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id.clone()
+                                                TxHashData::new(
+                                                    order_updated_clone.uuid,
+                                                    order_updated_clone.account_id,
+                                                    request_id.clone(),
+                                                    order_updated_clone.order_type,
+                                                    OrderStatus::PENDING,
+                                                    request_id.clone(),
+                                                ),
                                             ),
                                             format!("tx_settle_limit_submit-{:?}", request_id),
-                                            CORE_EVENT_LOG.clone().to_string()
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                     _ => {
@@ -1125,17 +1140,18 @@ pub fn rpc_event_handler(
                                 // send event for txhash with error saying order already exist in the relayer
                                 Event::new(
                                     Event::TxHash(
-                                        rpc_request.uuid,
-                                        rpc_request.account_id,
-                                        "Order not found or invalid order status !!".to_string(),
-                                        rpc_request.order_type,
-                                        OrderStatus::OrderNotFound,
-                                        ServerTime::now().epoch,
-                                        None,
-                                        request_id
+                                        TxHashData::new(
+                                            rpc_request.uuid,
+                                            rpc_request.account_id,
+                                            String::new(),
+                                            rpc_request.order_type,
+                                            OrderStatus::OrderNotFound,
+                                            request_id,
+                                        )
+                                        .with_reason("Order not found or invalid status".to_string()),
                                     ),
                                     String::from("trader_tx_not_found_error"),
-                                    CORE_EVENT_LOG.clone().to_string()
+                                    CORE_EVENT_LOG.clone().to_string(),
                                 );
                             }
                         }
@@ -1168,17 +1184,18 @@ pub fn rpc_event_handler(
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
-                                rpc_request.uuid,
-                                rpc_request.account_id,
-                                format!("Error found:{:#?}", arg),
-                                rpc_request.order_type,
-                                OrderStatus::OrderNotFound,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id
+                                TxHashData::new(
+                                    rpc_request.uuid,
+                                    rpc_request.account_id,
+                                    format!("Error found:{:#?}", arg),
+                                    rpc_request.order_type,
+                                    OrderStatus::OrderNotFound,
+                                    request_id,
+                                )
+                                .with_reason("Order not found or invalid status".to_string()),
                             ),
                             String::from("trader_tx_not_found_error"),
-                            CORE_EVENT_LOG.clone().to_string()
+                            CORE_EVENT_LOG.clone().to_string(),
                         );
                         match tx_consumed.send(offset_complition) {
                             Ok(_) => {}
@@ -1225,14 +1242,15 @@ pub fn rpc_event_handler(
                         );
                         Event::new(
                             Event::TxHash(
-                                orderdata.uuid,
-                                orderdata.account_id,
-                                format!("Risk rejected: {}", rejection.to_rejection_string()),
-                                orderdata.order_type,
-                                OrderStatus::CANCELLED,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id,
+                                TxHashData::new(
+                                    orderdata.uuid,
+                                    orderdata.account_id,
+                                    String::new(),
+                                    orderdata.order_type,
+                                    OrderStatus::RejectedByRiskEngine,
+                                    request_id,
+                                )
+                                .with_reason("Risk engine rejected order".to_string()),
                             ),
                             String::from("tx_risk_rejected"),
                             CORE_EVENT_LOG.clone().to_string(),
@@ -1304,14 +1322,14 @@ pub fn rpc_event_handler(
                             drop(trader_order_db);
                             Event::new(
                                 Event::TxHash(
-                                    completed_order.uuid,
-                                    completed_order.account_id,
-                                    request_id.clone(),
-                                    completed_order.order_type,
-                                    OrderStatus::PENDING,
-                                    ServerTime::now().epoch,
-                                    None,
-                                    request_id.clone(),
+                                    TxHashData::new(
+                                        completed_order.uuid,
+                                        completed_order.account_id,
+                                        request_id.clone(),
+                                        completed_order.order_type,
+                                        OrderStatus::PENDING,
+                                        request_id.clone(),
+                                    ),
                                 ),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -1335,15 +1353,15 @@ pub fn rpc_event_handler(
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
-                                orderdata.uuid,
-                                orderdata.account_id,
-                                "Duplicate order found in the database with same public key"
-                                    .to_string(),
-                                orderdata.order_type,
-                                OrderStatus::DuplicateOrder,
-                                ServerTime::now().epoch,
-                                None,
-                                request_id,
+                                TxHashData::new(
+                                    orderdata.uuid,
+                                    orderdata.account_id,
+                                    String::new(),
+                                    orderdata.order_type,
+                                    OrderStatus::DuplicateOrder,
+                                    request_id,
+                                )
+                                .with_reason("Duplicate order detected".to_string()),
                             ),
                             String::from("tx_duplicate_error"),
                             CORE_EVENT_LOG.clone().to_string(),
@@ -1356,14 +1374,15 @@ pub fn rpc_event_handler(
                 } else {
                     Event::new(
                         Event::TxHash(
-                            orderdata.uuid,
-                            orderdata.account_id,
-                            "Invalid Initial margin>0 or Leverage<=50".to_string(),
-                            orderdata.order_type,
-                            OrderStatus::CANCELLED,
-                            ServerTime::now().epoch,
-                            None,
-                            request_id,
+                            TxHashData::new(
+                                orderdata.uuid,
+                                orderdata.account_id,
+                                String::new(),
+                                orderdata.order_type,
+                                OrderStatus::CANCELLED,
+                                request_id,
+                            )
+                            .with_reason("Invalid Initial margin>0 or Leverage<=50".to_string()),
                         ),
                         String::from("tx_wrong_parameter_error"),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -1410,20 +1429,21 @@ pub fn rpc_event_handler(
                                                 drop(trader_order_db);
                                                 Event::new(
                                                     Event::TxHash(
-                                                        rpc_request.uuid,
-                                                        rpc_request.account_id,
-                                                        "Order successfully cancelled !!".to_string(),
-                                                        rpc_request.order_type,
-                                                        OrderStatus::CANCELLED,
-                                                        ServerTime::now().epoch,
-                                                        None,
-                                                        request_id
+                                                        TxHashData::new(
+                                                            rpc_request.uuid,
+                                                            rpc_request.account_id,
+                                                            String::new(),
+                                                            rpc_request.order_type,
+                                                            OrderStatus::CANCELLED,
+                                                            request_id,
+                                                        )
+                                                        .with_reason("User requested cancellation".to_string()),
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
                                                         "Order successfully cancelled !!".to_string()
                                                     ),
-                                                    CORE_EVENT_LOG.clone().to_string()
+                                                    CORE_EVENT_LOG.clone().to_string(),
                                                 );
                                             }
                                             _ => {
@@ -1440,17 +1460,18 @@ pub fn rpc_event_handler(
                                         );
                                         Event::new(
                                             Event::TxHash(
-                                                rpc_request.uuid,
-                                                rpc_request.account_id,
-                                                "Order not found or invalid order status !!".to_string(),
-                                                rpc_request.order_type,
-                                                OrderStatus::OrderNotFound,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id
+                                                TxHashData::new(
+                                                    rpc_request.uuid,
+                                                    rpc_request.account_id,
+                                                    String::new(),
+                                                    rpc_request.order_type,
+                                                    OrderStatus::OrderNotFound,
+                                                    request_id,
+                                                )
+                                                .with_reason("Order not found or invalid status".to_string()),
                                             ),
                                             String::from("trader_order_not_found_error"),
-                                            CORE_EVENT_LOG.clone().to_string()
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                 }
@@ -1467,20 +1488,21 @@ pub fn rpc_event_handler(
                                             OrderStatus::CancelledStopLoss => {
                                                 Event::new(
                                                     Event::TxHash(
-                                                        rpc_request.uuid,
-                                                        rpc_request.account_id.clone(),
-                                                        "Stoploss order successfully cancelled !!".to_string(),
-                                                        rpc_request.order_type.clone(),
-                                                        OrderStatus::CancelledStopLoss,
-                                                        ServerTime::now().epoch,
-                                                        None,
-                                                        request_id.clone()
+                                                        TxHashData::new(
+                                                            rpc_request.uuid,
+                                                            rpc_request.account_id.clone(),
+                                                            String::new(),
+                                                            rpc_request.order_type.clone(),
+                                                            OrderStatus::CancelledStopLoss,
+                                                            request_id.clone(),
+                                                        )
+                                                        .with_reason("Stop loss cancelled by user".to_string()),
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
                                                         "Stoploss order successfully cancelled !!".to_string()
                                                     ),
-                                                    CORE_EVENT_LOG.clone().to_string()
+                                                    CORE_EVENT_LOG.clone().to_string(),
                                                 );
                                             }
                                             _ => {
@@ -1495,20 +1517,21 @@ pub fn rpc_event_handler(
                                             OrderStatus::CancelledTakeProfit => {
                                                 Event::new(
                                                     Event::TxHash(
-                                                        rpc_request.uuid,
-                                                        rpc_request.account_id,
-                                                        "Takeprofit order successfully cancelled !!".to_string(),
-                                                        rpc_request.order_type,
-                                                        OrderStatus::CancelledTakeProfit,
-                                                        ServerTime::now().epoch,
-                                                        None,
-                                                        request_id
+                                                        TxHashData::new(
+                                                            rpc_request.uuid,
+                                                            rpc_request.account_id,
+                                                            String::new(),
+                                                            rpc_request.order_type,
+                                                            OrderStatus::CancelledTakeProfit,
+                                                            request_id,
+                                                        )
+                                                        .with_reason("Take profit cancelled by user".to_string()),
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
                                                         "Takeprofit order successfully cancelled !!".to_string()
                                                     ),
-                                                    CORE_EVENT_LOG.clone().to_string()
+                                                    CORE_EVENT_LOG.clone().to_string(),
                                                 );
                                             }
                                             _ => {
@@ -1529,17 +1552,18 @@ pub fn rpc_event_handler(
                                         );
                                         Event::new(
                                             Event::TxHash(
-                                                rpc_request.uuid,
-                                                rpc_request.account_id,
-                                                "Order not found or invalid order status !!".to_string(),
-                                                rpc_request.order_type,
-                                                OrderStatus::OrderNotFound,
-                                                ServerTime::now().epoch,
-                                                None,
-                                                request_id
+                                                TxHashData::new(
+                                                    rpc_request.uuid,
+                                                    rpc_request.account_id,
+                                                    String::new(),
+                                                    rpc_request.order_type,
+                                                    OrderStatus::OrderNotFound,
+                                                    request_id,
+                                                )
+                                                .with_reason("Order not found or invalid status".to_string()),
                                             ),
                                             String::from("trader_order_not_found_error"),
-                                            CORE_EVENT_LOG.clone().to_string()
+                                            CORE_EVENT_LOG.clone().to_string(),
                                         );
                                     }
                                 }

@@ -30,7 +30,7 @@ impl SortedSet {
             Ok(())
         } else {
             Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
+                std::io::ErrorKind::AlreadyExists,
                 "Key already exist",
             ))
         }
@@ -93,15 +93,16 @@ impl SortedSet {
         result
     }
 
-    pub fn update(&mut self, uuid: Uuid, price: i64) -> Result<(), std::io::Error> {
+    pub fn update(&mut self, uuid: Uuid, price: i64) -> Result<i64, std::io::Error> {
         if self.hash.contains(&uuid) {
             let key_index = self
                 .sorted_order
                 .iter()
                 .position(|&(x, _y)| x == uuid)
                 .unwrap();
+            let old_price = self.sorted_order[key_index].1;
             self.sorted_order[key_index].1 = price;
-            Ok(())
+            Ok(old_price)
         } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,

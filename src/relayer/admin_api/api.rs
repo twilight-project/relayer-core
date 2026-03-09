@@ -366,14 +366,15 @@ pub fn startserver() {
                                                 drop(trader_order_db);
                                                 Event::new(
                                                     Event::TxHash(
-                                                        order_clone.uuid,
-                                                        order_clone.account_id,
-                                                        "Order successfully cancelled !!".to_string(),
-                                                        order_clone.order_type,
-                                                        OrderStatus::CANCELLED,
-                                                        ServerTime::now().epoch,
-                                                        None,
-                                                        RequestID::new().to_string()
+                                                        TxHashData::new(
+                                                            order_clone.uuid,
+                                                            order_clone.account_id,
+                                                            String::new(),
+                                                            order_clone.order_type,
+                                                            OrderStatus::CANCELLED,
+                                                            RequestID::new().to_string(),
+                                                        )
+                                                        .with_reason("Admin halt cancellation".to_string())
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",

@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 use crate::config::BROKERS;
 
-pub const EVENTLOG_VERSION: &str = "v0.1.1";
+pub const EVENTLOG_VERSION: &str = "v0.1.2";
 use crate::db::*;
 use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
@@ -220,9 +220,203 @@ impl EventKey {
                     self.event_version = EVENTLOG_VERSION.to_string();
                 }
             },
+            "v0.1.1" => match &*self.event_type {
+                "TxHash" => {
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventOldTxHash {
+                        TxHash(
+                            Uuid,
+                            String,
+                            String,
+                            OrderType,
+                            OrderStatus,
+                            String,
+                            Option<String>,
+                            RequestID,
+                        ),
+                    }
+
+                    let log_der: EventOldTxHash = match serde_json::from_str(&log) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error upcasting TxHash from v0.1.1: {:?}",
+                                e
+                            );
+                            self.event_version = EVENTLOG_VERSION.to_string();
+                            return log;
+                        }
+                    };
+                    let EventOldTxHash::TxHash(
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                        request_id,
+                    ) = log_der;
+                    let new_log = Event::TxHash(TxHashData {
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                        request_id,
+                        reason: None,
+                        old_price: None,
+                        new_price: None,
+                    });
+                    self.event_version = EVENTLOG_VERSION.to_string();
+                    match serde_json::to_string(&new_log) {
+                        Ok(v) => return v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error serializing upcasted TxHash: {:?}",
+                                e
+                            );
+                            return log;
+                        }
+                    }
+                }
+                "TxHashUpdate" => {
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventOldTxHashUpdate {
+                        TxHashUpdate(
+                            Uuid,
+                            String,
+                            String,
+                            OrderType,
+                            OrderStatus,
+                            String,
+                            Option<String>,
+                        ),
+                    }
+
+                    let log_der: EventOldTxHashUpdate = match serde_json::from_str(&log) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error upcasting TxHashUpdate from v0.1.1: {:?}",
+                                e
+                            );
+                            self.event_version = EVENTLOG_VERSION.to_string();
+                            return log;
+                        }
+                    };
+                    let EventOldTxHashUpdate::TxHashUpdate(
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                    ) = log_der;
+                    let new_log = Event::TxHashUpdate(TxHashData {
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                        request_id: String::new(),
+                        reason: None,
+                        old_price: None,
+                        new_price: None,
+                    });
+                    self.event_version = EVENTLOG_VERSION.to_string();
+                    match serde_json::to_string(&new_log) {
+                        Ok(v) => return v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error serializing upcasted TxHashUpdate: {:?}",
+                                e
+                            );
+                            return log;
+                        }
+                    }
+                }
+                _ => {
+                    self.event_version = EVENTLOG_VERSION.to_string();
+                }
+            },
             _ => {}
         }
         log
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct TxHashData {
+    pub order_id: Uuid,
+    pub account_id: String,
+    pub tx_hash: String,
+    pub order_type: OrderType,
+    pub order_status: OrderStatus,
+    pub datetime: String,
+    pub output: Option<String>,
+    pub request_id: RequestID,
+    pub reason: Option<String>,
+    pub old_price: Option<f64>,
+    pub new_price: Option<f64>,
+}
+
+impl TxHashData {
+    pub fn new(
+        order_id: Uuid,
+        account_id: String,
+        tx_hash: String,
+        order_type: OrderType,
+        order_status: OrderStatus,
+        request_id: RequestID,
+    ) -> Self {
+        TxHashData {
+            order_id,
+            account_id,
+            tx_hash,
+            order_type,
+            order_status,
+            datetime: crate::relayer::iso8601(&std::time::SystemTime::now()),
+            output: None,
+            request_id,
+            reason: None,
+            old_price: None,
+            new_price: None,
+        }
+    }
+
+    pub fn with_reason(mut self, reason: String) -> Self {
+        self.reason = Some(reason);
+        self
+    }
+
+    pub fn with_output(mut self, output: Option<String>) -> Self {
+        self.output = output;
+        self
+    }
+
+    pub fn with_old_price(mut self, price: f64) -> Self {
+        self.old_price = Some(price);
+        self
+    }
+
+    pub fn with_new_price(mut self, price: f64) -> Self {
+        self.new_price = Some(price);
+        self
+    }
+
+    pub fn with_datetime(mut self, datetime: String) -> Self {
+        self.datetime = datetime;
+        self
     }
 }
 
@@ -239,25 +433,8 @@ pub enum Event {
     CurrentPriceUpdate(f64, String),
     SortedSetDBUpdate(SortedSetCommand, String), //command, time
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
-    TxHash(
-        Uuid,
-        String,
-        String,
-        OrderType,
-        OrderStatus,
-        String,
-        Option<String>,
-        RequestID,
-    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output, RequestID
-    TxHashUpdate(
-        Uuid,
-        String,
-        String,
-        OrderType,
-        OrderStatus,
-        String,
-        Option<String>,
-    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
+    TxHash(TxHashData),
+    TxHashUpdate(TxHashData),
     Stop(String),
     AdvanceStateQueue(Nonce, twilight_relayer_sdk::zkvm::Output),
     FeeUpdate(RelayerCommand, String), //fee data and time

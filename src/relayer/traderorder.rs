@@ -412,7 +412,7 @@ impl TraderOrder {
                         return Ok(());
                     }
                     Err(_) => {
-                        let result = add_to_limit_order_list
+                        let update_result = add_to_limit_order_list
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
                         Event::new(
@@ -424,7 +424,25 @@ impl TraderOrder {
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        return result;
+                        let mut tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            self.order_type.clone(),
+                            OrderStatus::LimitPriceUpdated,
+                            String::new(),
+                        )
+                        .with_reason("Close limit price replaced".to_string())
+                        .with_new_price(execution_price);
+                        if let Ok(old_price) = &update_result {
+                            tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                        }
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("LimitPriceUpdated-{}", self.uuid),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return update_result.map(|_| ());
                     }
                 }
             }
@@ -445,7 +463,7 @@ impl TraderOrder {
                         return Ok(());
                     }
                     Err(_) => {
-                        let result = add_to_limit_order_list
+                        let update_result = add_to_limit_order_list
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
                         Event::new(
@@ -457,7 +475,25 @@ impl TraderOrder {
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        return result;
+                        let mut tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            self.order_type.clone(),
+                            OrderStatus::LimitPriceUpdated,
+                            String::new(),
+                        )
+                        .with_reason("Close limit price replaced".to_string())
+                        .with_new_price(execution_price);
+                        if let Ok(old_price) = &update_result {
+                            tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                        }
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("LimitPriceUpdated-{}", self.uuid),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return update_result.map(|_| ());
                     }
                 }
             }
@@ -490,7 +526,7 @@ impl TraderOrder {
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -505,7 +541,25 @@ impl TraderOrder {
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                self.order_type.clone(),
+                                OrderStatus::StopLossUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Stop loss price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("StopLossUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
@@ -529,7 +583,7 @@ impl TraderOrder {
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -544,7 +598,25 @@ impl TraderOrder {
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                self.order_type.clone(),
+                                OrderStatus::StopLossUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Stop loss price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("StopLossUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
@@ -570,7 +642,7 @@ impl TraderOrder {
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -585,7 +657,25 @@ impl TraderOrder {
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                self.order_type.clone(),
+                                OrderStatus::TakeProfitUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Take profit price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("TakeProfitUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
@@ -609,7 +699,7 @@ impl TraderOrder {
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -624,7 +714,25 @@ impl TraderOrder {
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                self.order_type.clone(),
+                                OrderStatus::TakeProfitUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Take profit price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("TakeProfitUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
