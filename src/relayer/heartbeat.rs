@@ -293,20 +293,26 @@ pub fn check_pending_limit_order_on_price_ticker_update_localdb(current_price: f
     let orderid_list_long_len = orderid_list_long.len();
     if orderid_list_short_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
-                current_price.clone(),
-                PositionType::SHORT,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
+                    current_price.clone(),
+                    PositionType::SHORT,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveOpenLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
     }
     if orderid_list_long_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
-                current_price.clone(),
-                PositionType::LONG,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveOpenLimitPrice(
+                    current_price.clone(),
+                    PositionType::LONG,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveOpenLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -354,20 +360,26 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
     let orderid_list_long_len = orderid_list_long.len();
     if orderid_list_short_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveLiquidationPrice(
-                current_price.clone(),
-                PositionType::SHORT,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveLiquidationPrice(
+                    current_price.clone(),
+                    PositionType::SHORT,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveLiquidationPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
     }
     if orderid_list_long_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveLiquidationPrice(
-                current_price.clone(),
-                PositionType::LONG,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveLiquidationPrice(
+                    current_price.clone(),
+                    PositionType::LONG,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveLiquidationPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -403,7 +415,7 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
 pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: f64) {
     let limit_lock = SETTLEMENTLIMITSTATUS.lock().unwrap();
     let mut get_open_order_short_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-    let mut orderid_list_short: Vec<Uuid> =
+    let orderid_list_short: Vec<Uuid> =
         get_open_order_short_list.search_gt((current_price * 10000.0) as i64);
     drop(get_open_order_short_list);
     let mut get_open_order_long_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
@@ -432,20 +444,26 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
 
     if orderid_list_short_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                current_price.clone(),
-                PositionType::SHORT,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
+                    current_price.clone(),
+                    PositionType::SHORT,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveCloseLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
     }
     if orderid_list_long_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                current_price.clone(),
-                PositionType::LONG,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
+                    current_price.clone(),
+                    PositionType::LONG,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveCloseLimitPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -453,20 +471,26 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     // SLTP
     if orderid_list_sltp_short_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
-                current_price.clone(),
-                PositionType::SHORT,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
+                    current_price.clone(),
+                    PositionType::SHORT,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveSLTPCloseLIMITPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
     }
     if orderid_list_sltp_long_len > 0 {
         Event::new(
-            Event::SortedSetDBUpdate(SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
-                current_price.clone(),
-                PositionType::LONG,
-            ), iso8601(&std::time::SystemTime::now())),
+            Event::SortedSetDBUpdate(
+                SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
+                    current_price.clone(),
+                    PositionType::LONG,
+                ),
+                iso8601(&std::time::SystemTime::now()),
+            ),
             String::from("BulkSearchRemoveSLTPCloseLIMITPrice"),
             CORE_EVENT_LOG.clone().to_string(),
         );
@@ -490,21 +514,38 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
                 hashmap
             },
         };
+        if orderid_list_short_len > 0 {
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                orderid_list_short,
+                meta.clone(),
+                current_price,
+                OrderType::LIMIT,
+            ));
+        }
         if orderid_list_long_len > 0 {
-            orderid_list_short.extend(orderid_list_long);
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                orderid_list_long,
+                meta.clone(),
+                current_price,
+                OrderType::LIMIT,
+            ));
         }
         if orderid_list_sltp_short_len > 0 {
-            orderid_list_short.extend(orderid_list_sltp_short);
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                orderid_list_sltp_short,
+                meta.clone(),
+                current_price,
+                OrderType::SLTP,
+            ));
         }
         if orderid_list_sltp_long_len > 0 {
-            orderid_list_short.extend(orderid_list_sltp_long);
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                orderid_list_sltp_long,
+                meta,
+                current_price,
+                OrderType::SLTP,
+            ));
         }
-
-        relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
-            orderid_list_short,
-            meta,
-            current_price,
-        ));
     }
     drop(limit_lock);
 }
@@ -776,10 +817,13 @@ pub fn updatechangesineachordertxonfundingratechange_localdb(
                         }
 
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveLiquidationPrice(
-                                ordertx.uuid.clone(),
-                                ordertx.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::RemoveLiquidationPrice(
+                                    ordertx.uuid.clone(),
+                                    ordertx.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("RemoveLiquidationPrice-{}", ordertx.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );

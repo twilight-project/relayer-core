@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 use crate::config::BROKERS;
 
-pub const EVENTLOG_VERSION: &str = "v0.1.2";
+pub const EVENTLOG_VERSION: &str = "v0.1.3";
 use crate::db::*;
 use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
@@ -344,6 +344,128 @@ impl EventKey {
                             return log;
                         }
                     }
+                }
+                _ => {
+                    self.event_version = EVENTLOG_VERSION.to_string();
+                }
+            },
+            "v0.1.2" => match &*self.event_type {
+                "TraderOrderUpdate" | "TraderOrderFundingUpdate" | "TraderOrderLiquidation"
+                | "FeeUpdate" => {
+                    // v0.1.2 -> v0.1.3: PriceTickerOrderSettle changed from 3 fields to 4 (added OrderType).
+                    // Old: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64)
+                    // New: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64, OrderType)
+                    // Default to OrderType::LIMIT since that was the only settle type before.
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum RelayerCommandOld {
+                        FundingCycle(PoolBatchOrder, Meta, f64),
+                        FundingOrderEventUpdate(TraderOrder, Meta),
+                        PriceTickerLiquidation(Vec<Uuid>, Meta, f64),
+                        PriceTickerOrderFill(Vec<Uuid>, Meta, f64),
+                        PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
+                        FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
+                        RpcCommandPoolupdate(),
+                        UpdateFees(f64, f64, f64, f64),
+                    }
+
+                    fn upcast_relayer_command(old: RelayerCommandOld) -> RelayerCommand {
+                        match old {
+                            RelayerCommandOld::PriceTickerOrderSettle(ids, meta, price) => {
+                                RelayerCommand::PriceTickerOrderSettle(
+                                    ids,
+                                    meta,
+                                    price,
+                                    OrderType::LIMIT,
+                                )
+                            }
+                            RelayerCommandOld::FundingCycle(a, b, c) => {
+                                RelayerCommand::FundingCycle(a, b, c)
+                            }
+                            RelayerCommandOld::FundingOrderEventUpdate(a, b) => {
+                                RelayerCommand::FundingOrderEventUpdate(a, b)
+                            }
+                            RelayerCommandOld::PriceTickerLiquidation(a, b, c) => {
+                                RelayerCommand::PriceTickerLiquidation(a, b, c)
+                            }
+                            RelayerCommandOld::PriceTickerOrderFill(a, b, c) => {
+                                RelayerCommand::PriceTickerOrderFill(a, b, c)
+                            }
+                            RelayerCommandOld::FundingCycleLiquidation(a, b, c) => {
+                                RelayerCommand::FundingCycleLiquidation(a, b, c)
+                            }
+                            RelayerCommandOld::RpcCommandPoolupdate() => {
+                                RelayerCommand::RpcCommandPoolupdate()
+                            }
+                            RelayerCommandOld::UpdateFees(a, b, c, d) => {
+                                RelayerCommand::UpdateFees(a, b, c, d)
+                            }
+                        }
+                    }
+
+                    let result: Option<String> = match &*self.event_type {
+                        "TraderOrderUpdate" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                TraderOrderUpdate(TraderOrder, RelayerCommandOld, usize),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::TraderOrderUpdate(order, cmd, seq) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::TraderOrderUpdate(
+                                    order, new_cmd, seq,
+                                ))
+                                .unwrap()
+                            })
+                        }
+                        "TraderOrderFundingUpdate" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                TraderOrderFundingUpdate(TraderOrder, RelayerCommandOld),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::TraderOrderFundingUpdate(order, cmd) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::TraderOrderFundingUpdate(
+                                    order, new_cmd,
+                                ))
+                                .unwrap()
+                            })
+                        }
+                        "TraderOrderLiquidation" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                TraderOrderLiquidation(TraderOrder, RelayerCommandOld, usize),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::TraderOrderLiquidation(order, cmd, seq) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::TraderOrderLiquidation(
+                                    order, new_cmd, seq,
+                                ))
+                                .unwrap()
+                            })
+                        }
+                        "FeeUpdate" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                FeeUpdate(RelayerCommandOld, String),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::FeeUpdate(cmd, time) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::FeeUpdate(new_cmd, time)).unwrap()
+                            })
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(new_log) = result {
+                        self.event_version = EVENTLOG_VERSION.to_string();
+                        return new_log;
+                    }
+                    // Either no PriceTickerOrderSettle in this event (deserializes fine with new format),
+                    // or deserialization failed — just bump version and let the main deserializer handle it.
+                    self.event_version = EVENTLOG_VERSION.to_string();
                 }
                 _ => {
                     self.event_version = EVENTLOG_VERSION.to_string();

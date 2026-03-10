@@ -368,7 +368,12 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             }
             drop(buffer);
         }
-        RelayerCommand::PriceTickerOrderSettle(order_id_array, metadata, currentprice) => {
+        RelayerCommand::PriceTickerOrderSettle(
+            order_id_array,
+            metadata,
+            currentprice,
+            order_type_ref,
+        ) => {
             let mut orderdetails_array: Vec<(
                 Result<Arc<RwLock<TraderOrder>>, std::io::Error>,
                 Option<String>,
@@ -386,6 +391,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             for (order_detail_wraped, zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
+                let order_type = order_type_ref.clone();
                 buffer.execute(move || {
                     match order_detail_wraped {
                         Ok(order_detail) => {
@@ -432,7 +438,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     order_clone.clone(),
                                                     zkos_msg_hex,
                                                     lendpool.last_output_state.clone(),
-                                                    next_output_state.clone()
+                                                    next_output_state.clone(),
+                                                    order_type.clone()
                                                 ),
                                                 sender
                                             );
@@ -447,11 +454,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                             lendpool.add_transaction(
                                                                 LendPoolCommand::AddTraderLimitOrderSettlement(
                                                                     RelayerCommand::PriceTickerOrderSettle(
-                                                                        vec![
-                                                                            order_clone.uuid.clone()
-                                                                        ],
+                                                                        vec![order_clone.uuid.clone()],
                                                                         metadata_clone,
-                                                                        current_price_clone
+                                                                        current_price_clone,
+                                                                        order_type.clone(),
                                                                     ),
                                                                     order_clone.clone(),
                                                                     payment,

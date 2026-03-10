@@ -29,8 +29,8 @@ pub fn client_cmd_receiver() {
                 };
 
                 match rpc_client_cmd_request.recv() {
-                    Ok((rpc_command, offset_complition)) => {
-                        rpc_event_handler(rpc_command, tx_consumed.clone(), offset_complition);
+                    Ok((rpc_command, offset_completion)) => {
+                        rpc_event_handler(rpc_command, tx_consumed.clone(), offset_completion);
                     }
                     Err(arg) => {
                         crate::log_heartbeat!(
@@ -51,7 +51,7 @@ pub fn client_cmd_receiver() {
 pub fn rpc_event_handler(
     command: RpcCommand,
     tx_consumed: crossbeam_channel::Sender<OffsetCompletion>,
-    offset_complition: OffsetCompletion,
+    offset_completion: OffsetCompletion,
 ) {
     let command_clone = command.clone();
     let command_clone_for_zkos = command.clone();
@@ -99,7 +99,7 @@ pub fn rpc_event_handler(
                             String::from("tx_risk_rejected"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -151,7 +151,7 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                     }
                                 }
-                                match tx_consumed.send(offset_complition) {
+                                match tx_consumed.send(offset_completion) {
                                     Ok(_) => {}
                                     Err(_) => {}
                                 }
@@ -176,7 +176,7 @@ pub fn rpc_event_handler(
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            match tx_consumed.send(offset_complition) {
+                            match tx_consumed.send(offset_completion) {
                                 Ok(_) => {}
                                 Err(_) => {}
                             }
@@ -187,7 +187,7 @@ pub fn rpc_event_handler(
                                 orderdata_clone.order_status,
                                 orderdata_clone.uuid
                             );
-                            match tx_consumed.send(offset_complition) {
+                            match tx_consumed.send(offset_completion) {
                                 Ok(_) => {}
                                 Err(_) => {}
                             }
@@ -209,7 +209,7 @@ pub fn rpc_event_handler(
                             String::from("tx_duplicate_error"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -230,7 +230,7 @@ pub fn rpc_event_handler(
                         String::from("tx_wrong_parameter_error"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -270,7 +270,7 @@ pub fn rpc_event_handler(
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -380,14 +380,17 @@ pub fn rpc_event_handler(
                                         );
                                         drop(trader_order_db);
                                         Event::new(
-                                            Event::TxHash(TxHashData::new(
-                                                order_updated_clone.uuid,
-                                                order_updated_clone.account_id,
-                                                request_id.clone(),
-                                                rpc_request.order_type,
-                                                OrderStatus::OrderUpdated,
-                                                request_id.clone(),
-                                            )),
+                                            Event::TxHash(
+                                                TxHashData::new(
+                                                    order_updated_clone.uuid,
+                                                    order_updated_clone.account_id,
+                                                    request_id.clone(),
+                                                    rpc_request.order_type,
+                                                    OrderStatus::OrderUpdated,
+                                                    request_id.clone(),
+                                                )
+                                                .with_new_price(execution_price),
+                                            ),
                                             format!("tx_settle_limit_submit-{:?}", request_id),
                                             CORE_EVENT_LOG.clone().to_string(),
                                         );
@@ -424,7 +427,7 @@ pub fn rpc_event_handler(
                                 );
                             }
                         }
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -452,7 +455,7 @@ pub fn rpc_event_handler(
                             String::from("trader_tx_not_found_error"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -493,7 +496,7 @@ pub fn rpc_event_handler(
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -575,7 +578,7 @@ pub fn rpc_event_handler(
                             );
                         }
                     }
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -596,7 +599,7 @@ pub fn rpc_event_handler(
                         String::from("tx_duplicate_error"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -635,7 +638,7 @@ pub fn rpc_event_handler(
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -764,7 +767,7 @@ pub fn rpc_event_handler(
                                 );
                             }
                         }
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -793,7 +796,7 @@ pub fn rpc_event_handler(
                             String::from("lend_tx_not_found_error"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -834,7 +837,7 @@ pub fn rpc_event_handler(
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -960,7 +963,7 @@ pub fn rpc_event_handler(
                                 );
                             }
                         }
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -972,7 +975,7 @@ pub fn rpc_event_handler(
                             rpc_request.uuid,
                             arg
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -982,7 +985,7 @@ pub fn rpc_event_handler(
             drop(buffer);
         } // RpcCommand::Liquidation(trader_order, metadata) => {}
         RpcCommand::RelayerCommandTraderOrderSettleOnLimit(..) => {
-            match tx_consumed.send(offset_complition) {
+            match tx_consumed.send(offset_completion) {
                 Ok(_) => {}
                 Err(_) => {}
             }
@@ -1022,7 +1025,7 @@ pub fn rpc_event_handler(
                         String::from("tx_risk_rejected"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -1172,21 +1175,21 @@ pub fn rpc_event_handler(
                                 );
                             }
                         }
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {
                                 crate::log_trading!(
                                     warn,
-                                    "offset_complition successfully sent: partition:{:?}, offset:{:?}",
-                                    offset_complition.0,
-                                    offset_complition.1
+                                    "offset_completion successfully sent: partition:{:?}, offset:{:?}",
+                                    offset_completion.0,
+                                    offset_completion.1
                                 );
                             }
                             Err(_) => {
                                 crate::log_trading!(
                                     warn,
-                                    "offset_complition failed to send: partition:{:?}, offset:{:?}",
-                                    offset_complition.0,
-                                    offset_complition.1
+                                    "offset_completion failed to send: partition:{:?}, offset:{:?}",
+                                    offset_completion.0,
+                                    offset_completion.1
                                 );
                             }
                         }
@@ -1214,7 +1217,7 @@ pub fn rpc_event_handler(
                             String::from("trader_tx_not_found_error"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -1273,7 +1276,7 @@ pub fn rpc_event_handler(
                             String::from("tx_risk_rejected"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -1325,7 +1328,7 @@ pub fn rpc_event_handler(
                                         drop(trader_order_db);
                                     }
                                 }
-                                match tx_consumed.send(offset_complition) {
+                                match tx_consumed.send(offset_completion) {
                                     Ok(_) => {}
                                     Err(_) => {}
                                 }
@@ -1350,7 +1353,7 @@ pub fn rpc_event_handler(
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            match tx_consumed.send(offset_complition) {
+                            match tx_consumed.send(offset_completion) {
                                 Ok(_) => {}
                                 Err(_) => {}
                             }
@@ -1361,7 +1364,7 @@ pub fn rpc_event_handler(
                                 orderdata_clone.order_status,
                                 orderdata_clone.uuid
                             );
-                            match tx_consumed.send(offset_complition) {
+                            match tx_consumed.send(offset_completion) {
                                 Ok(_) => {}
                                 Err(_) => {}
                             }
@@ -1383,7 +1386,7 @@ pub fn rpc_event_handler(
                             String::from("tx_duplicate_error"),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }
@@ -1404,7 +1407,7 @@ pub fn rpc_event_handler(
                         String::from("tx_wrong_parameter_error"),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
-                    match tx_consumed.send(offset_complition) {
+                    match tx_consumed.send(offset_completion) {
                         Ok(_) => {}
                         Err(_) => {}
                     }
@@ -1587,7 +1590,7 @@ pub fn rpc_event_handler(
                             _ => {}
                         }
 
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {
                                 crate::log_trading!(
                                     info,
@@ -1605,7 +1608,7 @@ pub fn rpc_event_handler(
                             rpc_request.uuid,
                             arg
                         );
-                        match tx_consumed.send(offset_complition) {
+                        match tx_consumed.send(offset_completion) {
                             Ok(_) => {}
                             Err(_) => {}
                         }

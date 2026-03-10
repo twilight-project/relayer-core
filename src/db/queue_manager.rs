@@ -6,11 +6,11 @@ use crate::relayer::relayer_command_handler::relayer_event_handler;
 use crate::relayer::*;
 use serde::Deserialize as DeserializeAs;
 use serde::Serialize as SerializeAs;
-use serde_derive::{ Deserialize, Serialize };
+use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::sync::{ mpsc, Arc, Mutex, RwLock };
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time;
 use std::time::SystemTime;
@@ -85,7 +85,7 @@ impl QueueState {
         &mut self,
         pending_short_db: &mut SortedSet,
         pending_long_db: &mut SortedSet,
-        price: f64
+        price: f64,
     ) {
         let short_id_list: Vec<Uuid> = pending_short_db.search_lt((price * 10000.0) as i64);
         let long_id_list: Vec<Uuid> = pending_long_db.search_gt((price * 10000.0) as i64);
@@ -102,7 +102,7 @@ impl QueueState {
         &mut self,
         pending_short_db: &mut SortedSet,
         pending_long_db: &mut SortedSet,
-        price: f64
+        price: f64,
     ) {
         let short_id_list: Vec<Uuid> = pending_short_db.search_gt((price * 10000.0) as i64);
         let long_id_list: Vec<Uuid> = pending_long_db.search_lt((price * 10000.0) as i64);
@@ -119,7 +119,7 @@ impl QueueState {
         &mut self,
         pending_short_db: &mut SortedSet,
         pending_long_db: &mut SortedSet,
-        price: f64
+        price: f64,
     ) {
         let short_id_list: Vec<Uuid> = pending_short_db.search_lt((price * 10000.0) as i64);
         let long_id_list: Vec<Uuid> = pending_long_db.search_gt((price * 10000.0) as i64);
@@ -248,7 +248,7 @@ impl QueueState {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(ServerTime::now().epoch)
+                        Some(ServerTime::now().epoch),
                     );
                     hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
                     hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
@@ -256,9 +256,11 @@ impl QueueState {
                 },
             };
 
-            relayer_event_handler(
-                RelayerCommand::PriceTickerOrderFill(vec![order_id], meta, price)
-            );
+            relayer_event_handler(RelayerCommand::PriceTickerOrderFill(
+                vec![order_id],
+                meta,
+                price,
+            ));
         }
         for (order_id, price) in self.to_liquidate.clone() {
             let meta = Meta {
@@ -266,7 +268,7 @@ impl QueueState {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(ServerTime::now().epoch)
+                        Some(ServerTime::now().epoch),
                     );
                     hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
                     hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
@@ -274,9 +276,11 @@ impl QueueState {
                 },
             };
 
-            relayer_event_handler(
-                RelayerCommand::PriceTickerLiquidation(vec![order_id], meta, price)
-            );
+            relayer_event_handler(RelayerCommand::PriceTickerLiquidation(
+                vec![order_id],
+                meta,
+                price,
+            ));
         }
         for (order_id, price) in self.to_settle.clone() {
             let meta = Meta {
@@ -284,7 +288,7 @@ impl QueueState {
                     let mut hashmap = HashMap::new();
                     hashmap.insert(
                         String::from("request_server_time"),
-                        Some(ServerTime::now().epoch)
+                        Some(ServerTime::now().epoch),
                     );
                     hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
                     hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
@@ -292,9 +296,12 @@ impl QueueState {
                 },
             };
 
-            relayer_event_handler(
-                RelayerCommand::PriceTickerOrderSettle(vec![order_id], meta, price)
-            );
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                vec![order_id],
+                meta,
+                price,
+                OrderType::LIMIT,
+            ));
         }
     }
 }

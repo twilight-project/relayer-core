@@ -112,7 +112,7 @@ impl PersistentEventQueue {
         }
         entries
     }
-
+    #[allow(dead_code)]
     pub fn pending_count(&self) -> usize {
         let db = self
             .db
