@@ -343,7 +343,9 @@ pub fn rpc_event_handler(
                                             Ok(chain_message) => match chain_message {
                                                 Ok(tx_hash) => {
                                                     *order = order_clone.clone();
-                                                    order_updated_clone.order_remove_from_localdb();
+                                                    order_updated_clone.order_remove_from_localdb(
+                                                        &OrderType::MARKET,
+                                                    );
                                                     drop(order);
                                                     lendpool.add_transaction(
                                                         LendPoolCommand::AddTraderOrderSettlement(
@@ -1094,7 +1096,7 @@ pub fn rpc_event_handler(
                                                 match chain_message {
                                                     Ok(tx_hash) => {
                                                         *order = order_clone.clone();
-                                                        order_updated_clone.order_remove_from_localdb();
+                                                        order_updated_clone.order_remove_from_localdb(&OrderType::MARKET);
                                                         drop(order);
                                                         lendpool.add_transaction(
                                                             LendPoolCommand::AddTraderOrderSettlement(

@@ -790,7 +790,7 @@ impl TraderOrder {
         payment
     }
 
-    pub fn order_remove_from_localdb(&self) {
+    pub fn order_remove_from_localdb(&self, order_type_ref: &OrderType) {
         let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
         RiskState::remove_order(
@@ -824,7 +824,7 @@ impl TraderOrder {
                                 ordertx.uuid,
                                 ordertx.account_id.clone(),
                                 String::new(),
-                                ordertx.order_type.clone(),
+                                order_type_ref.clone(),
                                 OrderStatus::CancelledLimitClose,
                                 String::new(),
                             )
@@ -859,7 +859,7 @@ impl TraderOrder {
                                 ordertx.uuid,
                                 ordertx.account_id.clone(),
                                 String::new(),
-                                ordertx.order_type.clone(),
+                                order_type_ref.clone(),
                                 OrderStatus::CancelledStopLoss,
                                 String::new(),
                             )
@@ -894,7 +894,7 @@ impl TraderOrder {
                                 ordertx.uuid,
                                 ordertx.account_id.clone(),
                                 String::new(),
-                                ordertx.order_type.clone(),
+                                order_type_ref.clone(),
                                 OrderStatus::CancelledTakeProfit,
                                 String::new(),
                             )
@@ -934,7 +934,7 @@ impl TraderOrder {
                                 ordertx.uuid,
                                 ordertx.account_id.clone(),
                                 String::new(),
-                                ordertx.order_type.clone(),
+                                order_type_ref.clone(),
                                 OrderStatus::CancelledLimitClose,
                                 String::new(),
                             )
@@ -969,7 +969,7 @@ impl TraderOrder {
                                 ordertx.uuid,
                                 ordertx.account_id.clone(),
                                 String::new(),
-                                ordertx.order_type.clone(),
+                                order_type_ref.clone(),
                                 OrderStatus::CancelledStopLoss,
                                 String::new(),
                             )
@@ -1004,7 +1004,7 @@ impl TraderOrder {
                                 ordertx.uuid,
                                 ordertx.account_id.clone(),
                                 String::new(),
-                                ordertx.order_type.clone(),
+                                order_type_ref.clone(),
                                 OrderStatus::CancelledTakeProfit,
                                 String::new(),
                             )
