@@ -292,7 +292,7 @@ pub fn rpc_event_handler(
                                     .check_for_settlement(
                                         execution_price,
                                         current_price,
-                                        rpc_request.order_type,
+                                        rpc_request.order_type.clone(),
                                         None,
                                     );
                                 match order_status {
@@ -384,8 +384,8 @@ pub fn rpc_event_handler(
                                                 order_updated_clone.uuid,
                                                 order_updated_clone.account_id,
                                                 request_id.clone(),
-                                                order_updated_clone.order_type,
-                                                OrderStatus::PENDING,
+                                                rpc_request.order_type,
+                                                OrderStatus::OrderUpdated,
                                                 request_id.clone(),
                                             )),
                                             format!("tx_settle_limit_submit-{:?}", request_id),
@@ -1134,7 +1134,7 @@ pub fn rpc_event_handler(
                                                     order_updated_clone.account_id,
                                                     request_id.clone(),
                                                     rpc_request.order_type,
-                                                    OrderStatus::PENDING,
+                                                    OrderStatus::OrderUpdated,
                                                     request_id.clone(),
                                                 ),
                                             ),
