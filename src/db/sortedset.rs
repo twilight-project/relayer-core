@@ -132,7 +132,7 @@ impl SortedSet {
     pub fn search_lt(&mut self, price: i64) -> Vec<Uuid> {
         self.sort();
         let result: Vec<Uuid> = Vec::new();
-        if self.min_price < price {
+        if self.min_price <= price {
             let key_index = self.sorted_order.iter().rposition(|&(_x, y)| y <= price);
             if key_index.is_some() {
                 let result_vec: Vec<(Uuid, i64)> =
@@ -150,7 +150,7 @@ impl SortedSet {
     pub fn search_gt(&mut self, price: i64) -> Vec<Uuid> {
         self.sort();
         let result: Vec<Uuid> = Vec::new();
-        if self.max_price > price {
+        if self.max_price >= price {
             let key_index = self.sorted_order.iter().position(|&(_x, y)| y >= price);
             if key_index.is_some() {
                 let result_vec: Vec<(Uuid, i64)> = self

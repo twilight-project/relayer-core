@@ -165,14 +165,17 @@ pub fn rpc_event_handler(
                                 trader_order_db.add(orderdata_clone, command_clone);
                             drop(trader_order_db);
                             Event::new(
-                                Event::TxHash(TxHashData::new(
-                                    completed_order.uuid,
-                                    completed_order.account_id,
-                                    request_id.clone(),
-                                    completed_order.order_type,
-                                    OrderStatus::PENDING,
-                                    request_id.clone(),
-                                )),
+                                Event::TxHash(
+                                    TxHashData::new(
+                                        completed_order.uuid,
+                                        completed_order.account_id,
+                                        request_id.clone(),
+                                        completed_order.order_type,
+                                        OrderStatus::PENDING,
+                                        request_id.clone(),
+                                    )
+                                    .with_new_price(completed_order.execution_price),
+                                ),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
