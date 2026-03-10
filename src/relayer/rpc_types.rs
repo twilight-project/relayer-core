@@ -59,6 +59,14 @@ pub struct SetMarketHaltRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct TriggerPriceCheckRequest {
+    pub price: f64,
+    pub check_pending_limit: Option<bool>,
+    pub check_liquidation: Option<bool>,
+    pub check_settling_limit: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct UpdateRiskParamsRequest {
     pub max_oi_mult: Option<f64>,
     pub max_net_mult: Option<f64>,

@@ -710,6 +710,68 @@ pub fn startserver() {
         Ok(serde_json::to_value("Risk state recalculation started in background").unwrap())
     });
 
+    /*****************Trigger Price Check */
+    io.add_method_with_meta("TriggerPriceCheck", move |params: Params, _meta: Meta| async move {
+        match params.parse::<TriggerPriceCheckRequest>() {
+            Ok(req) => {
+                let price = req.price;
+                let run_pending = req.check_pending_limit.unwrap_or(false);
+                let run_liquidation = req.check_liquidation.unwrap_or(false);
+                let run_settling = req.check_settling_limit.unwrap_or(false);
+
+                if run_pending {
+                    let price_clone = price;
+                    let pool = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
+                    pool.execute(move || {
+                        check_pending_limit_order_on_price_ticker_update_localdb(price_clone);
+                    });
+                    drop(pool);
+                }
+
+                if run_liquidation {
+                    let price_clone = price;
+                    let pool = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+                    pool.execute(move || {
+                        check_liquidating_orders_on_price_ticker_update_localdb(price_clone);
+                    });
+                    drop(pool);
+                }
+
+                if run_settling {
+                    let price_clone = price;
+                    let pool = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+                    pool.execute(move || {
+                        check_settling_limit_order_on_price_ticker_update_localdb(price_clone);
+                    });
+                    drop(pool);
+                }
+
+                crate::log_heartbeat!(
+                    info,
+                    "TriggerPriceCheck: price={}, pending={}, liquidation={}, settling={}",
+                    price, run_pending, run_liquidation, run_settling
+                );
+
+                let response = serde_json::json!({
+                    "price": price,
+                    "check_pending_limit": run_pending,
+                    "check_liquidation": run_liquidation,
+                    "check_settling_limit": run_settling,
+                });
+                Ok(response)
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(
+                    format!(
+                        "Invalid parameters, {:?}. Expected: {{ \"price\": f64, \"check_pending_limit\": bool?, \"check_liquidation\": bool?, \"check_settling_limit\": bool? }}",
+                        args
+                    )
+                );
+                Err(err)
+            }
+        }
+    });
+
     crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);
     let server = match
         ServerBuilder::new(io)
