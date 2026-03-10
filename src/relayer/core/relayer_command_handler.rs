@@ -449,7 +449,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     match chain_message {
                                                         Ok(tx_hash) => {
                                                             *order_mut_ref = order_clone.clone();
-                                                            order_clone.order_remove_from_localdb(&order_type);
+                                                            order_clone.order_remove_from_localdb(&order_type, &String::new());
                                                             drop(order_mut_ref);
                                                             lendpool.add_transaction(
                                                                 LendPoolCommand::AddTraderLimitOrderSettlement(

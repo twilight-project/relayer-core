@@ -861,7 +861,7 @@ impl TraderOrder {
         payment
     }
 
-    pub fn order_remove_from_localdb(&self, order_type_ref: &OrderType) {
+    pub fn order_remove_from_localdb(&self, order_type_ref: &OrderType, request_id: &String) {
         let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
         RiskState::remove_order(
