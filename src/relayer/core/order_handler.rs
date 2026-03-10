@@ -81,7 +81,8 @@ pub fn rpc_event_handler(
                         crate::log_heartbeat!(
                             warn,
                             "RISK_ENGINE: REJECT order={} reason={}",
-                            orderdata.uuid, rejection.to_rejection_string()
+                            orderdata.uuid,
+                            rejection.to_rejection_string()
                         );
                         Event::new(
                             Event::TxHash(
@@ -164,16 +165,14 @@ pub fn rpc_event_handler(
                                 trader_order_db.add(orderdata_clone, command_clone);
                             drop(trader_order_db);
                             Event::new(
-                                Event::TxHash(
-                                    TxHashData::new(
-                                        completed_order.uuid,
-                                        completed_order.account_id,
-                                        request_id.clone(),
-                                        completed_order.order_type,
-                                        OrderStatus::PENDING,
-                                        request_id.clone(),
-                                    ),
-                                ),
+                                Event::TxHash(TxHashData::new(
+                                    completed_order.uuid,
+                                    completed_order.account_id,
+                                    request_id.clone(),
+                                    completed_order.order_type,
+                                    OrderStatus::PENDING,
+                                    request_id.clone(),
+                                )),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -185,7 +184,8 @@ pub fn rpc_event_handler(
                             crate::log_heartbeat!(
                                 warn,
                                 "Unexpected order status {:?} for order={}, skipping",
-                                orderdata_clone.order_status, orderdata_clone.uuid
+                                orderdata_clone.order_status,
+                                orderdata_clone.uuid
                             );
                             match tx_consumed.send(offset_complition) {
                                 Ok(_) => {}
@@ -246,11 +246,14 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::MARKET) {
+                if let Err(rejection) =
+                    validate_close_cancel_order(pool_equity_btc, &OrderType::MARKET)
+                {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT close order={} reason={}",
-                        rpc_request.uuid, rejection.to_rejection_string()
+                        rpc_request.uuid,
+                        rejection.to_rejection_string()
                     );
                     Event::new(
                         Event::TxHash(
@@ -377,16 +380,14 @@ pub fn rpc_event_handler(
                                         );
                                         drop(trader_order_db);
                                         Event::new(
-                                            Event::TxHash(
-                                                TxHashData::new(
-                                                    order_updated_clone.uuid,
-                                                    order_updated_clone.account_id,
-                                                    request_id.clone(),
-                                                    order_updated_clone.order_type,
-                                                    OrderStatus::PENDING,
-                                                    request_id.clone(),
-                                                ),
-                                            ),
+                                            Event::TxHash(TxHashData::new(
+                                                order_updated_clone.uuid,
+                                                order_updated_clone.account_id,
+                                                request_id.clone(),
+                                                order_updated_clone.order_type,
+                                                OrderStatus::PENDING,
+                                                request_id.clone(),
+                                            )),
                                             format!("tx_settle_limit_submit-{:?}", request_id),
                                             CORE_EVENT_LOG.clone().to_string(),
                                         );
@@ -414,7 +415,9 @@ pub fn rpc_event_handler(
                                             OrderStatus::OrderNotFound,
                                             request_id,
                                         )
-                                        .with_reason("Order not found or invalid status".to_string()),
+                                        .with_reason(
+                                            "Order not found or invalid status".to_string(),
+                                        ),
                                     ),
                                     String::from("trader_tx_not_found_error"),
                                     CORE_EVENT_LOG.clone().to_string(),
@@ -466,11 +469,14 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::LEND) {
+                if let Err(rejection) =
+                    validate_close_cancel_order(pool_equity_btc, &OrderType::LEND)
+                {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT lend create account={} reason={}",
-                        rpc_request.account_id, rejection.to_rejection_string()
+                        rpc_request.account_id,
+                        rejection.to_rejection_string()
                     );
                     Event::new(
                         Event::TxHash(
@@ -804,11 +810,14 @@ pub fn rpc_event_handler(
                     let pool = LEND_POOL_DB.lock().unwrap();
                     pool.total_locked_value
                 };
-                if let Err(rejection) = validate_close_cancel_order(pool_equity_btc, &OrderType::LIMIT) {
+                if let Err(rejection) =
+                    validate_close_cancel_order(pool_equity_btc, &OrderType::LIMIT)
+                {
                     crate::log_heartbeat!(
                         warn,
                         "RISK_ENGINE: REJECT cancel order={} reason={}",
-                        rpc_request.uuid, rejection.to_rejection_string()
+                        rpc_request.uuid,
+                        rejection.to_rejection_string()
                     );
                     Event::new(
                         Event::TxHash(
@@ -860,7 +869,9 @@ pub fn rpc_event_handler(
                                                     OrderStatus::CANCELLED,
                                                     request_id,
                                                 )
-                                                .with_reason("User requested cancellation".to_string()),
+                                                .with_reason(
+                                                    "User requested cancellation".to_string(),
+                                                ),
                                             ),
                                             format!(
                                                 "tx_hash_result-{:?}",
@@ -875,7 +886,8 @@ pub fn rpc_event_handler(
                                 }
                             }
                             OrderStatus::FILLED => {
-                                let (cancel_status, order_status) = order.cancel_close_limit_order();
+                                let (cancel_status, order_status) =
+                                    order.cancel_close_limit_order();
                                 drop(order);
                                 if cancel_status {
                                     Event::new(
@@ -888,11 +900,14 @@ pub fn rpc_event_handler(
                                                 OrderStatus::CancelledLimitClose,
                                                 request_id,
                                             )
-                                            .with_reason("Close limit order cancelled by user".to_string()),
+                                            .with_reason(
+                                                "Close limit order cancelled by user".to_string(),
+                                            ),
                                         ),
                                         format!(
                                             "tx_hash_result-{:?}",
-                                            "Close limit order successfully cancelled !!".to_string()
+                                            "Close limit order successfully cancelled !!"
+                                                .to_string()
                                         ),
                                         CORE_EVENT_LOG.clone().to_string(),
                                     );
@@ -936,7 +951,9 @@ pub fn rpc_event_handler(
                                             OrderStatus::OrderNotFound,
                                             request_id,
                                         )
-                                        .with_reason("Order not found or invalid status".to_string()),
+                                        .with_reason(
+                                            "Order not found or invalid status".to_string(),
+                                        ),
                                     ),
                                     String::from("trader_order_not_found_error"),
                                     CORE_EVENT_LOG.clone().to_string(),
@@ -1027,7 +1044,7 @@ pub fn rpc_event_handler(
                                     order_updated_clone.check_for_settlement(
                                         execution_price,
                                         current_price,
-                                        rpc_request.order_type,
+                                        rpc_request.order_type.clone(),
                                         sltp
                                     );
                                 match order_status {
@@ -1116,7 +1133,7 @@ pub fn rpc_event_handler(
                                                     order_updated_clone.uuid,
                                                     order_updated_clone.account_id,
                                                     request_id.clone(),
-                                                    order_updated_clone.order_type,
+                                                    rpc_request.order_type,
                                                     OrderStatus::PENDING,
                                                     request_id.clone(),
                                                 ),
@@ -1238,7 +1255,8 @@ pub fn rpc_event_handler(
                         crate::log_heartbeat!(
                             warn,
                             "RISK_ENGINE: REJECT order={} reason={}",
-                            orderdata.uuid, rejection.to_rejection_string()
+                            orderdata.uuid,
+                            rejection.to_rejection_string()
                         );
                         Event::new(
                             Event::TxHash(
@@ -1321,16 +1339,14 @@ pub fn rpc_event_handler(
                                 trader_order_db.add(orderdata_clone, command_clone);
                             drop(trader_order_db);
                             Event::new(
-                                Event::TxHash(
-                                    TxHashData::new(
-                                        completed_order.uuid,
-                                        completed_order.account_id,
-                                        request_id.clone(),
-                                        completed_order.order_type,
-                                        OrderStatus::PENDING,
-                                        request_id.clone(),
-                                    ),
-                                ),
+                                Event::TxHash(TxHashData::new(
+                                    completed_order.uuid,
+                                    completed_order.account_id,
+                                    request_id.clone(),
+                                    completed_order.order_type,
+                                    OrderStatus::PENDING,
+                                    request_id.clone(),
+                                )),
                                 format!("tx_limit_submit-{:?}", request_id),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -1342,7 +1358,8 @@ pub fn rpc_event_handler(
                             crate::log_heartbeat!(
                                 warn,
                                 "Unexpected order status {:?} for sltp order={}, skipping",
-                                orderdata_clone.order_status, orderdata_clone.uuid
+                                orderdata_clone.order_status,
+                                orderdata_clone.uuid
                             );
                             match tx_consumed.send(offset_complition) {
                                 Ok(_) => {}
