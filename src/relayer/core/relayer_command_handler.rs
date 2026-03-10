@@ -403,7 +403,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         current_price_clone,
                                         current_price_clone,
                                         OrderType::MARKET,
-                                        None
+                                        None,&String::new()
                                     );
 
                                     match order_status {

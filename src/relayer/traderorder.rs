@@ -278,6 +278,7 @@ impl TraderOrder {
         current_price: f64,
         cmd_order_type: OrderType,
         sltp: Option<SlTpOrder>,
+        request_id: &String,
     ) -> (f64, OrderStatus) {
         let mut payment: f64 = 0.0;
         let mut orderstatus: OrderStatus = OrderStatus::FILLED;
@@ -328,7 +329,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     sl,
-                                                    SlTpOrderType::StopLoss
+                                                    SlTpOrderType::StopLoss,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -343,7 +345,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     sl,
-                                                    SlTpOrderType::StopLoss
+                                                    SlTpOrderType::StopLoss,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -365,7 +368,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     tp,
-                                                    SlTpOrderType::TakeProfit
+                                                    SlTpOrderType::TakeProfit,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -380,7 +384,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     tp,
-                                                    SlTpOrderType::TakeProfit
+                                                    SlTpOrderType::TakeProfit,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -525,6 +530,7 @@ impl TraderOrder {
         &mut self,
         sltp_price: f64,
         sltp_type: SlTpOrderType,
+        request_id: &String,
     ) -> Result<(), std::io::Error> {
         match sltp_type {
             SlTpOrderType::StopLoss => match self.position_type {
@@ -551,7 +557,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::StopLossUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Add Stop loss price".to_string())
                             .with_new_price(sltp_price);
@@ -584,7 +590,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::StopLossUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Stop loss price replaced".to_string())
                             .with_new_price(sltp_price);
@@ -623,7 +629,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::StopLossUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Add Stop loss price".to_string())
                             .with_new_price(sltp_price);
@@ -656,7 +662,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::StopLossUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Stop loss price replaced".to_string())
                             .with_new_price(sltp_price);
@@ -697,7 +703,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::TakeProfitUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Add Take profit price".to_string())
                             .with_new_price(sltp_price);
@@ -730,7 +736,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::TakeProfitUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Take profit price replaced".to_string())
                             .with_new_price(sltp_price);
@@ -769,7 +775,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::TakeProfitUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Add Take profit price".to_string())
                             .with_new_price(sltp_price);
@@ -802,7 +808,7 @@ impl TraderOrder {
                                 String::new(),
                                 OrderType::SLTP,
                                 OrderStatus::TakeProfitUpdated,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Take profit price replaced".to_string())
                             .with_new_price(sltp_price);

@@ -297,6 +297,7 @@ pub fn rpc_event_handler(
                                         current_price,
                                         rpc_request.order_type.clone(),
                                         None,
+                                        &request_id,
                                     );
                                 match order_status {
                                     OrderStatus::SETTLED => {
@@ -1053,7 +1054,8 @@ pub fn rpc_event_handler(
                                         execution_price,
                                         current_price,
                                         rpc_request.order_type.clone(),
-                                        sltp
+                                        sltp,
+                                        &request_id,
                                     );
                                 match order_status {
                                     OrderStatus::SETTLED => {
