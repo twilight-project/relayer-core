@@ -780,8 +780,11 @@ impl TraderOrder {
                 let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
                 let _ = add_to_liquidation_list.remove(ordertx.uuid);
                 drop(add_to_liquidation_list);
+
+                // Remove close limit order if exists
                 let mut remove_from_limit_order_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-                if let Ok((_, _)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                if let Ok((_, old_price)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                    drop(remove_from_limit_order_list);
                     Event::new(
                         Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
                             ordertx.uuid,
@@ -790,15 +793,99 @@ impl TraderOrder {
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                ordertx.order_type.clone(),
+                                OrderStatus::CancelledLimitClose,
+                                String::new(),
+                            )
+                            .with_reason("Close limit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0)
+                        ),
+                        format!("CancelledLimitClose-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(remove_from_limit_order_list);
                 }
-                drop(remove_from_limit_order_list);
+
+                // Remove SLTP stop loss (LONG SL is in SLTP_CLOSE_SHORT)
+                let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
+                    drop(sltp_short);
+                    Event::new(
+                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                            ordertx.uuid,
+                            PositionType::LONG,
+                        ), iso8601(&std::time::SystemTime::now())),
+                        format!("RemoveStopLossCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                ordertx.order_type.clone(),
+                                OrderStatus::CancelledStopLoss,
+                                String::new(),
+                            )
+                            .with_reason("Stop loss cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0)
+                        ),
+                        format!("CancelledStopLoss-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_short);
+                }
+
+                // Remove SLTP take profit (LONG TP is in SLTP_CLOSE_LONG)
+                let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
+                    drop(sltp_long);
+                    Event::new(
+                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                            ordertx.uuid,
+                            PositionType::LONG,
+                        ), iso8601(&std::time::SystemTime::now())),
+                        format!("RemoveTakeProfitCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                ordertx.order_type.clone(),
+                                OrderStatus::CancelledTakeProfit,
+                                String::new(),
+                            )
+                            .with_reason("Take profit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0)
+                        ),
+                        format!("CancelledTakeProfit-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_long);
+                }
             }
             PositionType::SHORT => {
                 let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
                 let _ = add_to_liquidation_list.remove(ordertx.uuid);
                 drop(add_to_liquidation_list);
+
+                // Remove close limit order if exists
                 let mut remove_from_limit_order_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-                if let Ok((_, _)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                if let Ok((_, old_price)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                    drop(remove_from_limit_order_list);
                     Event::new(
                         Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
                             ordertx.uuid,
@@ -807,8 +894,89 @@ impl TraderOrder {
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                ordertx.order_type.clone(),
+                                OrderStatus::CancelledLimitClose,
+                                String::new(),
+                            )
+                            .with_reason("Close limit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0)
+                        ),
+                        format!("CancelledLimitClose-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(remove_from_limit_order_list);
                 }
-                drop(remove_from_limit_order_list);
+
+                // Remove SLTP stop loss (SHORT SL is in SLTP_CLOSE_LONG)
+                let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
+                    drop(sltp_long);
+                    Event::new(
+                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                            ordertx.uuid,
+                            PositionType::SHORT,
+                        ), iso8601(&std::time::SystemTime::now())),
+                        format!("RemoveStopLossCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                ordertx.order_type.clone(),
+                                OrderStatus::CancelledStopLoss,
+                                String::new(),
+                            )
+                            .with_reason("Stop loss cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0)
+                        ),
+                        format!("CancelledStopLoss-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_long);
+                }
+
+                // Remove SLTP take profit (SHORT TP is in SLTP_CLOSE_SHORT)
+                let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
+                    drop(sltp_short);
+                    Event::new(
+                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                            ordertx.uuid,
+                            PositionType::SHORT,
+                        ), iso8601(&std::time::SystemTime::now())),
+                        format!("RemoveTakeProfitCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                ordertx.order_type.clone(),
+                                OrderStatus::CancelledTakeProfit,
+                                String::new(),
+                            )
+                            .with_reason("Take profit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0)
+                        ),
+                        format!("CancelledTakeProfit-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_short);
+                }
             }
         }
     }

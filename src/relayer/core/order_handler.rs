@@ -885,7 +885,7 @@ pub fn rpc_event_handler(
                                                 rpc_request.account_id,
                                                 String::new(),
                                                 rpc_request.order_type,
-                                                OrderStatus::CANCELLED,
+                                                OrderStatus::CancelledLimitClose,
                                                 request_id,
                                             )
                                             .with_reason("Close limit order cancelled by user".to_string()),
