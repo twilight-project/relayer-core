@@ -472,7 +472,7 @@ pub fn zkos_order_handler(
                                                         trader_order.uuid,
                                                         trader_order.account_id,
                                                         tx_hash.clone(),
-                                                        trader_order.order_type,
+                                                        OrderType::MARKET,
                                                         trader_order.order_status,
                                                         request_id,
                                                     )

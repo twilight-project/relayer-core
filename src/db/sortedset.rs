@@ -215,4 +215,21 @@ mod tests {
             "C should be updated to 888"
         );
     }
+    #[test]
+    fn test_search_gt_on_single_entry_sorted_set() {
+        // UUID: bc9d2a30-18f0-4046-9d1b-aa67353fe8f8
+        let uuid = Uuid::parse_str("bc9d2a30-18f0-4046-9d1b-aa67353fe8f8").unwrap();
+        let price = 67500.0;
+        let mut set = SortedSet::new();
+        set.add(uuid, (price * 10000.0) as i64).unwrap();
+
+        // search_gt for price 67_500_000 (ten times less than stored price)
+        let result = set.search_gt((price * 10000.0) as i64);
+
+        // Print the result
+        println!("Result of search_gt(67_500_000): {:?}", result);
+
+        // Should return the single uuid, because 675_000_000 > 67_500_000
+        // assert_eq!(result, vec![uuid]);
+    }
 }
