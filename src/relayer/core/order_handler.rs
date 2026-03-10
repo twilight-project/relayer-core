@@ -169,7 +169,7 @@ pub fn rpc_event_handler(
                                     TxHashData::new(
                                         completed_order.uuid,
                                         completed_order.account_id,
-                                        request_id.clone(),
+                                        String::new(),
                                         completed_order.order_type,
                                         OrderStatus::PENDING,
                                         request_id.clone(),
@@ -387,7 +387,7 @@ pub fn rpc_event_handler(
                                                 TxHashData::new(
                                                     order_updated_clone.uuid,
                                                     order_updated_clone.account_id,
-                                                    request_id.clone(),
+                                                    String::new(),
                                                     rpc_request.order_type,
                                                     OrderStatus::OrderUpdated,
                                                     request_id.clone(),
@@ -1348,7 +1348,7 @@ pub fn rpc_event_handler(
                                 Event::TxHash(TxHashData::new(
                                     completed_order.uuid,
                                     completed_order.account_id,
-                                    request_id.clone(),
+                                    String::new(),
                                     completed_order.order_type,
                                     OrderStatus::PENDING,
                                     request_id.clone(),
@@ -1433,6 +1433,7 @@ pub fn rpc_event_handler(
                 match order_detail_wraped {
                     Ok(order_detail) => {
                         let mut order = order_detail.write().unwrap();
+                        let order_status = order.order_status.clone();
                         match rpc_request.order_type {
                             OrderType::LIMIT =>
                                 match order.order_status {
@@ -1491,7 +1492,7 @@ pub fn rpc_event_handler(
                                                     OrderStatus::OrderNotFound,
                                                     request_id,
                                                 )
-                                                .with_reason("Order not found or invalid status".to_string()),
+                                                .with_reason(format!("Order status is {:?}",order_status)),
                                             ),
                                             String::from("trader_order_not_found_error"),
                                             CORE_EVENT_LOG.clone().to_string(),
@@ -1583,7 +1584,7 @@ pub fn rpc_event_handler(
                                                     OrderStatus::OrderNotFound,
                                                     request_id,
                                                 )
-                                                .with_reason("Order not found or invalid status".to_string()),
+                                                .with_reason(format!("Order status is {:?}",order_status)),
                                             ),
                                             String::from("trader_order_not_found_error"),
                                             CORE_EVENT_LOG.clone().to_string(),
