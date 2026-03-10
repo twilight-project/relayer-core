@@ -89,8 +89,13 @@ impl TraderOrder {
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let fundingrate = get_localdb("FundingRate");
         let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
-        let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
+        let maintenance_margin = maintenancemargin(
+            entry_value,
+            bankruptcy_value,
+            fee_percentage,
+            fundingrate,
+            mm_ratio,
+        );
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -157,8 +162,13 @@ impl TraderOrder {
             calculate_fee_on_open_order(fee_percentage, positionsize, current_price);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
+        let maintenance_margin = maintenancemargin(
+            entry_value,
+            bankruptcy_value,
+            fee_percentage,
+            fundingrate,
+            mm_ratio,
+        );
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -401,11 +411,14 @@ impl TraderOrder {
                     Ok(()) => {
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::AddCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -416,11 +429,14 @@ impl TraderOrder {
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::UpdateCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -428,7 +444,7 @@ impl TraderOrder {
                             self.uuid,
                             self.account_id.clone(),
                             String::new(),
-                            self.order_type.clone(),
+                            OrderType::LIMIT,
                             OrderStatus::LimitPriceUpdated,
                             String::new(),
                         )
@@ -452,11 +468,14 @@ impl TraderOrder {
                     Ok(()) => {
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::AddCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -467,11 +486,14 @@ impl TraderOrder {
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::UpdateCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -545,7 +567,7 @@ impl TraderOrder {
                                 self.uuid,
                                 self.account_id.clone(),
                                 String::new(),
-                                self.order_type.clone(),
+                                OrderType::SLTP,
                                 OrderStatus::StopLossUpdated,
                                 String::new(),
                             )
@@ -602,7 +624,7 @@ impl TraderOrder {
                                 self.uuid,
                                 self.account_id.clone(),
                                 String::new(),
-                                self.order_type.clone(),
+                                OrderType::SLTP,
                                 OrderStatus::StopLossUpdated,
                                 String::new(),
                             )
@@ -661,7 +683,7 @@ impl TraderOrder {
                                 self.uuid,
                                 self.account_id.clone(),
                                 String::new(),
-                                self.order_type.clone(),
+                                OrderType::SLTP,
                                 OrderStatus::TakeProfitUpdated,
                                 String::new(),
                             )
@@ -718,7 +740,7 @@ impl TraderOrder {
                                 self.uuid,
                                 self.account_id.clone(),
                                 String::new(),
-                                self.order_type.clone(),
+                                OrderType::SLTP,
                                 OrderStatus::TakeProfitUpdated,
                                 String::new(),
                             )
@@ -786,10 +808,13 @@ impl TraderOrder {
                 if let Ok((_, old_price)) = remove_from_limit_order_list.remove(ordertx.uuid) {
                     drop(remove_from_limit_order_list);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                            ordertx.uuid,
-                            PositionType::LONG,
-                        ), iso8601(&std::time::SystemTime::now())),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveCloseLimitPrice(
+                                ordertx.uuid,
+                                PositionType::LONG,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -804,7 +829,7 @@ impl TraderOrder {
                                 String::new(),
                             )
                             .with_reason("Close limit cancelled on order settlement".to_string())
-                            .with_old_price(old_price as f64 / 10000.0)
+                            .with_old_price(old_price as f64 / 10000.0),
                         ),
                         format!("CancelledLimitClose-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -818,10 +843,13 @@ impl TraderOrder {
                 if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
                     drop(sltp_short);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
-                            ordertx.uuid,
-                            PositionType::LONG,
-                        ), iso8601(&std::time::SystemTime::now())),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::LONG,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveStopLossCloseLIMITPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -836,7 +864,7 @@ impl TraderOrder {
                                 String::new(),
                             )
                             .with_reason("Stop loss cancelled on order settlement".to_string())
-                            .with_old_price(old_price as f64 / 10000.0)
+                            .with_old_price(old_price as f64 / 10000.0),
                         ),
                         format!("CancelledStopLoss-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -850,10 +878,13 @@ impl TraderOrder {
                 if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
                     drop(sltp_long);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
-                            ordertx.uuid,
-                            PositionType::LONG,
-                        ), iso8601(&std::time::SystemTime::now())),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::LONG,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveTakeProfitCloseLIMITPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -868,7 +899,7 @@ impl TraderOrder {
                                 String::new(),
                             )
                             .with_reason("Take profit cancelled on order settlement".to_string())
-                            .with_old_price(old_price as f64 / 10000.0)
+                            .with_old_price(old_price as f64 / 10000.0),
                         ),
                         format!("CancelledTakeProfit-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -887,10 +918,13 @@ impl TraderOrder {
                 if let Ok((_, old_price)) = remove_from_limit_order_list.remove(ordertx.uuid) {
                     drop(remove_from_limit_order_list);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                            ordertx.uuid,
-                            PositionType::SHORT,
-                        ), iso8601(&std::time::SystemTime::now())),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveCloseLimitPrice(
+                                ordertx.uuid,
+                                PositionType::SHORT,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -905,7 +939,7 @@ impl TraderOrder {
                                 String::new(),
                             )
                             .with_reason("Close limit cancelled on order settlement".to_string())
-                            .with_old_price(old_price as f64 / 10000.0)
+                            .with_old_price(old_price as f64 / 10000.0),
                         ),
                         format!("CancelledLimitClose-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -919,10 +953,13 @@ impl TraderOrder {
                 if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
                     drop(sltp_long);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveStopLossCloseLIMITPrice(
-                            ordertx.uuid,
-                            PositionType::SHORT,
-                        ), iso8601(&std::time::SystemTime::now())),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::SHORT,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveStopLossCloseLIMITPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -937,7 +974,7 @@ impl TraderOrder {
                                 String::new(),
                             )
                             .with_reason("Stop loss cancelled on order settlement".to_string())
-                            .with_old_price(old_price as f64 / 10000.0)
+                            .with_old_price(old_price as f64 / 10000.0),
                         ),
                         format!("CancelledStopLoss-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -951,10 +988,13 @@ impl TraderOrder {
                 if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
                     drop(sltp_short);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
-                            ordertx.uuid,
-                            PositionType::SHORT,
-                        ), iso8601(&std::time::SystemTime::now())),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::SHORT,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveTakeProfitCloseLIMITPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
@@ -969,7 +1009,7 @@ impl TraderOrder {
                                 String::new(),
                             )
                             .with_reason("Take profit cancelled on order settlement".to_string())
-                            .with_old_price(old_price as f64 / 10000.0)
+                            .with_old_price(old_price as f64 / 10000.0),
                         ),
                         format!("CancelledTakeProfit-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
@@ -996,10 +1036,13 @@ impl TraderOrder {
                                 entryvalue(self.initial_margin, self.leverage),
                             );
                             Event::new(
-                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
-                                    self.uuid.clone(),
-                                    self.position_type.clone(),
-                                ), iso8601(&std::time::SystemTime::now())),
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveOpenLimitPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                    iso8601(&std::time::SystemTime::now()),
+                                ),
                                 format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -1022,10 +1065,13 @@ impl TraderOrder {
                                 entryvalue(self.initial_margin, self.leverage),
                             );
                             Event::new(
-                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
-                                    self.uuid.clone(),
-                                    self.position_type.clone(),
-                                ), iso8601(&std::time::SystemTime::now())),
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveOpenLimitPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                    iso8601(&std::time::SystemTime::now()),
+                                ),
                                 format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -1051,10 +1097,13 @@ impl TraderOrder {
                 match result {
                     Ok((_, _)) => {
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                                self.uuid.clone(),
-                                self.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::RemoveCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -1070,10 +1119,13 @@ impl TraderOrder {
                 match result {
                     Ok((_, _)) => {
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                                self.uuid.clone(),
-                                self.position_type.clone(),
-                            ), iso8601(&std::time::SystemTime::now())),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::RemoveCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
