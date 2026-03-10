@@ -297,8 +297,10 @@ impl TraderOrder {
                         );
                         orderstatus = OrderStatus::SETTLED;
                     } else {
-                        let order_caluculated =
-                            self.set_execution_price_for_limit_order_localdb(execution_price);
+                        let order_caluculated = self.set_execution_price_for_limit_order_localdb(
+                            execution_price,
+                            request_id,
+                        );
                     }
                 }
                 PositionType::SHORT => {
@@ -309,8 +311,10 @@ impl TraderOrder {
                         );
                         orderstatus = OrderStatus::SETTLED;
                     } else {
-                        let order_caluculated =
-                            self.set_execution_price_for_limit_order_localdb(execution_price);
+                        let order_caluculated = self.set_execution_price_for_limit_order_localdb(
+                            execution_price,
+                            request_id,
+                        );
                     }
                 }
             },
@@ -408,6 +412,7 @@ impl TraderOrder {
     pub fn set_execution_price_for_limit_order_localdb(
         &mut self,
         execution_price: f64,
+        request_id: &String,
     ) -> Result<(), std::io::Error> {
         match self.position_type {
             PositionType::LONG => {
@@ -451,7 +456,7 @@ impl TraderOrder {
                             String::new(),
                             OrderType::LIMIT,
                             OrderStatus::LimitPriceUpdated,
-                            String::new(),
+                            request_id.clone(),
                         )
                         .with_reason("Close limit price replaced".to_string())
                         .with_new_price(execution_price);
@@ -508,7 +513,7 @@ impl TraderOrder {
                             String::new(),
                             self.order_type.clone(),
                             OrderStatus::LimitPriceUpdated,
-                            String::new(),
+                            request_id.clone(),
                         )
                         .with_reason("Close limit price replaced".to_string())
                         .with_new_price(execution_price);
