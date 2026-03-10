@@ -545,6 +545,21 @@ impl TraderOrder {
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::StopLossUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Add Stop loss price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddStopLossCloseLIMITPrice-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
                             return Ok(());
                         }
                         Err(_) => {
@@ -600,6 +615,21 @@ impl TraderOrder {
                                     iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::StopLossUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Add Stop loss price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddStopLossCloseLIMITPrice-{}", self.uuid),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return Ok(());
@@ -661,6 +691,21 @@ impl TraderOrder {
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::TakeProfitUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Add Take profit price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddTakeProfitCloseLIMITPrice-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
                             return Ok(());
                         }
                         Err(_) => {
@@ -716,6 +761,21 @@ impl TraderOrder {
                                     iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::TakeProfitUpdated,
+                                String::new(),
+                            )
+                            .with_reason("Add Take profit price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddTakeProfitCloseLIMITPrice-{}", self.uuid),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return Ok(());
