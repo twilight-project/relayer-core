@@ -1540,6 +1540,22 @@ pub fn rpc_event_handler(
                                                     "Stoploss order not found or invalid order status for order id: {}!!",
                                                     rpc_request.uuid
                                                 );
+                                                Event::new(
+                                                    Event::TxHash(
+                                                        TxHashData::new(
+                                                            rpc_request.uuid,
+                                                            rpc_request.account_id.clone(),
+                                                            String::new(),
+                                                            rpc_request.order_type.clone(),
+                                                            OrderStatus::OrderNotFound,
+                                                            request_id.clone(),
+                                                        )
+                                                        .with_reason(format!("Stoploss order not found or invalid order status for order id: {}!!",
+                                                    rpc_request.uuid)),
+                                                    ),
+                                                    String::from("trader_order_not_found_error"),
+                                                    CORE_EVENT_LOG.clone().to_string(),
+                                                );
                                             }
                                         }
                                         match order_status_tp {
@@ -1568,6 +1584,22 @@ pub fn rpc_event_handler(
                                                     warn,
                                                     "Takeprofit order not found or invalid order status for order id: {}!!",
                                                     rpc_request.uuid
+                                                );
+                                                Event::new(
+                                                    Event::TxHash(
+                                                        TxHashData::new(
+                                                            rpc_request.uuid,
+                                                            rpc_request.account_id.clone(),
+                                                            String::new(),
+                                                            rpc_request.order_type.clone(),
+                                                            OrderStatus::OrderNotFound,
+                                                            request_id.clone(),
+                                                        )
+                                                        .with_reason(format!("Takeprofit order not found or invalid order status for order id: {}!!",
+                                                    rpc_request.uuid)),
+                                                    ),
+                                                    String::from("trader_order_not_found_error"),
+                                                    CORE_EVENT_LOG.clone().to_string(),
                                                 );
                                             }
                                         }
