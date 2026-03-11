@@ -487,8 +487,11 @@ pub struct TxHashData {
     pub datetime: String,
     pub output: Option<String>,
     pub request_id: RequestID,
+    #[serde(default)]
     pub reason: Option<String>,
+    #[serde(default)]
     pub old_price: Option<f64>,
+    #[serde(default)]
     pub new_price: Option<f64>,
 }
 
