@@ -414,8 +414,43 @@ impl EventKey {
                         self.event_version = EVENTLOG_VERSION.to_string();
                         return new_log;
                     }
-                    // Either no PriceTickerOrderSettle in this event (deserializes fine with new format),
-                    // or deserialization failed — just bump version and let the main deserializer handle it.
+                    // Typed deserialization failed (old TraderOrder/Meta shape) — try untyped JSON patching
+                    // to fix PriceTickerOrderSettle from 3 fields to 4.
+                    if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&log) {
+                        fn patch_price_ticker(v: &mut serde_json::Value) -> bool {
+                            let mut patched = false;
+                            match v {
+                                serde_json::Value::Object(map) => {
+                                    if let Some(arr) = map.get_mut("PriceTickerOrderSettle") {
+                                        if let serde_json::Value::Array(ref mut fields) = arr {
+                                            if fields.len() == 3 {
+                                                // Add OrderType::LIMIT as the 4th field
+                                                fields.push(serde_json::json!("LIMIT"));
+                                                patched = true;
+                                            }
+                                        }
+                                    }
+                                    for (_, val) in map.iter_mut() {
+                                        if patch_price_ticker(val) {
+                                            patched = true;
+                                        }
+                                    }
+                                }
+                                serde_json::Value::Array(arr) => {
+                                    for item in arr.iter_mut() {
+                                        if patch_price_ticker(item) {
+                                            patched = true;
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                            patched
+                        }
+                        patch_price_ticker(&mut value);
+                        self.event_version = EVENTLOG_VERSION.to_string();
+                        return serde_json::to_string(&value).unwrap();
+                    }
                     self.event_version = EVENTLOG_VERSION.to_string();
                 }
                 _ => {
