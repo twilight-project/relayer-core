@@ -1535,11 +1535,6 @@ pub fn rpc_event_handler(
                                                 );
                                             }
                                             _ => {
-                                                crate::log_trading!(
-                                                    warn,
-                                                    "Stoploss order not found or invalid order status for order id: {}!!",
-                                                    rpc_request.uuid
-                                                );
                                                 if sltp_cancel.sl {
                                                     Event::new(
                                                         Event::TxHash(
@@ -1582,11 +1577,6 @@ pub fn rpc_event_handler(
                                                 );
                                             }
                                             _ => {
-                                                crate::log_trading!(
-                                                    warn,
-                                                    "Takeprofit order not found or invalid order status for order id: {}!!",
-                                                    rpc_request.uuid
-                                                );
                                                 if sltp_cancel.tp{
                                                     Event::new(
                                                         Event::TxHash(
