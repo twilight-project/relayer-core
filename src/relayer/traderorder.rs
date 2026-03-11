@@ -432,6 +432,21 @@ impl TraderOrder {
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
+                        let tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            OrderType::LIMIT,
+                            OrderStatus::LimitPriceUpdated,
+                            request_id.clone(),
+                        )
+                        .with_reason("Add Close limit price".to_string())
+                        .with_new_price(execution_price);
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("AddCloseLimitPrice-{}", self.uuid),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
                         return Ok(());
                     }
                     Err(_) => {
@@ -487,6 +502,21 @@ impl TraderOrder {
                                 iso8601(&std::time::SystemTime::now()),
                             ),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        let tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            self.order_type.clone(),
+                            OrderStatus::LimitPriceUpdated,
+                            request_id.clone(),
+                        )
+                        .with_reason("Add Close limit price".to_string())
+                        .with_new_price(execution_price);
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("AddCloseLimitPrice-{}", self.uuid),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return Ok(());
@@ -897,7 +927,7 @@ impl TraderOrder {
                                 String::new(),
                                 order_type_ref.clone(),
                                 OrderStatus::CancelledLimitClose,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Close limit cancelled on order settlement".to_string())
                             .with_old_price(old_price as f64 / 10000.0),
@@ -932,7 +962,7 @@ impl TraderOrder {
                                 String::new(),
                                 order_type_ref.clone(),
                                 OrderStatus::CancelledStopLoss,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Stop loss cancelled on order settlement".to_string())
                             .with_old_price(old_price as f64 / 10000.0),
@@ -967,7 +997,7 @@ impl TraderOrder {
                                 String::new(),
                                 order_type_ref.clone(),
                                 OrderStatus::CancelledTakeProfit,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Take profit cancelled on order settlement".to_string())
                             .with_old_price(old_price as f64 / 10000.0),
@@ -1007,7 +1037,7 @@ impl TraderOrder {
                                 String::new(),
                                 order_type_ref.clone(),
                                 OrderStatus::CancelledLimitClose,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Close limit cancelled on order settlement".to_string())
                             .with_old_price(old_price as f64 / 10000.0),
@@ -1042,7 +1072,7 @@ impl TraderOrder {
                                 String::new(),
                                 order_type_ref.clone(),
                                 OrderStatus::CancelledStopLoss,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Stop loss cancelled on order settlement".to_string())
                             .with_old_price(old_price as f64 / 10000.0),
@@ -1077,7 +1107,7 @@ impl TraderOrder {
                                 String::new(),
                                 order_type_ref.clone(),
                                 OrderStatus::CancelledTakeProfit,
-                                String::new(),
+                                request_id.clone(),
                             )
                             .with_reason("Take profit cancelled on order settlement".to_string())
                             .with_old_price(old_price as f64 / 10000.0),

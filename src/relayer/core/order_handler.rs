@@ -386,21 +386,21 @@ pub fn rpc_event_handler(
                                             CORE_EVENT_LOG.clone().to_string(),
                                         );
                                         drop(trader_order_db);
-                                        Event::new(
-                                            Event::TxHash(
-                                                TxHashData::new(
-                                                    order_updated_clone.uuid,
-                                                    order_updated_clone.account_id,
-                                                    String::new(),
-                                                    rpc_request.order_type,
-                                                    OrderStatus::OrderUpdated,
-                                                    request_id.clone(),
-                                                )
-                                                .with_new_price(execution_price),
-                                            ),
-                                            format!("tx_settle_limit_submit-{:?}", request_id),
-                                            CORE_EVENT_LOG.clone().to_string(),
-                                        );
+                                        // Event::new(
+                                        //     Event::TxHash(
+                                        //         TxHashData::new(
+                                        //             order_updated_clone.uuid,
+                                        //             order_updated_clone.account_id,
+                                        //             String::new(),
+                                        //             rpc_request.order_type,
+                                        //             OrderStatus::OrderUpdated,
+                                        //             request_id.clone(),
+                                        //         )
+                                        //         .with_new_price(execution_price),
+                                        //     ),
+                                        //     format!("tx_settle_limit_submit-{:?}", request_id),
+                                        //     CORE_EVENT_LOG.clone().to_string(),
+                                        // );
                                     }
                                     _ => {
                                         drop(order);
