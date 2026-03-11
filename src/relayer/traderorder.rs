@@ -1240,12 +1240,21 @@ impl TraderOrder {
     pub fn cancel_sltp_order(
         &mut self,
         sltp_type: &SlTpOrderCancel,
-    ) -> (bool, OrderStatus, bool, OrderStatus) {
+    ) -> (
+        bool,
+        OrderStatus,
+        bool,
+        OrderStatus,
+        Option<f64>,
+        Option<f64>,
+    ) {
         let result: Result<(Uuid, i64), std::io::Error>;
         let mut cancel_status_sl: bool = false;
         let mut cancel_status_tp: bool = false;
         let mut order_status_sl: OrderStatus = OrderStatus::PENDING;
         let mut order_status_tp: OrderStatus = OrderStatus::PENDING;
+        let mut sl_old_price: Option<f64> = None;
+        let mut tp_old_price: Option<f64> = None;
         if sltp_type.sl {
             match self.position_type {
                 PositionType::SHORT => {
@@ -1253,8 +1262,9 @@ impl TraderOrder {
                     result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
                             // self.order_status = OrderStatus::CANCELLED;
+                            sl_old_price = Some(old_price as f64 / 10000.0);
                             Event::new(
                                 Event::SortedSetDBUpdate(
                                     SortedSetCommand::RemoveStopLossCloseLIMITPrice(
@@ -1281,7 +1291,8 @@ impl TraderOrder {
                     result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
+                            sl_old_price = Some(old_price as f64 / 10000.0);
                             // self.order_status = OrderStatus::CANCELLED;
                             Event::new(
                                 Event::SortedSetDBUpdate(
@@ -1313,7 +1324,8 @@ impl TraderOrder {
                     let result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
+                            tp_old_price = Some(old_price as f64 / 10000.0);
                             // self.order_status = OrderStatus::CANCELLED;
                             Event::new(
                                 Event::SortedSetDBUpdate(
@@ -1341,7 +1353,8 @@ impl TraderOrder {
                     let result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
+                            tp_old_price = Some(old_price as f64 / 10000.0);
                             // self.order_status = OrderStatus::CANCELLED;
                             Event::new(
                                 Event::SortedSetDBUpdate(
@@ -1371,6 +1384,8 @@ impl TraderOrder {
             order_status_sl,
             cancel_status_tp,
             order_status_tp,
+            sl_old_price,
+            tp_old_price,
         )
     }
 

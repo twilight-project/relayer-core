@@ -1512,6 +1512,8 @@ pub fn rpc_event_handler(
                                             order_status_sl,
                                             cancel_status_tp,
                                             order_status_tp,
+                                            sl_old_price,
+                                            tp_old_price,
                                         ) = order.cancel_sltp_order(&sltp_cancel);
                                         match order_status_sl {
                                             OrderStatus::CancelledStopLoss => {
@@ -1525,7 +1527,8 @@ pub fn rpc_event_handler(
                                                             OrderStatus::CancelledStopLoss,
                                                             request_id.clone(),
                                                         )
-                                                        .with_reason("Stop loss cancelled by user".to_string()),
+                                                        .with_reason("Stop loss cancelled by user".to_string())
+                                                        .with_old_price(sl_old_price.unwrap_or(0.0)),
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
@@ -1567,7 +1570,8 @@ pub fn rpc_event_handler(
                                                             OrderStatus::CancelledTakeProfit,
                                                             request_id,
                                                         )
-                                                        .with_reason("Take profit cancelled by user".to_string()),
+                                                        .with_reason("Take profit cancelled by user".to_string())
+                                                        .with_old_price(tp_old_price.unwrap_or(0.0)),
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
