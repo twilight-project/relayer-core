@@ -139,8 +139,9 @@ impl EventKey {
                         Err(e) => {
                             crate::log_heartbeat!(
                                 error,
-                                "Error upcasting SortedSetDBUpdate from v0.1.0: {:?}",
-                                e
+                                "Error upcasting SortedSetDBUpdate from v0.1.0: {:?} raw_log: {}",
+                                e,
+                                &log
                             );
                             // Typed deserialization failed — try untyped JSON patching
                             // to add the datetime string field to SortedSetDBUpdate
