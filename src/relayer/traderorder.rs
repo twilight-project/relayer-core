@@ -1239,7 +1239,7 @@ impl TraderOrder {
     }
     pub fn cancel_sltp_order(
         &mut self,
-        sltp_type: SlTpOrderCancel,
+        sltp_type: &SlTpOrderCancel,
     ) -> (bool, OrderStatus, bool, OrderStatus) {
         let result: Result<(Uuid, i64), std::io::Error>;
         let mut cancel_status_sl: bool = false;
