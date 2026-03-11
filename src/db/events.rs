@@ -142,6 +142,21 @@ impl EventKey {
                                 "Error upcasting SortedSetDBUpdate from v0.1.0: {:?}",
                                 e
                             );
+                            // Typed deserialization failed — try untyped JSON patching
+                            // to add the datetime string field to SortedSetDBUpdate
+                            if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&log) {
+                                if let Some(inner) = value.get_mut("SortedSetDBUpdate") {
+                                    // Old format: {"SortedSetDBUpdate": <command>}
+                                    // New format: {"SortedSetDBUpdate": [<command>, <datetime>]}
+                                    let cmd = inner.take();
+                                    *inner = serde_json::json!([
+                                        cmd,
+                                        crate::relayer::iso8601(&std::time::SystemTime::now())
+                                    ]);
+                                    self.event_version = "v0.1.1".to_string();
+                                    return serde_json::to_string(&value).unwrap();
+                                }
+                            }
                             self.event_version = "v0.1.1".to_string();
                             return log;
                         }
@@ -448,10 +463,10 @@ impl EventKey {
                             patched
                         }
                         patch_price_ticker(&mut value);
-                        self.event_version = EVENTLOG_VERSION.to_string();
+                        self.event_version = "v0.1.3".to_string();
                         return serde_json::to_string(&value).unwrap();
                     }
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.3".to_string();
                 }
                 _ => {
                     self.event_version = "v0.1.3".to_string();
