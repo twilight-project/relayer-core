@@ -1143,7 +1143,7 @@ pub fn rpc_event_handler(
                                                 TxHashData::new(
                                                     order_updated_clone.uuid,
                                                     order_updated_clone.account_id,
-                                                    request_id.clone(),
+                                                    String::new(),
                                                     rpc_request.order_type,
                                                     OrderStatus::OrderUpdated,
                                                     request_id.clone(),
