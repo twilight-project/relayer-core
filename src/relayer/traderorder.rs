@@ -437,7 +437,7 @@ impl TraderOrder {
                             self.account_id.clone(),
                             String::new(),
                             OrderType::LIMIT,
-                            OrderStatus::LimitPriceUpdated,
+                            OrderStatus::LimitPriceAdded,
                             request_id.clone(),
                         )
                         .with_reason("Add Close limit price".to_string())
@@ -509,7 +509,7 @@ impl TraderOrder {
                             self.account_id.clone(),
                             String::new(),
                             self.order_type.clone(),
-                            OrderStatus::LimitPriceUpdated,
+                            OrderStatus::LimitPriceAdded,
                             request_id.clone(),
                         )
                         .with_reason("Add Close limit price".to_string())
@@ -570,7 +570,7 @@ impl TraderOrder {
         match sltp_type {
             SlTpOrderType::StopLoss => match self.position_type {
                 PositionType::SHORT => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_SL_CLOSE_LONG.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -591,7 +591,7 @@ impl TraderOrder {
                                 self.account_id.clone(),
                                 String::new(),
                                 OrderType::SLTP,
-                                OrderStatus::StopLossUpdated,
+                                OrderStatus::StopLossAdded,
                                 request_id.clone(),
                             )
                             .with_reason("Add Stop loss price".to_string())
@@ -642,7 +642,7 @@ impl TraderOrder {
                     }
                 }
                 PositionType::LONG => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_SL_CLOSE_SHORT.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -663,7 +663,7 @@ impl TraderOrder {
                                 self.account_id.clone(),
                                 String::new(),
                                 OrderType::SLTP,
-                                OrderStatus::StopLossUpdated,
+                                OrderStatus::StopLossAdded,
                                 request_id.clone(),
                             )
                             .with_reason("Add Stop loss price".to_string())
@@ -716,7 +716,7 @@ impl TraderOrder {
             },
             SlTpOrderType::TakeProfit => match self.position_type {
                 PositionType::LONG => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_TP_CLOSE_LONG.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -737,7 +737,7 @@ impl TraderOrder {
                                 self.account_id.clone(),
                                 String::new(),
                                 OrderType::SLTP,
-                                OrderStatus::TakeProfitUpdated,
+                                OrderStatus::TakeProfitAdded,
                                 request_id.clone(),
                             )
                             .with_reason("Add Take profit price".to_string())
@@ -788,7 +788,7 @@ impl TraderOrder {
                     }
                 }
                 PositionType::SHORT => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_TP_CLOSE_SHORT.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -809,7 +809,7 @@ impl TraderOrder {
                                 self.account_id.clone(),
                                 String::new(),
                                 OrderType::SLTP,
-                                OrderStatus::TakeProfitUpdated,
+                                OrderStatus::TakeProfitAdded,
                                 request_id.clone(),
                             )
                             .with_reason("Add Take profit price".to_string())
@@ -939,8 +939,8 @@ impl TraderOrder {
                     drop(remove_from_limit_order_list);
                 }
 
-                // Remove SLTP stop loss (LONG SL is in SLTP_CLOSE_SHORT)
-                let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                // Remove SLTP stop loss (LONG SL is in SL_CLOSE_SHORT)
+                let mut sltp_short = TRADER_SL_CLOSE_SHORT.lock().unwrap();
                 if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
                     drop(sltp_short);
                     Event::new(
@@ -974,8 +974,8 @@ impl TraderOrder {
                     drop(sltp_short);
                 }
 
-                // Remove SLTP take profit (LONG TP is in SLTP_CLOSE_LONG)
-                let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                // Remove SLTP take profit (LONG TP is in TP_CLOSE_LONG)
+                let mut sltp_long = TRADER_TP_CLOSE_LONG.lock().unwrap();
                 if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
                     drop(sltp_long);
                     Event::new(
@@ -1049,8 +1049,8 @@ impl TraderOrder {
                     drop(remove_from_limit_order_list);
                 }
 
-                // Remove SLTP stop loss (SHORT SL is in SLTP_CLOSE_LONG)
-                let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                // Remove SLTP stop loss (SHORT SL is in SL_CLOSE_LONG)
+                let mut sltp_long = TRADER_SL_CLOSE_LONG.lock().unwrap();
                 if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
                     drop(sltp_long);
                     Event::new(
@@ -1084,8 +1084,8 @@ impl TraderOrder {
                     drop(sltp_long);
                 }
 
-                // Remove SLTP take profit (SHORT TP is in SLTP_CLOSE_SHORT)
-                let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                // Remove SLTP take profit (SHORT TP is in TP_CLOSE_SHORT)
+                let mut sltp_short = TRADER_TP_CLOSE_SHORT.lock().unwrap();
                 if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
                     drop(sltp_short);
                     Event::new(
@@ -1258,7 +1258,7 @@ impl TraderOrder {
         if sltp_type.sl {
             match self.position_type {
                 PositionType::SHORT => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_SL_CLOSE_LONG.lock().unwrap();
                     result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
@@ -1287,7 +1287,7 @@ impl TraderOrder {
                     }
                 }
                 PositionType::LONG => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_SL_CLOSE_SHORT.lock().unwrap();
                     result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
@@ -1320,7 +1320,7 @@ impl TraderOrder {
         if sltp_type.tp {
             match self.position_type {
                 PositionType::LONG => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_TP_CLOSE_LONG.lock().unwrap();
                     let result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
@@ -1349,7 +1349,7 @@ impl TraderOrder {
                     }
                 }
                 PositionType::SHORT => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_TP_CLOSE_SHORT.lock().unwrap();
                     let result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {

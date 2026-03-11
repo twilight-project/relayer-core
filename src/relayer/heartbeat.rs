@@ -416,22 +416,26 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     let limit_lock = SETTLEMENTLIMITSTATUS.lock().unwrap();
     let price_scaled = (current_price * 10000.0) as i64;
 
-    // Collect triggered order IDs from all four sorted sets
+    // Collect triggered order IDs from all six sorted sets
     let limit_short = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap().search_gt(price_scaled);
     let limit_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap().search_lt(price_scaled);
-    let sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap().search_gt(price_scaled);
-    let sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap().search_lt(price_scaled);
+    let sl_short = TRADER_SL_CLOSE_SHORT.lock().unwrap().search_gt(price_scaled);
+    let tp_short = TRADER_TP_CLOSE_SHORT.lock().unwrap().search_gt(price_scaled);
+    let sl_long = TRADER_SL_CLOSE_LONG.lock().unwrap().search_lt(price_scaled);
+    let tp_long = TRADER_TP_CLOSE_LONG.lock().unwrap().search_lt(price_scaled);
 
     // Emit sorted-set bulk-remove events for each non-empty group
     let bulk_removes: [(
         &Vec<Uuid>,
         SortedSetCommand,
         &str,
-    ); 4] = [
+    ); 6] = [
         (&limit_short, SortedSetCommand::BulkSearchRemoveCloseLimitPrice(current_price, PositionType::SHORT), "BulkSearchRemoveCloseLimitPrice"),
         (&limit_long, SortedSetCommand::BulkSearchRemoveCloseLimitPrice(current_price, PositionType::LONG), "BulkSearchRemoveCloseLimitPrice"),
-        (&sltp_short, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::SHORT), "BulkSearchRemoveSLTPCloseLIMITPrice"),
-        (&sltp_long, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::LONG), "BulkSearchRemoveSLTPCloseLIMITPrice"),
+        (&sl_short, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::SHORT), "BulkSearchRemoveSLTPCloseLIMITPrice"),
+        (&tp_short, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::SHORT), "BulkSearchRemoveSLTPCloseLIMITPrice"),
+        (&sl_long, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::LONG), "BulkSearchRemoveSLTPCloseLIMITPrice"),
+        (&tp_long, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::LONG), "BulkSearchRemoveSLTPCloseLIMITPrice"),
     ];
     for (ids, cmd, key) in &bulk_removes {
         if !ids.is_empty() {
@@ -444,11 +448,13 @@ pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: 
     }
 
     // Dispatch settle commands for each non-empty group
-    let settle_groups: [(Vec<Uuid>, OrderType); 4] = [
+    let settle_groups: [(Vec<Uuid>, OrderType); 6] = [
         (limit_short, OrderType::LIMIT),
         (limit_long, OrderType::LIMIT),
-        (sltp_short, OrderType::SLTP),
-        (sltp_long, OrderType::SLTP),
+        (sl_short, OrderType::Stoploss),
+        (tp_short, OrderType::Takeprofit),
+        (sl_long, OrderType::Stoploss),
+        (tp_long, OrderType::Takeprofit),
     ];
     let has_orders = settle_groups.iter().any(|(ids, _)| !ids.is_empty());
     if has_orders {

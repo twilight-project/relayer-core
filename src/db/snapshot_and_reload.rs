@@ -435,7 +435,7 @@ pub struct SnapshotDBOldV7 {
 
 impl SnapshotDBOldV7 {
     pub fn migrate_to_new(&self) -> SnapshotDB {
-        SnapshotDB {
+        let mut snap = SnapshotDB {
             orderdb_traderorder: self.orderdb_traderorder.clone(),
             orderdb_lendorder: self.orderdb_lendorder.clone(),
             lendpool_database: self.lendpool_database.clone(),
@@ -447,6 +447,10 @@ impl SnapshotDBOldV7 {
             close_short_sortedset_db: self.close_short_sortedset_db.clone(),
             sltp_close_long_sortedset_db: self.sltp_close_long_sortedset_db.clone(),
             sltp_close_short_sortedset_db: self.sltp_close_short_sortedset_db.clone(),
+            sl_close_long_sortedset_db: SortedSet::new(),
+            sl_close_short_sortedset_db: SortedSet::new(),
+            tp_close_long_sortedset_db: SortedSet::new(),
+            tp_close_short_sortedset_db: SortedSet::new(),
             position_size_log: self.position_size_log.clone(),
             risk_state: self.risk_state.clone(),
             risk_params: self.risk_params.clone(),
@@ -456,7 +460,9 @@ impl SnapshotDBOldV7 {
             output_hex_storage: self.output_hex_storage.clone(),
             queue_manager: self.queue_manager.clone(),
             group_name: format!("{}-{}", *RELAYER_SNAPSHOT_FILE_LOCATION, *SNAPSHOT_VERSION),
-        }
+        };
+        snap.migrate_sltp_fields();
+        snap
     }
 }
 
@@ -474,6 +480,14 @@ pub struct SnapshotDB {
     pub close_short_sortedset_db: SortedSet,
     pub sltp_close_long_sortedset_db: SortedSet,
     pub sltp_close_short_sortedset_db: SortedSet,
+    #[serde(default = "SortedSet::new")]
+    pub sl_close_long_sortedset_db: SortedSet,
+    #[serde(default = "SortedSet::new")]
+    pub sl_close_short_sortedset_db: SortedSet,
+    #[serde(default = "SortedSet::new")]
+    pub tp_close_long_sortedset_db: SortedSet,
+    #[serde(default = "SortedSet::new")]
+    pub tp_close_short_sortedset_db: SortedSet,
     pub position_size_log: PositionSizeLog,
     pub risk_state: RiskState,
     pub risk_params: Option<RiskParams>,
@@ -486,8 +500,8 @@ pub struct SnapshotDB {
 }
 
 /// Current snapshot version written by this binary.
-/// V9 = V8 struct layout + group_name field + zstd compression on payload.
-const SNAPSHOT_FORMAT_VERSION: u32 = 9;
+/// V10 = V9 struct layout + split SLTP sorted sets into 4 (SL/TP x LONG/SHORT).
+const SNAPSHOT_FORMAT_VERSION: u32 = 10;
 
 impl SnapshotDB {
     fn new() -> Self {
@@ -503,6 +517,10 @@ impl SnapshotDB {
             close_short_sortedset_db: SortedSet::new(),
             sltp_close_long_sortedset_db: SortedSet::new(),
             sltp_close_short_sortedset_db: SortedSet::new(),
+            sl_close_long_sortedset_db: SortedSet::new(),
+            sl_close_short_sortedset_db: SortedSet::new(),
+            tp_close_long_sortedset_db: SortedSet::new(),
+            tp_close_short_sortedset_db: SortedSet::new(),
             position_size_log: PositionSizeLog::new(),
             risk_state: RiskState::new(),
             risk_params: Some(RiskParams::from_env()),
@@ -599,7 +617,7 @@ impl SnapshotDB {
             info,
             "Snapshot : version={}, group_name={}, {} trader orders, {} lend orders, \
              liq_long={}, liq_short={}, open_long={}, open_short={}, \
-             close_long={}, close_short={}, sltp_long={}, sltp_short={}, \
+             close_long={}, close_short={}, sl_long={}, sl_short={}, tp_long={}, tp_short={}, \
              offset=({}, {}), timestamp={}",
             SNAPSHOT_FORMAT_VERSION,
             self.group_name,
@@ -611,11 +629,70 @@ impl SnapshotDB {
             self.open_short_sortedset_db.len,
             self.close_long_sortedset_db.len,
             self.close_short_sortedset_db.len,
-            self.sltp_close_long_sortedset_db.len,
-            self.sltp_close_short_sortedset_db.len,
+            self.sl_close_long_sortedset_db.len,
+            self.sl_close_short_sortedset_db.len,
+            self.tp_close_long_sortedset_db.len,
+            self.tp_close_short_sortedset_db.len,
             self.event_offset_partition.0,
             self.event_offset_partition.1,
             self.event_timestamp
+        );
+    }
+
+    /// Migrate old merged SLTP sorted sets into the 4 split sets (SL/TP x LONG/SHORT).
+    /// Called after deserializing an older snapshot that only had 2 SLTP sets.
+    /// Uses the order table to determine each entry's position type and route it correctly.
+    fn migrate_sltp_fields(&mut self) {
+        let old_long_empty = self.sltp_close_long_sortedset_db.len == 0;
+        let old_short_empty = self.sltp_close_short_sortedset_db.len == 0;
+        let new_all_empty = self.sl_close_long_sortedset_db.len == 0
+            && self.sl_close_short_sortedset_db.len == 0
+            && self.tp_close_long_sortedset_db.len == 0
+            && self.tp_close_short_sortedset_db.len == 0;
+
+        if !new_all_empty || (old_long_empty && old_short_empty) {
+            return; // already migrated or nothing to migrate
+        }
+
+        // sltp_close_long contained: SHORT StopLoss + LONG TakeProfit (search_lt direction)
+        for &(uuid, price) in &self.sltp_close_long_sortedset_db.sorted_order {
+            if let Some(order) = self.orderdb_traderorder.ordertable.get(&uuid) {
+                match order.position_type {
+                    PositionType::SHORT => {
+                        let _ = self.sl_close_long_sortedset_db.add(uuid, price);
+                    }
+                    PositionType::LONG => {
+                        let _ = self.tp_close_long_sortedset_db.add(uuid, price);
+                    }
+                }
+            }
+        }
+
+        // sltp_close_short contained: LONG StopLoss + SHORT TakeProfit (search_gt direction)
+        for &(uuid, price) in &self.sltp_close_short_sortedset_db.sorted_order {
+            if let Some(order) = self.orderdb_traderorder.ordertable.get(&uuid) {
+                match order.position_type {
+                    PositionType::LONG => {
+                        let _ = self.sl_close_short_sortedset_db.add(uuid, price);
+                    }
+                    PositionType::SHORT => {
+                        let _ = self.tp_close_short_sortedset_db.add(uuid, price);
+                    }
+                }
+            }
+        }
+
+        // Clear old merged sets
+        self.sltp_close_long_sortedset_db = SortedSet::new();
+        self.sltp_close_short_sortedset_db = SortedSet::new();
+
+        crate::log_heartbeat!(
+            info,
+            "Migrated SLTP sorted sets: sl_long={}, sl_short={}, tp_long={}, tp_short={}",
+            self.sl_close_long_sortedset_db.len,
+            self.sl_close_short_sortedset_db.len,
+            self.tp_close_long_sortedset_db.len,
+            self.tp_close_short_sortedset_db.len
         );
     }
 }
@@ -681,11 +758,18 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
     }
 
     match version {
-        // V9: zstd-compressed bincode with group_name field
-        9 => {
+        // V10: zstd-compressed bincode with split SL/TP sorted sets
+        10 => {
             let decompressed = zstd_decompress(payload)?;
             bincode::deserialize::<SnapshotDB>(&decompressed)
                 .map(|s| Some(s))
+                .map_err(|e| format!("V10 deserialize failed: {:#?}", e))
+        }
+        // V9: zstd-compressed bincode with group_name field (old merged SLTP sets)
+        9 => {
+            let decompressed = zstd_decompress(payload)?;
+            bincode::deserialize::<SnapshotDB>(&decompressed)
+                .map(|mut s| { s.migrate_sltp_fields(); Some(s) })
                 .map_err(|e| format!("V9 deserialize failed: {:#?}", e))
         }
         // V8: zstd-compressed bincode with same struct layout as V7 (no group_name)
@@ -758,8 +842,9 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
 /// Fall back to the old trial-and-error deserialization for legacy snapshot
 /// files that were written without a version header.
 fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
-    if let Ok(snap) = bincode::deserialize::<SnapshotDB>(data) {
+    if let Ok(mut snap) = bincode::deserialize::<SnapshotDB>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V8 (with group_name)");
+        snap.migrate_sltp_fields();
         return Ok(snap);
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV7>(data) {
@@ -983,8 +1068,10 @@ struct SnapshotBuilder {
     open_short_sortedset_db: SortedSet,
     close_long_sortedset_db: SortedSet,
     close_short_sortedset_db: SortedSet,
-    sltp_close_long_sortedset_db: SortedSet,
-    sltp_close_short_sortedset_db: SortedSet,
+    sl_close_long_sortedset_db: SortedSet,
+    sl_close_short_sortedset_db: SortedSet,
+    tp_close_long_sortedset_db: SortedSet,
+    tp_close_short_sortedset_db: SortedSet,
     position_size_log: PositionSizeLog,
     risk_state: RiskState,
     risk_params: Option<RiskParams>,
@@ -1008,8 +1095,10 @@ impl SnapshotBuilder {
             open_short_sortedset_db: snapshot_db.open_short_sortedset_db,
             close_long_sortedset_db: snapshot_db.close_long_sortedset_db,
             close_short_sortedset_db: snapshot_db.close_short_sortedset_db,
-            sltp_close_long_sortedset_db: snapshot_db.sltp_close_long_sortedset_db,
-            sltp_close_short_sortedset_db: snapshot_db.sltp_close_short_sortedset_db,
+            sl_close_long_sortedset_db: snapshot_db.sl_close_long_sortedset_db,
+            sl_close_short_sortedset_db: snapshot_db.sl_close_short_sortedset_db,
+            tp_close_long_sortedset_db: snapshot_db.tp_close_long_sortedset_db,
+            tp_close_short_sortedset_db: snapshot_db.tp_close_short_sortedset_db,
             position_size_log: snapshot_db.position_size_log,
             risk_state: snapshot_db.risk_state,
             risk_params: snapshot_db.risk_params,
@@ -1040,8 +1129,12 @@ impl SnapshotBuilder {
             open_short_sortedset_db: self.open_short_sortedset_db,
             close_long_sortedset_db: self.close_long_sortedset_db,
             close_short_sortedset_db: self.close_short_sortedset_db,
-            sltp_close_long_sortedset_db: self.sltp_close_long_sortedset_db,
-            sltp_close_short_sortedset_db: self.sltp_close_short_sortedset_db,
+            sltp_close_long_sortedset_db: SortedSet::new(),
+            sltp_close_short_sortedset_db: SortedSet::new(),
+            sl_close_long_sortedset_db: self.sl_close_long_sortedset_db,
+            sl_close_short_sortedset_db: self.sl_close_short_sortedset_db,
+            tp_close_long_sortedset_db: self.tp_close_long_sortedset_db,
+            tp_close_short_sortedset_db: self.tp_close_short_sortedset_db,
             position_size_log: self.position_size_log,
             risk_state: self.risk_state,
             risk_params: self.risk_params,
@@ -1653,12 +1746,12 @@ impl SnapshotBuilder {
             ) => match position_type {
                 PositionType::SHORT => {
                     let _ = self
-                        .sltp_close_long_sortedset_db
+                        .sl_close_long_sortedset_db
                         .add(order_id, (stop_loss_price * 10000.0) as i64);
                 }
                 PositionType::LONG => {
                     let _ = self
-                        .sltp_close_short_sortedset_db
+                        .sl_close_short_sortedset_db
                         .add(order_id, (stop_loss_price * 10000.0) as i64);
                 }
             },
@@ -1669,32 +1762,32 @@ impl SnapshotBuilder {
             ) => match position_type {
                 PositionType::LONG => {
                     let _ = self
-                        .sltp_close_long_sortedset_db
+                        .tp_close_long_sortedset_db
                         .add(order_id, (take_profit_price * 10000.0) as i64);
                 }
                 PositionType::SHORT => {
                     let _ = self
-                        .sltp_close_short_sortedset_db
+                        .tp_close_short_sortedset_db
                         .add(order_id, (take_profit_price * 10000.0) as i64);
                 }
             },
             SortedSetCommand::RemoveStopLossCloseLIMITPrice(order_id, position_type) => {
                 match position_type {
                     PositionType::SHORT => {
-                        let _ = self.sltp_close_long_sortedset_db.remove(order_id);
+                        let _ = self.sl_close_long_sortedset_db.remove(order_id);
                     }
                     PositionType::LONG => {
-                        let _ = self.sltp_close_short_sortedset_db.remove(order_id);
+                        let _ = self.sl_close_short_sortedset_db.remove(order_id);
                     }
                 }
             }
             SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(order_id, position_type) => {
                 match position_type {
                     PositionType::LONG => {
-                        let _ = self.sltp_close_long_sortedset_db.remove(order_id);
+                        let _ = self.tp_close_long_sortedset_db.remove(order_id);
                     }
                     PositionType::SHORT => {
-                        let _ = self.sltp_close_short_sortedset_db.remove(order_id);
+                        let _ = self.tp_close_short_sortedset_db.remove(order_id);
                     }
                 }
             }
@@ -1705,12 +1798,12 @@ impl SnapshotBuilder {
             ) => match position_type {
                 PositionType::SHORT => {
                     let _ = self
-                        .sltp_close_long_sortedset_db
+                        .sl_close_long_sortedset_db
                         .update(order_id, (stop_loss_price * 10000.0) as i64);
                 }
                 PositionType::LONG => {
                     let _ = self
-                        .sltp_close_short_sortedset_db
+                        .sl_close_short_sortedset_db
                         .update(order_id, (stop_loss_price * 10000.0) as i64);
                 }
             },
@@ -1721,12 +1814,12 @@ impl SnapshotBuilder {
             ) => match position_type {
                 PositionType::LONG => {
                     let _ = self
-                        .sltp_close_long_sortedset_db
+                        .tp_close_long_sortedset_db
                         .update(order_id, (take_profit_price * 10000.0) as i64);
                 }
                 PositionType::SHORT => {
                     let _ = self
-                        .sltp_close_short_sortedset_db
+                        .tp_close_short_sortedset_db
                         .update(order_id, (take_profit_price * 10000.0) as i64);
                 }
             },
@@ -1734,12 +1827,18 @@ impl SnapshotBuilder {
                 match position_type {
                     PositionType::LONG => {
                         let _ = self
-                            .sltp_close_long_sortedset_db
+                            .sl_close_long_sortedset_db
+                            .search_lt((price * 10000.0) as i64);
+                        let _ = self
+                            .tp_close_long_sortedset_db
                             .search_lt((price * 10000.0) as i64);
                     }
                     PositionType::SHORT => {
                         let _ = self
-                            .sltp_close_short_sortedset_db
+                            .sl_close_short_sortedset_db
+                            .search_gt((price * 10000.0) as i64);
+                        let _ = self
+                            .tp_close_short_sortedset_db
                             .search_gt((price * 10000.0) as i64);
                     }
                 }
@@ -1883,10 +1982,14 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
                 lock_or_err!(TRADER_LIMIT_CLOSE_LONG, "TRADER_LIMIT_CLOSE_LONG");
             let mut close_short_sortedset_db =
                 lock_or_err!(TRADER_LIMIT_CLOSE_SHORT, "TRADER_LIMIT_CLOSE_SHORT");
-            let mut sltp_close_long_sortedset_db =
-                lock_or_err!(TRADER_SLTP_CLOSE_LONG, "TRADER_SLTP_CLOSE_LONG");
-            let mut sltp_close_short_sortedset_db =
-                lock_or_err!(TRADER_SLTP_CLOSE_SHORT, "TRADER_SLTP_CLOSE_SHORT");
+            let mut sl_close_long_sortedset_db =
+                lock_or_err!(TRADER_SL_CLOSE_LONG, "TRADER_SL_CLOSE_LONG");
+            let mut sl_close_short_sortedset_db =
+                lock_or_err!(TRADER_SL_CLOSE_SHORT, "TRADER_SL_CLOSE_SHORT");
+            let mut tp_close_long_sortedset_db =
+                lock_or_err!(TRADER_TP_CLOSE_LONG, "TRADER_TP_CLOSE_LONG");
+            let mut tp_close_short_sortedset_db =
+                lock_or_err!(TRADER_TP_CLOSE_SHORT, "TRADER_TP_CLOSE_SHORT");
             let mut position_size_log = lock_or_err!(POSITION_SIZE_LOG, "POSITION_SIZE_LOG");
             let mut load_trader_data = lock_or_err!(TRADER_ORDER_DB, "TRADER_ORDER_DB");
             let mut load_lend_data = lock_or_err!(LEND_ORDER_DB, "LEND_ORDER_DB");
@@ -1980,8 +2083,10 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             *open_short_sortedset_db = snapshot_data.open_short_sortedset_db.clone();
             *close_long_sortedset_db = snapshot_data.close_long_sortedset_db.clone();
             *close_short_sortedset_db = snapshot_data.close_short_sortedset_db.clone();
-            *sltp_close_long_sortedset_db = snapshot_data.sltp_close_long_sortedset_db.clone();
-            *sltp_close_short_sortedset_db = snapshot_data.sltp_close_short_sortedset_db.clone();
+            *sl_close_long_sortedset_db = snapshot_data.sl_close_long_sortedset_db.clone();
+            *sl_close_short_sortedset_db = snapshot_data.sl_close_short_sortedset_db.clone();
+            *tp_close_long_sortedset_db = snapshot_data.tp_close_long_sortedset_db.clone();
+            *tp_close_short_sortedset_db = snapshot_data.tp_close_short_sortedset_db.clone();
             *position_size_log = snapshot_data.position_size_log.clone();
             // Restore risk engine state from snapshot
             {
