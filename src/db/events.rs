@@ -120,65 +120,13 @@ impl EventKey {
     pub fn event_log_upcast(&mut self, log: String) -> String {
         match &*self.event_version {
             // v0.1.0 is the current version of the event log code example to upgrade the event log version for any struct change in commands
+            // v0.0.0 → v0.1.0
             "v0.0.0" => match &*self.event_type {
-                // "CurrentPriceUpdate" => {
-                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                //     pub enum Eventold {
-                //         CurrentPriceUpdate(f64, String),
-                //     }
-
-                //     // check for enum replacment with vec of value
-                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                //     let Eventold::CurrentPriceUpdate(price, time) = log_der;
-                //     let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
-                //     // println!("log:{:?}", log);
-                //     self.event_version = "v0.1.0".to_string();
-                //     // println!("self:{:?}", self);
-                //     return serde_json::to_string(&new_log).unwrap();
-                // }
-                // "TxHash" => {
-                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                //     pub enum Eventold {
-                //         TxHash(
-                //             Uuid,
-                //             String,
-                //             String,
-                //             OrderType,
-                //             OrderStatus,
-                //             String,
-                //             Option<String>,
-                //         ),
-                //     }
-                //     // check for enum replacment with vec of value
-                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                //     let Eventold::TxHash(
-                //         order_id,
-                //         string1,
-                //         string2,
-                //         order_type,
-                //         order_status,
-                //         string3,
-                //         option_string,
-                //     ) = log_der;
-                //     let new_log = Event::TxHash(
-                //         order_id,
-                //         string1.clone(),
-                //         string2,
-                //         order_type,
-                //         order_status,
-                //         string3,
-                //         option_string,
-                //         string1,
-                //     );
-                //     // println!("log:{:?}", log);
-                //     self.event_version = "v0.1.0".to_string();
-                //     // println!("self:{:?}", self);
-                //     return serde_json::to_string(&new_log).unwrap();
-                // }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.1".to_string();
                 }
             },
+            // v0.1.0 → v0.1.1
             "v0.1.0" => match &*self.event_type {
                 "SortedSetDBUpdate" => {
                     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -194,7 +142,7 @@ impl EventKey {
                                 "Error upcasting SortedSetDBUpdate from v0.1.0: {:?}",
                                 e
                             );
-                            self.event_version = EVENTLOG_VERSION.to_string();
+                            self.event_version = "v0.1.1".to_string();
                             return log;
                         }
                     };
@@ -203,7 +151,7 @@ impl EventKey {
                         cmd,
                         crate::relayer::iso8601(&std::time::SystemTime::now()),
                     );
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.1".to_string();
                     match serde_json::to_string(&new_log) {
                         Ok(v) => return v,
                         Err(e) => {
@@ -217,9 +165,10 @@ impl EventKey {
                     }
                 }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.1".to_string();
                 }
             },
+            // v0.1.1 → v0.1.2
             "v0.1.1" => match &*self.event_type {
                 "TxHash" => {
                     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -244,7 +193,7 @@ impl EventKey {
                                 "Error upcasting TxHash from v0.1.1: {:?}",
                                 e
                             );
-                            self.event_version = EVENTLOG_VERSION.to_string();
+                            self.event_version = "v0.1.2".to_string();
                             return log;
                         }
                     };
@@ -271,7 +220,7 @@ impl EventKey {
                         old_price: None,
                         new_price: None,
                     });
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.2".to_string();
                     match serde_json::to_string(&new_log) {
                         Ok(v) => return v,
                         Err(e) => {
@@ -306,7 +255,7 @@ impl EventKey {
                                 "Error upcasting TxHashUpdate from v0.1.1: {:?}",
                                 e
                             );
-                            self.event_version = EVENTLOG_VERSION.to_string();
+                            self.event_version = "v0.1.2".to_string();
                             return log;
                         }
                     };
@@ -332,7 +281,7 @@ impl EventKey {
                         old_price: None,
                         new_price: None,
                     });
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.2".to_string();
                     match serde_json::to_string(&new_log) {
                         Ok(v) => return v,
                         Err(e) => {
@@ -346,11 +295,13 @@ impl EventKey {
                     }
                 }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.2".to_string();
                 }
             },
             "v0.1.2" => match &*self.event_type {
-                "TraderOrderUpdate" | "TraderOrderFundingUpdate" | "TraderOrderLiquidation"
+                "TraderOrderUpdate"
+                | "TraderOrderFundingUpdate"
+                | "TraderOrderLiquidation"
                 | "FeeUpdate" => {
                     // v0.1.2 -> v0.1.3: PriceTickerOrderSettle changed from 3 fields to 4 (added OrderType).
                     // Old: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64)
@@ -468,7 +419,7 @@ impl EventKey {
                     self.event_version = EVENTLOG_VERSION.to_string();
                 }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.to_string();
+                    self.event_version = "v0.1.3".to_string();
                 }
             },
             _ => {}
