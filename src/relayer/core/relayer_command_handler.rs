@@ -494,9 +494,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 _ => {
                                     crate::log_trading!(
                                         debug,
-                                        "Invalid order status for order_id:{} and order_status:{:#?} !!\n",
+                                        "Invalid order status for order_id:{} and order_status:{:#?} and order_type:{:#?} !!\n",
                                         order.uuid,
-                                        order.order_status
+                                        order.order_status,
+                                        order_type
                                     );
                                     drop(order);
                                 }

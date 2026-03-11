@@ -414,139 +414,64 @@ pub fn check_liquidating_orders_on_price_ticker_update_localdb(current_price: f6
 }
 pub fn check_settling_limit_order_on_price_ticker_update_localdb(current_price: f64) {
     let limit_lock = SETTLEMENTLIMITSTATUS.lock().unwrap();
-    let mut get_open_order_short_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-    let orderid_list_short: Vec<Uuid> =
-        get_open_order_short_list.search_gt((current_price * 10000.0) as i64);
-    drop(get_open_order_short_list);
-    let mut get_open_order_long_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-    let orderid_list_long: Vec<Uuid> =
-        get_open_order_long_list.search_lt((current_price * 10000.0) as i64);
-    drop(get_open_order_long_list);
+    let price_scaled = (current_price * 10000.0) as i64;
 
-    // Stop Loss and Take Profit Close LIMIT Price
-    let mut get_sltp_order_short_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
-    let orderid_list_sltp_short: Vec<Uuid> =
-        get_sltp_order_short_list.search_gt((current_price * 10000.0) as i64);
-    drop(get_sltp_order_short_list);
-    let mut get_sltp_order_long_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
-    let orderid_list_sltp_long: Vec<Uuid> =
-        get_sltp_order_long_list.search_lt((current_price * 10000.0) as i64);
-    drop(get_sltp_order_long_list);
-    // End of Stop Loss and Take Profit Close LIMIT Price
+    // Collect triggered order IDs from all four sorted sets
+    let limit_short = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap().search_gt(price_scaled);
+    let limit_long = TRADER_LIMIT_CLOSE_LONG.lock().unwrap().search_lt(price_scaled);
+    let sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap().search_gt(price_scaled);
+    let sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap().search_lt(price_scaled);
 
-    let orderid_list_short_len = orderid_list_short.len();
-    let orderid_list_long_len = orderid_list_long.len();
+    // Emit sorted-set bulk-remove events for each non-empty group
+    let bulk_removes: [(
+        &Vec<Uuid>,
+        SortedSetCommand,
+        &str,
+    ); 4] = [
+        (&limit_short, SortedSetCommand::BulkSearchRemoveCloseLimitPrice(current_price, PositionType::SHORT), "BulkSearchRemoveCloseLimitPrice"),
+        (&limit_long, SortedSetCommand::BulkSearchRemoveCloseLimitPrice(current_price, PositionType::LONG), "BulkSearchRemoveCloseLimitPrice"),
+        (&sltp_short, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::SHORT), "BulkSearchRemoveSLTPCloseLIMITPrice"),
+        (&sltp_long, SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(current_price, PositionType::LONG), "BulkSearchRemoveSLTPCloseLIMITPrice"),
+    ];
+    for (ids, cmd, key) in &bulk_removes {
+        if !ids.is_empty() {
+            Event::new(
+                Event::SortedSetDBUpdate(cmd.clone(), iso8601(&std::time::SystemTime::now())),
+                String::from(*key),
+                CORE_EVENT_LOG.clone().to_string(),
+            );
+        }
+    }
 
-    // Stop Loss and Take Profit Close LIMIT Price
-    let orderid_list_sltp_short_len = orderid_list_sltp_short.len();
-    let orderid_list_sltp_long_len = orderid_list_sltp_long.len();
-    // End of Stop Loss and Take Profit Close LIMIT Price
-
-    if orderid_list_short_len > 0 {
-        Event::new(
-            Event::SortedSetDBUpdate(
-                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                    current_price.clone(),
-                    PositionType::SHORT,
-                ),
-                iso8601(&std::time::SystemTime::now()),
-            ),
-            String::from("BulkSearchRemoveCloseLimitPrice"),
-            CORE_EVENT_LOG.clone().to_string(),
-        );
-    }
-    if orderid_list_long_len > 0 {
-        Event::new(
-            Event::SortedSetDBUpdate(
-                SortedSetCommand::BulkSearchRemoveCloseLimitPrice(
-                    current_price.clone(),
-                    PositionType::LONG,
-                ),
-                iso8601(&std::time::SystemTime::now()),
-            ),
-            String::from("BulkSearchRemoveCloseLimitPrice"),
-            CORE_EVENT_LOG.clone().to_string(),
-        );
-    }
-    // SLTP
-    if orderid_list_sltp_short_len > 0 {
-        Event::new(
-            Event::SortedSetDBUpdate(
-                SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
-                    current_price.clone(),
-                    PositionType::SHORT,
-                ),
-                iso8601(&std::time::SystemTime::now()),
-            ),
-            String::from("BulkSearchRemoveSLTPCloseLIMITPrice"),
-            CORE_EVENT_LOG.clone().to_string(),
-        );
-    }
-    if orderid_list_sltp_long_len > 0 {
-        Event::new(
-            Event::SortedSetDBUpdate(
-                SortedSetCommand::BulkSearchRemoveSLTPCloseLIMITPrice(
-                    current_price.clone(),
-                    PositionType::LONG,
-                ),
-                iso8601(&std::time::SystemTime::now()),
-            ),
-            String::from("BulkSearchRemoveSLTPCloseLIMITPrice"),
-            CORE_EVENT_LOG.clone().to_string(),
-        );
-    }
-    let total_order_count = orderid_list_short_len
-        + orderid_list_long_len
-        + orderid_list_sltp_short_len
-        + orderid_list_sltp_long_len;
-    if total_order_count > 0 {
+    // Dispatch settle commands for each non-empty group
+    let settle_groups: [(Vec<Uuid>, OrderType); 4] = [
+        (limit_short, OrderType::LIMIT),
+        (limit_long, OrderType::LIMIT),
+        (sltp_short, OrderType::SLTP),
+        (sltp_long, OrderType::SLTP),
+    ];
+    let has_orders = settle_groups.iter().any(|(ids, _)| !ids.is_empty());
+    if has_orders {
         let meta = Meta {
             metadata: {
                 let mut hashmap = HashMap::new();
-                hashmap.insert(
-                    String::from("request_server_time"),
-                    Some(ServerTime::now().epoch),
-                );
-                hashmap.insert(
-                    String::from("CurrentPrice"),
-                    Some(current_price.to_string()),
-                );
+                hashmap.insert(String::from("request_server_time"), Some(ServerTime::now().epoch));
+                hashmap.insert(String::from("CurrentPrice"), Some(current_price.to_string()));
                 hashmap
             },
         };
-        if orderid_list_short_len > 0 {
-            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
-                orderid_list_short,
-                meta.clone(),
-                current_price,
-                OrderType::LIMIT,
-            ));
-        }
-        if orderid_list_long_len > 0 {
-            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
-                orderid_list_long,
-                meta.clone(),
-                current_price,
-                OrderType::LIMIT,
-            ));
-        }
-        if orderid_list_sltp_short_len > 0 {
-            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
-                orderid_list_sltp_short,
-                meta.clone(),
-                current_price,
-                OrderType::SLTP,
-            ));
-        }
-        if orderid_list_sltp_long_len > 0 {
-            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
-                orderid_list_sltp_long,
-                meta,
-                current_price,
-                OrderType::SLTP,
-            ));
+        for (ids, order_type) in settle_groups {
+            if !ids.is_empty() {
+                relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                    ids,
+                    meta.clone(),
+                    current_price,
+                    order_type,
+                ));
+            }
         }
     }
+
     drop(limit_lock);
 }
 
