@@ -164,13 +164,36 @@ impl PersistentEventQueue {
             return;
         }
 
-        // Delete the DB directory
-        if let Err(e) = std::fs::remove_dir_all(path) {
-            crate::log_heartbeat!(
-                warn,
-                "PERSISTENT_QUEUE: Failed to remove DB directory during reset: {}",
-                e
-            );
+        // Clear contents of the DB directory instead of removing it entirely,
+        // since Docker volume mount points cannot be deleted from inside the container.
+        match std::fs::read_dir(path) {
+            Ok(entries) => {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let p = entry.path();
+                        let res = if p.is_dir() {
+                            std::fs::remove_dir_all(&p)
+                        } else {
+                            std::fs::remove_file(&p)
+                        };
+                        if let Err(e) = res {
+                            crate::log_heartbeat!(
+                                warn,
+                                "PERSISTENT_QUEUE: Failed to remove {:?} during reset: {}",
+                                p,
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                crate::log_heartbeat!(
+                    warn,
+                    "PERSISTENT_QUEUE: Failed to read DB directory during reset: {}",
+                    e
+                );
+            }
         }
 
         // Reopen a fresh DB at the same path
