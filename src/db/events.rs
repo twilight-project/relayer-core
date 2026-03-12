@@ -314,7 +314,8 @@ impl EventKey {
                 "TraderOrderUpdate"
                 | "TraderOrderFundingUpdate"
                 | "TraderOrderLiquidation"
-                | "FeeUpdate" => {
+                | "FeeUpdate"
+                | "PoolUpdate" => {
                     // v0.1.2 -> v0.1.3: PriceTickerOrderSettle changed from 3 fields to 4 (added OrderType).
                     // Old: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64)
                     // New: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64, OrderType)
@@ -419,6 +420,9 @@ impl EventKey {
                                 serde_json::to_string(&Event::FeeUpdate(new_cmd, time)).unwrap()
                             })
                         }
+                        // PoolUpdate contains LendPoolCommand which has RelayerCommand inside —
+                        // too deeply nested for typed upcast, will be handled by untyped JSON fallback below
+                        "PoolUpdate" => None,
                         _ => None,
                     };
 
