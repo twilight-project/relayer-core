@@ -429,8 +429,6 @@ impl EventKey {
                     if let Some(new_log) = result {
                         self.event_version = "v0.1.3".to_string();
                         return new_log;
-                    } else {
-                        println!("Failed to upcast RelayerCommandOld: {:?}", log);
                     }
                     // Typed deserialization failed (old TraderOrder/Meta shape) — try untyped JSON patching
                     // to fix PriceTickerOrderSettle from 3 fields to 4.
@@ -473,41 +471,41 @@ impl EventKey {
                 }
                 _ => {
                     // Patch PriceTickerOrderSettle from 3 to 4 fields for any event type
-                    if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&log) {
-                        fn patch_pts(v: &mut serde_json::Value) -> bool {
-                            let mut patched = false;
-                            match v {
-                                serde_json::Value::Object(map) => {
-                                    if let Some(arr) = map.get_mut("PriceTickerOrderSettle") {
-                                        if let serde_json::Value::Array(ref mut fields) = arr {
-                                            if fields.len() == 3 {
-                                                fields.push(serde_json::json!("LIMIT"));
-                                                patched = true;
-                                            }
-                                        }
-                                    }
-                                    for (_, val) in map.iter_mut() {
-                                        if patch_pts(val) {
-                                            patched = true;
-                                        }
-                                    }
-                                }
-                                serde_json::Value::Array(arr) => {
-                                    for item in arr.iter_mut() {
-                                        if patch_pts(item) {
-                                            patched = true;
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
-                            patched
-                        }
-                        if patch_pts(&mut value) {
-                            self.event_version = "v0.1.3".to_string();
-                            return serde_json::to_string(&value).unwrap();
-                        }
-                    }
+                    // if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&log) {
+                    //     fn patch_pts(v: &mut serde_json::Value) -> bool {
+                    //         let mut patched = false;
+                    //         match v {
+                    //             serde_json::Value::Object(map) => {
+                    //                 if let Some(arr) = map.get_mut("PriceTickerOrderSettle") {
+                    //                     if let serde_json::Value::Array(ref mut fields) = arr {
+                    //                         if fields.len() == 3 {
+                    //                             fields.push(serde_json::json!("LIMIT"));
+                    //                             patched = true;
+                    //                         }
+                    //                     }
+                    //                 }
+                    //                 for (_, val) in map.iter_mut() {
+                    //                     if patch_pts(val) {
+                    //                         patched = true;
+                    //                     }
+                    //                 }
+                    //             }
+                    //             serde_json::Value::Array(arr) => {
+                    //                 for item in arr.iter_mut() {
+                    //                     if patch_pts(item) {
+                    //                         patched = true;
+                    //                     }
+                    //                 }
+                    //             }
+                    //             _ => {}
+                    //         }
+                    //         patched
+                    //     }
+                    //     if patch_pts(&mut value) {
+                    //         self.event_version = "v0.1.3".to_string();
+                    //         return serde_json::to_string(&value).unwrap();
+                    //     }
+                    // }
                     self.event_version = "v0.1.3".to_string();
                 }
             },
