@@ -77,7 +77,7 @@ pub fn zkos_order_handler(
                                                         Err(_) => {
                                                             crate::log_trading!(
                                                                 error,
-                                                                "error in sender at line 1231"
+                                                                "error in sender at line 80"
                                                             );
                                                         }
                                                     }
@@ -94,14 +94,15 @@ pub fn zkos_order_handler(
                                                             drop(output_hex_storage);
                                                             Event::new(
                                                                 Event::TxHash(
-                                                                    trader_order.uuid,
-                                                                    trader_order.account_id,
-                                                                    tx_hash.clone(),
-                                                                    trader_order.order_type,
-                                                                    trader_order.order_status,
-                                                                    ServerTime::now().epoch,
-                                                                    output_memo_hex,
-                                                                    request_id
+                                                                    TxHashData::new(
+                                                                        trader_order.uuid,
+                                                                        trader_order.account_id,
+                                                                        tx_hash.clone(),
+                                                                        trader_order.order_type,
+                                                                        trader_order.order_status,
+                                                                        request_id,
+                                                                    )
+                                                                    .with_output(output_memo_hex)
                                                                 ),
                                                                 format!(
                                                                     "tx_hash_result-{:?}",
@@ -113,14 +114,15 @@ pub fn zkos_order_handler(
                                                         Err(arg) => {
                                                             Event::new(
                                                                 Event::TxHash(
-                                                                    trader_order.uuid,
-                                                                    trader_order.account_id,
-                                                                    arg,
-                                                                    trader_order.order_type,
-                                                                    OrderStatus::RejectedFromChain,
-                                                                    ServerTime::now().epoch,
-                                                                    None,
-                                                                    request_id
+                                                                    TxHashData::new(
+                                                                        trader_order.uuid,
+                                                                        trader_order.account_id,
+                                                                        String::new(),
+                                                                        trader_order.order_type,
+                                                                        OrderStatus::RejectedFromChain,
+                                                                        request_id,
+                                                                    )
+                                                                    .with_reason(format!("Error : {:?}, Failed to create trader order", arg))
                                                                 ),
                                                                 String::from("tx_hash_error"),
                                                                 CORE_EVENT_LOG.clone().to_string()
@@ -131,14 +133,15 @@ pub fn zkos_order_handler(
                                                 Err(arg) => {
                                                     Event::new(
                                                         Event::TxHash(
-                                                            trader_order.uuid,
-                                                            trader_order.account_id,
-                                                            arg.to_string(),
-                                                            trader_order.order_type,
-                                                            OrderStatus::UtxoError,
-                                                            ServerTime::now().epoch,
-                                                            None,
-                                                            request_id
+                                                            TxHashData::new(
+                                                                trader_order.uuid,
+                                                                trader_order.account_id,
+                                                                String::new(),
+                                                                trader_order.order_type,
+                                                                OrderStatus::UtxoError,
+                                                                request_id,
+                                                            )
+                                                            .with_reason(format!("Error : {:?}, Failed to create trader order", arg))
                                                         ),
                                                         String::from("tx_hash_error"),
                                                         CORE_EVENT_LOG.clone().to_string()
@@ -155,14 +158,15 @@ pub fn zkos_order_handler(
                                             );
                                             Event::new(
                                                 Event::TxHash(
-                                                    trader_order.uuid,
-                                                    trader_order.account_id,
-                                                    arg.to_string(),
-                                                    trader_order.order_type,
-                                                    OrderStatus::SerializationError,
-                                                    ServerTime::now().epoch,
-                                                    None,
-                                                    request_id
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        String::new(),
+                                                        trader_order.order_type,
+                                                        OrderStatus::SerializationError,
+                                                        request_id,
+                                                    )
+                                                    .with_reason(format!("Error : {:?}, Failed to create trader order", arg))
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -266,14 +270,15 @@ pub fn zkos_order_handler(
                                                 Ok(tx_hash) => {
                                                     Event::new(
                                                         Event::TxHash(
-                                                            lend_order.uuid,
-                                                            lend_order.account_id,
-                                                            tx_hash.clone(),
-                                                            lend_order.order_type,
-                                                            lend_order.order_status,
-                                                            ServerTime::now().epoch,
-                                                            output_memo_hex,
-                                                            request_id
+                                                            TxHashData::new(
+                                                                lend_order.uuid,
+                                                                lend_order.account_id,
+                                                                tx_hash.clone(),
+                                                                lend_order.order_type,
+                                                                lend_order.order_status,
+                                                                request_id,
+                                                            )
+                                                            .with_output(output_memo_hex)
                                                         ),
                                                         format!("tx_hash_result-{:?}", tx_hash),
                                                         CORE_EVENT_LOG.clone().to_string()
@@ -282,14 +287,15 @@ pub fn zkos_order_handler(
                                                 Err(arg) => {
                                                     Event::new(
                                                         Event::TxHash(
-                                                            lend_order.uuid,
-                                                            lend_order.account_id,
-                                                            arg,
-                                                            lend_order.order_type,
-                                                            OrderStatus::RejectedFromChain,
-                                                            ServerTime::now().epoch,
-                                                            None,
-                                                            request_id
+                                                            TxHashData::new(
+                                                                lend_order.uuid,
+                                                                lend_order.account_id,
+                                                                String::new(),
+                                                                lend_order.order_type,
+                                                                OrderStatus::RejectedFromChain,
+                                                                request_id,
+                                                            )
+                                                            .with_reason(format!("Error : {:?}, Failed to create lend order", arg))
                                                         ),
                                                         String::from("tx_hash_error"),
                                                         CORE_EVENT_LOG.clone().to_string()
@@ -300,14 +306,15 @@ pub fn zkos_order_handler(
                                         Err(arg) => {
                                             Event::new(
                                                 Event::TxHash(
-                                                    lend_order.uuid,
-                                                    lend_order.account_id,
-                                                    arg.to_string(),
-                                                    lend_order.order_type,
-                                                    OrderStatus::UtxoError,
-                                                    ServerTime::now().epoch,
-                                                    None,
-                                                    request_id
+                                                    TxHashData::new(
+                                                        lend_order.uuid,
+                                                        lend_order.account_id,
+                                                        String::new(),
+                                                        lend_order.order_type,
+                                                        OrderStatus::UtxoError,
+                                                        request_id,
+                                                    )
+                                                    .with_reason(format!("Error : {:?}, Failed to create lend order", arg))
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -324,14 +331,15 @@ pub fn zkos_order_handler(
                                     );
                                     Event::new(
                                         Event::TxHash(
-                                            lend_order.uuid,
-                                            lend_order.account_id,
-                                            arg,
-                                            lend_order.order_type,
-                                            OrderStatus::SerializationError,
-                                            ServerTime::now().epoch,
-                                            None,
-                                            request_id
+                                            TxHashData::new(
+                                                lend_order.uuid,
+                                                lend_order.account_id,
+                                                String::new(),
+                                                lend_order.order_type,
+                                                OrderStatus::SerializationError,
+                                                request_id,
+                                            )
+                                            .with_reason(format!("Error : {:?}, Failed to create lend order", arg))
                                         ),
                                         String::from("tx_hash_error"),
                                         CORE_EVENT_LOG.clone().to_string()
@@ -460,14 +468,14 @@ pub fn zkos_order_handler(
                                         Ok(tx_hash) => {
                                             Event::new(
                                                 Event::TxHash(
-                                                    trader_order.uuid,
-                                                    trader_order.account_id,
-                                                    tx_hash.clone(),
-                                                    trader_order.order_type,
-                                                    trader_order.order_status,
-                                                    ServerTime::now().epoch,
-                                                    None,
-                                                    request_id
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        tx_hash.clone(),
+                                                        OrderType::MARKET,
+                                                        trader_order.order_status,
+                                                        request_id,
+                                                    )
                                                 ),
                                                 format!("tx_hash_result-{:?}", tx_hash),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -476,14 +484,15 @@ pub fn zkos_order_handler(
                                         Err(arg) => {
                                             Event::new(
                                                 Event::TxHash(
-                                                    trader_order.uuid,
-                                                    trader_order.account_id,
-                                                    arg,
-                                                    trader_order.order_type,
-                                                    OrderStatus::RejectedFromChain,
-                                                    ServerTime::now().epoch,
-                                                    None,
-                                                    request_id
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        String::new(),
+                                                        trader_order.order_type,
+                                                        OrderStatus::RejectedFromChain,
+                                                        request_id,
+                                                    )
+                                                    .with_reason(format!("Error : {:?}, Failed to settle trader order", arg))
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -500,14 +509,15 @@ pub fn zkos_order_handler(
                                     );
                                     Event::new(
                                         Event::TxHash(
-                                            trader_order.uuid,
-                                            trader_order.account_id,
-                                            arg,
-                                            trader_order.order_type,
-                                            OrderStatus::SerializationError,
-                                            ServerTime::now().epoch,
-                                            None,
-                                            request_id
+                                            TxHashData::new(
+                                                trader_order.uuid,
+                                                trader_order.account_id,
+                                                String::new(),
+                                                trader_order.order_type,
+                                                OrderStatus::SerializationError,
+                                                request_id,
+                                            )
+                                            .with_reason(format!("Error : {:?}, Failed to settle trader order", arg))
                                         ),
                                         String::from("tx_hash_error"),
                                         CORE_EVENT_LOG.clone().to_string()
@@ -584,7 +594,7 @@ pub fn zkos_order_handler(
                                         Err(_) => {
                                             crate::log_trading!(
                                                 error,
-                                                "error in sender at line 1684"
+                                                "error in sender at line 597"
                                             );
                                         }
                                     }
@@ -593,14 +603,14 @@ pub fn zkos_order_handler(
                                         Ok(tx_hash) => {
                                             Event::new(
                                                 Event::TxHash(
-                                                    lend_order.uuid,
-                                                    lend_order.account_id,
-                                                    tx_hash.clone(),
-                                                    lend_order.order_type,
-                                                    lend_order.order_status,
-                                                    ServerTime::now().epoch,
-                                                    None,
-                                                    request_id
+                                                    TxHashData::new(
+                                                        lend_order.uuid,
+                                                        lend_order.account_id,
+                                                        tx_hash.clone(),
+                                                        lend_order.order_type,
+                                                        lend_order.order_status,
+                                                        request_id,
+                                                    )
                                                 ),
                                                 format!("tx_hash_result-{:?}", tx_hash),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -609,14 +619,15 @@ pub fn zkos_order_handler(
                                         Err(arg) => {
                                             Event::new(
                                                 Event::TxHash(
-                                                    lend_order.uuid,
-                                                    lend_order.account_id,
-                                                    arg,
-                                                    lend_order.order_type,
-                                                    OrderStatus::RejectedFromChain,
-                                                    ServerTime::now().epoch,
-                                                    None,
-                                                    request_id
+                                                    TxHashData::new(
+                                                        lend_order.uuid,
+                                                        lend_order.account_id,
+                                                        String::new(),
+                                                        lend_order.order_type,
+                                                        OrderStatus::RejectedFromChain,
+                                                        request_id,
+                                                    )
+                                                    .with_reason(format!("Error : {:?}, Failed to settle lend order", arg))
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -633,14 +644,15 @@ pub fn zkos_order_handler(
                                     );
                                     Event::new(
                                         Event::TxHash(
-                                            lend_order.uuid,
-                                            lend_order.account_id,
-                                            arg,
-                                            lend_order.order_type,
-                                            OrderStatus::SerializationError,
-                                            ServerTime::now().epoch,
-                                            None,
-                                            request_id
+                                            TxHashData::new(
+                                                lend_order.uuid,
+                                                lend_order.account_id,
+                                                String::new(),
+                                                lend_order.order_type,
+                                                OrderStatus::SerializationError,
+                                                request_id,
+                                            )
+                                            .with_reason(format!("Error : {:?}, Failed to settle lend order", arg))
                                         ),
                                         String::from("tx_hash_error"),
                                         CORE_EVENT_LOG.clone().to_string()
@@ -778,7 +790,7 @@ pub fn zkos_order_handler(
                                                         Err(_) => {
                                                             crate::log_trading!(
                                                                 error,
-                                                                "error in sender at line 1866"
+                                                                "error in sender at line 793"
                                                             );
                                                         }
                                                     }
@@ -794,13 +806,15 @@ pub fn zkos_order_handler(
                                                             drop(output_hex_storage);
                                                             Event::new(
                                                                 Event::TxHashUpdate(
-                                                                    trader_order.uuid,
-                                                                    trader_order.account_id,
-                                                                    tx_hash.clone(),
-                                                                    trader_order.order_type,
-                                                                    trader_order.order_status,
-                                                                    ServerTime::now().epoch,
-                                                                    output_memo_hex
+                                                                    TxHashData::new(
+                                                                        trader_order.uuid,
+                                                                        trader_order.account_id,
+                                                                        tx_hash.clone(),
+                                                                        trader_order.order_type,
+                                                                        trader_order.order_status,
+                                                                        String::new(),
+                                                                    )
+                                                                    .with_output(output_memo_hex)
                                                                 ),
                                                                 format!(
                                                                     "tx_hash_result-{:?}",
@@ -812,13 +826,15 @@ pub fn zkos_order_handler(
                                                         Err(arg) => {
                                                             Event::new(
                                                                 Event::TxHashUpdate(
-                                                                    trader_order.uuid,
-                                                                    trader_order.account_id,
-                                                                    arg,
-                                                                    trader_order.order_type,
-                                                                    OrderStatus::RejectedFromChain,
-                                                                    ServerTime::now().epoch,
-                                                                    None
+                                                                    TxHashData::new(
+                                                                        trader_order.uuid,
+                                                                        trader_order.account_id,
+                                                                        String::new(),
+                                                                        trader_order.order_type,
+                                                                        OrderStatus::RejectedFromChain,
+                                                                        String::new(),
+                                                                    )
+                                                                    .with_reason(format!("Error : {:?}, Failed to fill limit order", arg))
                                                                 ),
                                                                 String::from("tx_hash_error"),
                                                                 CORE_EVENT_LOG.clone().to_string()
@@ -829,13 +845,15 @@ pub fn zkos_order_handler(
                                                 Err(arg) => {
                                                     Event::new(
                                                         Event::TxHashUpdate(
-                                                            trader_order.uuid,
-                                                            trader_order.account_id,
-                                                            arg.to_string(),
-                                                            trader_order.order_type,
-                                                            OrderStatus::UtxoError,
-                                                            ServerTime::now().epoch,
-                                                            None
+                                                            TxHashData::new(
+                                                                trader_order.uuid,
+                                                                trader_order.account_id,
+                                                                String::new(),
+                                                                trader_order.order_type,
+                                                                OrderStatus::UtxoError,
+                                                                String::new(),
+                                                            )
+                                                            .with_reason(format!("Error : {:?}, Failed to fill limit order", arg))
                                                         ),
                                                         String::from("tx_hash_error"),
                                                         CORE_EVENT_LOG.clone().to_string()
@@ -852,13 +870,15 @@ pub fn zkos_order_handler(
                                             );
                                             Event::new(
                                                 Event::TxHashUpdate(
-                                                    trader_order.uuid,
-                                                    trader_order.account_id,
-                                                    arg,
-                                                    trader_order.order_type,
-                                                    OrderStatus::SerializationError,
-                                                    ServerTime::now().epoch,
-                                                    None
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        String::new(),
+                                                        trader_order.order_type,
+                                                        OrderStatus::SerializationError,
+                                                        String::new(),
+                                                    )
+                                                    .with_reason(format!("Error : {:?}, Failed to fill limit order", arg))
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -896,6 +916,7 @@ pub fn zkos_order_handler(
                 zkos_string,
                 last_state_output,
                 next_state_output,
+                order_type,
             ) => {
                 let buffer = THREADPOOL_ZKOS_FIFO.lock().unwrap();
                 buffer.execute(move || {
@@ -1007,13 +1028,14 @@ pub fn zkos_order_handler(
                                             drop(tx_hash_storage);
                                             Event::new(
                                                 Event::TxHashUpdate(
-                                                    trader_order.uuid,
-                                                    trader_order.account_id,
-                                                    tx_hash.clone(),
-                                                    trader_order.order_type,
-                                                    trader_order.order_status,
-                                                    ServerTime::now().epoch,
-                                                    None
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        tx_hash.clone(),
+                                                        order_type.clone(),
+                                                        OrderStatus::SETTLED,
+                                                        String::new(),
+                                                    )
                                                 ),
                                                 format!("tx_hash_result-{:?}", tx_hash),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -1022,16 +1044,18 @@ pub fn zkos_order_handler(
                                         Err(arg) => {
                                             Event::new(
                                                 Event::TxHashUpdate(
-                                                    trader_order.uuid,
-                                                    trader_order.account_id,
-                                                    format!(
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        String::new(),
+                                                        order_type.clone(),
+                                                        OrderStatus::RejectedFromChain,
+                                                        String::new(),
+                                                    )
+                                                    .with_reason(format!(
                                                         "Error : {:?}, need to place new limit/market settle request",
                                                         arg
-                                                    ),
-                                                    trader_order.order_type,
-                                                    OrderStatus::RejectedFromChain,
-                                                    ServerTime::now().epoch,
-                                                    None
+                                                    ))
                                                 ),
                                                 String::from("tx_hash_error"),
                                                 CORE_EVENT_LOG.clone().to_string()
@@ -1048,16 +1072,18 @@ pub fn zkos_order_handler(
                                     );
                                     Event::new(
                                         Event::TxHashUpdate(
-                                            trader_order.uuid,
-                                            trader_order.account_id,
-                                            format!(
-                                                "Error : {:?}, need to place new limit/market settle request",
+                                            TxHashData::new(
+                                                trader_order.uuid,
+                                                trader_order.account_id,
+                                                String::new(),
+                                                order_type.clone(),
+                                                OrderStatus::SerializationError,
+                                                String::new(),
+                                            )
+                                            .with_reason(format!(
+                                                "Output Corrupted Error : {:?}, need to place new limit or market settle request",
                                                 arg
-                                            ),
-                                            trader_order.order_type,
-                                            OrderStatus::SerializationError,
-                                            ServerTime::now().epoch,
-                                            None
+                                            ))
                                         ),
                                         String::from("tx_hash_error"),
                                         CORE_EVENT_LOG.clone().to_string()
@@ -1162,15 +1188,14 @@ pub fn zkos_order_handler(
                                 let _ = tx_hash_storage.remove(trader_order.uuid_to_byte(), 0);
                                 drop(tx_hash_storage);
                                 Event::new(
-                                    Event::TxHashUpdate(
+                                    Event::TxHashUpdate(TxHashData::new(
                                         trader_order.uuid,
                                         trader_order.account_id,
                                         tx_hash.clone(),
                                         trader_order.order_type,
                                         trader_order.order_status,
-                                        ServerTime::now().epoch,
-                                        None,
-                                    ),
+                                        String::new(),
+                                    )),
                                     format!("tx_hash_result-{:?}", tx_hash),
                                     CORE_EVENT_LOG.clone().to_string(),
                                 );
@@ -1178,13 +1203,17 @@ pub fn zkos_order_handler(
                             Err(arg) => {
                                 Event::new(
                                     Event::TxHashUpdate(
-                                        trader_order.uuid,
-                                        trader_order.account_id,
-                                        format!("Error : {:?}, liquidation failed", arg),
-                                        trader_order.order_type,
-                                        OrderStatus::RejectedFromChain,
-                                        ServerTime::now().epoch,
-                                        None,
+                                        TxHashData::new(
+                                            trader_order.uuid,
+                                            trader_order.account_id,
+                                            String::new(),
+                                            trader_order.order_type,
+                                            OrderStatus::RejectedFromChain,
+                                            String::new(),
+                                        )
+                                        .with_reason(
+                                            format!("Error : {:?}, liquidation failed", arg),
+                                        ),
                                     ),
                                     String::from("tx_hash_error"),
                                     CORE_EVENT_LOG.clone().to_string(),
@@ -1203,13 +1232,17 @@ pub fn zkos_order_handler(
                         sender_clone.send(fn_response_tx_hash.clone()).unwrap();
                         Event::new(
                             Event::TxHashUpdate(
-                                trader_order.uuid,
-                                trader_order.account_id,
-                                "Error : Output memo not Found, liquidation failed".to_string(),
-                                trader_order.order_type,
-                                OrderStatus::UtxoError,
-                                ServerTime::now().epoch,
-                                None,
+                                TxHashData::new(
+                                    trader_order.uuid,
+                                    trader_order.account_id,
+                                    String::new(),
+                                    trader_order.order_type,
+                                    OrderStatus::UtxoError,
+                                    String::new(),
+                                )
+                                .with_reason(
+                                    "Error : Output memo not Found, liquidation failed".to_string(),
+                                ),
                             ),
                             String::from("tx_hash_error"),
                             CORE_EVENT_LOG.clone().to_string(),

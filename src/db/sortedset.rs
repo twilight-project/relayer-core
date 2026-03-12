@@ -30,7 +30,7 @@ impl SortedSet {
             Ok(())
         } else {
             Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
+                std::io::ErrorKind::AlreadyExists,
                 "Key already exist",
             ))
         }
@@ -93,15 +93,16 @@ impl SortedSet {
         result
     }
 
-    pub fn update(&mut self, uuid: Uuid, price: i64) -> Result<(), std::io::Error> {
+    pub fn update(&mut self, uuid: Uuid, price: i64) -> Result<i64, std::io::Error> {
         if self.hash.contains(&uuid) {
             let key_index = self
                 .sorted_order
                 .iter()
                 .position(|&(x, _y)| x == uuid)
                 .unwrap();
+            let old_price = self.sorted_order[key_index].1;
             self.sorted_order[key_index].1 = price;
-            Ok(())
+            Ok(old_price)
         } else {
             Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -131,7 +132,7 @@ impl SortedSet {
     pub fn search_lt(&mut self, price: i64) -> Vec<Uuid> {
         self.sort();
         let result: Vec<Uuid> = Vec::new();
-        if self.min_price < price {
+        if self.min_price <= price {
             let key_index = self.sorted_order.iter().rposition(|&(_x, y)| y <= price);
             if key_index.is_some() {
                 let result_vec: Vec<(Uuid, i64)> =
@@ -149,7 +150,7 @@ impl SortedSet {
     pub fn search_gt(&mut self, price: i64) -> Vec<Uuid> {
         self.sort();
         let result: Vec<Uuid> = Vec::new();
-        if self.max_price > price {
+        if self.max_price >= price {
             let key_index = self.sorted_order.iter().position(|&(_x, y)| y >= price);
             if key_index.is_some() {
                 let result_vec: Vec<(Uuid, i64)> = self
@@ -213,5 +214,22 @@ mod tests {
             (uuid_c, 888),
             "C should be updated to 888"
         );
+    }
+    #[test]
+    fn test_search_gt_on_single_entry_sorted_set() {
+        // UUID: bc9d2a30-18f0-4046-9d1b-aa67353fe8f8
+        let uuid = Uuid::parse_str("bc9d2a30-18f0-4046-9d1b-aa67353fe8f8").unwrap();
+        let price = 67500.0;
+        let mut set = SortedSet::new();
+        set.add(uuid, (price * 10000.0) as i64).unwrap();
+
+        // search_gt for price 67_500_000 (ten times less than stored price)
+        let result = set.search_gt((price * 10000.0) as i64);
+
+        // Print the result
+        println!("Result of search_gt(67_500_000): {:?}", result);
+
+        // Should return the single uuid, because 675_000_000 > 67_500_000
+        // assert_eq!(result, vec![uuid]);
     }
 }

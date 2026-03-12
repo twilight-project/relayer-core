@@ -58,7 +58,7 @@ pub enum RelayerCommand {
     FundingOrderEventUpdate(TraderOrder, Meta),
     PriceTickerLiquidation(Vec<Uuid>, Meta, f64),
     PriceTickerOrderFill(Vec<Uuid>, Meta, f64), //no update for lend pool
-    PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
+    PriceTickerOrderSettle(Vec<Uuid>, Meta, f64, OrderType),
     FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
     RpcCommandPoolupdate(),
     UpdateFees(f64, f64, f64, f64), //order_filled_on_market, order_filled_on_limit, order_settled_on_limit, order_settled_on_market
@@ -158,6 +158,7 @@ pub enum ZkosTxCommand {
         Option<ZkosHexString>,
         zkvm::Output,
         zkvm::Output,
+        OrderType,
     ),
     RelayerCommandTraderOrderLiquidateTX(TraderOrder, Option<Output>, zkvm::Output, zkvm::Output),
 }

@@ -89,8 +89,13 @@ impl TraderOrder {
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
         let fundingrate = get_localdb("FundingRate");
         let mm_ratio = RISK_PARAMS.lock().unwrap().mm_ratio;
-        let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
+        let maintenance_margin = maintenancemargin(
+            entry_value,
+            bankruptcy_value,
+            fee_percentage,
+            fundingrate,
+            mm_ratio,
+        );
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -157,8 +162,13 @@ impl TraderOrder {
             calculate_fee_on_open_order(fee_percentage, positionsize, current_price);
         let bankruptcy_price = bankruptcyprice(&position_type, entryprice, leverage);
         let bankruptcy_value = bankruptcyvalue(positionsize, bankruptcy_price);
-        let maintenance_margin =
-            maintenancemargin(entry_value, bankruptcy_value, fee_percentage, fundingrate, mm_ratio);
+        let maintenance_margin = maintenancemargin(
+            entry_value,
+            bankruptcy_value,
+            fee_percentage,
+            fundingrate,
+            mm_ratio,
+        );
         let liquidation_price = liquidationprice(
             entryprice,
             positionsize,
@@ -268,6 +278,7 @@ impl TraderOrder {
         current_price: f64,
         cmd_order_type: OrderType,
         sltp: Option<SlTpOrder>,
+        request_id: &String,
     ) -> (f64, OrderStatus) {
         let mut payment: f64 = 0.0;
         let mut orderstatus: OrderStatus = OrderStatus::FILLED;
@@ -286,8 +297,10 @@ impl TraderOrder {
                         );
                         orderstatus = OrderStatus::SETTLED;
                     } else {
-                        let order_caluculated =
-                            self.set_execution_price_for_limit_order_localdb(execution_price);
+                        let order_caluculated = self.set_execution_price_for_limit_order_localdb(
+                            execution_price,
+                            request_id,
+                        );
                     }
                 }
                 PositionType::SHORT => {
@@ -298,8 +311,10 @@ impl TraderOrder {
                         );
                         orderstatus = OrderStatus::SETTLED;
                     } else {
-                        let order_caluculated =
-                            self.set_execution_price_for_limit_order_localdb(execution_price);
+                        let order_caluculated = self.set_execution_price_for_limit_order_localdb(
+                            execution_price,
+                            request_id,
+                        );
                     }
                 }
             },
@@ -318,7 +333,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     sl,
-                                                    SlTpOrderType::StopLoss
+                                                    SlTpOrderType::StopLoss,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -333,7 +349,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     sl,
-                                                    SlTpOrderType::StopLoss
+                                                    SlTpOrderType::StopLoss,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -355,7 +372,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     tp,
-                                                    SlTpOrderType::TakeProfit
+                                                    SlTpOrderType::TakeProfit,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -370,7 +388,8 @@ impl TraderOrder {
                                     let order_caluculated =
                                                 self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
                                                     tp,
-                                                    SlTpOrderType::TakeProfit
+                                                    SlTpOrderType::TakeProfit,
+                                                    request_id
                                                 );
                                 }
                             }
@@ -393,6 +412,7 @@ impl TraderOrder {
     pub fn set_execution_price_for_limit_order_localdb(
         &mut self,
         execution_price: f64,
+        request_id: &String,
     ) -> Result<(), std::io::Error> {
         match self.position_type {
             PositionType::LONG => {
@@ -401,30 +421,69 @@ impl TraderOrder {
                     Ok(()) => {
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            )),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::AddCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        let tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            OrderType::LIMIT,
+                            OrderStatus::LimitPriceAdded,
+                            request_id.clone(),
+                        )
+                        .with_reason("Add Close limit price".to_string())
+                        .with_new_price(execution_price);
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("AddCloseLimitPrice-{}", self.uuid),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return Ok(());
                     }
                     Err(_) => {
-                        let result = add_to_limit_order_list
+                        let update_result = add_to_limit_order_list
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            )),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::UpdateCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        return result;
+                        let mut tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            OrderType::LIMIT,
+                            OrderStatus::LimitPriceUpdated,
+                            request_id.clone(),
+                        )
+                        .with_reason("Close limit price replaced".to_string())
+                        .with_new_price(execution_price);
+                        if let Ok(old_price) = &update_result {
+                            tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                        }
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("LimitPriceUpdated-{}", self.uuid),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return update_result.map(|_| ());
                     }
                 }
             }
@@ -434,30 +493,69 @@ impl TraderOrder {
                     Ok(()) => {
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::AddCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            )),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::AddCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        let tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            self.order_type.clone(),
+                            OrderStatus::LimitPriceAdded,
+                            request_id.clone(),
+                        )
+                        .with_reason("Add Close limit price".to_string())
+                        .with_new_price(execution_price);
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("AddCloseLimitPrice-{}", self.uuid),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
                         return Ok(());
                     }
                     Err(_) => {
-                        let result = add_to_limit_order_list
+                        let update_result = add_to_limit_order_list
                             .update(self.uuid, (execution_price * 10000.0) as i64);
                         drop(add_to_limit_order_list);
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::UpdateCloseLimitPrice(
-                                self.uuid.clone(),
-                                execution_price.clone(),
-                                self.position_type.clone(),
-                            )),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::UpdateCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    execution_price.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
-                        return result;
+                        let mut tx_data = TxHashData::new(
+                            self.uuid,
+                            self.account_id.clone(),
+                            String::new(),
+                            self.order_type.clone(),
+                            OrderStatus::LimitPriceUpdated,
+                            request_id.clone(),
+                        )
+                        .with_reason("Close limit price replaced".to_string())
+                        .with_new_price(execution_price);
+                        if let Ok(old_price) = &update_result {
+                            tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                        }
+                        Event::new(
+                            Event::TxHash(tx_data),
+                            format!("LimitPriceUpdated-{}", self.uuid),
+                            CORE_EVENT_LOG.clone().to_string(),
+                        );
+                        return update_result.map(|_| ());
                     }
                 }
             }
@@ -467,11 +565,12 @@ impl TraderOrder {
         &mut self,
         sltp_price: f64,
         sltp_type: SlTpOrderType,
+        request_id: &String,
     ) -> Result<(), std::io::Error> {
         match sltp_type {
             SlTpOrderType::StopLoss => match self.position_type {
                 PositionType::SHORT => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_SL_CLOSE_LONG.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -482,14 +581,30 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::StopLossAdded,
+                                request_id.clone(),
+                            )
+                            .with_reason("Add Stop loss price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddStopLossCloseLIMITPrice-{}", self.uuid),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -499,16 +614,35 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::StopLossUpdated,
+                                request_id.clone(),
+                            )
+                            .with_reason("Stop loss price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("StopLossUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
                 PositionType::LONG => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_SL_CLOSE_SHORT.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -519,14 +653,30 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::StopLossAdded,
+                                request_id.clone(),
+                            )
+                            .with_reason("Add Stop loss price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddStopLossCloseLIMITPrice-{}", self.uuid),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -536,18 +686,37 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::StopLossUpdated,
+                                request_id.clone(),
+                            )
+                            .with_reason("Stop loss price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("StopLossUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
             },
             SlTpOrderType::TakeProfit => match self.position_type {
                 PositionType::LONG => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_TP_CLOSE_LONG.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -558,14 +727,30 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::TakeProfitAdded,
+                                request_id.clone(),
+                            )
+                            .with_reason("Add Take profit price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddTakeProfitCloseLIMITPrice-{}", self.uuid),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -575,16 +760,35 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::TakeProfitUpdated,
+                                request_id.clone(),
+                            )
+                            .with_reason("Take profit price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("TakeProfitUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
                 PositionType::SHORT => {
-                    let mut add_to_limit_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut add_to_limit_order_list = TRADER_TP_CLOSE_SHORT.lock().unwrap();
                     match add_to_limit_order_list.add(self.uuid, (sltp_price * 10000.0) as i64) {
                         Ok(()) => {
                             drop(add_to_limit_order_list);
@@ -595,14 +799,30 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("AddCloseLimitPrice-{}", self.uuid.clone()),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            let tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::TakeProfitAdded,
+                                request_id.clone(),
+                            )
+                            .with_reason("Add Take profit price".to_string())
+                            .with_new_price(sltp_price);
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("AddTakeProfitCloseLIMITPrice-{}", self.uuid),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
                             return Ok(());
                         }
                         Err(_) => {
-                            let result = add_to_limit_order_list
+                            let update_result = add_to_limit_order_list
                                 .update(self.uuid, (sltp_price * 10000.0) as i64);
                             drop(add_to_limit_order_list);
                             Event::new(
@@ -612,11 +832,30 @@ impl TraderOrder {
                                         sltp_price.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("UpdateCloseLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
-                            return result;
+                            let mut tx_data = TxHashData::new(
+                                self.uuid,
+                                self.account_id.clone(),
+                                String::new(),
+                                OrderType::SLTP,
+                                OrderStatus::TakeProfitUpdated,
+                                request_id.clone(),
+                            )
+                            .with_reason("Take profit price replaced".to_string())
+                            .with_new_price(sltp_price);
+                            if let Ok(old_price) = &update_result {
+                                tx_data = tx_data.with_old_price(*old_price as f64 / 10000.0);
+                            }
+                            Event::new(
+                                Event::TxHash(tx_data),
+                                format!("TakeProfitUpdated-{}", self.uuid),
+                                CORE_EVENT_LOG.clone().to_string(),
+                            );
+                            return update_result.map(|_| ());
                         }
                     }
                 }
@@ -652,7 +891,7 @@ impl TraderOrder {
         payment
     }
 
-    pub fn order_remove_from_localdb(&self) {
+    pub fn order_remove_from_localdb(&self, order_type_ref: &OrderType, request_id: &String) {
         let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
         RiskState::remove_order(
@@ -664,35 +903,221 @@ impl TraderOrder {
                 let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
                 let _ = add_to_liquidation_list.remove(ordertx.uuid);
                 drop(add_to_liquidation_list);
+
+                // Remove close limit order if exists
                 let mut remove_from_limit_order_list = TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-                if let Ok((_, _)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                if let Ok((_, old_price)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                    drop(remove_from_limit_order_list);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                            ordertx.uuid,
-                            PositionType::LONG,
-                        )),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveCloseLimitPrice(
+                                ordertx.uuid,
+                                PositionType::LONG,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                order_type_ref.clone(),
+                                OrderStatus::CancelledLimitClose,
+                                request_id.clone(),
+                            )
+                            .with_reason("Close limit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0),
+                        ),
+                        format!("CancelledLimitClose-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(remove_from_limit_order_list);
                 }
-                drop(remove_from_limit_order_list);
+
+                // Remove SLTP stop loss (LONG SL is in SL_CLOSE_SHORT)
+                let mut sltp_short = TRADER_SL_CLOSE_SHORT.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
+                    drop(sltp_short);
+                    Event::new(
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::LONG,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
+                        format!("RemoveStopLossCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                order_type_ref.clone(),
+                                OrderStatus::CancelledStopLoss,
+                                request_id.clone(),
+                            )
+                            .with_reason("Stop loss cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0),
+                        ),
+                        format!("CancelledStopLoss-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_short);
+                }
+
+                // Remove SLTP take profit (LONG TP is in TP_CLOSE_LONG)
+                let mut sltp_long = TRADER_TP_CLOSE_LONG.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
+                    drop(sltp_long);
+                    Event::new(
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::LONG,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
+                        format!("RemoveTakeProfitCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                order_type_ref.clone(),
+                                OrderStatus::CancelledTakeProfit,
+                                request_id.clone(),
+                            )
+                            .with_reason("Take profit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0),
+                        ),
+                        format!("CancelledTakeProfit-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_long);
+                }
             }
             PositionType::SHORT => {
                 let mut add_to_liquidation_list = TRADER_LP_SHORT.lock().unwrap();
                 let _ = add_to_liquidation_list.remove(ordertx.uuid);
                 drop(add_to_liquidation_list);
+
+                // Remove close limit order if exists
                 let mut remove_from_limit_order_list = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-                if let Ok((_, _)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                if let Ok((_, old_price)) = remove_from_limit_order_list.remove(ordertx.uuid) {
+                    drop(remove_from_limit_order_list);
                     Event::new(
-                        Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                            ordertx.uuid,
-                            PositionType::SHORT,
-                        )),
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveCloseLimitPrice(
+                                ordertx.uuid,
+                                PositionType::SHORT,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
                         format!("RemoveCloseLimitPrice-{}", ordertx.uuid),
                         CORE_EVENT_LOG.clone().to_string(),
                     );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                order_type_ref.clone(),
+                                OrderStatus::CancelledLimitClose,
+                                request_id.clone(),
+                            )
+                            .with_reason("Close limit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0),
+                        ),
+                        format!("CancelledLimitClose-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(remove_from_limit_order_list);
                 }
-                drop(remove_from_limit_order_list);
+
+                // Remove SLTP stop loss (SHORT SL is in SL_CLOSE_LONG)
+                let mut sltp_long = TRADER_SL_CLOSE_LONG.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_long.remove(ordertx.uuid) {
+                    drop(sltp_long);
+                    Event::new(
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::SHORT,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
+                        format!("RemoveStopLossCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                order_type_ref.clone(),
+                                OrderStatus::CancelledStopLoss,
+                                request_id.clone(),
+                            )
+                            .with_reason("Stop loss cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0),
+                        ),
+                        format!("CancelledStopLoss-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_long);
+                }
+
+                // Remove SLTP take profit (SHORT TP is in TP_CLOSE_SHORT)
+                let mut sltp_short = TRADER_TP_CLOSE_SHORT.lock().unwrap();
+                if let Ok((_, old_price)) = sltp_short.remove(ordertx.uuid) {
+                    drop(sltp_short);
+                    Event::new(
+                        Event::SortedSetDBUpdate(
+                            SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                ordertx.uuid,
+                                PositionType::SHORT,
+                            ),
+                            iso8601(&std::time::SystemTime::now()),
+                        ),
+                        format!("RemoveTakeProfitCloseLIMITPrice-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                    Event::new(
+                        Event::TxHash(
+                            TxHashData::new(
+                                ordertx.uuid,
+                                ordertx.account_id.clone(),
+                                String::new(),
+                                order_type_ref.clone(),
+                                OrderStatus::CancelledTakeProfit,
+                                request_id.clone(),
+                            )
+                            .with_reason("Take profit cancelled on order settlement".to_string())
+                            .with_old_price(old_price as f64 / 10000.0),
+                        ),
+                        format!("CancelledTakeProfit-{}", ordertx.uuid),
+                        CORE_EVENT_LOG.clone().to_string(),
+                    );
+                } else {
+                    drop(sltp_short);
+                }
             }
         }
     }
@@ -712,10 +1137,13 @@ impl TraderOrder {
                                 entryvalue(self.initial_margin, self.leverage),
                             );
                             Event::new(
-                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
-                                    self.uuid.clone(),
-                                    self.position_type.clone(),
-                                )),
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveOpenLimitPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                    iso8601(&std::time::SystemTime::now()),
+                                ),
                                 format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -738,10 +1166,13 @@ impl TraderOrder {
                                 entryvalue(self.initial_margin, self.leverage),
                             );
                             Event::new(
-                                Event::SortedSetDBUpdate(SortedSetCommand::RemoveOpenLimitPrice(
-                                    self.uuid.clone(),
-                                    self.position_type.clone(),
-                                )),
+                                Event::SortedSetDBUpdate(
+                                    SortedSetCommand::RemoveOpenLimitPrice(
+                                        self.uuid.clone(),
+                                        self.position_type.clone(),
+                                    ),
+                                    iso8601(&std::time::SystemTime::now()),
+                                ),
                                 format!("RemoveOpenLimitPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
                             );
@@ -767,10 +1198,13 @@ impl TraderOrder {
                 match result {
                     Ok((_, _)) => {
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                                self.uuid.clone(),
-                                self.position_type.clone(),
-                            )),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::RemoveCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -786,10 +1220,13 @@ impl TraderOrder {
                 match result {
                     Ok((_, _)) => {
                         Event::new(
-                            Event::SortedSetDBUpdate(SortedSetCommand::RemoveCloseLimitPrice(
-                                self.uuid.clone(),
-                                self.position_type.clone(),
-                            )),
+                            Event::SortedSetDBUpdate(
+                                SortedSetCommand::RemoveCloseLimitPrice(
+                                    self.uuid.clone(),
+                                    self.position_type.clone(),
+                                ),
+                                iso8601(&std::time::SystemTime::now()),
+                            ),
                             format!("RemoveCloseLimitPrice-{}", self.uuid.clone()),
                             CORE_EVENT_LOG.clone().to_string(),
                         );
@@ -802,28 +1239,39 @@ impl TraderOrder {
     }
     pub fn cancel_sltp_order(
         &mut self,
-        sltp_type: SlTpOrderCancel,
-    ) -> (bool, OrderStatus, bool, OrderStatus) {
+        sltp_type: &SlTpOrderCancel,
+    ) -> (
+        bool,
+        OrderStatus,
+        bool,
+        OrderStatus,
+        Option<f64>,
+        Option<f64>,
+    ) {
         let result: Result<(Uuid, i64), std::io::Error>;
         let mut cancel_status_sl: bool = false;
         let mut cancel_status_tp: bool = false;
         let mut order_status_sl: OrderStatus = OrderStatus::PENDING;
         let mut order_status_tp: OrderStatus = OrderStatus::PENDING;
+        let mut sl_old_price: Option<f64> = None;
+        let mut tp_old_price: Option<f64> = None;
         if sltp_type.sl {
             match self.position_type {
                 PositionType::SHORT => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_SL_CLOSE_LONG.lock().unwrap();
                     result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
                             // self.order_status = OrderStatus::CANCELLED;
+                            sl_old_price = Some(old_price as f64 / 10000.0);
                             Event::new(
                                 Event::SortedSetDBUpdate(
                                     SortedSetCommand::RemoveStopLossCloseLIMITPrice(
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveStopLossCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -839,11 +1287,12 @@ impl TraderOrder {
                     }
                 }
                 PositionType::LONG => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_SL_CLOSE_SHORT.lock().unwrap();
                     result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
+                            sl_old_price = Some(old_price as f64 / 10000.0);
                             // self.order_status = OrderStatus::CANCELLED;
                             Event::new(
                                 Event::SortedSetDBUpdate(
@@ -851,6 +1300,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveStopLossCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -870,11 +1320,12 @@ impl TraderOrder {
         if sltp_type.tp {
             match self.position_type {
                 PositionType::LONG => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_TP_CLOSE_LONG.lock().unwrap();
                     let result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
+                            tp_old_price = Some(old_price as f64 / 10000.0);
                             // self.order_status = OrderStatus::CANCELLED;
                             Event::new(
                                 Event::SortedSetDBUpdate(
@@ -882,6 +1333,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveTakeProfitCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -897,11 +1349,12 @@ impl TraderOrder {
                     }
                 }
                 PositionType::SHORT => {
-                    let mut remove_from_open_order_list = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                    let mut remove_from_open_order_list = TRADER_TP_CLOSE_SHORT.lock().unwrap();
                     let result = remove_from_open_order_list.remove(self.uuid);
                     drop(remove_from_open_order_list);
                     match result {
-                        Ok((_, _)) => {
+                        Ok((_, old_price)) => {
+                            tp_old_price = Some(old_price as f64 / 10000.0);
                             // self.order_status = OrderStatus::CANCELLED;
                             Event::new(
                                 Event::SortedSetDBUpdate(
@@ -909,6 +1362,7 @@ impl TraderOrder {
                                         self.uuid.clone(),
                                         self.position_type.clone(),
                                     ),
+                                    iso8601(&std::time::SystemTime::now()),
                                 ),
                                 format!("RemoveTakeProfitCloseLIMITPrice-{}", self.uuid.clone()),
                                 CORE_EVENT_LOG.clone().to_string(),
@@ -930,6 +1384,8 @@ impl TraderOrder {
             order_status_sl,
             cancel_status_tp,
             order_status_tp,
+            sl_old_price,
+            tp_old_price,
         )
     }
 

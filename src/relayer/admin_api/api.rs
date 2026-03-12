@@ -366,14 +366,15 @@ pub fn startserver() {
                                                 drop(trader_order_db);
                                                 Event::new(
                                                     Event::TxHash(
-                                                        order_clone.uuid,
-                                                        order_clone.account_id,
-                                                        "Order successfully cancelled !!".to_string(),
-                                                        order_clone.order_type,
-                                                        OrderStatus::CANCELLED,
-                                                        ServerTime::now().epoch,
-                                                        None,
-                                                        RequestID::new().to_string()
+                                                        TxHashData::new(
+                                                            order_clone.uuid,
+                                                            order_clone.account_id,
+                                                            String::new(),
+                                                            order_clone.order_type,
+                                                            OrderStatus::CANCELLED,
+                                                            RequestID::new().to_string(),
+                                                        )
+                                                        .with_reason("Admin halt cancellation".to_string())
                                                     ),
                                                     format!(
                                                         "tx_hash_result-{:?}",
@@ -400,13 +401,17 @@ pub fn startserver() {
                         // Count entries before spawning thread for the response
                         let close_long_count = TRADER_LIMIT_CLOSE_LONG.lock().unwrap().len as u64;
                         let close_short_count = TRADER_LIMIT_CLOSE_SHORT.lock().unwrap().len as u64;
-                        let sltp_long_count = TRADER_SLTP_CLOSE_LONG.lock().unwrap().len as u64;
-                        let sltp_short_count = TRADER_SLTP_CLOSE_SHORT.lock().unwrap().len as u64;
+                        let sl_long_count = TRADER_SL_CLOSE_LONG.lock().unwrap().len as u64;
+                        let sl_short_count = TRADER_SL_CLOSE_SHORT.lock().unwrap().len as u64;
+                        let tp_long_count = TRADER_TP_CLOSE_LONG.lock().unwrap().len as u64;
+                        let tp_short_count = TRADER_TP_CLOSE_SHORT.lock().unwrap().len as u64;
                         settling_cancelled =
                             close_long_count +
                             close_short_count +
-                            sltp_long_count +
-                            sltp_short_count;
+                            sl_long_count +
+                            sl_short_count +
+                            tp_long_count +
+                            tp_short_count;
 
                         if settling_cancelled > 0 {
                             crate::log_heartbeat!(
@@ -428,7 +433,8 @@ pub fn startserver() {
                                                 SortedSetCommand::RemoveCloseLimitPrice(
                                                     *uuid,
                                                     PositionType::LONG
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
                                             format!("HaltRemoveCloseLimitPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()
@@ -440,7 +446,8 @@ pub fn startserver() {
                                                 SortedSetCommand::RemoveCloseLimitPrice(
                                                     *uuid,
                                                     PositionType::SHORT
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
                                             format!("HaltRemoveCloseLimitPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()
@@ -452,39 +459,77 @@ pub fn startserver() {
                                     drop(close_long);
                                     drop(close_short);
 
-                                    // SLTP close limit orders
-                                    let mut sltp_long = TRADER_SLTP_CLOSE_LONG.lock().unwrap();
-                                    let mut sltp_short = TRADER_SLTP_CLOSE_SHORT.lock().unwrap();
+                                    // SL close limit orders
+                                    let mut sl_long = TRADER_SL_CLOSE_LONG.lock().unwrap();
+                                    let mut sl_short = TRADER_SL_CLOSE_SHORT.lock().unwrap();
 
-                                    for (uuid, _) in &sltp_long.sorted_order {
-                                        Event::new(
-                                            Event::SortedSetDBUpdate(
-                                                SortedSetCommand::RemoveStopLossCloseLIMITPrice(
-                                                    *uuid,
-                                                    PositionType::LONG
-                                                )
-                                            ),
-                                            format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
-                                            CORE_EVENT_LOG.clone().to_string()
-                                        );
-                                    }
-                                    for (uuid, _) in &sltp_short.sorted_order {
+                                    for (uuid, _) in &sl_long.sorted_order {
                                         Event::new(
                                             Event::SortedSetDBUpdate(
                                                 SortedSetCommand::RemoveStopLossCloseLIMITPrice(
                                                     *uuid,
                                                     PositionType::SHORT
-                                                )
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
                                             ),
-                                            format!("HaltRemoveSLTPCloseLIMITPrice-{}", uuid),
+                                            format!("HaltRemoveSLCloseLIMITPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string()
+                                        );
+                                    }
+                                    for (uuid, _) in &sl_short.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveStopLossCloseLIMITPrice(
+                                                    *uuid,
+                                                    PositionType::LONG
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
+                                            ),
+                                            format!("HaltRemoveSLCloseLIMITPrice-{}", uuid),
                                             CORE_EVENT_LOG.clone().to_string()
                                         );
                                     }
 
-                                    *sltp_long = SortedSet::new();
-                                    *sltp_short = SortedSet::new();
-                                    drop(sltp_long);
-                                    drop(sltp_short);
+                                    *sl_long = SortedSet::new();
+                                    *sl_short = SortedSet::new();
+                                    drop(sl_long);
+                                    drop(sl_short);
+
+                                    // TP close limit orders
+                                    let mut tp_long = TRADER_TP_CLOSE_LONG.lock().unwrap();
+                                    let mut tp_short = TRADER_TP_CLOSE_SHORT.lock().unwrap();
+
+                                    for (uuid, _) in &tp_long.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                                    *uuid,
+                                                    PositionType::LONG
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
+                                            ),
+                                            format!("HaltRemoveTPCloseLIMITPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string()
+                                        );
+                                    }
+                                    for (uuid, _) in &tp_short.sorted_order {
+                                        Event::new(
+                                            Event::SortedSetDBUpdate(
+                                                SortedSetCommand::RemoveTakeProfitCloseLIMITPrice(
+                                                    *uuid,
+                                                    PositionType::SHORT
+                                                ),
+                                                iso8601(&std::time::SystemTime::now()),
+                                            ),
+                                            format!("HaltRemoveTPCloseLIMITPrice-{}", uuid),
+                                            CORE_EVENT_LOG.clone().to_string()
+                                        );
+                                    }
+
+                                    *tp_long = SortedSet::new();
+                                    *tp_short = SortedSet::new();
+                                    drop(tp_long);
+                                    drop(tp_short);
 
                                     crate::log_heartbeat!(
                                         warn,
@@ -703,6 +748,68 @@ pub fn startserver() {
             .unwrap();
 
         Ok(serde_json::to_value("Risk state recalculation started in background").unwrap())
+    });
+
+    /*****************Trigger Price Check */
+    io.add_method_with_meta("TriggerPriceCheck", move |params: Params, _meta: Meta| async move {
+        match params.parse::<TriggerPriceCheckRequest>() {
+            Ok(req) => {
+                let price = req.price;
+                let run_pending = req.check_pending_limit.unwrap_or(false);
+                let run_liquidation = req.check_liquidation.unwrap_or(false);
+                let run_settling = req.check_settling_limit.unwrap_or(false);
+
+                if run_pending {
+                    let price_clone = price;
+                    let pool = THREADPOOL_PRICE_CHECK_PENDING_ORDER.lock().unwrap();
+                    pool.execute(move || {
+                        check_pending_limit_order_on_price_ticker_update_localdb(price_clone);
+                    });
+                    drop(pool);
+                }
+
+                if run_liquidation {
+                    let price_clone = price;
+                    let pool = THREADPOOL_PRICE_CHECK_LIQUIDATION.lock().unwrap();
+                    pool.execute(move || {
+                        check_liquidating_orders_on_price_ticker_update_localdb(price_clone);
+                    });
+                    drop(pool);
+                }
+
+                if run_settling {
+                    let price_clone = price;
+                    let pool = THREADPOOL_PRICE_CHECK_SETTLE_PENDING.lock().unwrap();
+                    pool.execute(move || {
+                        check_settling_limit_order_on_price_ticker_update_localdb(price_clone);
+                    });
+                    drop(pool);
+                }
+
+                crate::log_heartbeat!(
+                    info,
+                    "TriggerPriceCheck: price={}, pending={}, liquidation={}, settling={}",
+                    price, run_pending, run_liquidation, run_settling
+                );
+
+                let response = serde_json::json!({
+                    "price": price,
+                    "check_pending_limit": run_pending,
+                    "check_liquidation": run_liquidation,
+                    "check_settling_limit": run_settling,
+                });
+                Ok(response)
+            }
+            Err(args) => {
+                let err = JsonRpcError::invalid_params(
+                    format!(
+                        "Invalid parameters, {:?}. Expected: {{ \"price\": f64, \"check_pending_limit\": bool?, \"check_liquidation\": bool?, \"check_settling_limit\": bool? }}",
+                        args
+                    )
+                );
+                Err(err)
+            }
+        }
     });
 
     crate::log_heartbeat!(info, "Starting jsonRPC server @ {}", *RELAYER_SERVER_SOCKETADDR);

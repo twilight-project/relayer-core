@@ -572,6 +572,7 @@ impl LendPool {
                                         _,
                                         metadata,
                                         current_price,
+                                        _,
                                     ) => {
                                         order.exit_nonce = self.nonce;
                                         let dummy_rpccommand =

@@ -37,8 +37,6 @@ lazy_static! {
     pub static ref SNAPSHOT_VERSION: String =
     std::env::var("SNAPSHOT_VERSION").unwrap_or("v0.1.0".to_string());
 
-    pub static ref EVENTLOG_VERSION: String =
-    std::env::var("EVENTLOG_VERSION").unwrap_or("v0.1.0".to_string());
 
     pub static ref RELAYER_SERVER_SOCKETADDR: String = std::env::var("RELAYER_SERVER_SOCKETADDR")
     .unwrap_or("0.0.0.0:3031".to_string());

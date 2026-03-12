@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
-use crate::config::{BROKERS, EVENTLOG_VERSION};
+use crate::config::BROKERS;
+
+pub const EVENTLOG_VERSION: &str = "v0.1.3";
 use crate::db::*;
 use crate::kafkalib::kafka_health::{self, ResilientProducer};
 use crate::kafkalib::kafkacmd::KAFKA_PRODUCER;
@@ -112,74 +114,472 @@ impl EventKey {
         }
     }
     pub fn is_upcast(&self) -> bool {
-        &self.event_version != &*EVENTLOG_VERSION
+        self.event_version != EVENTLOG_VERSION
     }
     // event type casting for load any order kafka logs for different version of event log
     pub fn event_log_upcast(&mut self, log: String) -> String {
         match &*self.event_version {
             // v0.1.0 is the current version of the event log code example to upgrade the event log version for any struct change in commands
+            // v0.0.0 → v0.1.0
             "v0.0.0" => match &*self.event_type {
-                // "CurrentPriceUpdate" => {
-                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                //     pub enum Eventold {
-                //         CurrentPriceUpdate(f64, String),
-                //     }
-
-                //     // check for enum replacment with vec of value
-                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                //     let Eventold::CurrentPriceUpdate(price, time) = log_der;
-                //     let new_log = Event::CurrentPriceUpdate(price, time.clone(), time);
-                //     // println!("log:{:?}", log);
-                //     self.event_version = "v0.1.0".to_string();
-                //     // println!("self:{:?}", self);
-                //     return serde_json::to_string(&new_log).unwrap();
-                // }
-                // "TxHash" => {
-                //     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-                //     pub enum Eventold {
-                //         TxHash(
-                //             Uuid,
-                //             String,
-                //             String,
-                //             OrderType,
-                //             OrderStatus,
-                //             String,
-                //             Option<String>,
-                //         ),
-                //     }
-                //     // check for enum replacment with vec of value
-                //     let log_der: Eventold = serde_json::from_str(&log).unwrap();
-                //     let Eventold::TxHash(
-                //         order_id,
-                //         string1,
-                //         string2,
-                //         order_type,
-                //         order_status,
-                //         string3,
-                //         option_string,
-                //     ) = log_der;
-                //     let new_log = Event::TxHash(
-                //         order_id,
-                //         string1.clone(),
-                //         string2,
-                //         order_type,
-                //         order_status,
-                //         string3,
-                //         option_string,
-                //         string1,
-                //     );
-                //     // println!("log:{:?}", log);
-                //     self.event_version = "v0.1.0".to_string();
-                //     // println!("self:{:?}", self);
-                //     return serde_json::to_string(&new_log).unwrap();
-                // }
                 _ => {
-                    self.event_version = EVENTLOG_VERSION.clone();
+                    self.event_version = "v0.1.1".to_string();
+                }
+            },
+            // v0.1.0 → v0.1.1
+            "v0.1.0" => match &*self.event_type {
+                "SortedSetDBUpdate" => {
+                    // First try current format — some events are already upgraded but tagged v0.1.0
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventNew {
+                        SortedSetDBUpdate(SortedSetCommand, String),
+                    }
+                    if serde_json::from_str::<EventNew>(&log).is_ok() {
+                        self.event_version = "v0.1.1".to_string();
+                        return log;
+                    }
+
+                    // Old format: SortedSetDBUpdate(SortedSetCommand) — no datetime
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventOld {
+                        SortedSetDBUpdate(SortedSetCommand),
+                    }
+
+                    let log_der: EventOld = match serde_json::from_str(&log) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error upcasting SortedSetDBUpdate from v0.1.0: {:?} raw_log: {}",
+                                e,
+                                &log
+                            );
+                            self.event_version = "v0.1.1".to_string();
+                            return log;
+                        }
+                    };
+                    let EventOld::SortedSetDBUpdate(cmd) = log_der;
+                    let new_log = Event::SortedSetDBUpdate(
+                        cmd,
+                        crate::relayer::iso8601(&std::time::SystemTime::now()),
+                    );
+                    self.event_version = "v0.1.1".to_string();
+                    match serde_json::to_string(&new_log) {
+                        Ok(v) => return v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error serializing upcasted SortedSetDBUpdate: {:?}",
+                                e
+                            );
+                            return log;
+                        }
+                    }
+                }
+                _ => {
+                    self.event_version = "v0.1.1".to_string();
+                }
+            },
+            // v0.1.1 → v0.1.2
+            "v0.1.1" => match &*self.event_type {
+                "TxHash" => {
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventOldTxHash {
+                        TxHash(
+                            Uuid,
+                            String,
+                            String,
+                            OrderType,
+                            OrderStatus,
+                            String,
+                            Option<String>,
+                            RequestID,
+                        ),
+                    }
+
+                    let log_der: EventOldTxHash = match serde_json::from_str(&log) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error upcasting TxHash from v0.1.1: {:?}",
+                                e
+                            );
+                            self.event_version = "v0.1.2".to_string();
+                            return log;
+                        }
+                    };
+                    let EventOldTxHash::TxHash(
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                        request_id,
+                    ) = log_der;
+                    let new_log = Event::TxHash(TxHashData {
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                        request_id,
+                        reason: None,
+                        old_price: None,
+                        new_price: None,
+                    });
+                    self.event_version = "v0.1.2".to_string();
+                    match serde_json::to_string(&new_log) {
+                        Ok(v) => return v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error serializing upcasted TxHash: {:?}",
+                                e
+                            );
+                            return log;
+                        }
+                    }
+                }
+                "TxHashUpdate" => {
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum EventOldTxHashUpdate {
+                        TxHashUpdate(
+                            Uuid,
+                            String,
+                            String,
+                            OrderType,
+                            OrderStatus,
+                            String,
+                            Option<String>,
+                        ),
+                    }
+
+                    let log_der: EventOldTxHashUpdate = match serde_json::from_str(&log) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error upcasting TxHashUpdate from v0.1.1: {:?}",
+                                e
+                            );
+                            self.event_version = "v0.1.2".to_string();
+                            return log;
+                        }
+                    };
+                    let EventOldTxHashUpdate::TxHashUpdate(
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                    ) = log_der;
+                    let new_log = Event::TxHashUpdate(TxHashData {
+                        order_id,
+                        account_id,
+                        tx_hash,
+                        order_type,
+                        order_status,
+                        datetime,
+                        output,
+                        request_id: String::new(),
+                        reason: None,
+                        old_price: None,
+                        new_price: None,
+                    });
+                    self.event_version = "v0.1.2".to_string();
+                    match serde_json::to_string(&new_log) {
+                        Ok(v) => return v,
+                        Err(e) => {
+                            crate::log_heartbeat!(
+                                error,
+                                "Error serializing upcasted TxHashUpdate: {:?}",
+                                e
+                            );
+                            return log;
+                        }
+                    }
+                }
+                _ => {
+                    self.event_version = "v0.1.2".to_string();
+                }
+            },
+            "v0.1.2" => match &*self.event_type {
+                "TraderOrderUpdate"
+                | "TraderOrderFundingUpdate"
+                | "TraderOrderLiquidation"
+                | "FeeUpdate"
+                | "PoolUpdate" => {
+                    // v0.1.2 -> v0.1.3: PriceTickerOrderSettle changed from 3 fields to 4 (added OrderType).
+                    // Old: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64)
+                    // New: PriceTickerOrderSettle(Vec<Uuid>, Meta, f64, OrderType)
+                    // Default to OrderType::LIMIT since that was the only settle type before.
+                    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+                    pub enum RelayerCommandOld {
+                        FundingCycle(PoolBatchOrder, Meta, f64),
+                        FundingOrderEventUpdate(TraderOrder, Meta),
+                        PriceTickerLiquidation(Vec<Uuid>, Meta, f64),
+                        PriceTickerOrderFill(Vec<Uuid>, Meta, f64),
+                        PriceTickerOrderSettle(Vec<Uuid>, Meta, f64),
+                        FundingCycleLiquidation(Vec<Uuid>, Meta, f64),
+                        RpcCommandPoolupdate(),
+                        UpdateFees(f64, f64, f64, f64),
+                    }
+
+                    fn upcast_relayer_command(old: RelayerCommandOld) -> RelayerCommand {
+                        match old {
+                            RelayerCommandOld::PriceTickerOrderSettle(ids, meta, price) => {
+                                RelayerCommand::PriceTickerOrderSettle(
+                                    ids,
+                                    meta,
+                                    price,
+                                    OrderType::LIMIT,
+                                )
+                            }
+                            RelayerCommandOld::FundingCycle(a, b, c) => {
+                                RelayerCommand::FundingCycle(a, b, c)
+                            }
+                            RelayerCommandOld::FundingOrderEventUpdate(a, b) => {
+                                RelayerCommand::FundingOrderEventUpdate(a, b)
+                            }
+                            RelayerCommandOld::PriceTickerLiquidation(a, b, c) => {
+                                RelayerCommand::PriceTickerLiquidation(a, b, c)
+                            }
+                            RelayerCommandOld::PriceTickerOrderFill(a, b, c) => {
+                                RelayerCommand::PriceTickerOrderFill(a, b, c)
+                            }
+                            RelayerCommandOld::FundingCycleLiquidation(a, b, c) => {
+                                RelayerCommand::FundingCycleLiquidation(a, b, c)
+                            }
+                            RelayerCommandOld::RpcCommandPoolupdate() => {
+                                RelayerCommand::RpcCommandPoolupdate()
+                            }
+                            RelayerCommandOld::UpdateFees(a, b, c, d) => {
+                                RelayerCommand::UpdateFees(a, b, c, d)
+                            }
+                        }
+                    }
+
+                    let result: Option<String> = match &*self.event_type {
+                        "TraderOrderUpdate" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                TraderOrderUpdate(TraderOrder, RelayerCommandOld, usize),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::TraderOrderUpdate(order, cmd, seq) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::TraderOrderUpdate(
+                                    order, new_cmd, seq,
+                                ))
+                                .unwrap()
+                            })
+                        }
+                        "TraderOrderFundingUpdate" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                TraderOrderFundingUpdate(TraderOrder, RelayerCommandOld),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::TraderOrderFundingUpdate(order, cmd) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::TraderOrderFundingUpdate(
+                                    order, new_cmd,
+                                ))
+                                .unwrap()
+                            })
+                        }
+                        "TraderOrderLiquidation" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                TraderOrderLiquidation(TraderOrder, RelayerCommandOld, usize),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::TraderOrderLiquidation(order, cmd, seq) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::TraderOrderLiquidation(
+                                    order, new_cmd, seq,
+                                ))
+                                .unwrap()
+                            })
+                        }
+                        "FeeUpdate" => {
+                            #[derive(Serialize, Deserialize)]
+                            pub enum EventOld {
+                                FeeUpdate(RelayerCommandOld, String),
+                            }
+                            serde_json::from_str::<EventOld>(&log).ok().map(|e| {
+                                let EventOld::FeeUpdate(cmd, time) = e;
+                                let new_cmd = upcast_relayer_command(cmd);
+                                serde_json::to_string(&Event::FeeUpdate(new_cmd, time)).unwrap()
+                            })
+                        }
+                        // PoolUpdate contains LendPoolCommand which has RelayerCommand inside —
+                        // too deeply nested for typed upcast, will be handled by untyped JSON fallback below
+                        "PoolUpdate" => None,
+                        _ => None,
+                    };
+
+                    if let Some(new_log) = result {
+                        self.event_version = "v0.1.3".to_string();
+                        return new_log;
+                    }
+                    // Typed deserialization failed (old TraderOrder/Meta shape) — try untyped JSON patching
+                    // to fix PriceTickerOrderSettle from 3 fields to 4.
+                    if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&log) {
+                        fn patch_price_ticker(v: &mut serde_json::Value) -> bool {
+                            let mut patched = false;
+                            match v {
+                                serde_json::Value::Object(map) => {
+                                    if let Some(arr) = map.get_mut("PriceTickerOrderSettle") {
+                                        if let serde_json::Value::Array(ref mut fields) = arr {
+                                            if fields.len() == 3 {
+                                                // Add OrderType::LIMIT as the 4th field
+                                                fields.push(serde_json::json!("LIMIT"));
+                                                patched = true;
+                                            }
+                                        }
+                                    }
+                                    for (_, val) in map.iter_mut() {
+                                        if patch_price_ticker(val) {
+                                            patched = true;
+                                        }
+                                    }
+                                }
+                                serde_json::Value::Array(arr) => {
+                                    for item in arr.iter_mut() {
+                                        if patch_price_ticker(item) {
+                                            patched = true;
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                            patched
+                        }
+                        patch_price_ticker(&mut value);
+                        self.event_version = "v0.1.3".to_string();
+                        return serde_json::to_string(&value).unwrap();
+                    }
+                    self.event_version = "v0.1.3".to_string();
+                }
+                _ => {
+                    // Patch PriceTickerOrderSettle from 3 to 4 fields for any event type
+                    // if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&log) {
+                    //     fn patch_pts(v: &mut serde_json::Value) -> bool {
+                    //         let mut patched = false;
+                    //         match v {
+                    //             serde_json::Value::Object(map) => {
+                    //                 if let Some(arr) = map.get_mut("PriceTickerOrderSettle") {
+                    //                     if let serde_json::Value::Array(ref mut fields) = arr {
+                    //                         if fields.len() == 3 {
+                    //                             fields.push(serde_json::json!("LIMIT"));
+                    //                             patched = true;
+                    //                         }
+                    //                     }
+                    //                 }
+                    //                 for (_, val) in map.iter_mut() {
+                    //                     if patch_pts(val) {
+                    //                         patched = true;
+                    //                     }
+                    //                 }
+                    //             }
+                    //             serde_json::Value::Array(arr) => {
+                    //                 for item in arr.iter_mut() {
+                    //                     if patch_pts(item) {
+                    //                         patched = true;
+                    //                     }
+                    //                 }
+                    //             }
+                    //             _ => {}
+                    //         }
+                    //         patched
+                    //     }
+                    //     if patch_pts(&mut value) {
+                    //         self.event_version = "v0.1.3".to_string();
+                    //         return serde_json::to_string(&value).unwrap();
+                    //     }
+                    // }
+                    self.event_version = "v0.1.3".to_string();
                 }
             },
             _ => {}
         }
         log
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct TxHashData {
+    pub order_id: Uuid,
+    pub account_id: String,
+    pub tx_hash: String,
+    pub order_type: OrderType,
+    pub order_status: OrderStatus,
+    pub datetime: String,
+    pub output: Option<String>,
+    pub request_id: RequestID,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub old_price: Option<f64>,
+    #[serde(default)]
+    pub new_price: Option<f64>,
+}
+
+impl TxHashData {
+    pub fn new(
+        order_id: Uuid,
+        account_id: String,
+        tx_hash: String,
+        order_type: OrderType,
+        order_status: OrderStatus,
+        request_id: RequestID,
+    ) -> Self {
+        TxHashData {
+            order_id,
+            account_id,
+            tx_hash,
+            order_type,
+            order_status,
+            datetime: crate::relayer::iso8601(&std::time::SystemTime::now()),
+            output: None,
+            request_id,
+            reason: None,
+            old_price: None,
+            new_price: None,
+        }
+    }
+
+    pub fn with_reason(mut self, reason: String) -> Self {
+        self.reason = Some(reason);
+        self
+    }
+
+    pub fn with_output(mut self, output: Option<String>) -> Self {
+        self.output = output;
+        self
+    }
+
+    pub fn with_old_price(mut self, price: f64) -> Self {
+        self.old_price = Some(price);
+        self
+    }
+
+    pub fn with_new_price(mut self, price: f64) -> Self {
+        self.new_price = Some(price);
+        self
+    }
+
+    pub fn with_datetime(mut self, datetime: String) -> Self {
+        self.datetime = datetime;
+        self
     }
 }
 
@@ -194,27 +594,10 @@ pub enum Event {
     PoolUpdate(LendPoolCommand, LendPool, usize),
     FundingRateUpdate(f64, f64, String), //funding rate, btc price, time
     CurrentPriceUpdate(f64, String),
-    SortedSetDBUpdate(SortedSetCommand),
+    SortedSetDBUpdate(SortedSetCommand, String), //command, time
     PositionSizeLogDBUpdate(PositionSizeLogCommand, PositionSizeLog),
-    TxHash(
-        Uuid,
-        String,
-        String,
-        OrderType,
-        OrderStatus,
-        String,
-        Option<String>,
-        RequestID,
-    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output, RequestID
-    TxHashUpdate(
-        Uuid,
-        String,
-        String,
-        OrderType,
-        OrderStatus,
-        String,
-        Option<String>,
-    ), //orderid, account id, TxHash, OrderType, OrderStatus,DateTime, Output
+    TxHash(TxHashData),
+    TxHashUpdate(TxHashData),
     Stop(String),
     AdvanceStateQueue(Nonce, twilight_relayer_sdk::zkvm::Output),
     FeeUpdate(RelayerCommand, String), //fee data and time

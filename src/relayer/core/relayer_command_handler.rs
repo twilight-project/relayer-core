@@ -109,69 +109,73 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         Ok(chain_message) => {
                                             match chain_message {
                                                 Ok(tx_hash) => {
-                                                    PositionSizeLog::remove_order(
-                                                        order.position_type.clone(),
-                                                        order.positionsize.clone()
-                                                    );
-                                                    RiskState::remove_order(
-                                                        order.position_type.clone(),
-                                                        entryvalue(
-                                                            order.initial_margin,
-                                                            order.leverage
-                                                        )
-                                                    );
-                                                    match order.position_type {
-                                                        PositionType::LONG => {
-                                                            let mut remove_from_limit_order_list =
-                                                                TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
-                                                            if
-                                                                let Ok((_, _)) =
-                                                                    remove_from_limit_order_list.remove(
-                                                                        order.uuid
-                                                                    )
-                                                            {
-                                                                Event::new(
-                                                                    Event::SortedSetDBUpdate(
-                                                                        SortedSetCommand::RemoveCloseLimitPrice(
-                                                                            order.uuid,
-                                                                            PositionType::LONG
-                                                                        )
-                                                                    ),
-                                                                    format!(
-                                                                        "RemoveCloseLimitPrice-{}",
-                                                                        order.uuid
-                                                                    ),
-                                                                    CORE_EVENT_LOG.clone().to_string()
-                                                                );
-                                                            }
-                                                            drop(remove_from_limit_order_list);
-                                                        }
-                                                        PositionType::SHORT => {
-                                                            let mut remove_from_limit_order_list =
-                                                                TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
-                                                            if
-                                                                let Ok((_, _)) =
-                                                                    remove_from_limit_order_list.remove(
-                                                                        order.uuid
-                                                                    )
-                                                            {
-                                                                Event::new(
-                                                                    Event::SortedSetDBUpdate(
-                                                                        SortedSetCommand::RemoveCloseLimitPrice(
-                                                                            order.uuid,
-                                                                            PositionType::SHORT
-                                                                        )
-                                                                    ),
-                                                                    format!(
-                                                                        "RemoveCloseLimitPrice-{}",
-                                                                        order.uuid
-                                                                    ),
-                                                                    CORE_EVENT_LOG.clone().to_string()
-                                                                );
-                                                            }
-                                                            drop(remove_from_limit_order_list);
-                                                        }
-                                                    }
+
+                                                    order.order_remove_from_localdb(&order.order_type, &String::new());
+                                                    // PositionSizeLog::remove_order(
+                                                    //     order.position_type.clone(),
+                                                    //     order.positionsize.clone()
+                                                    // );
+                                                    // RiskState::remove_order(
+                                                    //     order.position_type.clone(),
+                                                    //     entryvalue(
+                                                    //         order.initial_margin,
+                                                    //         order.leverage
+                                                    //     )
+                                                    // );
+                                                    // match order.position_type {
+                                                    //     PositionType::LONG => {
+                                                    //         let mut remove_from_limit_order_list =
+                                                    //             TRADER_LIMIT_CLOSE_LONG.lock().unwrap();
+                                                    //         if
+                                                    //             let Ok((_, _)) =
+                                                    //                 remove_from_limit_order_list.remove(
+                                                    //                     order.uuid
+                                                    //                 )
+                                                    //         {
+                                                    //             Event::new(
+                                                    //                 Event::SortedSetDBUpdate(
+                                                    //                     SortedSetCommand::RemoveCloseLimitPrice(
+                                                    //                         order.uuid,
+                                                    //                         PositionType::LONG
+                                                    //                     ),
+                                                    //                     iso8601(&std::time::SystemTime::now()),
+                                                    //                 ),
+                                                    //                 format!(
+                                                    //                     "RemoveCloseLimitPrice-{}",
+                                                    //                     order.uuid
+                                                    //                 ),
+                                                    //                 CORE_EVENT_LOG.clone().to_string()
+                                                    //             );
+                                                    //         }
+                                                    //         drop(remove_from_limit_order_list);
+                                                    //     }
+                                                    //     PositionType::SHORT => {
+                                                    //         let mut remove_from_limit_order_list =
+                                                    //             TRADER_LIMIT_CLOSE_SHORT.lock().unwrap();
+                                                    //         if
+                                                    //             let Ok((_, _)) =
+                                                    //                 remove_from_limit_order_list.remove(
+                                                    //                     order.uuid
+                                                    //                 )
+                                                    //         {
+                                                    //             Event::new(
+                                                    //                 Event::SortedSetDBUpdate(
+                                                    //                     SortedSetCommand::RemoveCloseLimitPrice(
+                                                    //                         order.uuid,
+                                                    //                         PositionType::SHORT
+                                                    //                     ),
+                                                    //                     iso8601(&std::time::SystemTime::now()),
+                                                    //                 ),
+                                                    //                 format!(
+                                                    //                     "RemoveCloseLimitPrice-{}",
+                                                    //                     order.uuid
+                                                    //                 ),
+                                                    //                 CORE_EVENT_LOG.clone().to_string()
+                                                    //             );
+                                                    //         }
+                                                    //         drop(remove_from_limit_order_list);
+                                                    //     }
+                                                    // }
                                                     let mut order_mut_ref = order_detail
                                                         .write()
                                                         .unwrap();
@@ -366,7 +370,12 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             }
             drop(buffer);
         }
-        RelayerCommand::PriceTickerOrderSettle(order_id_array, metadata, currentprice) => {
+        RelayerCommand::PriceTickerOrderSettle(
+            order_id_array,
+            metadata,
+            currentprice,
+            order_type_ref,
+        ) => {
             let mut orderdetails_array: Vec<(
                 Result<Arc<RwLock<TraderOrder>>, std::io::Error>,
                 Option<String>,
@@ -384,6 +393,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
             for (order_detail_wraped, zkos_msg_hex) in orderdetails_array {
                 let current_price_clone = currentprice.clone();
                 let metadata_clone = metadata.clone();
+                let order_type = order_type_ref.clone();
                 buffer.execute(move || {
                     match order_detail_wraped {
                         Ok(order_detail) => {
@@ -395,7 +405,7 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                         current_price_clone,
                                         current_price_clone,
                                         OrderType::MARKET,
-                                        None
+                                        None,&String::new()
                                     );
 
                                     match order_status {
@@ -430,7 +440,8 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     order_clone.clone(),
                                                     zkos_msg_hex,
                                                     lendpool.last_output_state.clone(),
-                                                    next_output_state.clone()
+                                                    next_output_state.clone(),
+                                                    order_type.clone()
                                                 ),
                                                 sender
                                             );
@@ -440,16 +451,15 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                                     match chain_message {
                                                         Ok(tx_hash) => {
                                                             *order_mut_ref = order_clone.clone();
-                                                            order_clone.order_remove_from_localdb();
+                                                            order_clone.order_remove_from_localdb(&order_type, &String::new());
                                                             drop(order_mut_ref);
                                                             lendpool.add_transaction(
                                                                 LendPoolCommand::AddTraderLimitOrderSettlement(
                                                                     RelayerCommand::PriceTickerOrderSettle(
-                                                                        vec![
-                                                                            order_clone.uuid.clone()
-                                                                        ],
+                                                                        vec![order_clone.uuid.clone()],
                                                                         metadata_clone,
-                                                                        current_price_clone
+                                                                        current_price_clone,
+                                                                        order_type.clone(),
                                                                     ),
                                                                     order_clone.clone(),
                                                                     payment,
@@ -486,9 +496,10 @@ pub fn relayer_event_handler(command: RelayerCommand) {
                                 _ => {
                                     crate::log_trading!(
                                         debug,
-                                        "Invalid order status for order_id:{} and order_status:{:#?} !!\n",
+                                        "Invalid order status for order_id:{} and order_status:{:#?} and order_type:{:#?} !!\n",
                                         order.uuid,
-                                        order.order_status
+                                        order.order_status,
+                                        order_type
                                     );
                                     drop(order);
                                 }
