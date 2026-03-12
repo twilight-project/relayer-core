@@ -1,6 +1,6 @@
 [package]
 name = "relayer-core"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["Twilight Project"]
 description = "A high-performance matching engine written in Rust using Event Sourcing pattern with CQRS framework to handle tens of thousands of orders per second"
@@ -59,8 +59,6 @@ zstd = "0.13"
 
 [dependencies.twilight-relayer-sdk]
 git = "https://github.com/twilight-project/twilight-relayer-sdk.git"
-# tag = "v0.1.1"
-# path = "../twilight-relayer-sdk"
 branch = "sltp"
 
 [dependencies.nyks-wallet]
