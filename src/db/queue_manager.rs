@@ -18,7 +18,7 @@ use twilight_relayer_sdk::utxo_in_memory::db::LocalDBtrait;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QueueState {
+pub struct QueueStateOldV10 {
     pub to_liquidate: HashMap<Uuid, f64>,
     pub to_settle: HashMap<Uuid, f64>,
     pub to_fill: HashMap<Uuid, f64>,
@@ -27,15 +27,52 @@ pub struct QueueState {
     pub to_settle_remove: Vec<Uuid>,
     pub to_liquidate_remove: Vec<Uuid>,
 }
+
+impl QueueStateOldV10 {
+    pub fn migrate_to_new(self) -> QueueState {
+        QueueState {
+            to_liquidate: self.to_liquidate,
+            to_settle: self.to_settle,
+            to_settle_sl: HashMap::new(),
+            to_settle_tp: HashMap::new(),
+            to_fill: self.to_fill,
+            funding_update: self.funding_update,
+            to_fill_remove: self.to_fill_remove,
+            to_settle_remove: self.to_settle_remove,
+            to_settle_sl_remove: Vec::new(),
+            to_settle_tp_remove: Vec::new(),
+            to_liquidate_remove: self.to_liquidate_remove,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueueState {
+    pub to_liquidate: HashMap<Uuid, f64>,
+    pub to_settle: HashMap<Uuid, f64>,
+    pub to_settle_sl: HashMap<Uuid, f64>,
+    pub to_settle_tp: HashMap<Uuid, f64>,
+    pub to_fill: HashMap<Uuid, f64>,
+    pub funding_update: HashMap<Uuid, (f64, f64)>,
+    pub to_fill_remove: Vec<Uuid>,
+    pub to_settle_remove: Vec<Uuid>,
+    pub to_settle_sl_remove: Vec<Uuid>,
+    pub to_settle_tp_remove: Vec<Uuid>,
+    pub to_liquidate_remove: Vec<Uuid>,
+}
 impl QueueState {
     pub fn new() -> Self {
         QueueState {
             to_liquidate: HashMap::new(),
             to_settle: HashMap::new(),
+            to_settle_sl: HashMap::new(),
+            to_settle_tp: HashMap::new(),
             to_fill: HashMap::new(),
             funding_update: HashMap::new(),
             to_fill_remove: Vec::new(),
             to_settle_remove: Vec::new(),
+            to_settle_sl_remove: Vec::new(),
+            to_settle_tp_remove: Vec::new(),
             to_liquidate_remove: Vec::new(),
         }
     }
@@ -44,6 +81,12 @@ impl QueueState {
     }
     pub fn insert_settle(&mut self, order_id: Uuid, price: f64) {
         self.to_settle.insert(order_id, price);
+    }
+    pub fn insert_settle_sl(&mut self, order_id: Uuid, price: f64) {
+        self.to_settle_sl.insert(order_id, price);
+    }
+    pub fn insert_settle_tp(&mut self, order_id: Uuid, price: f64) {
+        self.to_settle_tp.insert(order_id, price);
     }
     pub fn insert_fill(&mut self, order_id: Uuid, price: f64) {
         self.to_fill.insert(order_id, price);
@@ -65,6 +108,14 @@ impl QueueState {
         //     None => false,
         // }
         self.to_settle_remove.push(order_id.clone());
+        true
+    }
+    pub fn remove_settle_sl(&mut self, order_id: &Uuid) -> bool {
+        self.to_settle_sl_remove.push(order_id.clone());
+        true
+    }
+    pub fn remove_settle_tp(&mut self, order_id: &Uuid) -> bool {
+        self.to_settle_tp_remove.push(order_id.clone());
         true
     }
     pub fn remove_fill(&mut self, order_id: &Uuid) -> bool {
@@ -115,6 +166,40 @@ impl QueueState {
             }
         }
     }
+    pub fn bulk_insert_to_settle_sl(
+        &mut self,
+        pending_short_db: &mut SortedSet,
+        pending_long_db: &mut SortedSet,
+        price: f64,
+    ) {
+        let short_id_list: Vec<Uuid> = pending_short_db.search_gt((price * 10000.0) as i64);
+        let long_id_list: Vec<Uuid> = pending_long_db.search_lt((price * 10000.0) as i64);
+        if short_id_list.len() + long_id_list.len() > 0 {
+            for order_id in short_id_list {
+                self.insert_settle_sl(order_id, price);
+            }
+            for order_id in long_id_list {
+                self.insert_settle_sl(order_id, price);
+            }
+        }
+    }
+    pub fn bulk_insert_to_settle_tp(
+        &mut self,
+        pending_short_db: &mut SortedSet,
+        pending_long_db: &mut SortedSet,
+        price: f64,
+    ) {
+        let short_id_list: Vec<Uuid> = pending_short_db.search_gt((price * 10000.0) as i64);
+        let long_id_list: Vec<Uuid> = pending_long_db.search_lt((price * 10000.0) as i64);
+        if short_id_list.len() + long_id_list.len() > 0 {
+            for order_id in short_id_list {
+                self.insert_settle_tp(order_id, price);
+            }
+            for order_id in long_id_list {
+                self.insert_settle_tp(order_id, price);
+            }
+        }
+    }
     pub fn bulk_insert_to_fill(
         &mut self,
         pending_short_db: &mut SortedSet,
@@ -135,19 +220,27 @@ impl QueueState {
     pub fn bulk_remove_queue(&mut self, orderdb_traderorder: &OrderDBSnapShotTO) {
         crate::log_heartbeat!(
             debug,
-            "Before \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
+            "Before \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_settle_sl - {:?}, to_settle_sl_remove - {:?}, to_settle_tp - {:?}, to_settle_tp_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
             self.to_settle.len(),
             self.to_settle_remove.len(),
+            self.to_settle_sl.len(),
+            self.to_settle_sl_remove.len(),
+            self.to_settle_tp.len(),
+            self.to_settle_tp_remove.len(),
             self.to_liquidate.len(),
             self.to_liquidate_remove.len()
         );
         let mut to_fill_remove = Vec::new();
         let mut to_settle_remove = Vec::new();
+        let mut to_settle_sl_remove = Vec::new();
+        let mut to_settle_tp_remove = Vec::new();
         let mut to_liquidate_remove = Vec::new();
         std::mem::swap(&mut self.to_fill_remove, &mut to_fill_remove);
         std::mem::swap(&mut self.to_settle_remove, &mut to_settle_remove);
+        std::mem::swap(&mut self.to_settle_sl_remove, &mut to_settle_sl_remove);
+        std::mem::swap(&mut self.to_settle_tp_remove, &mut to_settle_tp_remove);
         std::mem::swap(&mut self.to_liquidate_remove, &mut to_liquidate_remove);
         for order_id in to_fill_remove {
             match self.to_fill.remove(&order_id) {
@@ -167,8 +260,22 @@ impl QueueState {
                 None => self.to_settle_remove.push(order_id),
             }
         }
+        for order_id in to_settle_sl_remove {
+            match self.to_settle_sl.remove(&order_id) {
+                Some(_id) => {}
+                None => self.to_settle_sl_remove.push(order_id),
+            }
+        }
+        for order_id in to_settle_tp_remove {
+            match self.to_settle_tp.remove(&order_id) {
+                Some(_id) => {}
+                None => self.to_settle_tp_remove.push(order_id),
+            }
+        }
         let to_fill = self.to_fill.clone();
         let to_settle = self.to_settle.clone();
+        let to_settle_sl = self.to_settle_sl.clone();
+        let to_settle_tp = self.to_settle_tp.clone();
         let to_liquidate = self.to_liquidate.clone();
 
         for (order_id, _) in to_fill {
@@ -201,6 +308,36 @@ impl QueueState {
                 }
             }
         }
+        for (order_id, _) in to_settle_sl {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::FILLED {
+                    } else {
+                        self.to_settle_sl_remove.push(order_id);
+                        self.to_settle_sl.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_settle_sl_remove.push(order_id);
+                    self.to_settle_sl.remove(&order_id);
+                }
+            }
+        }
+        for (order_id, _) in to_settle_tp {
+            match orderdb_traderorder.ordertable.get(&order_id) {
+                Some(order) => {
+                    if order.order_status == OrderStatus::FILLED {
+                    } else {
+                        self.to_settle_tp_remove.push(order_id);
+                        self.to_settle_tp.remove(&order_id);
+                    }
+                }
+                None => {
+                    self.to_settle_tp_remove.push(order_id);
+                    self.to_settle_tp.remove(&order_id);
+                }
+            }
+        }
         for (order_id, _) in to_liquidate {
             match orderdb_traderorder.ordertable.get(&order_id) {
                 Some(order) => {
@@ -219,26 +356,33 @@ impl QueueState {
 
         crate::log_heartbeat!(
             debug,
-            "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
+            "After \n to_fill - {:?}, to_fill_remove - {:?}, to_settle - {:?}, to_settle_remove - {:?}, to_settle_sl - {:?}, to_settle_sl_remove - {:?}, to_settle_tp - {:?}, to_settle_tp_remove - {:?}, to_liquidate - {:?}, to_liquidate_remove - {:?}",
             self.to_fill.len(),
             self.to_fill_remove.len(),
             self.to_settle.len(),
             self.to_settle_remove.len(),
+            self.to_settle_sl.len(),
+            self.to_settle_sl_remove.len(),
+            self.to_settle_tp.len(),
+            self.to_settle_tp_remove.len(),
             self.to_liquidate.len(),
             self.to_liquidate_remove.len()
         );
         self.to_fill_remove = Vec::new();
         self.to_settle_remove = Vec::new();
+        self.to_settle_sl_remove = Vec::new();
+        self.to_settle_tp_remove = Vec::new();
         self.to_liquidate_remove = Vec::new();
     }
 
     pub fn process_queue(&mut self) {
-        // let mut to_fill = self.to_fill;
         crate::log_heartbeat!(
             debug,
-            "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_liquidate : {:?}",
+            "Queue manager pending list: \n to_fill : {:?}, to_settle: {:?}, to_settle_sl: {:?}, to_settle_tp: {:?}, to_liquidate : {:?}",
             self.to_fill.len(),
             self.to_settle.len(),
+            self.to_settle_sl.len(),
+            self.to_settle_tp.len(),
             self.to_liquidate.len()
         );
 
@@ -301,6 +445,48 @@ impl QueueState {
                 meta,
                 price,
                 OrderType::LIMIT,
+            ));
+        }
+        for (order_id, price) in self.to_settle_sl.clone() {
+            let meta = Meta {
+                metadata: {
+                    let mut hashmap = HashMap::new();
+                    hashmap.insert(
+                        String::from("request_server_time"),
+                        Some(ServerTime::now().epoch),
+                    );
+                    hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
+                    hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
+                    hashmap
+                },
+            };
+
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                vec![order_id],
+                meta,
+                price,
+                OrderType::Stoploss,
+            ));
+        }
+        for (order_id, price) in self.to_settle_tp.clone() {
+            let meta = Meta {
+                metadata: {
+                    let mut hashmap = HashMap::new();
+                    hashmap.insert(
+                        String::from("request_server_time"),
+                        Some(ServerTime::now().epoch),
+                    );
+                    hashmap.insert(String::from("CurrentPrice"), Some(price.to_string()));
+                    hashmap.insert(String::from("QueueManager"), Some("true".to_string()));
+                    hashmap
+                },
+            };
+
+            relayer_event_handler(RelayerCommand::PriceTickerOrderSettle(
+                vec![order_id],
+                meta,
+                price,
+                OrderType::Takeprofit,
             ));
         }
     }

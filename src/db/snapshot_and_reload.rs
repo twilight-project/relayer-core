@@ -86,7 +86,7 @@ pub struct SnapshotDBOldV1 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 impl SnapshotDBOldV1 {
     pub fn new() -> Self {
@@ -106,7 +106,15 @@ impl SnapshotDBOldV1 {
             event_timestamp: ServerTime::now().epoch,
             output_hex_storage:
                 utxo_in_memory::db::LocalStorage::<Option<zkvm::zkos_types::Output>>::new(1),
-            queue_manager: QueueState::new(),
+            queue_manager: QueueStateOldV10 {
+                to_liquidate: HashMap::new(),
+                to_settle: HashMap::new(),
+                to_fill: HashMap::new(),
+                funding_update: HashMap::new(),
+                to_fill_remove: Vec::new(),
+                to_settle_remove: Vec::new(),
+                to_liquidate_remove: Vec::new(),
+            },
         }
     }
     pub fn migrate_to_new(&self) -> SnapshotDBOldV2 {
@@ -151,7 +159,7 @@ pub struct SnapshotDBOldV2 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 
 impl SnapshotDBOldV2 {
@@ -230,7 +238,7 @@ pub struct SnapshotDBOldV3 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 
 impl SnapshotDBOldV3 {
@@ -280,7 +288,7 @@ pub struct SnapshotDBOld {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 
 impl SnapshotDBOld {
@@ -330,7 +338,7 @@ pub struct SnapshotDBOldV5 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 
 impl SnapshotDBOldV5 {
@@ -380,7 +388,7 @@ pub struct SnapshotDBOldV6 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 
 impl SnapshotDBOldV6 {
@@ -430,7 +438,7 @@ pub struct SnapshotDBOldV7 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
 }
 
 impl SnapshotDBOldV7 {
@@ -481,13 +489,13 @@ pub struct SnapshotDBOldV9 {
     pub event_offset_partition: (i32, i64),
     pub event_timestamp: String,
     pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
-    queue_manager: QueueState,
+    queue_manager: QueueStateOldV10,
     pub group_name: String,
 }
 
 impl SnapshotDBOldV9 {
     /// Split old merged SLTP sorted sets into 4 separate SL/TP sets using the order table.
-    pub fn migrate_to_new(&self) -> SnapshotDB {
+    pub fn migrate_to_new(&self) -> SnapshotDBOldV10 {
         let mut sl_close_long = SortedSet::new();
         let mut sl_close_short = SortedSet::new();
         let mut tp_close_long = SortedSet::new();
@@ -519,7 +527,7 @@ impl SnapshotDBOldV9 {
             sl_close_long.len, sl_close_short.len, tp_close_long.len, tp_close_short.len
         );
 
-        SnapshotDB {
+        SnapshotDBOldV10 {
             orderdb_traderorder: self.orderdb_traderorder.clone(),
             orderdb_lendorder: self.orderdb_lendorder.clone(),
             lendpool_database: self.lendpool_database.clone(),
@@ -546,7 +554,63 @@ impl SnapshotDBOldV9 {
     }
 }
 
-// V10 snapshot format (current — split SL/TP sorted sets)
+// V10 snapshot format (split SL/TP sorted sets, old QueueState without SL/TP queues)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SnapshotDBOldV10 {
+    pub orderdb_traderorder: OrderDBSnapShotTO,
+    pub orderdb_lendorder: OrderDBSnapShotLO,
+    pub lendpool_database: LendPool,
+    pub liquidation_long_sortedset_db: SortedSet,
+    pub liquidation_short_sortedset_db: SortedSet,
+    pub open_long_sortedset_db: SortedSet,
+    pub open_short_sortedset_db: SortedSet,
+    pub close_long_sortedset_db: SortedSet,
+    pub close_short_sortedset_db: SortedSet,
+    pub sl_close_long_sortedset_db: SortedSet,
+    pub sl_close_short_sortedset_db: SortedSet,
+    pub tp_close_long_sortedset_db: SortedSet,
+    pub tp_close_short_sortedset_db: SortedSet,
+    pub position_size_log: PositionSizeLog,
+    pub risk_state: RiskState,
+    pub risk_params: Option<RiskParams>,
+    pub localdb_hashmap: HashMap<String, f64>,
+    pub event_offset_partition: (i32, i64),
+    pub event_timestamp: String,
+    pub output_hex_storage: utxo_in_memory::db::LocalStorage<Option<zkvm::zkos_types::Output>>,
+    queue_manager: QueueStateOldV10,
+    pub group_name: String,
+}
+
+impl SnapshotDBOldV10 {
+    pub fn migrate_to_new(&self) -> SnapshotDB {
+        SnapshotDB {
+            orderdb_traderorder: self.orderdb_traderorder.clone(),
+            orderdb_lendorder: self.orderdb_lendorder.clone(),
+            lendpool_database: self.lendpool_database.clone(),
+            liquidation_long_sortedset_db: self.liquidation_long_sortedset_db.clone(),
+            liquidation_short_sortedset_db: self.liquidation_short_sortedset_db.clone(),
+            open_long_sortedset_db: self.open_long_sortedset_db.clone(),
+            open_short_sortedset_db: self.open_short_sortedset_db.clone(),
+            close_long_sortedset_db: self.close_long_sortedset_db.clone(),
+            close_short_sortedset_db: self.close_short_sortedset_db.clone(),
+            sl_close_long_sortedset_db: self.sl_close_long_sortedset_db.clone(),
+            sl_close_short_sortedset_db: self.sl_close_short_sortedset_db.clone(),
+            tp_close_long_sortedset_db: self.tp_close_long_sortedset_db.clone(),
+            tp_close_short_sortedset_db: self.tp_close_short_sortedset_db.clone(),
+            position_size_log: self.position_size_log.clone(),
+            risk_state: self.risk_state.clone(),
+            risk_params: self.risk_params.clone(),
+            localdb_hashmap: self.localdb_hashmap.clone(),
+            event_offset_partition: self.event_offset_partition,
+            event_timestamp: self.event_timestamp.clone(),
+            output_hex_storage: self.output_hex_storage.clone(),
+            queue_manager: self.queue_manager.clone().migrate_to_new(),
+            group_name: self.group_name.clone(),
+        }
+    }
+}
+
+// V11 snapshot format (current — QueueState with SL/TP settle queues)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotDB {
     pub orderdb_traderorder: OrderDBSnapShotTO,
@@ -574,8 +638,8 @@ pub struct SnapshotDB {
 }
 
 /// Current snapshot version written by this binary.
-/// V10 = split SLTP sorted sets into 4 (SL/TP x LONG/SHORT).
-const SNAPSHOT_FORMAT_VERSION: u32 = 10;
+/// V11 = QueueState with SL/TP settle queues.
+const SNAPSHOT_FORMAT_VERSION: u32 = 11;
 
 impl SnapshotDB {
     fn new() -> Self {
@@ -774,38 +838,59 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
     }
 
     match version {
-        // V10: zstd-compressed bincode with split SL/TP sorted sets
-        10 => {
+        // V11: zstd-compressed bincode with QueueState SL/TP settle queues
+        11 => {
             let decompressed = zstd_decompress(payload)?;
             bincode::deserialize::<SnapshotDB>(&decompressed)
                 .map(|s| Some(s))
+                .map_err(|e| format!("V11 deserialize failed: {:#?}", e))
+        }
+        // V10: zstd-compressed bincode with split SL/TP sorted sets (old QueueState)
+        10 => {
+            let decompressed = zstd_decompress(payload)?;
+            bincode::deserialize::<SnapshotDBOldV10>(&decompressed)
+                .map(|s| Some(s.migrate_to_new()))
                 .map_err(|e| format!("V10 deserialize failed: {:#?}", e))
         }
         // V9: zstd-compressed bincode with group_name field (old merged SLTP sets)
         9 => {
             let decompressed = zstd_decompress(payload)?;
             bincode::deserialize::<SnapshotDBOldV9>(&decompressed)
-                .map(|s| Some(s.migrate_to_new()))
+                .map(|s| Some(s.migrate_to_new().migrate_to_new()))
                 .map_err(|e| format!("V9 deserialize failed: {:#?}", e))
         }
         // V8: zstd-compressed bincode with same struct layout as V7 (no group_name)
         8 => {
             let decompressed = zstd_decompress(payload)?;
             bincode::deserialize::<SnapshotDBOldV7>(&decompressed)
-                .map(|s| Some(s.migrate_to_new().migrate_to_new()))
+                .map(|s| Some(s.migrate_to_new().migrate_to_new().migrate_to_new()))
                 .map_err(|e| format!("V8 deserialize failed: {:#?}", e))
         }
         // V7 and below: raw (uncompressed) bincode
         7 => bincode::deserialize::<SnapshotDBOldV7>(payload)
-            .map(|s| Some(s.migrate_to_new().migrate_to_new()))
+            .map(|s| {
+                Some(
+                    s.migrate_to_new()
+                        .migrate_to_new()
+                        .migrate_to_new(),
+                )
+            })
             .map_err(|e| format!("V7 deserialize failed: {:#?}", e)),
         6 => bincode::deserialize::<SnapshotDBOldV6>(payload)
-            .map(|s| Some(s.migrate_to_new().migrate_to_new().migrate_to_new()))
+            .map(|s| {
+                Some(
+                    s.migrate_to_new()
+                        .migrate_to_new()
+                        .migrate_to_new()
+                        .migrate_to_new(),
+                )
+            })
             .map_err(|e| format!("V6 deserialize failed: {:#?}", e)),
         5 => bincode::deserialize::<SnapshotDBOldV5>(payload)
             .map(|s| {
                 Some(
                     s.migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new(),
@@ -816,6 +901,7 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
             .map(|s| {
                 Some(
                     s.migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
@@ -831,6 +917,7 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new(),
                 )
             })
@@ -839,6 +926,7 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
             .map(|s| {
                 Some(
                     s.migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
@@ -858,6 +946,7 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
                         .migrate_to_new()
                         .migrate_to_new()
                         .migrate_to_new()
+                        .migrate_to_new()
                         .migrate_to_new(),
                 )
             })
@@ -870,24 +959,33 @@ fn decode_versioned_snapshot(data: &[u8]) -> Result<Option<SnapshotDB>, String> 
 /// files that were written without a version header.
 fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
     if let Ok(snap) = bincode::deserialize::<SnapshotDB>(data) {
-        crate::log_heartbeat!(info, "Decoded legacy snapshot as V10 (split SL/TP)");
+        crate::log_heartbeat!(info, "Decoded legacy snapshot as V11 (SL/TP queues)");
         return Ok(snap);
+    }
+    if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV10>(data) {
+        crate::log_heartbeat!(info, "Decoded legacy snapshot as V10 (split SL/TP), migrating");
+        return Ok(snap.migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV9>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V9 (merged SLTP), migrating");
-        return Ok(snap.migrate_to_new());
+        return Ok(snap.migrate_to_new().migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV7>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V7, migrating");
-        return Ok(snap.migrate_to_new().migrate_to_new());
+        return Ok(snap.migrate_to_new().migrate_to_new().migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV6>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V6, migrating");
-        return Ok(snap.migrate_to_new().migrate_to_new().migrate_to_new());
+        return Ok(snap
+            .migrate_to_new()
+            .migrate_to_new()
+            .migrate_to_new()
+            .migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV5>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V5, migrating");
         return Ok(snap
+            .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
@@ -900,11 +998,13 @@ fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
+            .migrate_to_new()
             .migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV3>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V3, migrating");
         return Ok(snap
+            .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
@@ -921,11 +1021,13 @@ fn decode_legacy_snapshot(data: &[u8]) -> Result<SnapshotDB, String> {
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
+            .migrate_to_new()
             .migrate_to_new());
     }
     if let Ok(snap) = bincode::deserialize::<SnapshotDBOldV1>(data) {
         crate::log_heartbeat!(info, "Decoded legacy snapshot as V1, migrating");
         return Ok(snap
+            .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
             .migrate_to_new()
@@ -1389,6 +1491,8 @@ impl SnapshotBuilder {
                     _ => {}
                 }
                 self.queue_manager.remove_settle(&order.uuid);
+                self.queue_manager.remove_settle_sl(&order.uuid);
+                self.queue_manager.remove_settle_tp(&order.uuid);
             }
             RpcCommand::RelayerCommandTraderOrderSettleOnLimit(
                 _rpc_request,
@@ -1415,6 +1519,8 @@ impl SnapshotBuilder {
                 }
                 self.queue_manager.remove_fill(&order.uuid);
                 self.queue_manager.remove_settle(&order.uuid);
+                self.queue_manager.remove_settle_sl(&order.uuid);
+                self.queue_manager.remove_settle_tp(&order.uuid);
             }
             RpcCommand::CreateTraderOrderSlTp(_, _, _, _, _, _) => {}
             RpcCommand::CancelTraderOrderSlTp(_, _, _, _, _) => {}
@@ -1611,6 +1717,16 @@ impl SnapshotBuilder {
         self.queue_manager.bulk_insert_to_settle(
             &mut self.close_short_sortedset_db,
             &mut self.close_long_sortedset_db,
+            current_price,
+        );
+        self.queue_manager.bulk_insert_to_settle_sl(
+            &mut self.sl_close_short_sortedset_db,
+            &mut self.sl_close_long_sortedset_db,
+            current_price,
+        );
+        self.queue_manager.bulk_insert_to_settle_tp(
+            &mut self.tp_close_short_sortedset_db,
+            &mut self.tp_close_long_sortedset_db,
             current_price,
         );
     }
