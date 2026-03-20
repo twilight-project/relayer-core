@@ -59,7 +59,7 @@ zstd = "0.13"
 
 [dependencies.twilight-relayer-sdk]
 git = "https://github.com/twilight-project/twilight-relayer-sdk.git"
-branch = "sltp"
+tag = "v0.1.2"
 
 [dependencies.nyks-wallet]
 git = "https://github.com/twilight-project/nyks-wallet.git"
