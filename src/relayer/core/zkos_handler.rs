@@ -525,6 +525,171 @@ pub fn zkos_order_handler(
                                 }
                             }
                         }
+                        // if sltp order gets filled on market, it will be handled here
+                        RpcCommand::ExecuteTraderOrderSlTp(
+                            order_request,
+                            sltp_order,
+                            meta,
+                            zkos_hex_string,
+                            request_id,
+                        ) => {
+                            let zkos_settle_msg_result =
+                                ZkosSettleMsg::decode_from_hex_string(zkos_hex_string);
+
+                            match zkos_settle_msg_result {
+                                Ok(zkos_settle_msg) => {
+                                    let contract_owner_sk = get_sk_from_fixed_wallet();
+
+                                    let contract_owner_pk = get_pk_from_fixed_wallet();
+
+                                    let lock_error = get_lock_error_for_trader_settle(
+                                        trader_order.clone()
+                                    );
+
+                                    let mut margin_dif =
+                                        (
+                                            trader_order.available_margin.round() -
+                                            trader_order.initial_margin.round()
+                                        ).clone() - trader_order.unrealized_pnl.round();
+
+                                    let mut program_tag = "SettleTraderOrder".to_string();
+
+                                    if margin_dif < 0.0 {
+                                        margin_dif = margin_dif * -1.0;
+                                        program_tag =
+                                            "SettleTraderOrderNegativeMarginDifference".to_string();
+                                    }
+
+                                    let margin_dif_u64 = margin_dif.round() as u64;
+                                    let is_state_updated = is_state_updated(&last_state_output);
+                                    if !is_state_updated {
+                                        let sender_clone = sender.clone();
+                                        match
+                                            sender_clone.send(
+                                                Err(
+                                                    "Tx Failed due to missing latest state update".to_string()
+                                                )
+                                            )
+                                        {
+                                            Ok(_) => {
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Tx Failed due to missing latest state update"
+                                                );
+                                            }
+                                            Err(_) => {
+                                                crate::log_trading!(
+                                                    error,
+                                                    "Tx Failed due to missing latest state update"
+                                                );
+                                            }
+                                        }
+                                        return;
+                                    }
+                                    let transaction = settle_trader_order(
+                                        zkos_settle_msg.output.clone(),
+                                        trader_order.available_margin.clone().round() as u64,
+                                        &ContractManager::import_program(
+                                            &WALLET_PROGRAM_PATH.clone()
+                                        ),
+                                        Network::Mainnet,
+                                        trader_order.fee_settled.round() as u64,
+                                        last_state_output
+                                            .as_output_data()
+                                            .get_owner_address()
+                                            .unwrap()
+                                            .clone(),
+                                        last_state_output.clone(),
+                                        next_state_output.clone(),
+                                        lock_error,
+                                        margin_dif_u64,
+                                        trader_order.settlement_price.round() as u64,
+                                        contract_owner_sk,
+                                        contract_owner_pk,
+                                        program_tag
+                                    );
+
+                                    let tx_hash_result = match transaction {
+                                        Ok(tx) =>
+                                            transaction_queue_to_confirm_relayer_latest_state(
+                                                last_state_output.clone(),
+                                                tx,
+                                                next_state_output.clone()
+                                            ),
+                                        Err(arg) => Err(arg.to_string()),
+                                    };
+                                    let sender_clone = sender.clone();
+                                    match sender_clone.send(tx_hash_result.clone()) {
+                                        Ok(_) => {}
+                                        Err(_) => {
+                                            crate::log_trading!(
+                                                error,
+                                                "error in sender at line 1564"
+                                            );
+                                        }
+                                    }
+
+                                    match tx_hash_result {
+                                        Ok(tx_hash) => {
+                                            Event::new(
+                                                Event::TxHash(
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        tx_hash.clone(),
+                                                        OrderType::MARKET,
+                                                        trader_order.order_status,
+                                                        request_id,
+                                                    ).with_reason(format!("Settled trader order with sltp order: {:?}", sltp_order))
+                                                ),
+                                                format!("tx_hash_result-{:?}", tx_hash),
+                                                CORE_EVENT_LOG.clone().to_string()
+                                            );
+                                        }
+                                        Err(arg) => {
+                                            Event::new(
+                                                Event::TxHash(
+                                                    TxHashData::new(
+                                                        trader_order.uuid,
+                                                        trader_order.account_id,
+                                                        String::new(),
+                                                        trader_order.order_type,
+                                                        OrderStatus::RejectedFromChain,
+                                                        request_id,
+                                                    )
+                                                    .with_reason(format!("Error : {:?}, Failed to settle trader order", arg))
+                                                ),
+                                                String::from("tx_hash_error"),
+                                                CORE_EVENT_LOG.clone().to_string()
+                                            );
+                                        }
+                                    }
+                                }
+                                Err(arg) => {
+                                    crate::log_trading!(
+                                        error,
+                                        "Error:ZkosTxCommand::ExecuteTraderOrderTX : arg:{:#?} for order_id:{}",
+                                        arg,
+                                        order_request.uuid
+                                    );
+                                    Event::new(
+                                        Event::TxHash(
+                                            TxHashData::new(
+                                                trader_order.uuid,
+                                                trader_order.account_id,
+                                                String::new(),
+                                                trader_order.order_type,
+                                                OrderStatus::SerializationError,
+                                                request_id,
+                                            )
+                                            .with_reason(format!("Error : {:?}, Failed to settle trader order", arg))
+                                        ),
+                                        String::from("tx_hash_error"),
+                                        CORE_EVENT_LOG.clone().to_string()
+                                    );
+                                }
+                            }
+                        }
                         _ => {}
                     }
                 });
