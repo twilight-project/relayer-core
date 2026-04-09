@@ -282,6 +282,8 @@ impl TraderOrder {
     ) -> (f64, OrderStatus) {
         let mut payment: f64 = 0.0;
         let mut orderstatus: OrderStatus = OrderStatus::FILLED;
+        let mut sl_status: (bool, f64) = (false, 0.0);
+        let mut tp_status: (bool, f64) = (false, 0.0);
         match cmd_order_type {
             OrderType::MARKET => {
                 payment =
@@ -330,12 +332,7 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated =
-                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                                    sl,
-                                                    SlTpOrderType::StopLoss,
-                                                    request_id
-                                                );
+                                    sl_status = (true, sl);
                                 }
                             }
                             PositionType::SHORT => {
@@ -346,18 +343,11 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated =
-                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                                    sl,
-                                                    SlTpOrderType::StopLoss,
-                                                    request_id
-                                                );
+                                    sl_status = (true, sl);
                                 }
                             }
                         },
-                        None => {
-                            println!("sl is none");
-                        }
+                        None => {}
                     }
                     match sltp.tp {
                         Some(tp) => match self.position_type {
@@ -369,12 +359,7 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated =
-                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                                    tp,
-                                                    SlTpOrderType::TakeProfit,
-                                                    request_id
-                                                );
+                                    tp_status = (true, tp);
                                 }
                             }
                             PositionType::SHORT => {
@@ -385,27 +370,36 @@ impl TraderOrder {
                                     );
                                     orderstatus = OrderStatus::SETTLED;
                                 } else {
-                                    let order_caluculated =
-                                                self.set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
-                                                    tp,
-                                                    SlTpOrderType::TakeProfit,
-                                                    request_id
-                                                );
+                                    tp_status = (true, tp);
                                 }
                             }
                         },
-                        None => {
-                            println!("tp is none");
-                        }
+                        None => {}
                     }
                 }
-                None => {
-                    println!("sltp is none");
-                }
+                None => {}
             },
             _ => {}
         }
+        if orderstatus != OrderStatus::SETTLED {
+            if sl_status.0 {
+                let _order_caluculated = self
+                    .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                        sl_status.1,
+                        SlTpOrderType::StopLoss,
+                        request_id,
+                    );
+            }
 
+            if tp_status.0 {
+                let _order_caluculated = self
+                    .set_execution_price_for_limit_order_stoploss_takeprofit_localdb(
+                        tp_status.1,
+                        SlTpOrderType::TakeProfit,
+                        request_id,
+                    );
+            }
+        }
         (payment, orderstatus)
     }
 
