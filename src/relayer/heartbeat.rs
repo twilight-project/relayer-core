@@ -505,7 +505,7 @@ pub fn updatefundingrate_localdb(psi: f64) {
     } else {
         fundingrate = f64::powi((totallong - totalshort) / allpositionsize, 2) / (psi * 8.0);
     }
-
+    fundingrate = (fundingrate * 1_000_000.0).round() / 1_000_000.0;
     //positive funding if totallong > totalshort else negative funding
     if totallong <= totalshort {
         fundingrate = fundingrate * -1.0;
