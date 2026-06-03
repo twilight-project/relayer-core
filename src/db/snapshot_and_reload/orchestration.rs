@@ -377,8 +377,51 @@ pub fn load_from_snapshot() -> Result<QueueState, String> {
             *tp_close_short_sortedset_db = snapshot_data.tp_close_short_sortedset_db.clone();
             *position_size_log = snapshot_data.position_size_log.clone();
             {
+                // Risk-state reconcile (BTC -> USD migration + self-healing).
+                //
+                // Exposure is netted in USD notional. Older snapshots/events stored it
+                // as BTC entry value, and post-snapshot events can replay stale values
+                // on top of the loaded state. Rather than trust the snapshot's exposure
+                // numbers, recompute them from the authoritative order table, where each
+                // order's `positionsize` is exactly the USD notional fixed at its entry
+                // price. Control flags are preserved from the snapshot.
+                let mut total_long_usd: f64 = 0.0;
+                let mut total_short_usd: f64 = 0.0;
+                let mut total_pending_long_usd: f64 = 0.0;
+                let mut total_pending_short_usd: f64 = 0.0;
+                for (_uuid, order) in snapshot_data.orderdb_traderorder.ordertable.iter() {
+                    let notional_usd = order.positionsize;
+                    match (&order.order_status, &order.position_type) {
+                        (OrderStatus::FILLED, PositionType::LONG) => total_long_usd += notional_usd,
+                        (OrderStatus::FILLED, PositionType::SHORT) => total_short_usd += notional_usd,
+                        (OrderStatus::PENDING, PositionType::LONG) => {
+                            total_pending_long_usd += notional_usd
+                        }
+                        (OrderStatus::PENDING, PositionType::SHORT) => {
+                            total_pending_short_usd += notional_usd
+                        }
+                        _ => {}
+                    }
+                }
+
+                let mut reconciled = snapshot_data.risk_state.clone();
+                reconciled.total_long_usd = total_long_usd;
+                reconciled.total_short_usd = total_short_usd;
+                reconciled.total_pending_long_usd = total_pending_long_usd;
+                reconciled.total_pending_short_usd = total_pending_short_usd;
+                reconciled.reservations.clear();
+
+                crate::log_heartbeat!(
+                    info,
+                    "RISK_ENGINE: Reconciled exposure from order table (USD) - filled_long={}, filled_short={}, pending_long={}, pending_short={}",
+                    total_long_usd,
+                    total_short_usd,
+                    total_pending_long_usd,
+                    total_pending_short_usd
+                );
+
                 let mut risk_engine_state = RISK_ENGINE_STATE.lock().unwrap();
-                *risk_engine_state = snapshot_data.risk_state.clone();
+                *risk_engine_state = reconciled;
                 drop(risk_engine_state);
             }
             if let Some(ref params) = snapshot_data.risk_params {

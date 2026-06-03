@@ -209,31 +209,26 @@ impl TraderOrder {
 
     pub fn orderinsert_localdb(self, order_entry_status: bool) -> TraderOrder {
         let ordertx = self.clone();
-        // Risk engine bookkeeping: track BTC exposure separately for filled vs pending
+        // Risk engine bookkeeping: track USD notional (positionsize = im*lev*entry_price)
+        // separately for filled vs (informational) pending exposure.
         if ordertx.order_status == OrderStatus::FILLED && ordertx.order_type == OrderType::MARKET {
-            RiskState::add_order(
-                ordertx.position_type.clone(),
-                entryvalue(ordertx.initial_margin, ordertx.leverage),
-            );
+            // Fresh market admission commits: filled += notional, release reservation.
+            RiskState::add_order(ordertx.position_type.clone(), ordertx.positionsize);
+            RiskState::finalize_reservation(ordertx.uuid);
         } else if ordertx.order_status == OrderStatus::PENDING
             && ordertx.order_type == OrderType::LIMIT
         {
-            RiskState::add_pending_order(
-                ordertx.position_type.clone(),
-                entryvalue(ordertx.initial_margin, ordertx.leverage),
-            );
+            // Fresh limit admission rests on the book: record informational pending,
+            // release the admission reservation (resting limits don't reserve headroom).
+            RiskState::add_pending_order(ordertx.position_type.clone(), ordertx.positionsize);
+            RiskState::finalize_reservation(ordertx.uuid);
         } else if ordertx.order_status == OrderStatus::FILLED
             && ordertx.order_type == OrderType::LIMIT
         {
-            // Limit order fill: move exposure from pending → filled
-            RiskState::remove_pending_order(
-                ordertx.position_type.clone(),
-                entryvalue(ordertx.initial_margin, ordertx.leverage),
-            );
-            RiskState::add_order(
-                ordertx.position_type.clone(),
-                entryvalue(ordertx.initial_margin, ordertx.leverage),
-            );
+            // Limit order fill: move exposure from (informational) pending → filled.
+            // No reservation involved (it was released when the order first rested).
+            RiskState::remove_pending_order(ordertx.position_type.clone(), ordertx.positionsize);
+            RiskState::add_order(ordertx.position_type.clone(), ordertx.positionsize);
         }
         if order_entry_status {
             // Adding in side wise and total position size
@@ -888,10 +883,7 @@ impl TraderOrder {
     pub fn order_remove_from_localdb(&self, order_type_ref: &OrderType, request_id: &String) {
         let ordertx = self.clone();
         PositionSizeLog::remove_order(ordertx.position_type.clone(), ordertx.positionsize.clone());
-        RiskState::remove_order(
-            ordertx.position_type.clone(),
-            entryvalue(ordertx.initial_margin, ordertx.leverage),
-        );
+        RiskState::remove_order(ordertx.position_type.clone(), ordertx.positionsize);
         match ordertx.position_type {
             PositionType::LONG => {
                 let mut add_to_liquidation_list = TRADER_LP_LONG.lock().unwrap();
@@ -1128,8 +1120,9 @@ impl TraderOrder {
                             self.order_status = OrderStatus::CANCELLED;
                             RiskState::remove_pending_order(
                                 self.position_type.clone(),
-                                entryvalue(self.initial_margin, self.leverage),
+                                self.positionsize,
                             );
+                            RiskState::finalize_reservation(self.uuid);
                             Event::new(
                                 Event::SortedSetDBUpdate(
                                     SortedSetCommand::RemoveOpenLimitPrice(
@@ -1157,8 +1150,9 @@ impl TraderOrder {
                             self.order_status = OrderStatus::CANCELLED;
                             RiskState::remove_pending_order(
                                 self.position_type.clone(),
-                                entryvalue(self.initial_margin, self.leverage),
+                                self.positionsize,
                             );
+                            RiskState::finalize_reservation(self.uuid);
                             Event::new(
                                 Event::SortedSetDBUpdate(
                                     SortedSetCommand::RemoveOpenLimitPrice(

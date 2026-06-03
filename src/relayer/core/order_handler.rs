@@ -62,6 +62,9 @@ pub fn rpc_event_handler(
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
+                // Copy uuid up front so reservation release works in nested closures
+                // even after `orderdata` is moved on success paths.
+                let order_uuid = orderdata.uuid;
 
                 // Risk engine validation gate
                 let pool_equity_btc = {
@@ -69,10 +72,14 @@ pub fn rpc_event_handler(
                     pool.total_locked_value
                 };
                 let risk_params = RISK_PARAMS.lock().unwrap().clone();
+                let mark_price = get_localdb("CurrentPrice");
                 match validate_open_order(
                     &rpc_request.position_type,
+                    order_uuid,
                     rpc_request.initial_margin,
                     rpc_request.leverage,
+                    orderdata.entryprice,
+                    mark_price,
                     pool_equity_btc,
                     &risk_params,
                 ) {
@@ -142,6 +149,8 @@ pub fn rpc_event_handler(
                                                 orderdata_clone.account_id.clone(),
                                             );
                                             drop(trader_order_db);
+                                            // Admission failed on-chain: release reserved headroom.
+                                            RiskState::finalize_reservation(order_uuid);
                                         }
                                     },
                                     Err(arg) => {
@@ -149,6 +158,8 @@ pub fn rpc_event_handler(
                                         let _ = trader_order_db
                                             .remove_order_check(orderdata_clone.account_id.clone());
                                         drop(trader_order_db);
+                                        // Admission failed (channel error): release reserved headroom.
+                                        RiskState::finalize_reservation(order_uuid);
                                     }
                                 }
                                 match tx_consumed.send(offset_completion) {
@@ -184,6 +195,8 @@ pub fn rpc_event_handler(
                                 Err(_) => {}
                             }
                         } else {
+                            // Unexpected status: release reserved headroom.
+                            RiskState::finalize_reservation(order_uuid);
                             crate::log_heartbeat!(
                                 warn,
                                 "Unexpected order status {:?} for order={}, skipping",
@@ -196,6 +209,8 @@ pub fn rpc_event_handler(
                             }
                         }
                     } else {
+                        // Duplicate order: release the headroom reserved at validation.
+                        RiskState::finalize_reservation(order_uuid);
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
@@ -218,6 +233,8 @@ pub fn rpc_event_handler(
                         }
                     }
                 } else {
+                    // Invalid parameters after admission: release reserved headroom.
+                    RiskState::finalize_reservation(order_uuid);
                     Event::new(
                         Event::TxHash(
                             TxHashData::new(
@@ -1247,6 +1264,9 @@ pub fn rpc_event_handler(
                 let (orderdata, status) = TraderOrder::new_order(rpc_request.clone());
                 let orderdata_clone = orderdata.clone();
                 let orderdata_clone_for_zkos = orderdata.clone();
+                // Copy uuid up front so reservation release works in nested closures
+                // even after `orderdata` is moved on success paths.
+                let order_uuid = orderdata.uuid;
 
                 // Risk engine validation gate
                 let pool_equity_btc = {
@@ -1254,10 +1274,14 @@ pub fn rpc_event_handler(
                     pool.total_locked_value
                 };
                 let risk_params = RISK_PARAMS.lock().unwrap().clone();
+                let mark_price = get_localdb("CurrentPrice");
                 match validate_open_order(
                     &rpc_request.position_type,
+                    order_uuid,
                     rpc_request.initial_margin,
                     rpc_request.leverage,
+                    orderdata.entryprice,
+                    mark_price,
                     pool_equity_btc,
                     &risk_params,
                 ) {
@@ -1327,6 +1351,8 @@ pub fn rpc_event_handler(
                                                 orderdata_clone.account_id.clone(),
                                             );
                                             drop(trader_order_db);
+                                            // Admission failed on-chain: release reserved headroom.
+                                            RiskState::finalize_reservation(order_uuid);
                                         }
                                     },
                                     Err(arg) => {
@@ -1334,6 +1360,8 @@ pub fn rpc_event_handler(
                                         let _ = trader_order_db
                                             .remove_order_check(orderdata_clone.account_id.clone());
                                         drop(trader_order_db);
+                                        // Admission failed (channel error): release reserved headroom.
+                                        RiskState::finalize_reservation(order_uuid);
                                     }
                                 }
                                 match tx_consumed.send(offset_completion) {
@@ -1366,6 +1394,8 @@ pub fn rpc_event_handler(
                                 Err(_) => {}
                             }
                         } else {
+                            // Unexpected status: release reserved headroom.
+                            RiskState::finalize_reservation(order_uuid);
                             crate::log_heartbeat!(
                                 warn,
                                 "Unexpected order status {:?} for sltp order={}, skipping",
@@ -1378,6 +1408,8 @@ pub fn rpc_event_handler(
                             }
                         }
                     } else {
+                        // Duplicate order: release the headroom reserved at validation.
+                        RiskState::finalize_reservation(order_uuid);
                         // send event for txhash with error saying order already exist in the relayer
                         Event::new(
                             Event::TxHash(
@@ -1400,6 +1432,8 @@ pub fn rpc_event_handler(
                         }
                     }
                 } else {
+                    // Invalid parameters after admission: release reserved headroom.
+                    RiskState::finalize_reservation(order_uuid);
                     Event::new(
                         Event::TxHash(
                             TxHashData::new(

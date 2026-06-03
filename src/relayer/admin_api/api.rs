@@ -703,26 +703,28 @@ pub fn startserver() {
             .name(String::from("recalculate_risk_state"))
             .spawn(move || {
                 let trader_order_db = TRADER_ORDER_DB.lock().unwrap();
-                let mut total_long_btc: f64 = 0.0;
-                let mut total_short_btc: f64 = 0.0;
-                let mut total_pending_long_btc: f64 = 0.0;
-                let mut total_pending_short_btc: f64 = 0.0;
+                // Exposure is netted in USD notional. positionsize = im*lev*entry_price
+                // is exactly that quantity, fixed at each order's entry price.
+                let mut total_long_usd: f64 = 0.0;
+                let mut total_short_usd: f64 = 0.0;
+                let mut total_pending_long_usd: f64 = 0.0;
+                let mut total_pending_short_usd: f64 = 0.0;
 
                 for (_uuid, order_arc) in trader_order_db.ordertable.iter() {
                     let order = order_arc.read().unwrap();
-                    let entry_value = entryvalue(order.initial_margin, order.leverage);
+                    let notional_usd = order.positionsize;
                     match (&order.order_status, &order.position_type) {
                         (OrderStatus::FILLED, PositionType::LONG) => {
-                            total_long_btc += entry_value;
+                            total_long_usd += notional_usd;
                         }
                         (OrderStatus::FILLED, PositionType::SHORT) => {
-                            total_short_btc += entry_value;
+                            total_short_usd += notional_usd;
                         }
                         (OrderStatus::PENDING, PositionType::LONG) => {
-                            total_pending_long_btc += entry_value;
+                            total_pending_long_usd += notional_usd;
                         }
                         (OrderStatus::PENDING, PositionType::SHORT) => {
-                            total_pending_short_btc += entry_value;
+                            total_pending_short_usd += notional_usd;
                         }
                         _ => {}
                     }
@@ -731,18 +733,18 @@ pub fn startserver() {
 
                 crate::log_heartbeat!(
                     warn,
-                    "RISK_ENGINE: Recalculated exposure - filled_long={}, filled_short={}, pending_long={}, pending_short={}",
-                    total_long_btc,
-                    total_short_btc,
-                    total_pending_long_btc,
-                    total_pending_short_btc
+                    "RISK_ENGINE: Recalculated exposure (USD) - filled_long={}, filled_short={}, pending_long={}, pending_short={}",
+                    total_long_usd,
+                    total_short_usd,
+                    total_pending_long_usd,
+                    total_pending_short_usd
                 );
 
                 RiskState::recalculate_exposure(
-                    total_long_btc,
-                    total_short_btc,
-                    total_pending_long_btc,
-                    total_pending_short_btc,
+                    total_long_usd,
+                    total_short_usd,
+                    total_pending_long_usd,
+                    total_pending_short_usd,
                 );
             })
             .unwrap();
