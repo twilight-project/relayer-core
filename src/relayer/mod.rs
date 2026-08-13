@@ -9,6 +9,7 @@ mod lendorder;
 mod checkservertime;
 // mod queueresolver;
 mod core;
+pub mod prediction;
 mod risk_engine;
 mod rpc_types;
 mod threadpool;
